@@ -17,9 +17,9 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'DipCoatImage-FiniteDepth'
-copyright = '2022, Jisoo Song'
-author = 'Jisoo Song'
+project = "DipCoatImage-FiniteDepth"
+copyright = "2022, Jisoo Song"
+author = "Jisoo Song"
 
 
 # -- General configuration ---------------------------------------------------
@@ -28,17 +28,17 @@ author = 'Jisoo Song'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.intersphinx',
-    'matplotlib.sphinxext.plot_directive',
-    'numpydoc',
+    "sphinx.ext.autodoc",
+    "sphinx.ext.intersphinx",
+    "matplotlib.sphinxext.plot_directive",
+    "numpydoc",
 ]
 
 numpydoc_show_class_members = False
 numpydoc_use_plots = True
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -46,9 +46,9 @@ templates_path = ['_templates']
 exclude_patterns = []
 
 intersphinx_mapping = {
-    'python': ('http://docs.python.org/', None),
-    'numpy': ('https://numpy.org/doc/stable/', None),
-    'cattrs': ('https://cattrs.readthedocs.io/en/latest/', None)
+    "python": ("http://docs.python.org/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "cattrs": ("https://cattrs.readthedocs.io/en/latest/", None),
 }
 
 # -- Options for HTML output -------------------------------------------------
@@ -56,12 +56,12 @@ intersphinx_mapping = {
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+html_theme = "sphinx_rtd_theme"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ["_static"]
 
 plot_html_show_formats = False
 plot_html_show_source_link = False
