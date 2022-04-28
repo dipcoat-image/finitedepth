@@ -1,0 +1,117 @@
+name: dipcoatimage-finitedepth test
+
+on: [push, pull_request]
+
+jobs:
+
+  lint:
+
+    runs-on: ubuntu-latest
+
+    steps: 
+
+      - name: get repo
+        uses: actions/checkout@v2
+
+      - name: set up Python
+        uses: actions/setup-python@v2
+
+      - name: install dependencies
+        run: |
+          pip install -r requirements/test.txt
+
+      - run: |
+          flake8
+          black --check .
+
+  type-check:
+
+    needs: lint
+
+    runs-on: ubuntu-latest
+
+    steps: 
+
+      - name: get repo
+        uses: actions/checkout@v2
+
+      - name: set up Python
+        uses: actions/setup-python@v2
+
+      - name: install package
+        run: |
+          pip install .[test]
+
+      - name: run mypy check
+        run: mypy .
+
+  unit-test:
+
+    needs: type-check
+
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os : [ubuntu-latest]
+        python: ["3.9", "3.10"]
+
+    env:
+      DISPLAY: ':99.0'
+
+    steps:
+
+      - name: get repo
+        uses: actions/checkout@v2
+
+      - name: set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: update apt-get
+        run: sudo apt-get update
+
+      - name: install xvfb in ${{ matrix.os }}
+        run: >
+          sudo apt-get install libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0
+          libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0
+          libxcb-xfixes0
+
+      - name: install libopengl in ${{ matrix.os }}
+        run: sudo apt-get install freeglut3 freeglut3-dev
+
+      - name: install gstreamer in ${{ matrix.os }}
+        run: >
+          sudo apt-get install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
+          gstreamer1.0-plugins-base gstreamer1.0-plugins-good
+          gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav
+
+      - name: install package
+        run: |
+          pip install .[test-ci]
+
+      - run: pytest
+
+  doc:
+
+    needs: unit-test
+
+    runs-on: ubuntu-latest
+
+    steps: 
+
+      - name: get repo
+        uses: actions/checkout@v2
+
+      - name: set up Python
+        uses: actions/setup-python@v2
+
+      - name: install package
+        run: |
+          pip install .[doc]
+
+      - name: build document
+        run: |
+          cd doc
+          make html SPHINXOPTS="-W --keep-going"
