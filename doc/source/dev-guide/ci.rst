@@ -2,6 +2,8 @@
 CI
 ==
 
+This document explains important informations to set CI workflows.
+
 Dependencies
 ============
 

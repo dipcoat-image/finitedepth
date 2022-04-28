@@ -53,6 +53,8 @@ If you need non-GUI version, see the next section first.
 Install options
 ---------------
 
+.. _install-options:
+
 There are two types of install options for developers.
 
 * Install with editable option (``-e``)
@@ -65,9 +67,10 @@ Dependency specification installs additional modules which are required to
 access extra features of the package. You may add them in brackets right after
 the package argument. Available specifications are:
 
-* ``test`` : installs modules to run unit tests
-* ``doc`` : installs modules to build documentations
-* ``full`` : installs every additional dependency
+* ``test``: installs modules to run tests
+* ``test-ci``: installs modules to run tests in headless environment.
+* ``doc``: installs modules to build documentations
+* ``full``: installs every additional dependency
 
 With commas without trailing whitespaces, i.e. ``[A,B]``, you can pass multiple
 specifications.
