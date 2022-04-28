@@ -1,7 +1,7 @@
 from collections import defaultdict
 from itertools import chain
 import os
-from setuptools import setup, find_namespace_packages
+from setuptools import setup, find_namespace_packages  # type: ignore
 
 
 HEADLESS = bool(int(os.getenv("DIPCOATIMAGE_HEADLESS", 0)))
