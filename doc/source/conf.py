@@ -49,6 +49,7 @@ intersphinx_mapping = {
     "python": ("http://docs.python.org/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "cattrs": ("https://cattrs.readthedocs.io/en/latest/", None),
+    "black": ("https://black.readthedocs.io/en/stable/", None),
 }
 
 # -- Options for HTML output -------------------------------------------------
