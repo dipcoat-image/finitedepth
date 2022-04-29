@@ -16,12 +16,16 @@ Core utilities
 .. automodule:: dipcoatimage.finitedepth.util.path
    :members:
 
+.. automodule:: dipcoatimage.finitedepth.util.typing
+   :members:
+
 """
 
 from .dataclass import data_converter
 from .geometry import get_extended_line
 from .importing import import_variable, get_importinfo
 from .path import get_samples_path, cwd
+from .typing import DataclassProtocol, OptionalROI, IntROI
 
 __all__ = [
     "data_converter",
@@ -30,4 +34,7 @@ __all__ = [
     "get_importinfo",
     "get_samples_path",
     "cwd",
+    "DataclassProtocol",
+    "OptionalROI",
+    "IntROI",
 ]
