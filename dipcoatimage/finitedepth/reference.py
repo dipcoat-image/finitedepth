@@ -12,7 +12,7 @@ import abc
 import dataclasses
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Type, Optional, cast, Tuple
+from typing import TypeVar, Generic, Type, Optional, cast, Tuple
 from .util import DataclassProtocol, OptionalROI, IntROI
 
 
@@ -23,7 +23,7 @@ ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
 DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
 
 
-class SubstrateReferenceBase(abc.ABC):
+class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     """
     Abstract base class for substrate reference image.
 
@@ -89,12 +89,12 @@ class SubstrateReferenceBase(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def Parameters(self) -> Type:
+    def Parameters(self) -> Type[ParametersType]:
         """Frozen dataclass type for additional parameters in concrete class."""
 
     @property
     @abc.abstractmethod
-    def DrawOptions(self) -> Type:
+    def DrawOptions(self) -> Type[DrawOptionsType]:
         """Dataclass type for drawing options in concrete class."""
 
     def __init__(
