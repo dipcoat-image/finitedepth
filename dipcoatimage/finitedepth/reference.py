@@ -44,6 +44,11 @@ class SubstrateReferenceBase(abc.ABC):
     parameters by defining dataclass and assigning to class attribute
     :attr:`Parameters` and :attr:`DrawOptions`.
 
+    Sanity check
+    ------------
+
+    Validity of the parameters can be checked by :meth:`verify` or :meth:`valid`.
+
     Parameters
     ==========
 
@@ -173,10 +178,40 @@ class SubstrateReferenceBase(abc.ABC):
 
     @property
     def temp2subst(self) -> Tuple[int, int]:
-        """
-        Vector from ``(x0, y0)`` of :attr:`templateROI` to ``(x0, y0)``
-        of :attr:`substrateROI`.
-        """
+        """Vector from :attr:`template_image` to :attr:`substrate_image`."""
         x0, y0 = self.templateROI[:2]
         x1, y1 = self.substrateROI[:2]
         return (x1 - x0, y1 - y0)
+
+    @abc.abstractmethod
+    def examine(self) -> Optional[Exception]:
+        """
+        Check the sanity of parameters.
+
+        Returns
+        =======
+
+        Error instance if the instance is invalid, else ``None``.
+        """
+
+    def verify(self):
+        """
+        Verify if all parameters are suitably set by raising error on failure.
+
+        To implement sanity check for concrete subclass, define :meth:`examine`.
+        """
+        err = self.examine()
+        if err is not None:
+            raise err
+
+    def valid(self) -> bool:
+        """
+        Verify if all parameters are suitably set by returning boolean value.
+
+        To implement sanity check for concrete subclass, define :meth:`examine`.
+        """
+        err = self.examine()
+        ret = True
+        if err is not None:
+            ret = False
+        return ret
