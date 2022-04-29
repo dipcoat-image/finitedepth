@@ -282,6 +282,27 @@ class SubstrateReferenceDrawOptions:
 class SubstrateReference(
     SubstrateReferenceBase[SubstrateReferenceParameters, SubstrateReferenceDrawOptions]
 ):
+    """
+    Substrate reference class. Image is considered to be RGB.
+
+    Examples
+    ========
+
+    .. plot::
+       :include-source:
+
+       >>> import cv2
+       >>> from dipcoatimage.finitedepth import (SubstrateReference,
+       ...     get_samples_path)
+       >>> ref_path = get_samples_path('ref1.png')
+       >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+       >>> tempROI = (200, 50, 1200, 200)
+       >>> substROI = (400, 100, 1000, 500)
+       >>> ref = SubstrateReference(img, tempROI, substROI)
+       >>> import matplotlib.pyplot as plt #doctest: +SKIP
+       >>> plt.imshow(ref.draw()) #doctest: +SKIP
+
+    """
     Parameters = SubstrateReferenceParameters
     DrawOptions = SubstrateReferenceDrawOptions
 
@@ -289,7 +310,7 @@ class SubstrateReference(
         return None
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
+        ret = self.image.copy()
 
         if self.draw_options.draw_substrateROI:
             x0, y0, x1, y1 = self.substrateROI
