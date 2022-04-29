@@ -9,6 +9,7 @@ finite-depth substrate. It is used to analyze coated substrate image.
 
 
 import abc
+import cv2  # type: ignore
 import dataclasses
 import numpy as np
 import numpy.typing as npt
@@ -16,7 +17,12 @@ from typing import TypeVar, Generic, Type, Optional, cast, Tuple
 from .util import DataclassProtocol, OptionalROI, IntROI
 
 
-__all__ = ["SubstrateReferenceBase"]
+__all__ = [
+    "SubstrateReferenceBase",
+    "SubstrateReferenceParameters",
+    "SubstrateReferenceDrawOptions",
+    "SubstrateReference",
+]
 
 
 ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
@@ -227,3 +233,73 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     @abc.abstractmethod
     def draw(self) -> npt.NDArray[np.uint8]:
         """Decorate and return the reference image."""
+
+
+@dataclasses.dataclass(frozen=True)
+class SubstrateReferenceParameters:
+    """Additional parameters for :class:`SubstrateReference` instance."""
+
+    pass
+
+
+@dataclasses.dataclass
+class SubstrateReferenceDrawOptions:
+    """
+    Drawing options for :class:`SubstrateReference`.
+
+    Parameters
+    ==========
+
+    draw_templateROI
+        Flag whether to draw template ROI box.
+
+    templateROI_color
+        Color for template ROI box. Ignored if *draw_templateROI* is false.
+
+    templateROI_thickness
+        Thickness for template ROI box. Ignored if *draw_templateROI* is false.
+
+    draw_substrateROI
+        Flag whether to draw substrate ROI box.
+
+    substrateROI_color
+        Color for substrate ROI box. Ignored if *draw_substrateROI* is false.
+
+    substrateROI_thickness
+        Thickness for substrate ROI box. Ignored if *draw_substrateROI* is false.
+
+    """
+
+    draw_templateROI: bool = True
+    templateROI_color: Tuple[int, int, int] = (0, 255, 0)
+    templateROI_thickness: int = 1
+
+    draw_substrateROI: bool = True
+    substrateROI_color: Tuple[int, int, int] = (255, 0, 0)
+    substrateROI_thickness: int = 1
+
+
+class SubstrateReference(
+    SubstrateReferenceBase[SubstrateReferenceParameters, SubstrateReferenceDrawOptions]
+):
+    Parameters = SubstrateReferenceParameters
+    DrawOptions = SubstrateReferenceDrawOptions
+
+    def examine(self) -> Optional[Exception]:
+        return None
+
+    def draw(self) -> npt.NDArray[np.uint8]:
+        ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
+
+        if self.draw_options.draw_substrateROI:
+            x0, y0, x1, y1 = self.substrateROI
+            color = self.draw_options.substrateROI_color
+            thickness = self.draw_options.substrateROI_thickness
+            cv2.rectangle(ret, (x0, y0), (x1, y1), color, thickness)
+
+        if self.draw_options.draw_templateROI:
+            x0, y0, x1, y1 = self.templateROI
+            color = self.draw_options.templateROI_color
+            thickness = self.draw_options.templateROI_thickness
+            cv2.rectangle(ret, (x0, y0), (x1, y1), color, thickness)
+        return ret

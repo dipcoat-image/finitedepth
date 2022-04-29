@@ -6,7 +6,7 @@ Type annotation
 
 """
 
-from typing import Protocol, Dict, Optional, Callable, Tuple
+from typing import Protocol, Dict, Optional, Tuple
 
 
 __all__ = [
@@ -19,10 +19,8 @@ __all__ = [
 class DataclassProtocol(Protocol):
     """Type annotation for dataclass type object."""
 
-    # https://stackoverflow.com/a/70114354/11501976
+    # https://stackoverflow.com/a/55240861/11501976
     __dataclass_fields__: Dict
-    __dataclass_params__: Dict
-    __post_init__: Optional[Callable]
 
 
 OptionalROI = Tuple[int, int, Optional[int], Optional[int]]
