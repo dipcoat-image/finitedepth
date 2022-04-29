@@ -33,7 +33,16 @@ class SubstrateReferenceBase(abc.ABC):
     :attr:`image` is the picture of bare substrate before coating. Two ROIs,
     :attr:`templateROI` and :attr:`substrateROI`, are defined. Template ROI
     encloses the region which is common in both bare substrate image and coated
-    substrate image. Substrate ROI encloses the entire bare substrate.
+    substrate image. Substrate ROI encloses the entire bare substrate, narrowing
+    down the target.
+
+    Constructor
+    -----------
+
+    Constructor signature must not be modified because high-level API use factory
+    to generate reference instances. Concrete classes can introduce additional
+    parameters by defining dataclass and assigning to class attribute
+    :attr:`Parameters` and :attr:`DrawOptions`.
 
     Parameters
     ==========
@@ -45,20 +54,18 @@ class SubstrateReferenceBase(abc.ABC):
         Slice indices in ``(x0, y0, x1, y1)`` for the template and the substrate.
 
     parameters
-        Class-specific additional parameters.
+        Additional parameters. Instance of :attr:`Parameters`, or ``None``.
 
     draw_options
-        Options to draw the reference image.
+        Drawing options. Instance of :attr:`DrawOptions`, or ``None``.
 
     Notes
     =====
 
-    Some properties and methods can be cached for performance. To
-    prevent mutation, :attr:`image` should not be writable and
-    :attr:`parameters` must be frozen.
-
-    This does not hold to :attr:`draw_options` since visualization does
-    not affect the identity of instance.
+    Some properties and methods can be cached for performance. Thus :attr:`image`
+    is not writable to prevent mutation. Also, concrete class must assign frozen
+    dataclass type to :attr:`Parameters`. However, :attr:`DrawOptions` need not
+    be frozen since visualization does not affect the identity of instance.
     """
 
     __slots__ = (
@@ -72,12 +79,12 @@ class SubstrateReferenceBase(abc.ABC):
     @property
     @abc.abstractmethod
     def Parameters(self) -> Type:
-        """Dataclass type for class-specific additional parameters."""
+        """Frozen dataclass type for additional parameters in concrete class."""
 
     @property
     @abc.abstractmethod
     def DrawOptions(self) -> Type:
-        """Dataclass type for drawing options."""
+        """Dataclass type for drawing options in concrete class."""
 
     def __init__(
         self,
@@ -89,9 +96,6 @@ class SubstrateReferenceBase(abc.ABC):
         draw_options: Optional[DrawOptionsType] = None
     ):
         super().__init__()
-        if not image.size > 0:
-            raise ReferenceError("Empty reference image")
-
         self._image = image
         self._image = image
         self._image.setflags(write=False)
@@ -100,69 +104,57 @@ class SubstrateReferenceBase(abc.ABC):
         full_roi = (0, 0, w, h)
         max_vars = (w, h, w, h)
 
-        temp_roi = []
-        for passed_val, full_val, max_val in zip(templateROI, full_roi, max_vars):
-            if passed_val is None:
-                val = full_val
-            elif passed_val < 0:
-                val = passed_val + max_val
-            else:
-                val = passed_val
-            temp_roi.append(val)
+        temp_roi = list(templateROI)
+        for i, var in enumerate(templateROI):
+            if var is None:
+                temp_roi[i] = full_roi[i]
+            elif var < 0:
+                temp_roi[i] = max_vars[i] + var
         self._templateROI = cast(IntROI, tuple(temp_roi))
 
-        subst_roi = []
-        for passed_val, full_val, max_val in zip(substrateROI, full_roi, max_vars):
-            if passed_val is None:
-                val = full_val
-            elif passed_val < 0:
-                val = passed_val + max_val
-            else:
-                val = passed_val
-            subst_roi.append(val)
+        subst_roi = list(substrateROI)
+        for i, var in enumerate(substrateROI):
+            if var is None:
+                subst_roi[i] = full_roi[i]
+            elif var < 0:
+                subst_roi[i] = max_vars[i] + var
         self._substrateROI = cast(IntROI, tuple(subst_roi))
 
         if parameters is None:
             self._parameters = self.Parameters()
         else:
-            self._parameters = dataclasses.replace(parameters)  # type: ignore
+            self._parameters = dataclasses.replace(parameters)
 
         if draw_options is None:
             self._draw_options = self.DrawOptions()
         else:
-            self._draw_options = dataclasses.replace(draw_options)  # type: ignore
+            self._draw_options = dataclasses.replace(draw_options)
 
     @property
     def image(self) -> npt.NDArray[np.uint8]:
-        """Reference image."""
+        """Reference image passed to constructor."""
         return self._image
 
     @property
     def templateROI(self) -> IntROI:
-        """
-        Slice indices in ``(x0, y0, x1, y1)`` for :attr:`template_image`.
-
-        """
+        """Slice indices in ``(x0, y0, x1, y1)`` for :attr:`template_image`."""
         return self._templateROI
 
     @property
     def substrateROI(self) -> IntROI:
-        """
-        Slice indices in ``(x0, y0, x1, y1)`` for :attr:`substrate_image`.
-
-        """
+        """Slice indices in ``(x0, y0, x1, y1)`` for :attr:`substrate_image`."""
         return self._substrateROI
 
     @property
     def parameters(self) -> ParametersType:
         """Additional parameters for the instance."""
-        return self._parameters  # type: ignore
+        return self._parameters
 
     @property
     def draw_options(self) -> DrawOptionsType:
         """Options to visualize the reference image."""
-        return self._draw_options  # type: ignore
+        return self._draw_options
 
     @draw_options.setter
     def draw_options(self, options: DrawOptionsType):
-        self._draw_options = options  # type: ignore
+        self._draw_options = options
