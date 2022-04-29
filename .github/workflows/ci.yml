@@ -1,4 +1,4 @@
-name: dipcoatimage-finitedepth test
+name: dipcoatimage-finitedepth ci
 
 on: [push, pull_request]
 
@@ -20,8 +20,12 @@ jobs:
         run: |
           pip install -r requirements/test.txt
 
-      - run: |
+      - name: lint with flake8
+        run: |
           flake8
+
+      - name: lint with black
+        run: |
           black --check .
 
   type-check:
