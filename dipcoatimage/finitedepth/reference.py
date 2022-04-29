@@ -303,6 +303,7 @@ class SubstrateReference(
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
     """
+
     Parameters = SubstrateReferenceParameters
     DrawOptions = SubstrateReferenceDrawOptions
 
