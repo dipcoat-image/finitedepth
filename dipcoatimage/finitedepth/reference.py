@@ -12,7 +12,7 @@ import abc
 import dataclasses
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Type, Optional, cast
+from typing import TypeVar, Type, Optional, cast, Tuple
 from .util import DataclassProtocol, OptionalROI, IntROI
 
 
@@ -158,3 +158,25 @@ class SubstrateReferenceBase(abc.ABC):
     @draw_options.setter
     def draw_options(self, options: DrawOptionsType):
         self._draw_options = options
+
+    @property
+    def template_image(self) -> npt.NDArray[np.uint8]:
+        """Template image to locate the substrate in coated substrate image."""
+        x0, y0, x1, y1 = self.templateROI
+        return self.image[y0:y1, x0:x1]
+
+    @property
+    def substrate_image(self) -> npt.NDArray[np.uint8]:
+        """Image focusing on bare substrate."""
+        x0, y0, x1, y1 = self.substrateROI
+        return self.image[y0:y1, x0:x1]
+
+    @property
+    def temp2subst(self) -> Tuple[int, int]:
+        """
+        Vector from ``(x0, y0)`` of :attr:`templateROI` to ``(x0, y0)``
+        of :attr:`substrateROI`.
+        """
+        x0, y0 = self.templateROI[:2]
+        x1, y1 = self.substrateROI[:2]
+        return (x1 - x0, y1 - y0)
