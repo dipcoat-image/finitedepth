@@ -41,13 +41,19 @@ class SubstrateReferenceBase(abc.ABC):
 
     Constructor signature must not be modified because high-level API use factory
     to generate reference instances. Concrete classes can introduce additional
-    parameters by defining dataclass and assigning to class attribute
-    :attr:`Parameters` and :attr:`DrawOptions`.
+    parameters by defining dataclasses and assigning the classes to class
+    attribute :attr:`Parameters` and :attr:`DrawOptions`. Additional parameters
+    must be instance of these classes and can be passed to the constructor.
 
     Sanity check
     ------------
 
     Validity of the parameters can be checked by :meth:`verify` or :meth:`valid`.
+
+    Visualization
+    -------------
+
+    :meth:`draw` defines the visualization logic for concrete class.
 
     Parameters
     ==========
@@ -152,12 +158,14 @@ class SubstrateReferenceBase(abc.ABC):
 
     @property
     def parameters(self) -> ParametersType:
-        """Additional parameters for the instance."""
+        """
+        Additional parameters for concrete class. Instance of :attr:`Parameters`.
+        """
         return self._parameters
 
     @property
     def draw_options(self) -> DrawOptionsType:
-        """Options to visualize the reference image."""
+        """Options to visualize the image. Instance of :attr:`DrawOptions`."""
         return self._draw_options
 
     @draw_options.setter
@@ -198,7 +206,7 @@ class SubstrateReferenceBase(abc.ABC):
         """
         Verify if all parameters are suitably set by raising error on failure.
 
-        To implement sanity check for concrete subclass, define :meth:`examine`.
+        To implement sanity check for concrete class, define :meth:`examine`.
         """
         err = self.examine()
         if err is not None:
@@ -208,10 +216,14 @@ class SubstrateReferenceBase(abc.ABC):
         """
         Verify if all parameters are suitably set by returning boolean value.
 
-        To implement sanity check for concrete subclass, define :meth:`examine`.
+        To implement sanity check for concrete class, define :meth:`examine`.
         """
         err = self.examine()
         ret = True
         if err is not None:
             ret = False
         return ret
+
+    @abc.abstractmethod
+    def draw(self) -> npt.NDArray[np.uint8]:
+        """Decorate and return the reference image."""
