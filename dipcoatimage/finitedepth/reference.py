@@ -309,6 +309,8 @@ class SubstrateReference(SubstrateReferenceBase):
     Examples
     ========
 
+    Construct with RGB image, and visualize with :meth:`draw`.
+
     .. plot::
        :include-source:
 
