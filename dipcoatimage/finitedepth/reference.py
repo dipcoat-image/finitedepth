@@ -51,13 +51,20 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     .. rubric:: Constructor
 
     Constructor signature must not be modified because high-level API use factory
-    to generate reference instances. Concrete classes can introduce additional
-    parameters by assigning dataclasses to classttribute :attr:`Parameters` and
-    :attr:`DrawOptions`, and passing their instances to the constructor.
+    to generate reference instances. Additional parameters can be introduced by
+    definig class attribute :attr:`Parameters` and :attr:`DrawOptions`.
+
+    .. rubric:: Parameters and DrawOptions
+
+    Concrete class must have :attr:`Parameters` and :attr:`DrawOptions` which
+    return dataclass types. Their instances are passed to the constructor at
+    instance initialization, and can be accessed by :attr:`parameters` and
+    :attr:`draw_options`.
 
     :attr:`Parameter` must be frozen to ensure immtability for caching. However,
-    `DrawOptions` need not be frozen since visualization does not affect the
-    identity of instance.
+    :attr:`DrawOptions` need not be frozen since visualization does not affect
+    the identity of instance. Therefore methods affected by draw options must
+    not be cached.
 
     .. rubric:: Sanity check
 
@@ -93,15 +100,24 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         "_draw_options",
     )
 
-    @property
-    @abc.abstractmethod
-    def Parameters(self) -> Type[ParametersType]:
-        """Frozen dataclass type for additional parameters in concrete class."""
+    Parameters: Type[ParametersType]
+    DrawOptions: Type[DrawOptionsType]
 
-    @property
-    @abc.abstractmethod
-    def DrawOptions(self) -> Type[DrawOptionsType]:
-        """Dataclass type for drawing options in concrete class."""
+    def __init_subclass__(cls) -> None:
+        params = getattr(cls, "Parameters", None)
+        if params is None:
+            raise TypeError(f"{cls} has no attribute 'Parameters'.")
+        elif not (isinstance(params, type) and dataclasses.is_dataclass(params)):
+            raise TypeError(f"{params} is not dataclass type.")
+        elif not params.__dataclass_params__.frozen:  # type: ignore
+            raise TypeError(f"{params} is not frozen.")
+
+        drawopts = getattr(cls, "DrawOptions", None)
+        if drawopts is None:
+            raise TypeError(f"{cls} has no attribute 'DrawOptions'.")
+        elif not (isinstance(drawopts, type) and dataclasses.is_dataclass(drawopts)):
+            raise TypeError(f"{drawopts} is not dataclass type.")
+        return super().__init_subclass__()
 
     def __init__(
         self,
@@ -110,7 +126,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         substrateROI: OptionalROI = (0, 0, None, None),
         parameters: Optional[ParametersType] = None,
         *,
-        draw_options: Optional[DrawOptionsType] = None
+        draw_options: Optional[DrawOptionsType] = None,
     ):
         super().__init__()
         self._image = image
@@ -169,13 +185,19 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     @property
     def parameters(self) -> ParametersType:
         """
-        Additional parameters for concrete class. Instance of :attr:`Parameters`.
+        Additional parameters for concrete class.
+
+        Instance of :attr:`Parameters`, which must be a frozen dataclass.
         """
         return self._parameters
 
     @property
     def draw_options(self) -> DrawOptionsType:
-        """Options to visualize the image. Instance of :attr:`DrawOptions`."""
+        """
+        Options to visualize the image.
+
+        Instance of :attr:`DrawOptions` dataclass.
+        """
         return self._draw_options
 
     @draw_options.setter
@@ -280,9 +302,7 @@ class SubstrateReferenceDrawOptions:
     substrateROI_thickness: int = 1
 
 
-class SubstrateReference(
-    SubstrateReferenceBase[SubstrateReferenceParameters, SubstrateReferenceDrawOptions]
-):
+class SubstrateReference(SubstrateReferenceBase):
     """
     Substrate reference class with RGB image.
 
