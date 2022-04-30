@@ -33,31 +33,38 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     """
     Abstract base class for substrate reference image.
 
-    Image and ROIs
-    --------------
+    .. plot::
+
+       >>> import cv2
+       >>> from dipcoatimage.finitedepth import get_samples_path
+       >>> import matplotlib.pyplot as plt #doctest: +SKIP
+       >>> plt.imshow(cv2.imread(get_samples_path('ref1.png'))) #doctest: +SKIP
+
+    .. rubric:: Image and ROIs
 
     :attr:`image` is the picture of bare substrate before coating. Two ROIs,
     :attr:`templateROI` and :attr:`substrateROI`, are defined. Template ROI
     encloses the region which is common in both bare substrate image and coated
-    substrate image. Substrate ROI encloses the entire bare substrate, narrowing
+    substrate image. Substrate ROI encloses the bare substrate region, narrowing
     down the target.
 
-    Constructor
-    -----------
+    .. rubric:: Constructor
 
     Constructor signature must not be modified because high-level API use factory
     to generate reference instances. Concrete classes can introduce additional
-    parameters by defining dataclasses and assigning the classes to class
-    attribute :attr:`Parameters` and :attr:`DrawOptions`. Additional parameters
-    must be instance of these classes and can be passed to the constructor.
+    parameters by assigning dataclasses to classttribute :attr:`Parameters` and
+    :attr:`DrawOptions`, and passing their instances to the constructor.
 
-    Sanity check
-    ------------
+    :attr:`Parameter` must be frozen to ensure immtability for caching. However,
+    `DrawOptions` need not be frozen since visualization does not affect the
+    identity of instance.
+
+    .. rubric:: Sanity check
 
     Validity of the parameters can be checked by :meth:`verify` or :meth:`valid`.
+    Their result can be implemented by defining :meth:`examine`.
 
-    Visualization
-    -------------
+    .. rubric:: Visualization
 
     :meth:`draw` defines the visualization logic for concrete class.
 
@@ -76,13 +83,6 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     draw_options
         Drawing options. Instance of :attr:`DrawOptions`, or ``None``.
 
-    Notes
-    =====
-
-    Some properties and methods can be cached for performance. Thus :attr:`image`
-    is not writable to prevent mutation. Also, concrete class must assign frozen
-    dataclass type to :attr:`Parameters`. However, :attr:`DrawOptions` need not
-    be frozen since visualization does not affect the identity of instance.
     """
 
     __slots__ = (
@@ -149,7 +149,11 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
 
     @property
     def image(self) -> npt.NDArray[np.uint8]:
-        """Reference image passed to constructor."""
+        """
+        Reference image passed to constructor.
+
+        This array is not writable to enable caching which requires immutability.
+        """
         return self._image
 
     @property
@@ -202,10 +206,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         """
         Check the sanity of parameters.
 
-        Returns
-        =======
-
-        Error instance if the instance is invalid, else ``None``.
+        If the instance is invalid, return error instance. Else, return ``None``.
         """
 
     def verify(self):
@@ -283,7 +284,7 @@ class SubstrateReference(
     SubstrateReferenceBase[SubstrateReferenceParameters, SubstrateReferenceDrawOptions]
 ):
     """
-    Substrate reference class. Image is considered to be RGB.
+    Substrate reference class with RGB image.
 
     Examples
     ========
@@ -307,7 +308,7 @@ class SubstrateReference(
     Parameters = SubstrateReferenceParameters
     DrawOptions = SubstrateReferenceDrawOptions
 
-    def examine(self) -> Optional[Exception]:
+    def examine(self) -> None:
         return None
 
     def draw(self) -> npt.NDArray[np.uint8]:
