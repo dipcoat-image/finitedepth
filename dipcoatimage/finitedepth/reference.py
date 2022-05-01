@@ -31,7 +31,7 @@ DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
 
 class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     """
-    Abstract base class for substrate reference image.
+    Abstract base class for substrate reference.
 
     .. plot::
 
@@ -42,11 +42,14 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
 
     .. rubric:: Image and ROIs
 
-    :attr:`image` is the picture of bare substrate before coating. Two ROIs,
-    :attr:`templateROI` and :attr:`substrateROI`, are defined. Template ROI
-    encloses the region which is common in both bare substrate image and coated
-    substrate image. Substrate ROI encloses the bare substrate region, narrowing
-    down the target.
+    Substrate reference class wraps the data to locate the substrate in coated
+    substrate image. It consists of the reference image and two ROIs.
+
+    Reference image, which can be accessed by :attr:`image`, is the picture of
+    bare substrate taken before coating. Two ROIs, :attr:`templateROI` and
+    :attr:`substrateROI`, are defined. Template ROI encloses the region which is
+    common in both bare substrate image and coated substrate image. Substrate ROI
+    encloses the bare substrate region, narrowing down the target.
 
     .. rubric:: Constructor
 
@@ -255,7 +258,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
 
     @abc.abstractmethod
     def draw(self) -> npt.NDArray[np.uint8]:
-        """Decorate and return the reference image."""
+        """Decorate and return the reference image as RGB format."""
 
 
 @dataclasses.dataclass(frozen=True)
