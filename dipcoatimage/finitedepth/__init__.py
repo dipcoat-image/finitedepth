@@ -1,5 +1,19 @@
 """
-Package to analyze the coating layer shape in finite-depth dip coating process.
+DipCoatImage-FiniteDepth
+========================
+
+Image analysis package for the coating layer shape in finite-depth dip coating
+process. Analysis is done by locating the bare substrate from coated substrate
+image, and extracting the coating layer region.
+
+This package provides
+  1. Handling substrate reference image and coated substrate image
+  2. Detecting bare substrate geometry
+  3. Extracting and analyzing coating layer
+  4. Saving analysis result
+
+:mod:`dipcoatimage.finitedepth_gui` provides GUI for this package.
+
 """
 
 from .version import __version__  # noqa
