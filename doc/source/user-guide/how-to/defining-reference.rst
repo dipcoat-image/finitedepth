@@ -25,7 +25,7 @@ Defining reference class
 Reference class provides boilerplate to analyze the coated substrate image, and sometimes you may want to modify it.
 DipcoatImage-FiniteDepth provides base class which should be inherited to define new reference class.
 
-In this guide, a new class ``BinaryReference`` will be defined from abstract base class.
+In this guide, a new class :class:`BinaryReference` will be defined from abstract base class.
 It receives grayscale image and binarizes it to define template image and substrate image.
 This is useful when your original image has bad contrast.
 
@@ -49,7 +49,7 @@ Defining parameter class
 Additional parameters for the reference class are passed as dataclass.
 This is done by defining a frozen dataclass, and later assigning it to :attr:`Parameters` class attribute of new reference class.
 
-Here, we define ``ThresholdParameters`` which holds arguments that are passed to ``cv2.threshold`` for binarization.
+Here, we define :class:`ThresholdParameters` which holds arguments that are passed to :func:`cv2.threshold` for binarization.
 
 .. plot::
    :include-source:
@@ -68,8 +68,8 @@ Defining drawing options
 Options to visualize the reference instance are passed as dataclass as well.
 This is done by defining a dataclass, and later assigning it to :attr:`DrawOptions` class attribute of new reference class.
 
-We will allow two modes to visualize ``BinaryReference`` instance - as original grayscale image and as binarized image.
-For this, we define ``DrawMode`` enum and ``BinaryDrawOptions`` dataclass to enclose it.
+We will allow two modes to visualize :class:`BinaryReference` instance - as original grayscale image and as binarized image.
+For this, we define :class:`DrawMode` enum and :class:`BinaryDrawOptions` dataclass to enclose it.
 
 .. plot::
    :include-source:
@@ -86,7 +86,7 @@ For this, we define ``DrawMode`` enum and ``BinaryDrawOptions`` dataclass to enc
 Defining reference class
 ========================
 
-Now, we define ``BinaryReference`` with abstract base class and dataclasses.
+Now, we define :class:`BinaryReference` with abstract base class and dataclasses.
 Full code will be shown first, and each line will be explained in subsections.
 
 .. plot::
@@ -129,7 +129,7 @@ Slots
    __slots__ = ("_binary",)
 
 Reference class use slots for better performance.
-``BinaryReference`` will cache the binarized image by storing the result in attribute, so we define slot for it.
+:class:`BinaryReference` will cache the binarized image by storing the result in attribute, so we define slot for it.
 
 Parameters and DrawOptions
 --------------------------
@@ -160,7 +160,7 @@ Binarization
        x0, y0, x1, y1 = self.substrateROI
        return self.binary_image()[y0:y1, x0:x1]
 
-Once binarization is done, the result is cached to ``_binary`` attribute.
+Once binarization is done, the result is cached to :attr:`_binary` attribute.
 Template image and substrate image are cropped from binarized image.
 
 Verification
@@ -172,7 +172,7 @@ Verification
        if self.binary_image() is None:
            return TypeError("Binarization failed.")
 
-``cv2.threshold`` returns ``None`` if binarization fails.
+:func:`cv2.threshold` returns :obj:`None` if binarization fails.
 We implement :meth:`examine` to detect this for verification.
 
 Visualization
@@ -248,7 +248,7 @@ We can also verify the instance using either :meth:`valid` or :meth:`verify`.
 Exercise
 ========
 
-In this guide, ``BinaryReference`` does not visualize ROI boxes in order to keep the document simple.
+In this guide, :class:`BinaryReference` does not visualize ROI boxes in order to keep the document simple.
 Try implement your own class with this feature.
 
 Hint: subclass :class:`SubstrateReference` with mixing the parameters introduced here.
