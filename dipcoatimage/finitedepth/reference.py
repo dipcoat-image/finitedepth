@@ -106,10 +106,10 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         Slice indices in ``(x0, y0, x1, y1)`` for the template and the substrate.
 
     parameters
-        Additional parameters. Instance of :attr:`Parameters`, or ``None``.
+        Additional parameters. Instance of :attr:`Parameters`, or :obj:`None`.
 
     draw_options
-        Drawing options. Instance of :attr:`DrawOptions`, or ``None``.
+        Drawing options. Instance of :attr:`DrawOptions`, or :obj:`None`.
 
     """
 
@@ -249,7 +249,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         """
         Check the sanity of parameters.
 
-        If the instance is invalid, return error instance. Else, return ``None``.
+        If the instance is invalid, return error instance. Else, return :obj:`None`.
         """
 
     def verify(self):

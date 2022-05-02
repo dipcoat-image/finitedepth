@@ -8,3 +8,4 @@ DipCoatImage-FiniteDepth GUI
 
    finitedepth-gui.controlwidgets
    finitedepth-gui.workers
+   finitedepth-gui.roi
