@@ -1,4 +1,4 @@
-from dipcoatimage.finitedepth_gui import ROIModel, ROIWidget
+from dipcoatimage.finitedepth_gui.roi import ROIModel, ROIWidget
 
 
 def test_ROIModel_signals(qtbot):

@@ -80,7 +80,7 @@ class ROIWidget(QWidget):
 
     >>> from PySide6.QtWidgets import QApplication
     >>> import sys
-    >>> from dipcoatimage.finitedepth_gui import ROIWidget
+    >>> from dipcoatimage.finitedepth_gui.roi import ROIWidget
     >>> def runGUI():
     ...     app = QApplication(sys.argv)
     ...     widget = ROIWidget()
