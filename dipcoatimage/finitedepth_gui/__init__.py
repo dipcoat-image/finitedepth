@@ -1,7 +1,4 @@
 """
-DipCoatImage-FiniteDepth GUI
-============================
-
 GUI package for :mod:`dipcoatimage.finitedepth`.
 """
 

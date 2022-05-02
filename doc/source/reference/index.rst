@@ -1,3 +1,4 @@
+==================================
 DipcoatImage-FiniteDepth Reference
 ==================================
 
@@ -10,4 +11,5 @@ Reference for :mod:`dipcoatimage.finitedepth_gui` is provided as well.
    :maxdepth: 2
 
    reference
+   util
    finitedepth-gui

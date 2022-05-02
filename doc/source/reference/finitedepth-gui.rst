@@ -1,4 +1,9 @@
+============================
+DipCoatImage-FiniteDepth GUI
+============================
+
 .. automodule:: dipcoatimage.finitedepth_gui
 
 .. toctree::
-   :maxdepth: 2
+
+   finitedepth-gui.controlwidgets.rst
