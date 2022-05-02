@@ -1,3 +1,1 @@
-Controller Widgets
-==================
-
+.. automodule:: dipcoatimage.finitedepth_gui.controlwidgets
