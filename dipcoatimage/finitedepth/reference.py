@@ -2,8 +2,26 @@
 Reference image
 ===============
 
-:mod:`dipcoatimage.finitedepth.reference` provides class for reference image of
-finite-depth substrate. It is used to analyze coated substrate image.
+:mod:`dipcoatimage.finitedepth.reference` provides reference image class of
+finite-depth dip coating process.
+
+Base class
+----------
+
+.. autoclass:: SubstrateReferenceBase
+   :members:
+
+.. autoclass:: SubstrateReferenceParameters
+   :members:
+
+.. autoclass:: SubstrateReferenceDrawOptions
+   :members:
+
+Default implementation
+----------------------
+
+.. autoclass:: SubstrateReference
+   :members:
 
 """
 
