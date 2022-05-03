@@ -68,6 +68,7 @@ class ImporterWidget(QWidget):
     ...     widget.registerVariable(
     ...         "MyItem", "SubstrateReference", "dipcoatimage.finitedepth"
     ...     )
+    ...     widget.registerVariable("Invalid", "foo", "bar")
     ...     widget.show()
     ...     app.exec()
     ...     app.quit()
@@ -87,16 +88,20 @@ class ImporterWidget(QWidget):
         self._module_ledit = QLineEdit()
         self._msg_box = QLabel()
         self._registry_button = QPushButton()
+        self._variable = self.INVALID
 
         self.variableComboBox().setPlaceholderText(
             "Select variable or specify import information"
         )
+        self.variableComboBox().currentIndexChanged.connect(self.onSelectionChange)
         self.hideShowButton().setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.hideShowButton().setCheckable(True)
         self.hideShowButton().toggled.connect(self.toggleHideShow)
         self.hideShowButton().toggle()
         self.variableNameLineEdit().setPlaceholderText("Variable name")
+        self.variableNameLineEdit().editingFinished.connect(self.onInformationEdit)
         self.moduleNameLineEdit().setPlaceholderText("Module name")
+        self.moduleNameLineEdit().editingFinished.connect(self.onInformationEdit)
         self.registryWindowButton().setText("Open registry window")
         self.registryWindowButton().clicked.connect(self.openRegistryWindow)
 
@@ -128,22 +133,20 @@ class ImporterWidget(QWidget):
         return self._module_ledit
 
     def messageBox(self) -> QLineEdit:
-        """Informs if the information is valid."""
+        """Informs if the import information is valid."""
         return self._msg_box
 
     def registryWindowButton(self) -> QPushButton:
         """Button to open registry window."""
         return self._registry_button
 
-    @Slot(bool)
-    def toggleHideShow(self, state: bool):
-        """Hide or show detailed widgets."""
-        txt = "Show details" if state else "Hide details"
-        self.hideShowButton().setText(txt)
-        self.variableNameLineEdit().setVisible(not state)
-        self.moduleNameLineEdit().setVisible(not state)
-        self.messageBox().setVisible(not state)
-        self.registryWindowButton().setVisible(not state)
+    def variable(self) -> Any:
+        """
+        Return current variable.
+
+        If variable is invalid, :attr:`INVAID` isreturned.
+        """
+        return self._variable
 
     @Slot(str, str, str)
     def registerVariable(self, itemText: str, varName: str, modName: str):
@@ -154,6 +157,45 @@ class ImporterWidget(QWidget):
             var = self.INVALID
         data = VariableItemData(varName, modName, var)
         self.variableComboBox().addItem(itemText, data)
+
+    @Slot(int)
+    def onSelectionChange(self, index: int):
+        """Apply the data from combo box selection."""
+        if index != -1:
+            data = self.variableComboBox().itemData(index)
+            self.variableNameLineEdit().setText(data.varname)
+            self.moduleNameLineEdit().setText(data.modname)
+            self._setVariable(data.variable)
+
+    @Slot()
+    def onInformationEdit(self):
+        self.variableComboBox().setCurrentIndex(-1)
+        varname = self.variableNameLineEdit().text()
+        modname = self.moduleNameLineEdit().text()
+        try:
+            var = import_variable(varname, modname)
+        except (NameError, ModuleNotFoundError):
+            var = self.INVALID
+        self._setVariable(var)
+
+    def _setVariable(self, var: Any):
+        if var is self.INVALID:
+            txt = "Import failed!"
+        else:
+            txt = "Import successful."
+        self.messageBox().setText(txt)
+        self._variable = var
+        self.variableChanged.emit(var)
+
+    @Slot(bool)
+    def toggleHideShow(self, state: bool):
+        """Hide or show detailed widgets."""
+        txt = "Show details" if state else "Hide details"
+        self.hideShowButton().setText(txt)
+        self.variableNameLineEdit().setVisible(not state)
+        self.moduleNameLineEdit().setVisible(not state)
+        self.messageBox().setVisible(not state)
+        self.registryWindowButton().setVisible(not state)
 
     def openRegistryWindow(self):
         self.registrywindow = QWidget()  # do not pass self as parent
