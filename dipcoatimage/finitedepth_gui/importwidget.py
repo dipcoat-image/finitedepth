@@ -132,7 +132,6 @@ class ImportWidget(QWidget):
     ...     widget.registerVariable(
     ...         "MyItem", "SubstrateReference", "dipcoatimage.finitedepth"
     ...     )
-    ...     widget.registerVariable("Invalid", "foo", "bar")
     ...     widget.show()
     ...     app.exec()
     ...     app.quit()
@@ -316,6 +315,7 @@ class ImportWidget(QWidget):
         elif status is ImportStatus.NO_VARIABLE:
             txt = "Invalid variable name!"
         self.messageBox().setText(txt)
+        self._status = status
 
     @Slot(bool)
     def toggleHideShow(self, state: bool):
