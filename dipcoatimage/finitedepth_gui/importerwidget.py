@@ -1,8 +1,8 @@
 """
-Variable Widget
+Importer Widget
 ===============
 
-This module provides widget to specify the variable with import information.
+This module provides widget to import the variable.
 
 """
 
@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 from typing import Any
 
 
-__all__ = ["VariableItemData", "VariableWidget"]
+__all__ = ["VariableItemData", "ImporterWidget"]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -32,14 +32,9 @@ class VariableItemData:
     variable: Any
 
 
-class VariableWidget(QWidget):
+class ImporterWidget(QWidget):
     """
-    Widget to specify the variable with import information.
-
-    .. rubric:: Import information
-
-    Import information consists of variable name and module name. The variable
-    must be importable by ``from {module name} import {variable name}`` syntax.
+    Widget which imports the variable.
 
     .. rubric:: Specifying the object
 
@@ -48,23 +43,28 @@ class VariableWidget(QWidget):
     1. Registering and selecting
     2. Passing import information
 
-    Registeration caches the imported object and returns when selected. Passing
-    import information caches only once - if the variable changes, previous one
-    is removed.
+    Registeration imports the object once, caches it and returns when selected.
+    Passing import information caches temporarily - if the variable changes,
+    previous one is removed.
 
     Either way, :attr:`variableChanged` signal emits the specified object and
     :meth:`variable` returns the object.
-    If importing fails, :obj:`VariableWidget.INVALID` is emitted and returned.
+    If importing fails, :obj:`ImporterWidget.INVALID` is emitted and returned.
+
+    .. rubric:: Import information
+
+    Import information consists of variable name and module name. The variable
+    must be importable by ``from {module name} import {variable name}`` syntax.
 
     Examples
     ========
 
     >>> from PySide6.QtWidgets import QApplication
     >>> import sys
-    >>> from dipcoatimage.finitedepth_gui.variablewidget import VariableWidget
+    >>> from dipcoatimage.finitedepth_gui.importerwidget import ImporterWidget
     >>> def runGUI():
     ...     app = QApplication(sys.argv)
-    ...     widget = VariableWidget()
+    ...     widget = ImporterWidget()
     ...     widget.registerVariable(
     ...         "MyItem", "SubstrateReference", "dipcoatimage.finitedepth"
     ...     )
@@ -98,6 +98,7 @@ class VariableWidget(QWidget):
         self.variableNameLineEdit().setPlaceholderText("Variable name")
         self.moduleNameLineEdit().setPlaceholderText("Module name")
         self.registryWindowButton().setText("Open registry window")
+        self.registryWindowButton().clicked.connect(self.openRegistryWindow)
 
         cbox_layout = QHBoxLayout()
         cbox_layout.addWidget(self.variableComboBox())
@@ -153,3 +154,7 @@ class VariableWidget(QWidget):
             var = self.INVALID
         data = VariableItemData(varName, modName, var)
         self.variableComboBox().addItem(itemText, data)
+
+    def openRegistryWindow(self):
+        self.registrywindow = QWidget()  # do not pass self as parent
+        self.registrywindow.show()
