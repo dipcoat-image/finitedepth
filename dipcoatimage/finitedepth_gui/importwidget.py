@@ -144,6 +144,7 @@ class ImportWidget(QWidget):
         self.registryModel().setHorizontalHeaderLabels(
             ["Item name", "Variable name", "Module name"]
         )
+        self.registryModel().itemChanged.connect(self.onItemChange)
         self.registryWidget().registryView().setModel(self.registryModel())
         self.variableComboBox().setPlaceholderText(
             "Select variable or specify import information"
@@ -244,6 +245,18 @@ class ImportWidget(QWidget):
             var = cls.INVALID
             status = ImportStatus.NO_VARIABLE
         return (var, status)
+
+    @Slot(QStandardItem)
+    def onItemChange(self, item: QStandardItem):
+        if item.column() != 0:
+            index = item.row()
+            varname = self.registryModel().item(index, 1).text()
+            modname = self.registryModel().item(index, 2).text()
+            var, status = self.importVariable(varname, modname)
+            data = RegistryItemData(var, status)
+            self.registryModel().item(index, 0).setData(data)
+        if item.row() == self.variableComboBox().currentIndex():
+            self.onSelectionChange(item.row())
 
     @Slot(str, str, str)
     def registerVariable(self, itemText: str, varName: str, modName: str):
