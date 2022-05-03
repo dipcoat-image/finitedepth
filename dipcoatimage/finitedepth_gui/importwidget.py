@@ -50,6 +50,8 @@ class RegistryWidget(QWidget):
     Widget to control the variable registry of :class:`ImportWidget`.
     """
 
+    rowAdded = Signal(str, str, str)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._registry_view = QTableView()
@@ -57,8 +59,11 @@ class RegistryWidget(QWidget):
         self._remove_button = QPushButton()
 
         self.registryView().horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.registryView().setSelectionBehavior(QTableView.SelectRows)
         self.addButton().setText("Add")
+        self.addButton().clicked.connect(self.addRow)
         self.removeButton().setText("Remove")
+        self.removeButton().clicked.connect(self.removeItem)
 
         buttons_layout = QHBoxLayout()
         buttons_layout.addWidget(self.addButton())
@@ -77,6 +82,17 @@ class RegistryWidget(QWidget):
 
     def removeButton(self) -> QPushButton:
         return self._remove_button
+
+    @Slot()
+    def addRow(self):
+        self.rowAdded.emit("New item", "", "")
+
+    @Slot()
+    def removeItem(self):
+        indices = self.registryView().selectionModel().selectedRows()
+        rows = sorted([index.row() for index in indices])
+        for i in reversed(rows):
+            self.registryView().model().removeRow(i)
 
 
 class ImportWidget(QWidget):
@@ -146,6 +162,7 @@ class ImportWidget(QWidget):
         )
         self.registryModel().itemChanged.connect(self.onItemChange)
         self.registryWidget().registryView().setModel(self.registryModel())
+        self.registryWidget().rowAdded.connect(self.registerVariable)
         self.variableComboBox().setPlaceholderText(
             "Select variable or specify import information"
         )
@@ -241,7 +258,7 @@ class ImportWidget(QWidget):
         except ModuleNotFoundError:
             var = cls.INVALID
             status = ImportStatus.NO_MODULE
-        except (ImportError, NameError):
+        except (ImportError, NameError, ValueError):
             var = cls.INVALID
             status = ImportStatus.NO_VARIABLE
         return (var, status)
