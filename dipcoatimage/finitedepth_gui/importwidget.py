@@ -46,22 +46,23 @@ class VariableItemData:
 
 class ImportWidget(QWidget):
     """
-    Widget which imports the variable.
+    Widget which imports and returns the variable.
 
-    .. rubric:: Specifying the object
+    .. rubric:: Getting the object
 
-    Object can be specified by one of the two ways.
+    User can get the object by one of the two ways.
 
     1. Registering and selecting
     2. Passing import information
 
-    Registeration imports the object once, caches it and returns when selected.
-    Passing import information caches temporarily - if the variable changes,
-    previous one is removed.
+    Registration imports the object, stores it and returns when selected.
+    Passing import information stores the object temporarily - if the variable
+    changes, previous one is removed.
 
-    Either way, :attr:`variableChanged` signal emits the specified object and
-    :meth:`variable` returns the object.
-    If importing fails, :obj:`ImportWidget.INVALID` is emitted and returned.
+    Either way, :attr:`variableChanged` signal is emitted and :meth:`variable`
+    returns the object.
+    If importing fails, :obj:`ImportWidget.INVALID` is returned as sentinel.
+    Validity can be checked by :meth:`isValid` or :meth:`importStatus`.
 
     .. rubric:: Import information
 
@@ -89,7 +90,7 @@ class ImportWidget(QWidget):
     """
 
     INVALID = object()
-    variableChanged = Signal(object)
+    variableChanged = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -211,7 +212,7 @@ class ImportWidget(QWidget):
 
     def _applyVariable(self, var: Any, status: ImportStatus):
         self._variable = var
-        self.variableChanged.emit(var)
+        self.variableChanged.emit()
 
         if status is ImportStatus.VALID:
             txt = "Import successful."
