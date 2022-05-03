@@ -154,9 +154,13 @@ class ImportWidget(QWidget):
         self.hideShowButton().setCheckable(True)
         self.hideShowButton().toggled.connect(self.toggleHideShow)
         self.hideShowButton().toggle()
-        self.variableNameLineEdit().setPlaceholderText("Variable name")
+        self.variableNameLineEdit().setPlaceholderText(
+            self.registryModel().horizontalHeaderItem(1).text()
+        )
         self.variableNameLineEdit().editingFinished.connect(self.onInformationEdit)
-        self.moduleNameLineEdit().setPlaceholderText("Module name")
+        self.moduleNameLineEdit().setPlaceholderText(
+            self.registryModel().horizontalHeaderItem(2).text()
+        )
         self.moduleNameLineEdit().editingFinished.connect(self.onInformationEdit)
         self.registryWindowButton().setText("Open registry window")
         self.registryWindowButton().clicked.connect(self.openRegistryWindow)
