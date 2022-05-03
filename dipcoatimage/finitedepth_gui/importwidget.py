@@ -1,6 +1,6 @@
 """
-Importer Widget
-===============
+Importing Widget
+================
 
 This module provides widget to import the variable.
 
@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 from typing import Any
 
 
-__all__ = ["VariableItemData", "ImporterWidget"]
+__all__ = ["VariableItemData", "ImportWidget"]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -32,7 +32,7 @@ class VariableItemData:
     variable: Any
 
 
-class ImporterWidget(QWidget):
+class ImportWidget(QWidget):
     """
     Widget which imports the variable.
 
@@ -49,7 +49,7 @@ class ImporterWidget(QWidget):
 
     Either way, :attr:`variableChanged` signal emits the specified object and
     :meth:`variable` returns the object.
-    If importing fails, :obj:`ImporterWidget.INVALID` is emitted and returned.
+    If importing fails, :obj:`ImportWidget.INVALID` is emitted and returned.
 
     .. rubric:: Import information
 
@@ -61,10 +61,10 @@ class ImporterWidget(QWidget):
 
     >>> from PySide6.QtWidgets import QApplication
     >>> import sys
-    >>> from dipcoatimage.finitedepth_gui.importerwidget import ImporterWidget
+    >>> from dipcoatimage.finitedepth_gui.importwidget import ImportWidget
     >>> def runGUI():
     ...     app = QApplication(sys.argv)
-    ...     widget = ImporterWidget()
+    ...     widget = ImportWidget()
     ...     widget.registerVariable(
     ...         "MyItem", "SubstrateReference", "dipcoatimage.finitedepth"
     ...     )

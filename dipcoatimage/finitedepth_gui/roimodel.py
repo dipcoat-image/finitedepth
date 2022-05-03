@@ -1,6 +1,6 @@
 """
-ROI controller
-==============
+ROI Model
+=========
 
 This module provides dedicated model and control to modify ROI data.
 
@@ -80,7 +80,7 @@ class ROIWidget(QWidget):
 
     >>> from PySide6.QtWidgets import QApplication
     >>> import sys
-    >>> from dipcoatimage.finitedepth_gui.roi import ROIWidget
+    >>> from dipcoatimage.finitedepth_gui.roimodel import ROIWidget
     >>> def runGUI():
     ...     app = QApplication(sys.argv)
     ...     widget = ROIWidget()

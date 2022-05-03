@@ -6,6 +6,5 @@ DipCoatImage-FiniteDepth GUI
 
 .. toctree::
 
-   finitedepth-gui.controlwidgets
-   finitedepth-gui.workers
-   finitedepth-gui.roi
+   finitedepth-gui.importwidget
+   finitedepth-gui.roimodel
