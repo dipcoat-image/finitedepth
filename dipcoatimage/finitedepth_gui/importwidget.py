@@ -197,10 +197,11 @@ class ImportWidget(QWidget):
         """
         Model to store the registered objects.
 
-        The model consists of three columns.
-          0. Header (with :class:`RegistryItemData` as data)
-          1. Variable name
-          2. Module name
+        The model consists of three columns:
+
+            0. Header (with :class:`RegistryItemData` as data)
+            1. Variable name
+            2. Module name
         """
         return self._registry_model
 
