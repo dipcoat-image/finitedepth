@@ -8,6 +8,7 @@ This module provides widget to import the variable.
 
 import dataclasses
 from dipcoatimage.finitedepth.util import import_variable
+import enum
 from PySide6.QtCore import Signal, Slot
 from PySide6.QtWidgets import (
     QWidget,
@@ -22,14 +23,25 @@ from PySide6.QtWidgets import (
 from typing import Any
 
 
-__all__ = ["VariableItemData", "ImportWidget"]
+__all__ = ["ImportStatus", "VariableItemData", "ImportWidget"]
+
+
+class ImportStatus(enum.Enum):
+    """Constants for variable import status of :class:`ImportWidget`."""
+
+    VALID = 0
+    NO_MODULE = 1
+    NO_VARIABLE = 2
 
 
 @dataclasses.dataclass(frozen=True)
 class VariableItemData:
+    """Dataclass for registered variable of :class:`ImportWidget`."""
+
     varname: str
     modname: str
     variable: Any
+    status: ImportStatus
 
 
 class ImportWidget(QWidget):
@@ -89,6 +101,7 @@ class ImportWidget(QWidget):
         self._msg_box = QLabel()
         self._registry_button = QPushButton()
         self._variable = self.INVALID
+        self._status = ImportStatus.NO_MODULE
 
         self.variableComboBox().setPlaceholderText(
             "Select variable or specify import information"
@@ -148,14 +161,27 @@ class ImportWidget(QWidget):
         """
         return self._variable
 
+    def importStatus(self) -> ImportStatus:
+        """Return import status of current variable."""
+        return self._status
+
+    def isValid(self) -> bool:
+        """Return if current variable is valid."""
+        return self.variable() is not self.INVALID
+
     @Slot(str, str, str)
     def registerVariable(self, itemText: str, varName: str, modName: str):
         """Register the information and variable to combo box."""
         try:
             var = import_variable(varName, modName)
-        except (NameError, ModuleNotFoundError):
+            status = ImportStatus.VALID
+        except ModuleNotFoundError:
             var = self.INVALID
-        data = VariableItemData(varName, modName, var)
+            status = ImportStatus.NO_MODULE
+        except (ImportError, NameError):
+            var = self.INVALID
+            status = ImportStatus.NO_VARIABLE
+        data = VariableItemData(varName, modName, var, status)
         self.variableComboBox().addItem(itemText, data)
 
     @Slot(int)
@@ -165,7 +191,7 @@ class ImportWidget(QWidget):
             data = self.variableComboBox().itemData(index)
             self.variableNameLineEdit().setText(data.varname)
             self.moduleNameLineEdit().setText(data.modname)
-            self._setVariable(data.variable)
+            self._applyVariable(data.variable, data.status)
 
     @Slot()
     def onInformationEdit(self):
@@ -174,18 +200,26 @@ class ImportWidget(QWidget):
         modname = self.moduleNameLineEdit().text()
         try:
             var = import_variable(varname, modname)
-        except (NameError, ModuleNotFoundError):
+            status = ImportStatus.VALID
+        except ModuleNotFoundError:
             var = self.INVALID
-        self._setVariable(var)
+            status = ImportStatus.NO_MODULE
+        except (ImportError, NameError):
+            var = self.INVALID
+            status = ImportStatus.NO_VARIABLE
+        self._applyVariable(var, status)
 
-    def _setVariable(self, var: Any):
-        if var is self.INVALID:
-            txt = "Import failed!"
-        else:
-            txt = "Import successful."
-        self.messageBox().setText(txt)
+    def _applyVariable(self, var: Any, status: ImportStatus):
         self._variable = var
         self.variableChanged.emit(var)
+
+        if status is ImportStatus.VALID:
+            txt = "Import successful."
+        elif status is ImportStatus.NO_MODULE:
+            txt = "Invalid module name."
+        elif status is ImportStatus.NO_VARIABLE:
+            txt = "Invalid variable name."
+        self.messageBox().setText(txt)
 
     @Slot(bool)
     def toggleHideShow(self, state: bool):
