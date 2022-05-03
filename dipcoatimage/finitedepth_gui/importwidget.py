@@ -10,6 +10,7 @@ import dataclasses
 from dipcoatimage.finitedepth.util import import_variable
 import enum
 from PySide6.QtCore import Signal, Slot
+from PySide6.QtGui import QStandardItemModel, QStandardItem
 from PySide6.QtWidgets import (
     QWidget,
     QComboBox,
@@ -24,7 +25,7 @@ from PySide6.QtWidgets import (
 from typing import Any
 
 
-__all__ = ["ImportStatus", "VariableItemData", "ImportWidget"]
+__all__ = ["ImportStatus", "RegistryItemData", "ImportWidget"]
 
 
 class ImportStatus(enum.Enum):
@@ -36,11 +37,9 @@ class ImportStatus(enum.Enum):
 
 
 @dataclasses.dataclass(frozen=True)
-class VariableItemData:
+class RegistryItemData:
     """Dataclass for registered variable of :class:`ImportWidget`."""
 
-    varname: str
-    modname: str
     variable: Any
     status: ImportStatus
 
@@ -96,6 +95,7 @@ class ImportWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self._registry_model = QStandardItemModel(0, 3)
         self._var_cbox = QComboBox()
         self._hideshow_button = QPushButton()
         self._varname_ledit = QLineEdit()
@@ -108,6 +108,7 @@ class ImportWidget(QWidget):
         self.variableComboBox().setPlaceholderText(
             "Select variable or specify import information"
         )
+        self.variableComboBox().setModel(self.registryModel())
         self.variableComboBox().currentIndexChanged.connect(self.onSelectionChange)
         self.hideShowButton().setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.hideShowButton().setCheckable(True)
@@ -130,6 +131,17 @@ class ImportWidget(QWidget):
         layout.addWidget(self.messageBox())
         layout.addWidget(self.registryWindowButton())
         self.setLayout(layout)
+
+    def registryModel(self) -> QStandardItemModel:
+        """
+        Model to store the registered objects.
+
+        The model consists of three columns.
+          0. Header (with :class:`RegistryItemData` as data)
+          1. Variable name
+          2. Module name
+        """
+        return self._registry_model
 
     def variableComboBox(self) -> QComboBox:
         """Combo box to select the registered object."""
@@ -159,7 +171,7 @@ class ImportWidget(QWidget):
         """
         Return current variable.
 
-        If variable is invalid, :attr:`INVAID` isreturned.
+        If variable is invalid, :attr:`INVAID` is returned.
         """
         return self._variable
 
@@ -183,16 +195,22 @@ class ImportWidget(QWidget):
         except (ImportError, NameError):
             var = self.INVALID
             status = ImportStatus.NO_VARIABLE
-        data = VariableItemData(varName, modName, var, status)
-        self.variableComboBox().addItem(itemText, data)
+        data = RegistryItemData(var, status)
+        item0 = QStandardItem(itemText)
+        item0.setData(data)
+        item1 = QStandardItem(varName)
+        item2 = QStandardItem(modName)
+        self.registryModel().appendRow([item0, item1, item2])
 
     @Slot(int)
     def onSelectionChange(self, index: int):
         """Apply the data from combo box selection."""
         if index != -1:
-            data = self.variableComboBox().itemData(index)
-            self.variableNameLineEdit().setText(data.varname)
-            self.moduleNameLineEdit().setText(data.modname)
+            varname = self.registryModel().item(index, 1).text()
+            modname = self.registryModel().item(index, 2).text()
+            data = self.registryModel().item(index, 0).data()
+            self.variableNameLineEdit().setText(varname)
+            self.moduleNameLineEdit().setText(modname)
             self._applyVariable(data.variable, data.status)
 
     @Slot()
@@ -218,9 +236,9 @@ class ImportWidget(QWidget):
         if status is ImportStatus.VALID:
             txt = "Import successful."
         elif status is ImportStatus.NO_MODULE:
-            txt = "Invalid module name."
+            txt = "Invalid module name!"
         elif status is ImportStatus.NO_VARIABLE:
-            txt = "Invalid variable name."
+            txt = "Invalid variable name!"
         self.messageBox().setText(txt)
 
     @Slot(bool)
@@ -242,6 +260,7 @@ class VariableRegistryWidget(QWidget):
     """
     Widget to control the variable registry of :class:`ImportWidget`.
     """
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._list_view = QListView()
