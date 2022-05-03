@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QVBoxLayout,
     QSizePolicy,
+    QListView,
 )
 from typing import Any
 
@@ -233,5 +234,59 @@ class ImportWidget(QWidget):
         self.registryWindowButton().setVisible(not state)
 
     def openRegistryWindow(self):
-        self.registrywindow = QWidget()  # do not pass self as parent
-        self.registrywindow.show()
+        self.registrywidget = VariableRegistryWidget()  # do not pass self as parent
+        self.registrywidget.show()
+
+
+class VariableRegistryWidget(QWidget):
+    """
+    Widget to control the variable registry of :class:`ImportWidget`.
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._list_view = QListView()
+        self._add_button = QPushButton()
+        self._remove_button = QPushButton()
+        self._itemname_edit = QLineEdit()
+        self._variablename_edit = QLineEdit()
+        self._modulename_edit = QLineEdit()
+
+        self.addButton().setText("Add")
+        self.removeButton().setText("Remove")
+        self.itemNameLineEdit().setPlaceholderText("Item name")
+        self.variableNameLineEdit().setPlaceholderText("Variable name")
+        self.moduleNameLineEdit().setPlaceholderText("Module name")
+
+        items_layout = QVBoxLayout()
+        items_layout.addWidget(self.listView())
+        buttons_layout = QHBoxLayout()
+        buttons_layout.addWidget(self.addButton())
+        buttons_layout.addWidget(self.removeButton())
+        items_layout.addLayout(buttons_layout)
+        edits_layout = QVBoxLayout()
+        edits_layout.addWidget(self.itemNameLineEdit())
+        edits_layout.addWidget(self.variableNameLineEdit())
+        edits_layout.addWidget(self.moduleNameLineEdit())
+        layout = QHBoxLayout()
+        layout.addLayout(items_layout)
+        layout.addLayout(edits_layout)
+        self.setLayout(layout)
+
+    def listView(self) -> QListView:
+        """View for registered items."""
+        return self._list_view
+
+    def addButton(self) -> QPushButton:
+        return self._add_button
+
+    def removeButton(self) -> QPushButton:
+        return self._remove_button
+
+    def itemNameLineEdit(self) -> QLineEdit:
+        return self._itemname_edit
+
+    def variableNameLineEdit(self) -> QLineEdit:
+        return self._variablename_edit
+
+    def moduleNameLineEdit(self) -> QLineEdit:
+        return self._modulename_edit
