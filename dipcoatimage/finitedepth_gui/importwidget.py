@@ -14,6 +14,7 @@ from PySide6.QtGui import QStandardItemModel, QStandardItem
 from PySide6.QtWidgets import (
     QWidget,
     QTableView,
+    QHeaderView,
     QComboBox,
     QPushButton,
     QLineEdit,
@@ -55,6 +56,7 @@ class RegistryWidget(QWidget):
         self._add_button = QPushButton()
         self._remove_button = QPushButton()
 
+        self.registryView().horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.addButton().setText("Add")
         self.removeButton().setText("Remove")
 
@@ -139,6 +141,9 @@ class ImportWidget(QWidget):
         self._variable = self.INVALID
         self._status = ImportStatus.NO_MODULE
 
+        self.registryModel().setHorizontalHeaderLabels(
+            ["Item name", "Variable name", "Module name"]
+        )
         self.registryWidget().registryView().setModel(self.registryModel())
         self.variableComboBox().setPlaceholderText(
             "Select variable or specify import information"
