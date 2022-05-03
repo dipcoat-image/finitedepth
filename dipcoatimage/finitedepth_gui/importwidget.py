@@ -13,6 +13,7 @@ from PySide6.QtCore import Signal, Slot
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from PySide6.QtWidgets import (
     QWidget,
+    QTableView,
     QComboBox,
     QPushButton,
     QLineEdit,
@@ -20,12 +21,11 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QVBoxLayout,
     QSizePolicy,
-    QListView,
 )
 from typing import Any
 
 
-__all__ = ["ImportStatus", "RegistryItemData", "ImportWidget"]
+__all__ = ["ImportStatus", "RegistryItemData", "RegistryWidget", "ImportWidget"]
 
 
 class ImportStatus(enum.Enum):
@@ -42,6 +42,39 @@ class RegistryItemData:
 
     variable: Any
     status: ImportStatus
+
+
+class RegistryWidget(QWidget):
+    """
+    Widget to control the variable registry of :class:`ImportWidget`.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._registry_view = QTableView()
+        self._add_button = QPushButton()
+        self._remove_button = QPushButton()
+
+        self.addButton().setText("Add")
+        self.removeButton().setText("Remove")
+
+        buttons_layout = QHBoxLayout()
+        buttons_layout.addWidget(self.addButton())
+        buttons_layout.addWidget(self.removeButton())
+        layout = QVBoxLayout()
+        layout.addWidget(self.registryView())
+        layout.addLayout(buttons_layout)
+        self.setLayout(layout)
+
+    def registryView(self) -> QTableView:
+        """View for registered items."""
+        return self._registry_view
+
+    def addButton(self) -> QPushButton:
+        return self._add_button
+
+    def removeButton(self) -> QPushButton:
+        return self._remove_button
 
 
 class ImportWidget(QWidget):
@@ -96,6 +129,7 @@ class ImportWidget(QWidget):
         super().__init__(parent)
 
         self._registry_model = QStandardItemModel(0, 3)
+        self._registry_widget = RegistryWidget()
         self._var_cbox = QComboBox()
         self._hideshow_button = QPushButton()
         self._varname_ledit = QLineEdit()
@@ -105,6 +139,7 @@ class ImportWidget(QWidget):
         self._variable = self.INVALID
         self._status = ImportStatus.NO_MODULE
 
+        self.registryWidget().registryView().setModel(self.registryModel())
         self.variableComboBox().setPlaceholderText(
             "Select variable or specify import information"
         )
@@ -142,6 +177,10 @@ class ImportWidget(QWidget):
           2. Module name
         """
         return self._registry_model
+
+    def registryWidget(self) -> RegistryWidget:
+        """Widget to control the registry items."""
+        return self._registry_widget
 
     def variableComboBox(self) -> QComboBox:
         """Combo box to select the registered object."""
@@ -252,60 +291,4 @@ class ImportWidget(QWidget):
         self.registryWindowButton().setVisible(not state)
 
     def openRegistryWindow(self):
-        self.registrywidget = VariableRegistryWidget()  # do not pass self as parent
-        self.registrywidget.show()
-
-
-class VariableRegistryWidget(QWidget):
-    """
-    Widget to control the variable registry of :class:`ImportWidget`.
-    """
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._list_view = QListView()
-        self._add_button = QPushButton()
-        self._remove_button = QPushButton()
-        self._itemname_edit = QLineEdit()
-        self._variablename_edit = QLineEdit()
-        self._modulename_edit = QLineEdit()
-
-        self.addButton().setText("Add")
-        self.removeButton().setText("Remove")
-        self.itemNameLineEdit().setPlaceholderText("Item name")
-        self.variableNameLineEdit().setPlaceholderText("Variable name")
-        self.moduleNameLineEdit().setPlaceholderText("Module name")
-
-        items_layout = QVBoxLayout()
-        items_layout.addWidget(self.listView())
-        buttons_layout = QHBoxLayout()
-        buttons_layout.addWidget(self.addButton())
-        buttons_layout.addWidget(self.removeButton())
-        items_layout.addLayout(buttons_layout)
-        edits_layout = QVBoxLayout()
-        edits_layout.addWidget(self.itemNameLineEdit())
-        edits_layout.addWidget(self.variableNameLineEdit())
-        edits_layout.addWidget(self.moduleNameLineEdit())
-        layout = QHBoxLayout()
-        layout.addLayout(items_layout)
-        layout.addLayout(edits_layout)
-        self.setLayout(layout)
-
-    def listView(self) -> QListView:
-        """View for registered items."""
-        return self._list_view
-
-    def addButton(self) -> QPushButton:
-        return self._add_button
-
-    def removeButton(self) -> QPushButton:
-        return self._remove_button
-
-    def itemNameLineEdit(self) -> QLineEdit:
-        return self._itemname_edit
-
-    def variableNameLineEdit(self) -> QLineEdit:
-        return self._variablename_edit
-
-    def moduleNameLineEdit(self) -> QLineEdit:
-        return self._modulename_edit
+        self.registryWidget().show()
