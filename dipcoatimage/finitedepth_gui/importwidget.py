@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QSizePolicy,
 )
-from typing import Any
+from typing import Any, Tuple
 
 
 __all__ = ["ImportStatus", "RegistryItemData", "RegistryWidget", "ImportWidget"]
@@ -231,18 +231,24 @@ class ImportWidget(QWidget):
         """Return if current variable is valid."""
         return self.variable() is not self.INVALID
 
-    @Slot(str, str, str)
-    def registerVariable(self, itemText: str, varName: str, modName: str):
-        """Register the information and variable to combo box."""
+    @classmethod
+    def importVariable(cls, varName: str, modName: str) -> Tuple[Any, ImportStatus]:
+        """Try import the object with variable name and module name."""
         try:
             var = import_variable(varName, modName)
             status = ImportStatus.VALID
         except ModuleNotFoundError:
-            var = self.INVALID
+            var = cls.INVALID
             status = ImportStatus.NO_MODULE
         except (ImportError, NameError):
-            var = self.INVALID
+            var = cls.INVALID
             status = ImportStatus.NO_VARIABLE
+        return (var, status)
+
+    @Slot(str, str, str)
+    def registerVariable(self, itemText: str, varName: str, modName: str):
+        """Register the information and variable to combo box."""
+        var, status = self.importVariable(varName, modName)
         data = RegistryItemData(var, status)
         item0 = QStandardItem(itemText)
         item0.setData(data)
@@ -266,15 +272,7 @@ class ImportWidget(QWidget):
         self.variableComboBox().setCurrentIndex(-1)
         varname = self.variableNameLineEdit().text()
         modname = self.moduleNameLineEdit().text()
-        try:
-            var = import_variable(varname, modname)
-            status = ImportStatus.VALID
-        except ModuleNotFoundError:
-            var = self.INVALID
-            status = ImportStatus.NO_MODULE
-        except (ImportError, NameError):
-            var = self.INVALID
-            status = ImportStatus.NO_VARIABLE
+        var, status = self.importVariable(varname, modname)
         self._applyVariable(var, status)
 
     def _applyVariable(self, var: Any, status: ImportStatus):
