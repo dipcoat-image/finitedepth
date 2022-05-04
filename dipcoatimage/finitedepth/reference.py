@@ -56,15 +56,16 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
        >>> import cv2
        >>> from dipcoatimage.finitedepth import get_samples_path
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
-       >>> plt.imshow(cv2.imread(get_samples_path('ref1.png'))) #doctest: +SKIP
+       >>> img = cv2.imread(get_samples_path('ref1.png'))
+       >>> plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)) #doctest: +SKIP
 
     .. rubric:: Image and ROIs
 
     Substrate reference class wraps the data to locate the substrate in coated
     substrate image. It consists of the reference image and two ROIs.
 
-    Reference image, which can be accessed by :attr:`image`, is the picture of
-    bare substrate taken before coating. Two ROIs, :attr:`templateROI` and
+    Reference image, which can be accessed by :attr:`image`, is the RGB picture
+    of bare substrate taken before coating. Two ROIs, :attr:`templateROI` and
     :attr:`substrateROI`, are defined. Template ROI encloses the region which is
     common in both bare substrate image and coated substrate image. Substrate ROI
     encloses the bare substrate region, narrowing down the target.
@@ -100,7 +101,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     ==========
 
     image
-        Reference image.
+        Reference image in RGB.
 
     templateROI, substrateROI
         Slice indices in ``(x0, y0, x1, y1)`` for the template and the substrate.
