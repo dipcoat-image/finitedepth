@@ -136,29 +136,35 @@ class ReferenceWidget(QWidget):
 
     def connectSignals(self):
         """Connect the signals disconnected by :meth:`disconnectSignals`."""
-        self._typeCnct = self.typeWidget().variableChanged.connect(
+        self._typeSelectConnection = self.typeWidget().variableChanged.connect(
             self.onReferenceTypeChange
         )
-        self._pathCnct = self.pathLineEdit().editingFinished.connect(
+        self._pathEditConnection = self.pathLineEdit().editingFinished.connect(
             self.onPathEditFinished
         )
-        self._temproiCnct = self.templateROIWidget().roiChanged.connect(self.emitData)
-        self._substroiCnct = self.substrateROIWidget().roiChanged.connect(self.emitData)
-        self._paramCnct = self.parametersWidget().dataValueChanged.connect(
+        self._tempROIChangeConnection = self.templateROIWidget().roiChanged.connect(
             self.emitData
         )
-        self._drawoptCnct = self.drawOptionsWidget().dataValueChanged.connect(
+        self._substROIChangeConnection = self.substrateROIWidget().roiChanged.connect(
             self.emitData
+        )
+        self._paramChangeConnection = self.parametersWidget().dataValueChanged.connect(
+            self.emitData
+        )
+        self._drawoptChangeConnection = (
+            self.drawOptionsWidget().dataValueChanged.connect(self.emitData)
         )
 
     def disconnectSignals(self):
         """Disconnect the signals connected by :meth:`connectSignals`."""
-        self.drawOptionsWidget().dataValueChanged.disconnect(self._drawoptCnct)
-        self.parametersWidget().dataValueChanged.disconnect(self._paramCnct)
-        self.substrateROIWidget().roiChanged.disconnect(self._substroiCnct)
-        self.templateROIWidget().roiChanged.disconnect(self._temproiCnct)
-        self.pathLineEdit().editingFinished.disconnect(self._pathCnct)
-        self.typeWidget().variableChanged.disconnect(self._typeCnct)
+        self.drawOptionsWidget().dataValueChanged.disconnect(
+            self._drawoptChangeConnection
+        )
+        self.parametersWidget().dataValueChanged.disconnect(self._paramChangeConnection)
+        self.substrateROIWidget().roiChanged.disconnect(self._substROIChangeConnection)
+        self.templateROIWidget().roiChanged.disconnect(self._tempROIChangeConnection)
+        self.pathLineEdit().editingFinished.disconnect(self._pathEditConnection)
+        self.typeWidget().variableChanged.disconnect(self._typeSelectConnection)
 
     def initUI(self):
         self.pathLineEdit().setPlaceholderText("Path for the reference image file")
@@ -318,7 +324,9 @@ class ReferenceWidget(QWidget):
 
     def referenceWidgetData(self) -> ReferenceWidgetData:
         ref_type = self.typeWidget().variable()
-        img = cv2.imread(self.pathLineEdit().text(), cv2.IMREAD_GRAYSCALE)
+        img = cv2.imread(self.pathLineEdit().text())
+        if img is not None:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         templateROI = self.templateROIWidget().roiModel().roi()
         substrateROI = self.substrateROIWidget().roiModel().roi()
         try:

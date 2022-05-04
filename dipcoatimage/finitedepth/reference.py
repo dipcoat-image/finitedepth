@@ -326,7 +326,7 @@ class SubstrateReferenceDrawOptions:
 
 class SubstrateReference(SubstrateReferenceBase):
     """
-    Substrate reference class with RGB image.
+    Simplest substrate reference class.
 
     Examples
     ========

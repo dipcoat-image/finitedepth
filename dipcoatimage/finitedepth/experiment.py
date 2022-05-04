@@ -99,7 +99,6 @@ class ReferenceArgs:
 
     def as_reference(self) -> SubstrateReferenceBase:
         """Construct the substrate reference instance."""
-        # XXX: perhaps make this a static method of Experiment
         name = self.type.name
         module = self.type.module
         refcls = import_variable(name, module)
