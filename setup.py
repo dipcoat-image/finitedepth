@@ -30,7 +30,9 @@ HEADLESS_EXCLUDE = [
 
 PACKAGE_DATA = [
     "dipcoatimage/finitedepth/samples",
+    "dipcoatimage/finitedepth/py.typed",
     "dipcoatimage/finitedepth_gui/icons",
+    "dipcoatimage/finitedepth_gui/py.typed",
 ]
 
 
