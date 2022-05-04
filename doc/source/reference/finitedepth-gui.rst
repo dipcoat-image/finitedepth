@@ -9,3 +9,4 @@ DipCoatImage-FiniteDepth GUI
    finitedepth-gui.importwidget
    finitedepth-gui.roimodel
    finitedepth-gui.controlwidgets
+   finitedepth-gui.workers

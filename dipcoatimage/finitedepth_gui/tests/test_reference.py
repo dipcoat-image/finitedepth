@@ -1,17 +1,26 @@
 """Test for reference widget and reference worker."""
 
+import cv2  # type: ignore
 from dipcoatimage.finitedepth import (
     get_samples_path,
     SubstrateReference,
     data_converter,
 )
 from dipcoatimage.finitedepth.experiment import ReferenceArgs
-from dipcoatimage.finitedepth_gui.controlwidgets import ReferenceWidget
+from dipcoatimage.finitedepth_gui.controlwidgets import (
+    ReferenceWidget,
+    ReferenceWidgetData,
+)
+from dipcoatimage.finitedepth_gui.workers import ReferenceWorker
 from PySide6.QtCore import Qt
 import pytest
 
 
 REF_PATH = get_samples_path("ref1.png")
+REF_IMG = cv2.imread(REF_PATH)
+if REF_IMG is None:
+    raise TypeError("Invalid reference image sample.")
+REF_IMG = cv2.cvtColor(REF_IMG, cv2.COLOR_BGR2RGB)
 
 
 def dict_includes(sup, sub):
@@ -186,3 +195,44 @@ def test_ReferenceWidget_dataChanged_count(qtbot):
     refargs = data_converter.unstructure(ReferenceArgs())
     widget.setReferenceArgs(refargs)
     assert counter.i == 1
+
+
+def test_ReferenceWorker_setReferenceWidgetData(qtbot):
+    worker = ReferenceWorker()
+    assert worker.referenceType() is None
+    assert worker.parameters() is None
+    assert worker.drawOptions() is None
+
+    valid_data1 = ReferenceWidgetData(
+        SubstrateReference, REF_IMG, (0, 0, None, None), (0, 0, None, None), None, None
+    )
+    worker.setReferenceWidgetData(valid_data1)
+    assert worker.referenceType() == valid_data1.type
+    assert worker.parameters() == worker.referenceType().Parameters()
+    assert worker.drawOptions() == worker.referenceType().DrawOptions()
+
+    valid_data2 = ReferenceWidgetData(
+        SubstrateReference,
+        REF_IMG,
+        (0, 0, None, None),
+        (0, 0, None, None),
+        SubstrateReference.Parameters(),
+        SubstrateReference.DrawOptions(),
+    )
+    worker.setReferenceWidgetData(valid_data2)
+    assert worker.referenceType() == valid_data2.type
+    assert worker.parameters() == valid_data2.parameters
+    assert worker.drawOptions() == valid_data2.draw_options
+
+    type_invalid_data = ReferenceWidgetData(
+        type,
+        REF_IMG,
+        (0, 0, None, None),
+        (0, 0, None, None),
+        SubstrateReference.Parameters(),
+        SubstrateReference.DrawOptions(),
+    )
+    worker.setReferenceWidgetData(type_invalid_data)
+    assert worker.referenceType() is None
+    assert worker.parameters() is None
+    assert worker.drawOptions() is None
