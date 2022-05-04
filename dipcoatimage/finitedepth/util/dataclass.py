@@ -2,9 +2,9 @@
 Dataclass utilities
 ===================
 
-:mod:`dipcoatimage.finitedepth.util.dataclass` provides ``data_converter``, which
-is :class:`cattrs.Converter` instance dedicated to convert the dataclasses in
-:mod:`dipcoatimage.finitedepth`.
+:mod:`dipcoatimage.finitedepth.util.dataclass` provides :obj:`data_converter`,
+which is :class:`cattrs.Converter` instance dedicated to convert the dataclasses
+in :mod:`dipcoatimage.finitedepth`.
 
 """
 from cattrs import Converter

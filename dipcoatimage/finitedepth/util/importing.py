@@ -40,17 +40,15 @@ def import_variable(name: str, module_name: str = "") -> object:
 
     """
     if not name:
-        raise TypeError("Empty variable name")
+        raise ValueError("Empty variable name")
 
     SENTINEL = object()
-    ret = SENTINEL
-
     if module_name:
         module = importlib.import_module(module_name)
         ret = getattr(module, name, SENTINEL)
-
-    if ret is SENTINEL:
-        # fallback to default eval
+        if ret is SENTINEL:
+            raise ImportError(f"cannot import name {name} from {module_name}")
+    else:
         ret = eval(name)
 
     return ret
