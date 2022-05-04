@@ -180,7 +180,7 @@ class ImportWidget(QWidget):
         )
         self.moduleNameLineEdit().editingFinished.connect(self.onInformationEdit)
         self.registryWindowButton().setText("Open registry window")
-        self.registryWindowButton().clicked.connect(self.openRegistryWindow)
+        self.registryWindowButton().clicked.connect(self.registryWidget().show)
 
         cbox_layout = QHBoxLayout()
         cbox_layout.addWidget(self.variableComboBox())
@@ -299,10 +299,19 @@ class ImportWidget(QWidget):
 
     @Slot()
     def onInformationEdit(self):
+        """Import and apply variable with current texts."""
         self.variableComboBox().setCurrentIndex(-1)
         varname = self.variableNameLineEdit().text()
         modname = self.moduleNameLineEdit().text()
         var, status = self.importVariable(varname, modname)
+        self._applyVariable(var, status)
+
+    def setImportInformation(self, varName: str, modName: str):
+        """Import and apply variable with passed informations."""
+        self.variableComboBox().setCurrentIndex(-1)
+        self.variableNameLineEdit().setText(varName)
+        self.moduleNameLineEdit().setText(modName)
+        var, status = self.importVariable(varName, modName)
         self._applyVariable(var, status)
 
     def _applyVariable(self, var: Any, status: ImportStatus):
@@ -327,6 +336,3 @@ class ImportWidget(QWidget):
         self.moduleNameLineEdit().setVisible(not state)
         self.messageBox().setVisible(not state)
         self.registryWindowButton().setVisible(not state)
-
-    def openRegistryWindow(self):
-        self.registryWidget().show()

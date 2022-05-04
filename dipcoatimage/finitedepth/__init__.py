@@ -22,13 +22,12 @@ from .reference import (
     SubstrateReferenceBase,
     SubstrateReference,
 )
-from .util import (
-    get_samples_path,
-)
+from .util import get_samples_path, data_converter
 
 
 __all__ = [
     "SubstrateReferenceBase",
     "SubstrateReference",
     "get_samples_path",
+    "data_converter",
 ]
