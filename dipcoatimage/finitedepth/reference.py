@@ -17,8 +17,8 @@ Base class
 .. autoclass:: SubstrateReferenceDrawOptions
    :members:
 
-Default implementation
-----------------------
+Implementation
+--------------
 
 .. autoclass:: SubstrateReference
    :members:
