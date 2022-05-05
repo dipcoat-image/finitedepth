@@ -8,3 +8,4 @@ In this document, informations to use DipcoatImage-FiniteDepth are provided.
    :maxdepth: 1
 
    defining-reference
+   defining-substrate

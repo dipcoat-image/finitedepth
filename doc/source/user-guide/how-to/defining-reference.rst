@@ -12,13 +12,13 @@ Defining reference class
    import cv2
    import matplotlib.pyplot as plt
    from dipcoatimage.finitedepth import get_samples_path
-   gray = cv2.imread(get_samples_path('ref3.png'), cv2.IMREAD_GRAYSCALE)
+   gray = cv2.imread(get_samples_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
    _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
    _, axs = plt.subplots(1, 2, figsize=(6, 3))
-   axs[0].imshow(gray, cmap='gray')
-   axs[0].axis('off')
-   axs[1].imshow(binary, cmap='gray')
-   axs[1].axis('off')
+   axs[0].imshow(gray, cmap="gray")
+   axs[0].axis("off")
+   axs[1].imshow(binary, cmap="gray")
+   axs[1].axis("off")
    plt.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=0.05)
    plt.show()
 
@@ -100,8 +100,8 @@ Full code will be shown first, and each line will be explained in subsections.
    ...     DrawOptions = BinaryDrawOptions
    ...     def binary_image(self):
    ...         if not hasattr(self, "_binary"):
-   ...             args = dataclasses.astuple(self.parameters)
-   ...             _, self._binary = cv2.threshold(self.image, *args)
+   ...             args = dataclasses.asdict(self.parameters)
+   ...             _, self._binary = cv2.threshold(self.image, **args)
    ...         return self._binary
    ...     @property
    ...     def template_image(self):
@@ -129,7 +129,7 @@ Slots
    __slots__ = ("_binary",)
 
 Reference class use slots for better performance.
-:class:`BinaryReference` will cache the binarized image by storing the result in attribute, so we define slot for it.
+:class:`BinaryReference` caches the binarized image by storing the result in attribute, so we define slot for it.
 
 Parameters and DrawOptions
 --------------------------
@@ -148,8 +148,8 @@ Binarization
 
    def binary_image(self):
        if not hasattr(self, "_binary"):
-           args = dataclasses.astuple(self.parameters)
-           _, self._binary = cv2.threshold(self.image, *args)
+           args = dataclasses.asdict(self.parameters)
+           _, self._binary = cv2.threshold(self.image, **args)
        return self._binary
    @property
    def template_image(self):
@@ -200,7 +200,7 @@ We construct a reference with Otsu's binarization, and draw with original image.
    :context: close-figs
 
    >>> from dipcoatimage.finitedepth import get_samples_path
-   >>> ref_img = cv2.imread(get_samples_path('ref3.png'), cv2.IMREAD_GRAYSCALE)
+   >>> ref_img = cv2.imread(get_samples_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
    >>> tempROI = (100, 20, 1150, 160)
    >>> substROI = (50, 10, 1200, 650)
    >>> params = ThresholdParameters(0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
@@ -214,7 +214,7 @@ Template image is binarized.
    :include-source:
    :context: close-figs
 
-   >>> plt.imshow(ref.template_image, cmap='gray') #doctest: +SKIP
+   >>> plt.imshow(ref.template_image, cmap="gray") #doctest: +SKIP
 
 Substrate image is binarized as well.
 
@@ -222,7 +222,7 @@ Substrate image is binarized as well.
    :include-source:
    :context: close-figs
 
-   >>> plt.imshow(ref.substrate_image, cmap='gray') #doctest: +SKIP
+   >>> plt.imshow(ref.substrate_image, cmap="gray") #doctest: +SKIP
 
 We can change the option to visualize with binarized image.
 
