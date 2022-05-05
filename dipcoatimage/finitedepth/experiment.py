@@ -26,18 +26,23 @@ Data serialization
 .. autoclass:: ReferenceArgs
    :members:
 
+.. autoclass:: SubstrateArgs
+   :members:
+
 """
 
 import cv2  # type: ignore
 import dataclasses
 
 from .reference import SubstrateReferenceBase
+from .substrate import SubstrateBase
 from .util import import_variable, data_converter, OptionalROI
 
 
 __all__ = [
     "ImportArgs",
     "ReferenceArgs",
+    "SubstrateArgs",
 ]
 
 
@@ -77,7 +82,7 @@ class ReferenceArgs:
        >>> from dipcoatimage.finitedepth import get_samples_path
        >>> from dipcoatimage.finitedepth.experiment import ReferenceArgs
        >>> from dipcoatimage.finitedepth.util import cwd
-       >>> refargs = ReferenceArgs(path='ref1.png',
+       >>> refargs = ReferenceArgs(path="ref1.png",
        ...                         templateROI=(200, 100, 1200, 500),
        ...                         substrateROI=(300, 50, 1100, 600))
        >>> with cwd(get_samples_path()):
@@ -127,3 +132,92 @@ class ReferenceArgs:
             draw_options=drawopts,
         )
         return ref
+
+
+@dataclasses.dataclass
+class SubstrateArgs:
+    """
+    Data for the concrete instance of :class:`SubstrateBase`.
+
+    Parameters
+    ==========
+
+    type
+        Information to import substrate class.
+        Class name defaults to ``Substrate``.
+
+    parameters, draw_options
+        Arguments for :class:`Substrate` instance.
+
+    Examples
+    ========
+
+    Construct substrate reference instance first.
+
+    .. plot::
+       :include-source:
+       :context: reset
+
+       >>> import matplotlib.pyplot as plt #doctest: +SKIP
+       >>> from dipcoatimage.finitedepth import get_samples_path, data_converter
+       >>> from dipcoatimage.finitedepth.experiment import (ReferenceArgs,
+       ...     SubstrateArgs)
+       >>> from dipcoatimage.finitedepth.util import cwd
+       >>> refargs = ReferenceArgs(path="ref1.png",
+       ...                         templateROI=(200, 100, 1200, 500),
+       ...                         substrateROI=(300, 50, 1100, 600))
+       >>> with cwd(get_samples_path()):
+       ...     ref = refargs.as_reference()
+
+    Construct substrate instance from the data.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> params = {"Canny": {"threshold1": 50, "threshold2": 150},
+       ...           "HoughLines": {"rho": 1, "theta": 0.01, "threshold": 100}}
+       >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)
+       >>> substargs = data_converter.structure(arg, SubstrateArgs)
+       >>> subst = substargs.as_substrate(ref)
+       >>> plt.imshow(subst.draw()) #doctest: +SKIP
+
+    """
+
+    type: ImportArgs = dataclasses.field(default_factory=ImportArgs)
+    parameters: dict = dataclasses.field(default_factory=dict)
+    draw_options: dict = dataclasses.field(default_factory=dict)
+
+    def __post_init__(self):
+        if not self.type.name:
+            self.type.name = "Substrate"
+
+    def as_substrate(self, ref: SubstrateReferenceBase) -> SubstrateBase:
+        """
+        Construct the substrate instance.
+
+        Parameters
+        ==========
+
+        img
+            Substrate reference instance.
+
+        """
+        name = self.type.name
+        module = self.type.module
+        substcls = import_variable(name, module)
+        if not (isinstance(substcls, type) and issubclass(substcls, SubstrateBase)):
+            raise TypeError(f"{substcls} is not substrate class.")
+
+        params = data_converter.structure(
+            self.parameters, substcls.Parameters  # type: ignore
+        )
+        drawopts = data_converter.structure(
+            self.draw_options, substcls.DrawOptions  # type: ignore
+        )
+        subst = substcls.from_reference(  # type: ignore
+            ref,
+            parameters=params,
+            draw_options=drawopts,
+        )
+        return subst
