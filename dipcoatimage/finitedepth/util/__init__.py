@@ -22,7 +22,7 @@ Core utilities
 """
 
 from .dataclass import data_converter
-from .geometry import get_extended_line
+from .geometry import get_extended_line, intrsct_pt_polar
 from .importing import import_variable, get_importinfo
 from .path import get_samples_path, cwd
 from .typing import DataclassProtocol, OptionalROI, IntROI
@@ -30,6 +30,7 @@ from .typing import DataclassProtocol, OptionalROI, IntROI
 __all__ = [
     "data_converter",
     "get_extended_line",
+    "intrsct_pt_polar",
     "import_variable",
     "get_importinfo",
     "get_samples_path",

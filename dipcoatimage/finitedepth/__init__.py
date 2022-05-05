@@ -28,6 +28,12 @@ from .substrate import (
     SubstrateBase,
     Substrate,
 )
+from .rectsubstrate import (
+    RectSubstrateError,
+    RectSubstrateHoughLinesError,
+    RectSubstrateEdgeError,
+    RectSubstrate,
+)
 from .util import get_samples_path, data_converter
 
 
@@ -38,6 +44,10 @@ __all__ = [
     "SubstrateError",
     "SubstrateBase",
     "Substrate",
+    "RectSubstrateError",
+    "RectSubstrateHoughLinesError",
+    "RectSubstrateEdgeError",
+    "RectSubstrate",
     "get_samples_path",
     "data_converter",
 ]
