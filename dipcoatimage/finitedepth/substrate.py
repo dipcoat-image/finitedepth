@@ -32,6 +32,7 @@ Implementation
 
 
 import abc
+import cv2  # type: ignore
 import dataclasses
 import numpy as np
 import numpy.typing as npt
@@ -327,4 +328,16 @@ class Substrate(SubstrateBase):
         return None
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        return self.image.copy()
+        if len(self.image.shape) == 2:
+            ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
+        elif len(self.image.shape) == 3:
+            ch = self.image.shape[-1]
+            if ch == 1:
+                ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
+            elif ch == 3:
+                ret = self.image.copy()
+            else:
+                raise TypeError(f"Image with invalid channel: {self.image.shape}")
+        else:
+            raise TypeError(f"Invalid image shape: {self.image.shape}")
+        return ret
