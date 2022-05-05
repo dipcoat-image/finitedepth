@@ -11,14 +11,14 @@ Base class
 .. autoclass:: SubstrateReferenceBase
    :members:
 
+Implementation
+--------------
+
 .. autoclass:: SubstrateReferenceParameters
    :members:
 
 .. autoclass:: SubstrateReferenceDrawOptions
    :members:
-
-Implementation
---------------
 
 .. autoclass:: SubstrateReference
    :members:
@@ -250,7 +250,8 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         """
         Check the sanity of parameters.
 
-        If the instance is invalid, return error instance. Else, return :obj:`None`.
+        If the instance is invalid, return error instance.
+        Else, return :obj:`None`.
         """
 
     def verify(self):
