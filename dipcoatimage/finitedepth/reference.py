@@ -74,7 +74,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     Substrate reference class wraps the data to locate the substrate in coated
     substrate image. It consists of the reference image and two ROIs.
 
-    Reference image, which can be accessed by :attr:`image`, is the RGB picture
+    Reference image, which can be accessed by :attr:`image`, is the picture
     of bare substrate taken before coating. Two ROIs, :attr:`templateROI` and
     :attr:`substrateROI`, are defined. Template ROI encloses the region which is
     common in both bare substrate image and coated substrate image. Substrate ROI
@@ -111,7 +111,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     ==========
 
     image
-        Reference image in RGB.
+        Reference image.
 
     templateROI, substrateROI
         Slice indices in ``(x0, y0, x1, y1)`` for the template and the substrate.
@@ -198,7 +198,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     @property
     def image(self) -> npt.NDArray[np.uint8]:
         """
-        Reference image in RGB, passed to constructor.
+        Reference image, passed to constructor.
 
         This array is not writable to enable caching which requires immutability.
         """
@@ -367,7 +367,18 @@ class SubstrateReference(SubstrateReferenceBase):
         return None
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        ret = self.image.copy()
+        if len(self.image.shape) == 2:
+            ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
+        elif len(self.image.shape) == 3:
+            ch = self.image.shape[-1]
+            if ch == 1:
+                ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
+            elif ch == 3:
+                ret = self.image.copy()
+            else:
+                raise TypeError(f"Image with invalid channel: {self.image.shape}")
+        else:
+            raise TypeError(f"Invalid image shape: {self.image.shape}")
 
         if self.draw_options.draw_substrateROI:
             x0, y0, x1, y1 = self.substrateROI
