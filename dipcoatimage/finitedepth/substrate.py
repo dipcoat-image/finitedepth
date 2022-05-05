@@ -24,7 +24,6 @@ Implementation
    :members:
 
 .. automodule:: dipcoatimage.finitedepth.rectsubstrate
-   :members:
 
 """
 
