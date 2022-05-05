@@ -205,28 +205,30 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         """
         Find the points which are firmly nestled in the substrate.
 
-        This method is used to eliminate the components in dip coating
-        image which are not connected to the substrate. Return value is
-        a list of coordinates in ``(x, y)``.
+        This method is used to eliminate the components in dip coating image
+        which are not connected to the substrate.
 
-        If the substrate is extremely concave or has holes in its image,
-        this method may need to be reimplemented.
+        If the substrate is extremely concave or has holes in its image, this
+        method may need to be reimplemented.
 
-        For most cases, this method returns a single point. If the
-        substrate consists of components which are not connected,
-        multiple points may be returned.
+        Return value is a list of coordinates in ``(x, y)``, but for most cases
+        this method returns a single point.
+        If the substrate consists of components which are not connected, multiple
+        points may be returned.
 
         Examples
         ========
 
         >>> import cv2
-        >>> from dipcoatimage.substrate import (FiniteSubstrate,
+        >>> from dipcoatimage.finitedepth import (SubstrateReference, Substrate,
         ...     get_samples_path)
-        >>> img_path = get_samples_path('substrate1.png')
-        >>> img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
-        >>> subs = FiniteSubstrate(img)
-        >>> subs.nestled_points
-        [(703, 0)]
+        >>> ref_path = get_samples_path('ref1.png')
+        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+        >>> substROI = (400, 100, 1000, 500)
+        >>> ref = SubstrateReference(img, substrateROI=substROI)
+        >>> subst = Substrate.from_reference(ref)
+        >>> subst.nestled_points
+        [(300, 0)]
 
         """
         w = self.image.shape[1]
