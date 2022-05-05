@@ -8,6 +8,9 @@ finite-depth dip coating process.
 Base class
 ----------
 
+.. autoclass:: SubstrateReferenceError
+   :members:
+
 .. autoclass:: SubstrateReferenceBase
    :members:
 
@@ -36,11 +39,18 @@ from .util import DataclassProtocol, OptionalROI, IntROI
 
 
 __all__ = [
+    "SubstrateReferenceError",
     "SubstrateReferenceBase",
     "SubstrateReferenceParameters",
     "SubstrateReferenceDrawOptions",
     "SubstrateReference",
 ]
+
+
+class SubstrateReferenceError(Exception):
+    """Base class for error from :class:`SubstrateReferenceBase`."""
+
+    pass
 
 
 ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
@@ -246,7 +256,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         return (x1 - x0, y1 - y0)
 
     @abc.abstractmethod
-    def examine(self) -> Optional[Exception]:
+    def examine(self) -> Optional[SubstrateReferenceError]:
         """
         Check the sanity of parameters.
 
