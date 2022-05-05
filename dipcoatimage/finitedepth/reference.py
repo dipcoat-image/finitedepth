@@ -198,7 +198,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     @property
     def image(self) -> npt.NDArray[np.uint8]:
         """
-        Reference image passed to constructor.
+        Reference image in RGB, passed to constructor.
 
         This array is not writable to enable caching which requires immutability.
         """

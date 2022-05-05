@@ -252,6 +252,41 @@ class RectSubstrate(SubstrateBase):
 
     Rectangular substrate is characterized by four edges and vertices,
     which are detected by :attr:`edge_lines` and :attr:`vertex_points`.
+
+    Examples
+    ========
+
+    Construct substrate reference class first.
+
+    .. plot::
+       :include-source:
+       :context: reset
+
+       >>> import cv2
+       >>> from dipcoatimage.finitedepth import (SubstrateReference,
+       ...     get_samples_path)
+       >>> ref_path = get_samples_path('ref1.png')
+       >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+       >>> tempROI = (200, 50, 1200, 200)
+       >>> substROI = (400, 100, 1000, 500)
+       >>> ref = SubstrateReference(img, tempROI, substROI)
+       >>> import matplotlib.pyplot as plt #doctest: +SKIP
+       >>> plt.imshow(ref.draw()) #doctest: +SKIP
+
+    Construct the parameters.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> from dipcoatimage.finitedepth import (CannyParameters,
+       ...     HoughLinesParameters, RectSubstrate)
+       >>> cparams = CannyParameters(50, 150)
+       >>> hparams = HoughLinesParameters(1, 0.01, 100)
+       >>> params = RectSubstrate.Parameters(cparams, hparams)
+       >>> subst = RectSubstrate.from_reference(ref, parameters=params)
+       >>> plt.imshow(subst.draw()) #doctest: +SKIP
+
     """
 
     __slots__ = (
@@ -289,7 +324,7 @@ class RectSubstrate(SubstrateBase):
         image: np.ndarray,
         parameters: Optional[RectSubstrateParameters] = None,
         *,
-        draw_options: Optional[RectSubstrateDrawOptions] = None
+        draw_options: Optional[RectSubstrateDrawOptions] = None,
     ):
         super().__init__(image, parameters, draw_options=draw_options)
 
@@ -311,8 +346,22 @@ class RectSubstrate(SubstrateBase):
 
         """
         if self._binimage is None:
+
+            if len(self.image.shape) == 2:
+                gray = self.image
+            elif len(self.image.shape) == 3:
+                ch = self.image.shape[-1]
+                if ch == 1:
+                    gray = self.image
+                elif ch == 3:
+                    gray = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
+                else:
+                    raise TypeError(f"Image with invalid channel: {self.image.shape}")
+            else:
+                raise TypeError(f"Invalid image shape: {self.image.shape}")
+
             _, self._binimage = cv2.threshold(
-                self.image, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
+                gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
             )
         return self._binimage  # type: ignore
 
@@ -472,7 +521,18 @@ class RectSubstrate(SubstrateBase):
             image = self.canny_image
         else:
             raise TypeError("Unrecognized draw type: %s" % draw_type)
-        ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        if len(image.shape) == 2:
+            ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        elif len(image.shape) == 3:
+            ch = image.shape[-1]
+            if ch == 1:
+                ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+            elif ch == 3:
+                ret = image.copy()
+            else:
+                raise TypeError(f"Image with invalid channel: {image.shape}")
+        else:
+            raise TypeError(f"Invalid image shape: {image.shape}")
 
         if self.draw_options.draw_lines:
             color = self.draw_options.line_color

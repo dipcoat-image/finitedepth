@@ -73,6 +73,9 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     to generate substrate instances. Additional parameters can be introduced by
     definig class attribute :attr:`Parameters` and :attr:`DrawOptions`.
 
+    Instead of directly calling the constructor, use :meth:`from_reference` to
+    construct the instance.
+
     .. rubric:: Parameters and DrawOptions
 
     Concrete class must have :attr:`Parameters` and :attr:`DrawOptions` which
@@ -281,7 +284,7 @@ class SubstrateDrawOptions:
 
 class Substrate(SubstrateBase):
     """
-    Simplest substrate class.
+    Simplest substrate class with no geometric information.
 
     Examples
     ========
