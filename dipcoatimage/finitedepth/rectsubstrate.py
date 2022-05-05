@@ -56,6 +56,7 @@ import dataclasses
 import enum
 from math import isclose
 import numpy as np
+import numpy.typing as npt
 from typing import Tuple, Optional, Dict
 from .substrate import SubstrateError, SubstrateBase
 from .util import intrsct_pt_polar
@@ -321,7 +322,7 @@ class RectSubstrate(SubstrateBase):
 
     def __init__(
         self,
-        image: np.ndarray,
+        image: npt.NDArray[np.uint8],
         parameters: Optional[RectSubstrateParameters] = None,
         *,
         draw_options: Optional[RectSubstrateDrawOptions] = None,
@@ -335,9 +336,9 @@ class RectSubstrate(SubstrateBase):
         self._vertex_points = None
 
     @property
-    def binary_image(self) -> np.ndarray:
+    def binary_image(self) -> npt.NDArray[np.uint8]:
         """
-        Binarized :attr:`.FiniteSubstrate.image`.
+        Binarized :meth:`image`.
 
         Notes
         =====
@@ -366,7 +367,7 @@ class RectSubstrate(SubstrateBase):
         return self._binimage  # type: ignore
 
     @property
-    def canny_image(self) -> np.ndarray:
+    def canny_image(self) -> npt.NDArray[np.uint8]:
         """
         Canny edge detection result on :attr:`binary_image`.
 
@@ -382,10 +383,10 @@ class RectSubstrate(SubstrateBase):
         return self._cannyimage  # type: ignore
 
     @property
-    def lines(self) -> np.ndarray:
+    def lines(self) -> npt.NDArray[np.uint8]:
         """
         Feature vectors of straight lines in ``(r, theta)``, detected by
-        ``cv2.HoughLines()`` on :attr:`canny_image`.
+        :func:`cv2.HoughLines` on :attr:`canny_image`.
 
         Notes
         =====
@@ -428,8 +429,8 @@ class RectSubstrate(SubstrateBase):
     def edge_lines(self) -> Dict[RectSubstrateLineType, Tuple[float, float]]:
         """
         Dictionary of rectangle edges detected from :attr:`lines` using
-        :meth:`classify_line`. Values are ``(r, theta)`` of the edge
-        line.
+        :meth:`classify_line`.
+        Values are ``(r, theta)`` of the edge line.
 
         Notes
         =====
@@ -454,8 +455,8 @@ class RectSubstrate(SubstrateBase):
     @property
     def vertex_points(self) -> Dict[RectSubstratePointType, Tuple[int, int]]:
         """
-        Dictionary of rectangle vertices from :attr:`edge_lines`. Values
-        are ``(x, y)`` of the point.
+        Dictionary of rectangle vertices from :attr:`edge_lines`.
+        Values are ``(x, y)`` of the point.
 
         Notes
         =====
@@ -509,7 +510,7 @@ class RectSubstrate(SubstrateBase):
 
         return ret
 
-    def draw(self) -> np.ndarray:
+    def draw(self) -> npt.NDArray[np.uint8]:
         h, w = self.image.shape[:2]
 
         draw_type = self.draw_options.draw_type
