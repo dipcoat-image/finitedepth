@@ -178,6 +178,7 @@ def test_ReferenceWidget_dataChanged_count(qtbot):
     """
     Test that refwidget.dataChanged do not trigger signals multiple times.
     """
+
     class Counter:
         def __init__(self):
             self.i = 0
