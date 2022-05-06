@@ -39,7 +39,7 @@ import enum
 import numpy as np
 import numpy.typing as npt
 from typing import TypeVar, Generic, Type, Optional, cast, Tuple
-from .util import DataclassProtocol, OptionalROI, IntROI
+from .util import DataclassProtocol, OptionalROI, IntROI, ThresholdParameters
 
 
 __all__ = [
@@ -329,27 +329,9 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
 
 @dataclasses.dataclass(frozen=True)
 class SubstrateReferenceParameters:
-    """
-    Additional parameters for :class:`SubstrateReference` instance.
+    """Additional parameters for :class:`SubstrateReference` instance."""
 
-    This class defines parameters for :func:`cv2.threshold`, which default for
-    Otsu's binarization.
-
-    Attributes
-    ==========
-
-    thresh
-
-    maxval
-
-    type
-        Default is ``cv2.THRESH_BINARY | cv2.THRESH_OTSU`` value.
-
-    """
-
-    thresh: int = 0
-    maxval: int = 255
-    type: int = cv2.THRESH_BINARY | cv2.THRESH_OTSU
+    threshold: ThresholdParameters = ThresholdParameters()
 
 
 class SubstrateReferenceDrawMode(enum.Enum):
@@ -468,7 +450,9 @@ class SubstrateReference(SubstrateReferenceBase):
                     raise TypeError(f"Image with invalid channel: {self.image.shape}")
             else:
                 raise TypeError(f"Invalid image shape: {self.image.shape}")
-            _, ret = cv2.threshold(gray, **dataclasses.asdict(self.parameters))
+            _, ret = cv2.threshold(
+                gray, **dataclasses.asdict(self.parameters.threshold)
+            )
             if ret is None:
                 ret = np.empty((0, 0))
             self._binary_image = ret

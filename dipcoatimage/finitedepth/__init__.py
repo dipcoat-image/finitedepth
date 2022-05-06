@@ -29,14 +29,18 @@ from .substrate import (
     Substrate,
 )
 from .rectsubstrate import (
-    CannyParameters,
-    HoughLinesParameters,
     RectSubstrateError,
     RectSubstrateHoughLinesError,
     RectSubstrateEdgeError,
     RectSubstrate,
 )
-from .util import get_samples_path, data_converter
+from .util import (
+    get_samples_path,
+    data_converter,
+    ThresholdParameters,
+    CannyParameters,
+    HoughLinesParameters,
+)
 
 
 __all__ = [
@@ -54,4 +58,7 @@ __all__ = [
     "RectSubstrate",
     "get_samples_path",
     "data_converter",
+    "ThresholdParameters",
+    "CannyParameters",
+    "HoughLinesParameters",
 ]

@@ -19,6 +19,9 @@ Core utilities
 .. automodule:: dipcoatimage.finitedepth.util.typing
    :members:
 
+.. automodule:: dipcoatimage.finitedepth.util.parameters
+   :members:
+
 """
 
 from .dataclass import data_converter
@@ -26,6 +29,7 @@ from .geometry import get_extended_line, intrsct_pt_polar
 from .importing import import_variable, get_importinfo
 from .path import get_samples_path, cwd
 from .typing import DataclassProtocol, OptionalROI, IntROI
+from .parameters import ThresholdParameters, CannyParameters, HoughLinesParameters
 
 __all__ = [
     "data_converter",
@@ -38,4 +42,7 @@ __all__ = [
     "DataclassProtocol",
     "OptionalROI",
     "IntROI",
+    "ThresholdParameters",
+    "CannyParameters",
+    "HoughLinesParameters",
 ]

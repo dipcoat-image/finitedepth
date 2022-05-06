@@ -8,12 +8,6 @@ analyze the substrate with rectangular cross-section shape.
 Parameter classes
 -----------------
 
-.. autoclass:: CannyParameters
-   :members:
-
-.. autoclass:: HoughLinesParameters
-   :members:
-
 .. autoclass:: RectSubstrateParameters
    :members:
 
@@ -59,12 +53,10 @@ import numpy as np
 import numpy.typing as npt
 from typing import Tuple, Optional, Dict
 from .substrate import SubstrateError, SubstrateBase
-from .util import intrsct_pt_polar
+from .util import intrsct_pt_polar, CannyParameters, HoughLinesParameters
 
 
 __all__ = [
-    "CannyParameters",
-    "HoughLinesParameters",
     "RectSubstrateParameters",
     "RectSubstrateDrawMode",
     "RectSubstrateDrawOptions",
@@ -75,29 +67,6 @@ __all__ = [
     "RectSubstratePointType",
     "RectSubstrate",
 ]
-
-
-@dataclasses.dataclass(frozen=True)
-class CannyParameters:
-    """Parameters for :func:`cv2.Canny`."""
-
-    threshold1: float
-    threshold2: float
-    apertureSize: int = 3
-    L2gradient: bool = False
-
-
-@dataclasses.dataclass(frozen=True)
-class HoughLinesParameters:
-    """Parameters for :func:`cv2.HoughLines`."""
-
-    rho: float
-    theta: float
-    threshold: int
-    srn: float = 0
-    stn: float = 0
-    min_theta: float = 0
-    max_theta: float = np.pi
 
 
 @dataclasses.dataclass(frozen=True)
