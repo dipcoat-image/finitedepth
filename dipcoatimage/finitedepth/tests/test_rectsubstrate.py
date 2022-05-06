@@ -19,7 +19,7 @@ def rectsubst():
     cparams = CannyParameters(50, 150)
     hparams = HoughLinesParameters(1, 0.01, 100)
     params = RectSubstrate.Parameters(cparams, hparams)
-    subst = RectSubstrate.from_reference(ref, parameters=params)
+    subst = RectSubstrate(ref, parameters=params)
     return subst
 
 
@@ -52,7 +52,7 @@ def test_RectSubstrate_lines_notNone():
     cparams = CannyParameters(50, 150)
     hparams = HoughLinesParameters(1, 0.01, 1000000000)
     params = RectSubstrate.Parameters(cparams, hparams)
-    subst = RectSubstrate.from_reference(ref, parameters=params)
+    subst = RectSubstrate(ref, parameters=params)
     assert subst.lines().shape == (0, 1, 2)
 
 

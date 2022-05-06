@@ -31,7 +31,7 @@ params = data_converter.structure(
     ),
     RectSubstrate.Parameters,
 )
-SUBST = RectSubstrate.from_reference(REF, parameters=params)
+SUBST = RectSubstrate(REF, parameters=params)
 
 
 def dict_includes(sup, sub):

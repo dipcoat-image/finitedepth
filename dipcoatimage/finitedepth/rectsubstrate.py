@@ -285,7 +285,7 @@ class RectSubstrate(SubstrateBase):
        >>> cparams = CannyParameters(50, 150)
        >>> hparams = HoughLinesParameters(1, 0.01, 100)
        >>> params = RectSubstrate.Parameters(cparams, hparams)
-       >>> subst = RectSubstrate.from_reference(ref, parameters=params)
+       >>> subst = RectSubstrate(ref, parameters=params)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
     """
@@ -320,21 +320,6 @@ class RectSubstrate(SubstrateBase):
     Point_BottomRight = RectSubstratePointType.BOTTOMRIGHT
     Point_TopRight = RectSubstratePointType.TOPRIGHT
 
-    def __init__(
-        self,
-        image: npt.NDArray[np.uint8],
-        parameters: Optional[RectSubstrateParameters] = None,
-        *,
-        draw_options: Optional[RectSubstrateDrawOptions] = None,
-    ):
-        super().__init__(image, parameters, draw_options=draw_options)
-
-        self._binimage = None
-        self._cannyimage = None
-        self._lines = None
-        self._edge_lines = None
-        self._vertex_points = None
-
     def binary_image(self) -> npt.NDArray[np.uint8]:
         """
         Binarized :meth:`image`.
@@ -345,7 +330,7 @@ class RectSubstrate(SubstrateBase):
         This property is cached. Do not mutate the result.
 
         """
-        if self._binimage is None:
+        if not hasattr(self, "_binimage"):
 
             if len(self.image.shape) == 2:
                 gray = self.image
@@ -375,7 +360,7 @@ class RectSubstrate(SubstrateBase):
         This property is cached. Do not mutate the result.
 
         """
-        if self._cannyimage is None:
+        if not hasattr(self, "_cannyimage"):
             cparams = dataclasses.asdict(self.parameters.Canny)
             self._cannyimage = cv2.Canny(self.binary_image(), **cparams)
         return self._cannyimage  # type: ignore
@@ -391,7 +376,7 @@ class RectSubstrate(SubstrateBase):
         This property is cached. Do not mutate the result.
 
         """
-        if self._lines is None:
+        if not hasattr(self, "_lines"):
             hparams = dataclasses.asdict(self.parameters.HoughLines)
             lines = cv2.HoughLines(self.canny_image(), **hparams)
             if lines is None:
@@ -434,7 +419,7 @@ class RectSubstrate(SubstrateBase):
         This property is cached. Do not mutate the result.
 
         """
-        if self._edge_lines is None:
+        if not hasattr(self, "_edge_lines"):
             edge_lines = {}
             for line in self.lines():
                 r, theta = line[0]
@@ -459,7 +444,7 @@ class RectSubstrate(SubstrateBase):
         This property is cached. Do not mutate the result.
 
         """
-        if self._vertex_points is None:
+        if not hasattr(self, "_vertex_points"):
             left = self.edge_lines().get(self.Line_Left, None)
             right = self.edge_lines().get(self.Line_Right, None)
             top = self.edge_lines().get(self.Line_Top, None)

@@ -58,24 +58,20 @@ class SubstrateError(Exception):
 
 ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
 DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
-T = TypeVar("T", bound="SubstrateBase")
 
 
 class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     """
     Abstract base class for substrate.
 
-    Substrate class wraps substrate image from :class:`.SubstrateReferenceBase`
-    and recognizes its geometry.
+    Substrate class recognizes the geometry of substrate image from
+    :class:`.SubstrateReferenceBase`.
 
     .. rubric:: Constructor
 
     Constructor signature must not be modified because high-level API use factory
     to generate substrate instances. Additional parameters can be introduced by
     definig class attribute :attr:`Parameters` and :attr:`DrawOptions`.
-
-    Instead of directly calling the constructor, use :meth:`from_reference` to
-    construct the instance.
 
     .. rubric:: Parameters and DrawOptions
 
@@ -101,8 +97,8 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     Parameters
     ==========
 
-    image
-        Substrate image.
+    reference
+        Substrate reference instance.
 
     parameters
         Additional parameters. Instance of :attr:`Parameters`, or :obj:`None`.
@@ -113,7 +109,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     """
 
     __slots__ = (
-        "_image",
+        "_ref",
         "_parameters",
         "_draw_options",
     )
@@ -137,27 +133,15 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
             raise TypeError(f"{drawopts} is not dataclass type.")
         return super().__init_subclass__()
 
-    @classmethod
-    def from_reference(
-        cls: Type[T],
-        ref: SubstrateReferenceBase,
-        parameters: Optional[ParametersType] = None,
-        *,
-        draw_options: Optional[DrawOptionsType] = None,
-    ) -> T:
-        """Construct the substrate instance from reference instance."""
-        return cls(ref.substrate_image(), parameters, draw_options=draw_options)
-
     def __init__(
         self,
-        image: npt.NDArray[np.uint8],
+        reference: SubstrateReferenceBase,
         parameters: Optional[ParametersType] = None,
         *,
         draw_options: Optional[DrawOptionsType] = None,
     ):
         super().__init__()
-        self._image = image
-        self._image.setflags(write=False)
+        self._ref = reference
 
         if parameters is None:
             self._parameters = self.Parameters()
@@ -170,13 +154,9 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
             self._draw_options = dataclasses.replace(draw_options)
 
     @property
-    def image(self) -> npt.NDArray[np.uint8]:
-        """
-        Substrate image passed to constructor.
-
-        This array is not writable to enable caching which requires immutability.
-        """
-        return self._image
+    def reference(self) -> SubstrateReferenceBase:
+        """Substrate reference instance passed to constructor."""
+        return self._ref
 
     @property
     def parameters(self) -> ParametersType:
@@ -199,6 +179,13 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     @draw_options.setter
     def draw_options(self, options: DrawOptionsType):
         self._draw_options = options
+
+    @property
+    def image(self) -> npt.NDArray[np.uint8]:
+        """
+        Substrate image from :meth:`reference`.
+        """
+        return self.reference.substrate_image()
 
     def nestled_points(self) -> List[Tuple[int, int]]:
         """
@@ -225,7 +212,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
         >>> substROI = (400, 100, 1000, 500)
         >>> ref = SubstrateReference(img, substrateROI=substROI)
-        >>> subst = Substrate.from_reference(ref)
+        >>> subst = Substrate(ref)
         >>> subst.nestled_points()
         [(300, 0)]
 
@@ -314,7 +301,7 @@ class Substrate(SubstrateBase):
        :context: close-figs
 
        >>> from dipcoatimage.finitedepth import Substrate
-       >>> subst = Substrate.from_reference(ref)
+       >>> subst = Substrate(ref)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
     """

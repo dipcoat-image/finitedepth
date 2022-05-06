@@ -204,7 +204,7 @@ Then, construct the substrate instance.
 
    >>> params = HoughCirclesParameters(cv2.HOUGH_GRADIENT, dp=1, minDist=20,
    ...                                 param1=50, param2=30)
-   >>> subst = CircularSubstrate.from_reference(ref, parameters=params)
+   >>> subst = CircularSubstrate(ref, parameters=params)
    >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
 We can change the option to draw the circle with different color.
@@ -220,7 +220,7 @@ We can also verify the instance using either :meth:`valid` or :meth:`verify`.
 
    >>> params = HoughCirclesParameters(cv2.HOUGH_GRADIENT, dp=1, minDist=20,
    ...                                 param1=5000, param2=3000)
-   >>> invalid_subst = CircularSubstrate.from_reference(ref, parameters=params)
+   >>> invalid_subst = CircularSubstrate(ref, parameters=params)
    >>> invalid_subst.valid()
    False
    >>> invalid_subst.verify()

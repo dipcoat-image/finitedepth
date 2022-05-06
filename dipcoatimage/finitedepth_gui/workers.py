@@ -348,7 +348,7 @@ class SubstrateWorker(QObject):
             self.drawOptions(),
         ]
         if all(x is not None for x in default_invalid_args):
-            subst = self.substrateType().from_reference(
+            subst = self.substrateType()(
                 self.reference(),
                 parameters=self.parameters(),
                 draw_options=self.drawOptions(),

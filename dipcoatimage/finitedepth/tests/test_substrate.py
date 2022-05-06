@@ -1,6 +1,11 @@
 import cv2  # type: ignore
 from dataclasses import dataclass
-from dipcoatimage.finitedepth import SubstrateBase, get_samples_path, Substrate
+from dipcoatimage.finitedepth import (
+    SubstrateBase,
+    get_samples_path,
+    SubstrateReference,
+    Substrate,
+)
 import pytest
 
 
@@ -62,10 +67,10 @@ def test_nestled_points():
     ref_path = get_samples_path("ref1.png")
     ref_img = cv2.imread(ref_path)
 
-    subs1 = Substrate(ref_img[100:500, 400:1000])
+    subst1 = Substrate(SubstrateReference(ref_img, substrateROI=(400, 100, 1000, 500)))
     # test nestled_points
-    assert subs1.nestled_points() == [(300, 0)]
+    assert subst1.nestled_points() == [(300, 0)]
 
-    subs2 = Substrate(ref_img[50:550, 300:1100])
+    subst2 = Substrate(SubstrateReference(ref_img, substrateROI=(300, 50, 1100, 550)))
     # test nestled_points
-    assert subs2.nestled_points() == [(400, 0)]
+    assert subst2.nestled_points() == [(400, 0)]
