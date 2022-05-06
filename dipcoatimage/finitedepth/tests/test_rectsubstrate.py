@@ -19,7 +19,7 @@ def rectsubst():
     cparams = CannyParameters(50, 150)
     hparams = HoughLinesParameters(1, 0.01, 100)
     params = RectSubstrate.Parameters(cparams, hparams)
-    subst = RectSubstrate.from_reference(ref, parameters=params)
+    subst = RectSubstrate(ref, parameters=params)
     return subst
 
 
@@ -27,7 +27,7 @@ def test_RectSubstrate(rectsubst):
     # test substrate analysis
     edge_lines = {
         k: (round(float(v[0]), 2), round(float(v[1]), 2))
-        for k, v in rectsubst.edge_lines.items()
+        for k, v in rectsubst.edge_lines().items()
     }
     assert edge_lines == {
         rectsubst.Line_Left: (117.0, 0.0),
@@ -35,7 +35,7 @@ def test_RectSubstrate(rectsubst):
         rectsubst.Line_Top: (49.0, 1.57),
         rectsubst.Line_Bottom: (331.0, 1.57),
     }
-    assert rectsubst.vertex_points == {
+    assert rectsubst.vertex_points() == {
         rectsubst.Point_TopLeft: (117, 48),
         rectsubst.Point_TopRight: (517, 48),
         rectsubst.Point_BottomLeft: (117, 330),
@@ -52,8 +52,8 @@ def test_RectSubstrate_lines_notNone():
     cparams = CannyParameters(50, 150)
     hparams = HoughLinesParameters(1, 0.01, 1000000000)
     params = RectSubstrate.Parameters(cparams, hparams)
-    subst = RectSubstrate.from_reference(ref, parameters=params)
-    assert subst.lines.shape == (0, 1, 2)
+    subst = RectSubstrate(ref, parameters=params)
+    assert subst.lines().shape == (0, 1, 2)
 
 
 def test_RectSubstrate_drawoptions(rectsubst):

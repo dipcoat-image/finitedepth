@@ -31,7 +31,7 @@ params = data_converter.structure(
     ),
     RectSubstrate.Parameters,
 )
-SUBST = RectSubstrate.from_reference(REF, parameters=params)
+SUBST = RectSubstrate(REF, parameters=params)
 
 
 def dict_includes(sup, sub):
@@ -194,11 +194,11 @@ def test_SubstrateWorker_visualizedImage(qtbot):
     assert np.all(worker.visualizedImage() == SUBST.draw())
 
     worker.setVisualizationMode(False)
-    assert np.all(worker.visualizedImage() == SUBST.image)
+    assert np.all(worker.visualizedImage() == SUBST.image())
 
     worker.setSubstrateWidgetData(SubstrateWidgetData(None, None, None))
     worker.updateSubstrate()
-    assert np.all(worker.visualizedImage() == REF.substrate_image)
+    assert np.all(worker.visualizedImage() == REF.substrate_image())
 
     worker.setReference(None)
     assert worker.visualizedImage().size == 0

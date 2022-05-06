@@ -215,7 +215,7 @@ class SubstrateArgs:
         drawopts = data_converter.structure(
             self.draw_options, substcls.DrawOptions  # type: ignore
         )
-        subst = substcls.from_reference(  # type: ignore
+        subst = substcls(  # type: ignore
             ref,
             parameters=params,
             draw_options=drawopts,

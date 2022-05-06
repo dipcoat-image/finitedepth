@@ -348,7 +348,7 @@ class SubstrateWorker(QObject):
             self.drawOptions(),
         ]
         if all(x is not None for x in default_invalid_args):
-            subst = self.substrateType().from_reference(
+            subst = self.substrateType()(
                 self.reference(),
                 parameters=self.parameters(),
                 draw_options=self.drawOptions(),
@@ -391,9 +391,9 @@ class SubstrateWorker(QObject):
             if self.visualizationMode():
                 image = subst.draw()
             else:
-                image = subst.image
+                image = subst.image()
         elif ref is not None:
-            image = ref.substrate_image
+            image = ref.substrate_image()
         else:
             image = np.empty((0, 0, 0), dtype=np.uint8)
         return image

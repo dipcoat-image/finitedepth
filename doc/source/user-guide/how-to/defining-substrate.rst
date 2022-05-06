@@ -98,7 +98,7 @@ Full code will be shown first, and each line will be explained in subsections.
    ...     def circles(self):
    ...         if not hasattr(self, "_circles"):
    ...             args = dataclasses.asdict(self.parameters)
-   ...             circles = cv2.HoughCircles(self.image, **args)
+   ...             circles = cv2.HoughCircles(self.image(), **args)
    ...             if circles is None:
    ...                 circles = np.empty((0, 0, 3))
    ...             self._circles = circles.astype(np.uint16)
@@ -109,7 +109,7 @@ Full code will be shown first, and each line will be explained in subsections.
    ...             ret = SubstrateError("Hough circle transformation failed.")
    ...         return ret
    ...     def draw(self):
-   ...         ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
+   ...         ret = cv2.cvtColor(self.image(), cv2.COLOR_GRAY2RGB)
    ...         color = self.draw_options.color
    ...         thickness = 3
    ...         for ((x, y, r),) in self.circles()[:1]:
@@ -144,7 +144,7 @@ Hough transformation
    def circles(self):
        if not hasattr(self, "_circles"):
            args = dataclasses.asdict(self.parameters)
-           circles = cv2.HoughCircles(self.image, **args)
+           circles = cv2.HoughCircles(self.image(), **args)
            if circles is None:
                circles = np.empty((0, 0, 3))
            self._circles = circles.astype(np.uint16)
@@ -171,7 +171,7 @@ Visualization
 .. code-block:: python
 
    def draw(self):
-       ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
+       ret = cv2.cvtColor(self.image(), cv2.COLOR_GRAY2RGB)
        color = self.draw_options.color
        thickness = 3
        for ((x, y, r),) in self.circles()[:1]:
@@ -204,7 +204,7 @@ Then, construct the substrate instance.
 
    >>> params = HoughCirclesParameters(cv2.HOUGH_GRADIENT, dp=1, minDist=20,
    ...                                 param1=50, param2=30)
-   >>> subst = CircularSubstrate.from_reference(ref, parameters=params)
+   >>> subst = CircularSubstrate(ref, parameters=params)
    >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
 We can change the option to draw the circle with different color.
@@ -220,7 +220,7 @@ We can also verify the instance using either :meth:`valid` or :meth:`verify`.
 
    >>> params = HoughCirclesParameters(cv2.HOUGH_GRADIENT, dp=1, minDist=20,
    ...                                 param1=5000, param2=3000)
-   >>> invalid_subst = CircularSubstrate.from_reference(ref, parameters=params)
+   >>> invalid_subst = CircularSubstrate(ref, parameters=params)
    >>> invalid_subst.valid()
    False
    >>> invalid_subst.verify()

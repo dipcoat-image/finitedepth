@@ -26,8 +26,11 @@ Reference class provides boilerplate to analyze the coated substrate image, and 
 DipcoatImage-FiniteDepth provides base class which should be inherited to define new reference class.
 
 In this guide, a new class :class:`BinaryReference` will be defined from abstract base class.
-It receives grayscale image and binarizes it to define template image and substrate image.
-This is useful when your original image has bad contrast.
+It binarizes grayscale image with :func:`cv2.threshold`, whose parameters we will control.
+
+.. note::
+   This feature, in fact, is already supported by :class:`SubstrateReference`.
+   Rather than the full-fledged implementation, here we keep everything minimal for detailed explanation.
 
 Importing parent class
 ======================
@@ -40,8 +43,6 @@ We import and directly subclass it to show how abstract members are implemented.
    :context: reset
 
    >>> from dipcoatimage.finitedepth import SubstrateReferenceBase
-
-Note that it is totally fine (and often better) to inherit already-implemented concrete class, e.g. :class:`SubstrateReference`, instead.
 
 Defining parameter class
 ========================
@@ -103,14 +104,6 @@ Full code will be shown first, and each line will be explained in subsections.
    ...             args = dataclasses.asdict(self.parameters)
    ...             _, self._binary = cv2.threshold(self.image, **args)
    ...         return self._binary
-   ...     @property
-   ...     def template_image(self):
-   ...         x0, y0, x1, y1 = self.templateROI
-   ...         return self.binary_image()[y0:y1, x0:x1]
-   ...     @property
-   ...     def substrate_image(self):
-   ...         x0, y0, x1, y1 = self.substrateROI
-   ...         return self.binary_image()[y0:y1, x0:x1]
    ...     def examine(self):
    ...         if self.binary_image() is None:
    ...             return TypeError("Binarization failed.")
@@ -128,8 +121,12 @@ Slots
 
    __slots__ = ("_binary",)
 
-Reference class use slots for better performance.
+Reference class uses slots for better performance.
 :class:`BinaryReference` caches the binarized image by storing the result in attribute, so we define slot for it.
+
+.. note::
+   In fact, :class:`SubstrateReferenceBase` already supports binarization by Otsu's method and defines ``_binary_image`` slot for it.
+   We do not use it here to point out that slots must be defined for custom attribute.
 
 Parameters and DrawOptions
 --------------------------
@@ -151,17 +148,8 @@ Binarization
            args = dataclasses.asdict(self.parameters)
            _, self._binary = cv2.threshold(self.image, **args)
        return self._binary
-   @property
-   def template_image(self):
-       x0, y0, x1, y1 = self.templateROI
-       return self.binary_image()[y0:y1, x0:x1]
-   @property
-   def substrate_image(self):
-       x0, y0, x1, y1 = self.substrateROI
-       return self.binary_image()[y0:y1, x0:x1]
 
 Once binarization is done, the result is cached to :attr:`_binary` attribute.
-Template image and substrate image are cropped from binarized image.
 
 Verification
 ------------
@@ -187,7 +175,7 @@ Visualization
            img = self.binary_image()
        return cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
 
-:meth:`draw` is implemented to check the draw option and choose the image type.
+:meth:`draw` is implemented to check the draw option and to choose the image type.
 Note that the return image must be in RGB.
 
 Result
@@ -207,22 +195,6 @@ We construct a reference with Otsu's binarization, and draw with original image.
    >>> ref = BinaryReference(ref_img, tempROI, substROI, parameters=params)
    >>> import matplotlib.pyplot as plt #doctest: +SKIP
    >>> plt.imshow(ref.draw()) #doctest: +SKIP
-
-Template image is binarized.
-
-.. plot::
-   :include-source:
-   :context: close-figs
-
-   >>> plt.imshow(ref.template_image, cmap="gray") #doctest: +SKIP
-
-Substrate image is binarized as well.
-
-.. plot::
-   :include-source:
-   :context: close-figs
-
-   >>> plt.imshow(ref.substrate_image, cmap="gray") #doctest: +SKIP
 
 We can change the option to visualize with binarized image.
 
@@ -250,5 +222,3 @@ Exercise
 
 In this guide, :class:`BinaryReference` does not visualize ROI boxes in order to keep the document simple.
 Try implement your own class with this feature.
-
-Hint: subclass :class:`SubstrateReference` with mixing the parameters introduced here.

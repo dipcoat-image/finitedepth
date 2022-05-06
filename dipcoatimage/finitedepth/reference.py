@@ -20,6 +20,9 @@ Implementation
 .. autoclass:: SubstrateReferenceParameters
    :members:
 
+.. autoclass:: SubstrateReferenceDrawMode
+   :members:
+
 .. autoclass:: SubstrateReferenceDrawOptions
    :members:
 
@@ -32,6 +35,7 @@ Implementation
 import abc
 import cv2  # type: ignore
 import dataclasses
+import enum
 import numpy as np
 import numpy.typing as npt
 from typing import TypeVar, Generic, Type, Optional, cast, Tuple
@@ -42,6 +46,7 @@ __all__ = [
     "SubstrateReferenceError",
     "SubstrateReferenceBase",
     "SubstrateReferenceParameters",
+    "SubstrateReferenceDrawMode",
     "SubstrateReferenceDrawOptions",
     "SubstrateReference",
 ]
@@ -80,6 +85,12 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     common in both bare substrate image and coated substrate image. Substrate ROI
     encloses the bare substrate region, narrowing down the target.
 
+    .. rubric:: Binary image
+
+    Binarization is important for reference image. :meth:`binary_image` is the
+    default implementation which relies on Otsu's thresholding. Subclass may
+    redefine this method.
+
     .. rubric:: Constructor
 
     Constructor signature must not be modified because high-level API use factory
@@ -111,16 +122,16 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     ==========
 
     image
-        Reference image.
+        Reference image. May be grayscale or RGB.
 
     templateROI, substrateROI
         Slice indices in ``(x0, y0, x1, y1)`` for the template and the substrate.
 
     parameters
-        Additional parameters. Instance of :attr:`Parameters`, or :obj:`None`.
+        Additional parameters.
 
     draw_options
-        Drawing options. Instance of :attr:`DrawOptions`, or :obj:`None`.
+        Drawing options.
 
     """
 
@@ -130,6 +141,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         "_substrateROI",
         "_parameters",
         "_draw_options",
+        "_binary_image",
     )
 
     Parameters: Type[ParametersType]
@@ -149,6 +161,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
             raise TypeError(f"{cls} has no attribute 'DrawOptions'.")
         elif not (isinstance(drawopts, type) and dataclasses.is_dataclass(drawopts)):
             raise TypeError(f"{drawopts} is not dataclass type.")
+
         return super().__init_subclass__()
 
     def __init__(
@@ -161,7 +174,6 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         draw_options: Optional[DrawOptionsType] = None,
     ):
         super().__init__()
-        self._image = image
         self._image = image
         self._image.setflags(write=False)
 
@@ -198,20 +210,20 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     @property
     def image(self) -> npt.NDArray[np.uint8]:
         """
-        Reference image, passed to constructor.
+        Reference image passed to constructor.
 
-        This array is not writable to enable caching which requires immutability.
+        This array is not writable to be immutable for caching.
         """
         return self._image
 
     @property
     def templateROI(self) -> IntROI:
-        """Slice indices in ``(x0, y0, x1, y1)`` for :attr:`template_image`."""
+        """Slice indices in ``(x0, y0, x1, y1)`` for template region."""
         return self._templateROI
 
     @property
     def substrateROI(self) -> IntROI:
-        """Slice indices in ``(x0, y0, x1, y1)`` for :attr:`substrate_image`."""
+        """Slice indices in ``(x0, y0, x1, y1)`` for substrate region."""
         return self._substrateROI
 
     @property
@@ -236,21 +248,45 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     def draw_options(self, options: DrawOptionsType):
         self._draw_options = options
 
-    @property
-    def template_image(self) -> npt.NDArray[np.uint8]:
-        """Template image to locate the substrate in coated substrate image."""
-        x0, y0, x1, y1 = self.templateROI
-        return self.image[y0:y1, x0:x1]
+    def binary_image(self) -> npt.NDArray[np.uint8]:
+        """
+        Binarized :attr:`image` using Otsu's thresholding.
 
-    @property
+        Notes
+        =====
+
+        This method is cached. Do not modify its result.
+
+        """
+        if not hasattr(self, "_binary_image"):
+            if len(self.image.shape) == 2:
+                gray = self.image
+            elif len(self.image.shape) == 3:
+                ch = self.image.shape[-1]
+                if ch == 1:
+                    gray = self.image
+                elif ch == 3:
+                    gray = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
+                else:
+                    raise TypeError(f"Image with invalid channel: {self.image.shape}")
+            else:
+                raise TypeError(f"Invalid image shape: {self.image.shape}")
+            _, ret = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+            if ret is None:
+                ret = np.empty((0, 0))
+            self._binary_image = ret
+        return self._binary_image
+
     def substrate_image(self) -> npt.NDArray[np.uint8]:
-        """Image focusing on bare substrate."""
+        """:meth:`image` cropped by :meth:`substrateROI`."""
         x0, y0, x1, y1 = self.substrateROI
         return self.image[y0:y1, x0:x1]
 
-    @property
     def temp2subst(self) -> Tuple[int, int]:
-        """Vector from :attr:`template_image` to :attr:`substrate_image`."""
+        """
+        Vector from upper left point of template region to upper left point of
+        substrate region.
+        """
         x0, y0 = self.templateROI[:2]
         x1, y1 = self.substrateROI[:2]
         return (x1 - x0, y1 - y0)
@@ -293,9 +329,47 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
 
 @dataclasses.dataclass(frozen=True)
 class SubstrateReferenceParameters:
-    """Additional parameters for :class:`SubstrateReference` instance."""
+    """
+    Additional parameters for :class:`SubstrateReference` instance.
 
-    pass
+    This class defines parameters for :func:`cv2.threshold`, which default for
+    Otsu's binarization.
+
+    Attributes
+    ==========
+
+    thresh
+
+    maxval
+
+    type
+        Default is ``cv2.THRESH_BINARY | cv2.THRESH_OTSU`` value.
+
+    """
+
+    thresh: int = 0
+    maxval: int = 255
+    type: int = cv2.THRESH_BINARY | cv2.THRESH_OTSU
+
+
+class SubstrateReferenceDrawMode(enum.Enum):
+    """
+    Option for :class:`SubstrateReferenceDrawOptions` to determine how the
+    reference image is drawn.
+
+    Attributes
+    ==========
+
+    ORIGINAL
+        Show the original reference image.
+
+    BINARY
+        Show the binarized reference image.
+
+    """
+
+    ORIGINAL = "ORIGINAL"
+    BINARY = "BINARY"
 
 
 @dataclasses.dataclass
@@ -305,6 +379,8 @@ class SubstrateReferenceDrawOptions:
 
     Parameters
     ==========
+
+    draw_mode
 
     draw_templateROI
         Flag whether to draw template ROI box.
@@ -326,6 +402,8 @@ class SubstrateReferenceDrawOptions:
 
     """
 
+    draw_mode: SubstrateReferenceDrawMode = SubstrateReferenceDrawMode.ORIGINAL
+
     draw_templateROI: bool = True
     templateROI_color: Tuple[int, int, int] = (0, 255, 0)
     templateROI_thickness: int = 1
@@ -337,7 +415,7 @@ class SubstrateReferenceDrawOptions:
 
 class SubstrateReference(SubstrateReferenceBase):
     """
-    Simplest substrate reference class.
+    Substrate reference class with customizable binarization.
 
     Examples
     ========
@@ -363,22 +441,63 @@ class SubstrateReference(SubstrateReferenceBase):
     Parameters = SubstrateReferenceParameters
     DrawOptions = SubstrateReferenceDrawOptions
 
+    DrawMode = SubstrateReferenceDrawMode
+    Draw_Original = SubstrateReferenceDrawMode.ORIGINAL
+    Draw_Binary = SubstrateReferenceDrawMode.BINARY
+
+    def binary_image(self) -> npt.NDArray[np.uint8]:
+        """
+        Binarized :attr:`image` using :meth:`parameters`.
+
+        Notes
+        =====
+
+        This method is cached. Do not modify its result.
+
+        """
+        if not hasattr(self, "_binary_image"):
+            if len(self.image.shape) == 2:
+                gray = self.image
+            elif len(self.image.shape) == 3:
+                ch = self.image.shape[-1]
+                if ch == 1:
+                    gray = self.image
+                elif ch == 3:
+                    gray = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
+                else:
+                    raise TypeError(f"Image with invalid channel: {self.image.shape}")
+            else:
+                raise TypeError(f"Invalid image shape: {self.image.shape}")
+            _, ret = cv2.threshold(gray, **dataclasses.asdict(self.parameters))
+            if ret is None:
+                ret = np.empty((0, 0))
+            self._binary_image = ret
+        return self._binary_image
+
     def examine(self) -> None:
         return None
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        if len(self.image.shape) == 2:
-            ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
-        elif len(self.image.shape) == 3:
-            ch = self.image.shape[-1]
-            if ch == 1:
-                ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
-            elif ch == 3:
-                ret = self.image.copy()
-            else:
-                raise TypeError(f"Image with invalid channel: {self.image.shape}")
+        draw_mode = self.draw_options.draw_mode
+        if draw_mode == self.Draw_Original:
+            image = self.image
+        elif draw_mode == self.Draw_Binary:
+            image = self.binary_image()
         else:
-            raise TypeError(f"Invalid image shape: {self.image.shape}")
+            raise TypeError("Unrecognized draw mode: %s" % draw_mode)
+
+        if len(image.shape) == 2:
+            ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        elif len(image.shape) == 3:
+            ch = image.shape[-1]
+            if ch == 1:
+                ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+            elif ch == 3:
+                ret = image.copy()
+            else:
+                raise TypeError(f"Image with invalid channel: {image.shape}")
+        else:
+            raise TypeError(f"Invalid image shape: {image.shape}")
 
         if self.draw_options.draw_substrateROI:
             x0, y0, x1, y1 = self.substrateROI

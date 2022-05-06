@@ -20,7 +20,7 @@ Parameter classes
 Draw option classes
 -------------------
 
-.. autoclass:: RectSubstrateDrawType
+.. autoclass:: RectSubstrateDrawMode
    :members:
 
 .. autoclass:: RectSubstrateDrawOptions
@@ -66,7 +66,7 @@ __all__ = [
     "CannyParameters",
     "HoughLinesParameters",
     "RectSubstrateParameters",
-    "RectSubstrateDrawType",
+    "RectSubstrateDrawMode",
     "RectSubstrateDrawOptions",
     "RectSubstrateError",
     "RectSubstrateHoughLinesError",
@@ -108,7 +108,7 @@ class RectSubstrateParameters:
     HoughLines: HoughLinesParameters
 
 
-class RectSubstrateDrawType(enum.Enum):
+class RectSubstrateDrawMode(enum.Enum):
     """
     Option for :class:`RectSubstrateDrawOptions` to determine how the substrate
     image is drawn.
@@ -140,7 +140,7 @@ class RectSubstrateDrawOptions:
     Parameters
     ==========
 
-    draw_type
+    draw_mode
 
     draw_lines
         Flag to draw the detected straight lines on the edge of substrate image.
@@ -158,7 +158,7 @@ class RectSubstrateDrawOptions:
 
     """
 
-    draw_type: RectSubstrateDrawType = RectSubstrateDrawType.ORIGINAL
+    draw_mode: RectSubstrateDrawMode = RectSubstrateDrawMode.ORIGINAL
     draw_lines: bool = True
     line_color: Tuple[int, int, int] = (0, 255, 0)
     line_thickness: int = 1
@@ -252,7 +252,7 @@ class RectSubstrate(SubstrateBase):
     Class for the substrate image in rectangular shape.
 
     Rectangular substrate is characterized by four edges and vertices,
-    which are detected by :attr:`edge_lines` and :attr:`vertex_points`.
+    which are detected by :meth:`edge_lines` and :meth:`vertex_points`.
 
     Examples
     ========
@@ -285,13 +285,12 @@ class RectSubstrate(SubstrateBase):
        >>> cparams = CannyParameters(50, 150)
        >>> hparams = HoughLinesParameters(1, 0.01, 100)
        >>> params = RectSubstrate.Parameters(cparams, hparams)
-       >>> subst = RectSubstrate.from_reference(ref, parameters=params)
+       >>> subst = RectSubstrate(ref, parameters=params)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
     """
 
     __slots__ = (
-        "_binimage",
         "_cannyimage",
         "_lines",
         "_edge_lines",
@@ -301,10 +300,10 @@ class RectSubstrate(SubstrateBase):
     Parameters = RectSubstrateParameters
     DrawOptions = RectSubstrateDrawOptions
 
-    DrawType = RectSubstrateDrawType
-    Draw_Original = RectSubstrateDrawType.ORIGINAL
-    Draw_Binary = RectSubstrateDrawType.BINARY
-    Draw_Edges = RectSubstrateDrawType.EDGES
+    DrawMode = RectSubstrateDrawMode
+    Draw_Original = RectSubstrateDrawMode.ORIGINAL
+    Draw_Binary = RectSubstrateDrawMode.BINARY
+    Draw_Edges = RectSubstrateDrawMode.EDGES
 
     LineType = RectSubstrateLineType
     Line_Unknown = RectSubstrateLineType.UNKNOWN
@@ -320,56 +319,9 @@ class RectSubstrate(SubstrateBase):
     Point_BottomRight = RectSubstratePointType.BOTTOMRIGHT
     Point_TopRight = RectSubstratePointType.TOPRIGHT
 
-    def __init__(
-        self,
-        image: npt.NDArray[np.uint8],
-        parameters: Optional[RectSubstrateParameters] = None,
-        *,
-        draw_options: Optional[RectSubstrateDrawOptions] = None,
-    ):
-        super().__init__(image, parameters, draw_options=draw_options)
-
-        self._binimage = None
-        self._cannyimage = None
-        self._lines = None
-        self._edge_lines = None
-        self._vertex_points = None
-
-    @property
-    def binary_image(self) -> npt.NDArray[np.uint8]:
-        """
-        Binarized :meth:`image`.
-
-        Notes
-        =====
-
-        This property is cached. Do not mutate the result.
-
-        """
-        if self._binimage is None:
-
-            if len(self.image.shape) == 2:
-                gray = self.image
-            elif len(self.image.shape) == 3:
-                ch = self.image.shape[-1]
-                if ch == 1:
-                    gray = self.image
-                elif ch == 3:
-                    gray = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
-                else:
-                    raise TypeError(f"Image with invalid channel: {self.image.shape}")
-            else:
-                raise TypeError(f"Invalid image shape: {self.image.shape}")
-
-            _, self._binimage = cv2.threshold(
-                gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
-            )
-        return self._binimage  # type: ignore
-
-    @property
     def canny_image(self) -> npt.NDArray[np.uint8]:
         """
-        Canny edge detection result on :attr:`binary_image`.
+        Canny edge detection result on :meth:`binary_image`.
 
         Notes
         =====
@@ -377,16 +329,15 @@ class RectSubstrate(SubstrateBase):
         This property is cached. Do not mutate the result.
 
         """
-        if self._cannyimage is None:
+        if not hasattr(self, "_cannyimage"):
             cparams = dataclasses.asdict(self.parameters.Canny)
-            self._cannyimage = cv2.Canny(self.binary_image, **cparams)
+            self._cannyimage = cv2.Canny(self.binary_image(), **cparams)
         return self._cannyimage  # type: ignore
 
-    @property
     def lines(self) -> npt.NDArray[np.uint8]:
         """
         Feature vectors of straight lines in ``(r, theta)``, detected by
-        :func:`cv2.HoughLines` on :attr:`canny_image`.
+        :func:`cv2.HoughLines` on :meth:`canny_image`.
 
         Notes
         =====
@@ -394,9 +345,9 @@ class RectSubstrate(SubstrateBase):
         This property is cached. Do not mutate the result.
 
         """
-        if self._lines is None:
+        if not hasattr(self, "_lines"):
             hparams = dataclasses.asdict(self.parameters.HoughLines)
-            lines = cv2.HoughLines(self.canny_image, **hparams)
+            lines = cv2.HoughLines(self.canny_image(), **hparams)
             if lines is None:
                 lines = np.empty((0, 1, 2), dtype=np.float32)
             self._lines = lines
@@ -404,7 +355,7 @@ class RectSubstrate(SubstrateBase):
 
     def classify_line(self, r: float, theta: float) -> RectSubstrateLineType:
         """Classify a line by its distance *r* and angle *theta*."""
-        h, w = self.image.shape[:2]
+        h, w = self.image().shape[:2]
         r = abs(r)
 
         is_horizontal = any(
@@ -425,10 +376,9 @@ class RectSubstrate(SubstrateBase):
                 ret = self.Line_Right
         return ret
 
-    @property
     def edge_lines(self) -> Dict[RectSubstrateLineType, Tuple[float, float]]:
         """
-        Dictionary of rectangle edges detected from :attr:`lines` using
+        Dictionary of rectangle edges detected from :meth:`lines` using
         :meth:`classify_line`.
         Values are ``(r, theta)`` of the edge line.
 
@@ -438,9 +388,9 @@ class RectSubstrate(SubstrateBase):
         This property is cached. Do not mutate the result.
 
         """
-        if self._edge_lines is None:
+        if not hasattr(self, "_edge_lines"):
             edge_lines = {}
-            for line in self.lines:
+            for line in self.lines():
                 r, theta = line[0]
                 line_type = self.classify_line(r, theta)
                 if line_type in edge_lines:
@@ -452,10 +402,9 @@ class RectSubstrate(SubstrateBase):
             self._edge_lines = edge_lines  # type: ignore
         return self._edge_lines  # type: ignore
 
-    @property
     def vertex_points(self) -> Dict[RectSubstratePointType, Tuple[int, int]]:
         """
-        Dictionary of rectangle vertices from :attr:`edge_lines`.
+        Dictionary of rectangle vertices from :meth:`edge_lines`.
         Values are ``(x, y)`` of the point.
 
         Notes
@@ -464,11 +413,11 @@ class RectSubstrate(SubstrateBase):
         This property is cached. Do not mutate the result.
 
         """
-        if self._vertex_points is None:
-            left = self.edge_lines.get(self.Line_Left, None)
-            right = self.edge_lines.get(self.Line_Right, None)
-            top = self.edge_lines.get(self.Line_Top, None)
-            bottom = self.edge_lines.get(self.Line_Bottom, None)
+        if not hasattr(self, "_vertex_points"):
+            left = self.edge_lines().get(self.Line_Left, None)
+            right = self.edge_lines().get(self.Line_Right, None)
+            top = self.edge_lines().get(self.Line_Top, None)
+            bottom = self.edge_lines().get(self.Line_Bottom, None)
             points = {}
             if top and left:
                 x, y = intrsct_pt_polar(*top, *left)
@@ -488,20 +437,20 @@ class RectSubstrate(SubstrateBase):
     def examine(self) -> Optional[RectSubstrateError]:
         ret = None
 
-        if len(self.lines) == 0:
+        if len(self.lines()) == 0:
             msg = "No line detected from Hough transformation"
             ret = RectSubstrateHoughLinesError(msg)
 
         else:
             msg_tmpl = "Cannot detect %s of the substrate"
             missing = []
-            if self.Line_Left not in self.edge_lines:
+            if self.Line_Left not in self.edge_lines():
                 missing.append("left wall")
-            if self.Line_Right not in self.edge_lines:
+            if self.Line_Right not in self.edge_lines():
                 missing.append("right wall")
-            if self.Line_Top not in self.edge_lines:
+            if self.Line_Top not in self.edge_lines():
                 missing.append("top wall")
-            if self.Line_Bottom not in self.edge_lines:
+            if self.Line_Bottom not in self.edge_lines():
                 missing.append("bottom wall")
 
             if missing:
@@ -511,17 +460,17 @@ class RectSubstrate(SubstrateBase):
         return ret
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        h, w = self.image.shape[:2]
+        h, w = self.image().shape[:2]
 
-        draw_type = self.draw_options.draw_type
-        if draw_type is self.Draw_Original:
-            image = self.image
-        elif draw_type is self.Draw_Binary:
-            image = self.binary_image
-        elif draw_type is self.Draw_Edges:
-            image = self.canny_image
+        draw_mode = self.draw_options.draw_mode
+        if draw_mode is self.Draw_Original:
+            image = self.image()
+        elif draw_mode is self.Draw_Binary:
+            image = self.binary_image()
+        elif draw_mode is self.Draw_Edges:
+            image = self.canny_image()
         else:
-            raise TypeError("Unrecognized draw type: %s" % draw_type)
+            raise TypeError("Unrecognized draw mode: %s" % draw_mode)
         if len(image.shape) == 2:
             ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
         elif len(image.shape) == 3:
@@ -538,7 +487,7 @@ class RectSubstrate(SubstrateBase):
         if self.draw_options.draw_lines:
             color = self.draw_options.line_color
             thickness = self.draw_options.line_thickness
-            for line in self.lines:
+            for line in self.lines():
                 r, theta = line[0]
                 tx, ty = np.cos(theta), np.sin(theta)
                 x0, y0 = tx * r, ty * r
@@ -547,7 +496,7 @@ class RectSubstrate(SubstrateBase):
                 cv2.line(ret, (x1, y1), (x2, y2), color, thickness)
 
         if self.draw_options.Draw_Edges:
-            vertex_points = self.vertex_points
+            vertex_points = self.vertex_points()
             topleft = vertex_points.get(self.Point_TopLeft, None)
             topright = vertex_points.get(self.Point_TopRight, None)
             bottomleft = vertex_points.get(self.Point_BottomLeft, None)
