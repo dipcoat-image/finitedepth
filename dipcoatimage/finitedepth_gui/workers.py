@@ -86,6 +86,7 @@ class ReferenceWorker(QObject):
         ========
 
         setReferenceWidgetData
+            Update the image along with other data.
         """
         self._img = img
 
