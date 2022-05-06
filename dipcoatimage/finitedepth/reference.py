@@ -85,6 +85,12 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     common in both bare substrate image and coated substrate image. Substrate ROI
     encloses the bare substrate region, narrowing down the target.
 
+    .. rubric:: Binary image
+
+    Binarization is important for reference image. :meth:`binary_image` is the
+    default implementation which relies on Otsu's thresholding. Subclass may
+    redefine this method.
+
     .. rubric:: Constructor
 
     Constructor signature must not be modified because high-level API use factory
@@ -116,16 +122,16 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     ==========
 
     image
-        Reference image.
+        Reference image. May be grayscale or RGB.
 
     templateROI, substrateROI
         Slice indices in ``(x0, y0, x1, y1)`` for the template and the substrate.
 
     parameters
-        Additional parameters. Instance of :attr:`Parameters`, or :obj:`None`.
+        Additional parameters.
 
     draw_options
-        Drawing options. Instance of :attr:`DrawOptions`, or :obj:`None`.
+        Drawing options.
 
     """
 
@@ -206,18 +212,18 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         """
         Reference image passed to constructor.
 
-        This array is not writable to enable caching which requires immutability.
+        This array is not writable to be immutable for caching.
         """
         return self._image
 
     @property
     def templateROI(self) -> IntROI:
-        """Slice indices in ``(x0, y0, x1, y1)`` for :meth:`template_image`."""
+        """Slice indices in ``(x0, y0, x1, y1)`` for template region."""
         return self._templateROI
 
     @property
     def substrateROI(self) -> IntROI:
-        """Slice indices in ``(x0, y0, x1, y1)`` for :meth:`substrate_image`."""
+        """Slice indices in ``(x0, y0, x1, y1)`` for substrate region."""
         return self._substrateROI
 
     @property
@@ -272,12 +278,15 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         return self._binary_image
 
     def substrate_image(self) -> npt.NDArray[np.uint8]:
-        """Image focusing on bare substrate."""
+        """:meth:`image` cropped by :meth:`substrateROI`."""
         x0, y0, x1, y1 = self.substrateROI
         return self.image[y0:y1, x0:x1]
 
     def temp2subst(self) -> Tuple[int, int]:
-        """Vector from :meth:`template_image` to :meth:`substrate_image`."""
+        """
+        Vector from upper left point of template region to upper left point of
+        substrate region.
+        """
         x0, y0 = self.templateROI[:2]
         x1, y1 = self.substrateROI[:2]
         return (x1 - x0, y1 - y0)
@@ -406,7 +415,7 @@ class SubstrateReferenceDrawOptions:
 
 class SubstrateReference(SubstrateReferenceBase):
     """
-    Simplest substrate reference class.
+    Substrate reference class with customizable binarization.
 
     Examples
     ========

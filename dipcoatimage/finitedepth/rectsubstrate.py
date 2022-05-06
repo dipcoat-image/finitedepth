@@ -20,7 +20,7 @@ Parameter classes
 Draw option classes
 -------------------
 
-.. autoclass:: RectSubstrateDrawType
+.. autoclass:: RectSubstrateDrawMode
    :members:
 
 .. autoclass:: RectSubstrateDrawOptions
@@ -66,7 +66,7 @@ __all__ = [
     "CannyParameters",
     "HoughLinesParameters",
     "RectSubstrateParameters",
-    "RectSubstrateDrawType",
+    "RectSubstrateDrawMode",
     "RectSubstrateDrawOptions",
     "RectSubstrateError",
     "RectSubstrateHoughLinesError",
@@ -108,7 +108,7 @@ class RectSubstrateParameters:
     HoughLines: HoughLinesParameters
 
 
-class RectSubstrateDrawType(enum.Enum):
+class RectSubstrateDrawMode(enum.Enum):
     """
     Option for :class:`RectSubstrateDrawOptions` to determine how the substrate
     image is drawn.
@@ -140,7 +140,7 @@ class RectSubstrateDrawOptions:
     Parameters
     ==========
 
-    draw_type
+    draw_mode
 
     draw_lines
         Flag to draw the detected straight lines on the edge of substrate image.
@@ -158,7 +158,7 @@ class RectSubstrateDrawOptions:
 
     """
 
-    draw_type: RectSubstrateDrawType = RectSubstrateDrawType.ORIGINAL
+    draw_mode: RectSubstrateDrawMode = RectSubstrateDrawMode.ORIGINAL
     draw_lines: bool = True
     line_color: Tuple[int, int, int] = (0, 255, 0)
     line_thickness: int = 1
@@ -300,10 +300,10 @@ class RectSubstrate(SubstrateBase):
     Parameters = RectSubstrateParameters
     DrawOptions = RectSubstrateDrawOptions
 
-    DrawType = RectSubstrateDrawType
-    Draw_Original = RectSubstrateDrawType.ORIGINAL
-    Draw_Binary = RectSubstrateDrawType.BINARY
-    Draw_Edges = RectSubstrateDrawType.EDGES
+    DrawMode = RectSubstrateDrawMode
+    Draw_Original = RectSubstrateDrawMode.ORIGINAL
+    Draw_Binary = RectSubstrateDrawMode.BINARY
+    Draw_Edges = RectSubstrateDrawMode.EDGES
 
     LineType = RectSubstrateLineType
     Line_Unknown = RectSubstrateLineType.UNKNOWN
@@ -462,15 +462,15 @@ class RectSubstrate(SubstrateBase):
     def draw(self) -> npt.NDArray[np.uint8]:
         h, w = self.image().shape[:2]
 
-        draw_type = self.draw_options.draw_type
-        if draw_type is self.Draw_Original:
+        draw_mode = self.draw_options.draw_mode
+        if draw_mode is self.Draw_Original:
             image = self.image()
-        elif draw_type is self.Draw_Binary:
+        elif draw_mode is self.Draw_Binary:
             image = self.binary_image()
-        elif draw_type is self.Draw_Edges:
+        elif draw_mode is self.Draw_Edges:
             image = self.canny_image()
         else:
-            raise TypeError("Unrecognized draw type: %s" % draw_type)
+            raise TypeError("Unrecognized draw mode: %s" % draw_mode)
         if len(image.shape) == 2:
             ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
         elif len(image.shape) == 3:

@@ -193,7 +193,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         """
         Find the points which are firmly nestled in the substrate.
 
-        This method is used to eliminate the components in dip coating image
+        This method is used to eliminate the components in coating layer image
         which are not connected to the substrate.
 
         If the substrate is extremely concave or has holes in its image, this

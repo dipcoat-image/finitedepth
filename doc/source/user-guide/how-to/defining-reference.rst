@@ -26,11 +26,11 @@ Reference class provides boilerplate to analyze the coated substrate image, and 
 DipcoatImage-FiniteDepth provides base class which should be inherited to define new reference class.
 
 In this guide, a new class :class:`BinaryReference` will be defined from abstract base class.
-It receives grayscale image and binarizes it with :func:`cv2.threshold`, whose parameters we will control.
+It binarizes grayscale image with :func:`cv2.threshold`, whose parameters we will control.
 
 .. note::
    This feature, in fact, is already supported by :class:`SubstrateReference`.
-   Rather than full-fledged implementation, here we keep everything minimal for detailed explanation.
+   Rather than the full-fledged implementation, here we keep everything minimal for detailed explanation.
 
 Importing parent class
 ======================
@@ -121,12 +121,12 @@ Slots
 
    __slots__ = ("_binary",)
 
-Reference class use slots for better performance.
+Reference class uses slots for better performance.
 :class:`BinaryReference` caches the binarized image by storing the result in attribute, so we define slot for it.
 
 .. note::
    In fact, :class:`SubstrateReferenceBase` already supports binarization by Otsu's method and defines ``_binary_image`` slot for it.
-   Here we just redefine it to point out that slots must be defined for custom attribute.
+   We do not use it here to point out that slots must be defined for custom attribute.
 
 Parameters and DrawOptions
 --------------------------
@@ -150,7 +150,6 @@ Binarization
        return self._binary
 
 Once binarization is done, the result is cached to :attr:`_binary` attribute.
-Template image and substrate image are cropped from binarized image.
 
 Verification
 ------------
@@ -176,7 +175,7 @@ Visualization
            img = self.binary_image()
        return cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
 
-:meth:`draw` is implemented to check the draw option and choose the image type.
+:meth:`draw` is implemented to check the draw option and to choose the image type.
 Note that the return image must be in RGB.
 
 Result
