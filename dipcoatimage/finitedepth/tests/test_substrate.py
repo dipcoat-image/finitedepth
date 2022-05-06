@@ -64,8 +64,8 @@ def test_nestled_points():
 
     subs1 = Substrate(ref_img[100:500, 400:1000])
     # test nestled_points
-    assert subs1.nestled_points == [(300, 0)]
+    assert subs1.nestled_points() == [(300, 0)]
 
     subs2 = Substrate(ref_img[50:550, 300:1100])
     # test nestled_points
-    assert subs2.nestled_points == [(400, 0)]
+    assert subs2.nestled_points() == [(400, 0)]

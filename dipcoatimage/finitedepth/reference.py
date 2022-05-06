@@ -149,6 +149,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
             raise TypeError(f"{cls} has no attribute 'DrawOptions'.")
         elif not (isinstance(drawopts, type) and dataclasses.is_dataclass(drawopts)):
             raise TypeError(f"{drawopts} is not dataclass type.")
+
         return super().__init_subclass__()
 
     def __init__(
@@ -161,7 +162,6 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         draw_options: Optional[DrawOptionsType] = None,
     ):
         super().__init__()
-        self._image = image
         self._image = image
         self._image.setflags(write=False)
 
@@ -198,7 +198,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     @property
     def image(self) -> npt.NDArray[np.uint8]:
         """
-        Reference image, passed to constructor.
+        Reference image passed to constructor.
 
         This array is not writable to enable caching which requires immutability.
         """
@@ -248,7 +248,6 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         x0, y0, x1, y1 = self.substrateROI
         return self.image[y0:y1, x0:x1]
 
-    @property
     def temp2subst(self) -> Tuple[int, int]:
         """Vector from :attr:`template_image` to :attr:`substrate_image`."""
         x0, y0 = self.templateROI[:2]

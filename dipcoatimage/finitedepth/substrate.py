@@ -157,7 +157,6 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     ):
         super().__init__()
         self._image = image
-        self._image = image
         self._image.setflags(write=False)
 
         if parameters is None:
@@ -201,7 +200,6 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     def draw_options(self, options: DrawOptionsType):
         self._draw_options = options
 
-    @property
     def nestled_points(self) -> List[Tuple[int, int]]:
         """
         Find the points which are firmly nestled in the substrate.
@@ -228,7 +226,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         >>> substROI = (400, 100, 1000, 500)
         >>> ref = SubstrateReference(img, substrateROI=substROI)
         >>> subst = Substrate.from_reference(ref)
-        >>> subst.nestled_points
+        >>> subst.nestled_points()
         [(300, 0)]
 
         """

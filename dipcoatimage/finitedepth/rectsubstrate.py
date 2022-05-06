@@ -252,7 +252,7 @@ class RectSubstrate(SubstrateBase):
     Class for the substrate image in rectangular shape.
 
     Rectangular substrate is characterized by four edges and vertices,
-    which are detected by :attr:`edge_lines` and :attr:`vertex_points`.
+    which are detected by :meth:`edge_lines` and :meth:`vertex_points`.
 
     Examples
     ========
@@ -335,7 +335,6 @@ class RectSubstrate(SubstrateBase):
         self._edge_lines = None
         self._vertex_points = None
 
-    @property
     def binary_image(self) -> npt.NDArray[np.uint8]:
         """
         Binarized :meth:`image`.
@@ -366,10 +365,9 @@ class RectSubstrate(SubstrateBase):
             )
         return self._binimage  # type: ignore
 
-    @property
     def canny_image(self) -> npt.NDArray[np.uint8]:
         """
-        Canny edge detection result on :attr:`binary_image`.
+        Canny edge detection result on :meth:`binary_image`.
 
         Notes
         =====
@@ -379,14 +377,13 @@ class RectSubstrate(SubstrateBase):
         """
         if self._cannyimage is None:
             cparams = dataclasses.asdict(self.parameters.Canny)
-            self._cannyimage = cv2.Canny(self.binary_image, **cparams)
+            self._cannyimage = cv2.Canny(self.binary_image(), **cparams)
         return self._cannyimage  # type: ignore
 
-    @property
     def lines(self) -> npt.NDArray[np.uint8]:
         """
         Feature vectors of straight lines in ``(r, theta)``, detected by
-        :func:`cv2.HoughLines` on :attr:`canny_image`.
+        :func:`cv2.HoughLines` on :meth:`canny_image`.
 
         Notes
         =====
@@ -396,7 +393,7 @@ class RectSubstrate(SubstrateBase):
         """
         if self._lines is None:
             hparams = dataclasses.asdict(self.parameters.HoughLines)
-            lines = cv2.HoughLines(self.canny_image, **hparams)
+            lines = cv2.HoughLines(self.canny_image(), **hparams)
             if lines is None:
                 lines = np.empty((0, 1, 2), dtype=np.float32)
             self._lines = lines
@@ -425,10 +422,9 @@ class RectSubstrate(SubstrateBase):
                 ret = self.Line_Right
         return ret
 
-    @property
     def edge_lines(self) -> Dict[RectSubstrateLineType, Tuple[float, float]]:
         """
-        Dictionary of rectangle edges detected from :attr:`lines` using
+        Dictionary of rectangle edges detected from :meth:`lines` using
         :meth:`classify_line`.
         Values are ``(r, theta)`` of the edge line.
 
@@ -440,7 +436,7 @@ class RectSubstrate(SubstrateBase):
         """
         if self._edge_lines is None:
             edge_lines = {}
-            for line in self.lines:
+            for line in self.lines():
                 r, theta = line[0]
                 line_type = self.classify_line(r, theta)
                 if line_type in edge_lines:
@@ -452,10 +448,9 @@ class RectSubstrate(SubstrateBase):
             self._edge_lines = edge_lines  # type: ignore
         return self._edge_lines  # type: ignore
 
-    @property
     def vertex_points(self) -> Dict[RectSubstratePointType, Tuple[int, int]]:
         """
-        Dictionary of rectangle vertices from :attr:`edge_lines`.
+        Dictionary of rectangle vertices from :meth:`edge_lines`.
         Values are ``(x, y)`` of the point.
 
         Notes
@@ -465,10 +460,10 @@ class RectSubstrate(SubstrateBase):
 
         """
         if self._vertex_points is None:
-            left = self.edge_lines.get(self.Line_Left, None)
-            right = self.edge_lines.get(self.Line_Right, None)
-            top = self.edge_lines.get(self.Line_Top, None)
-            bottom = self.edge_lines.get(self.Line_Bottom, None)
+            left = self.edge_lines().get(self.Line_Left, None)
+            right = self.edge_lines().get(self.Line_Right, None)
+            top = self.edge_lines().get(self.Line_Top, None)
+            bottom = self.edge_lines().get(self.Line_Bottom, None)
             points = {}
             if top and left:
                 x, y = intrsct_pt_polar(*top, *left)
@@ -488,20 +483,20 @@ class RectSubstrate(SubstrateBase):
     def examine(self) -> Optional[RectSubstrateError]:
         ret = None
 
-        if len(self.lines) == 0:
+        if len(self.lines()) == 0:
             msg = "No line detected from Hough transformation"
             ret = RectSubstrateHoughLinesError(msg)
 
         else:
             msg_tmpl = "Cannot detect %s of the substrate"
             missing = []
-            if self.Line_Left not in self.edge_lines:
+            if self.Line_Left not in self.edge_lines():
                 missing.append("left wall")
-            if self.Line_Right not in self.edge_lines:
+            if self.Line_Right not in self.edge_lines():
                 missing.append("right wall")
-            if self.Line_Top not in self.edge_lines:
+            if self.Line_Top not in self.edge_lines():
                 missing.append("top wall")
-            if self.Line_Bottom not in self.edge_lines:
+            if self.Line_Bottom not in self.edge_lines():
                 missing.append("bottom wall")
 
             if missing:
@@ -517,9 +512,9 @@ class RectSubstrate(SubstrateBase):
         if draw_type is self.Draw_Original:
             image = self.image
         elif draw_type is self.Draw_Binary:
-            image = self.binary_image
+            image = self.binary_image()
         elif draw_type is self.Draw_Edges:
-            image = self.canny_image
+            image = self.canny_image()
         else:
             raise TypeError("Unrecognized draw type: %s" % draw_type)
         if len(image.shape) == 2:
@@ -538,7 +533,7 @@ class RectSubstrate(SubstrateBase):
         if self.draw_options.draw_lines:
             color = self.draw_options.line_color
             thickness = self.draw_options.line_thickness
-            for line in self.lines:
+            for line in self.lines():
                 r, theta = line[0]
                 tx, ty = np.cos(theta), np.sin(theta)
                 x0, y0 = tx * r, ty * r
@@ -547,7 +542,7 @@ class RectSubstrate(SubstrateBase):
                 cv2.line(ret, (x1, y1), (x2, y2), color, thickness)
 
         if self.draw_options.Draw_Edges:
-            vertex_points = self.vertex_points
+            vertex_points = self.vertex_points()
             topleft = vertex_points.get(self.Point_TopLeft, None)
             topright = vertex_points.get(self.Point_TopRight, None)
             bottomleft = vertex_points.get(self.Point_BottomLeft, None)
