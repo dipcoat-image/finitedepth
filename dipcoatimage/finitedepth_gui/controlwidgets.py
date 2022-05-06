@@ -15,7 +15,7 @@ from dipcoatimage.finitedepth import (
     SubstrateBase,
     data_converter,
 )
-from dipcoatimage.finitedepth.util import OptionalROI
+from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
 import numpy as np
 import numpy.typing as npt
 from PySide6.QtCore import Signal, Slot
@@ -51,8 +51,8 @@ class ReferenceWidgetData:
     image: Optional[npt.NDArray[np.uint8]]
     templateROI: OptionalROI
     substrateROI: OptionalROI
-    parameters: Any
-    draw_options: Any
+    parameters: Optional[DataclassProtocol]
+    draw_options: Optional[DataclassProtocol]
 
 
 class ReferenceWidget(QWidget):
@@ -405,8 +405,8 @@ class SubstrateWidgetData:
     """Data from substrate widget to construct substrate object."""
 
     type: Any
-    parameters: Any
-    draw_options: Any
+    parameters: Optional[DataclassProtocol]
+    draw_options: Optional[DataclassProtocol]
 
 
 class SubstrateWidget(QWidget):
