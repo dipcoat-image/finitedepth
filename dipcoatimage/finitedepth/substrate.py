@@ -1,30 +1,32 @@
 """
-Reference image
-===============
+Substrate geometry
+==================
 
-:mod:`dipcoatimage.finitedepth.reference` provides reference image class of
-finite-depth dip coating process.
+:mod:`dipcoatimage.finitedepth.substrate` provides substrate image class of
+finite-depth dip coating process to recognize its geometry.
 
 Base class
 ----------
 
-.. autoclass:: SubstrateReferenceError
+.. autoclass:: SubstrateError
    :members:
 
-.. autoclass:: SubstrateReferenceBase
+.. autoclass:: SubstrateBase
    :members:
 
 Implementation
 --------------
 
-.. autoclass:: SubstrateReferenceParameters
+.. autoclass:: SubstrateParameters
    :members:
 
-.. autoclass:: SubstrateReferenceDrawOptions
+.. autoclass:: SubstrateDrawOptions
    :members:
 
-.. autoclass:: SubstrateReference
+.. autoclass:: Substrate
    :members:
+
+.. automodule:: dipcoatimage.finitedepth.rectsubstrate
 
 """
 
@@ -34,57 +36,46 @@ import cv2  # type: ignore
 import dataclasses
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Generic, Type, Optional, cast, Tuple
-from .util import DataclassProtocol, OptionalROI, IntROI
+from typing import TypeVar, Generic, Type, Optional, List, Tuple
+from .util import DataclassProtocol
+from .reference import SubstrateReferenceBase
 
 
 __all__ = [
-    "SubstrateReferenceError",
-    "SubstrateReferenceBase",
-    "SubstrateReferenceParameters",
-    "SubstrateReferenceDrawOptions",
-    "SubstrateReference",
+    "SubstrateError",
+    "SubstrateBase",
+    "SubstrateParameters",
+    "SubstrateDrawOptions",
+    "Substrate",
 ]
 
 
-class SubstrateReferenceError(Exception):
-    """Base class for error from :class:`SubstrateReferenceBase`."""
+class SubstrateError(Exception):
+    """Base class for error from :class:`SubstrateBase`."""
 
     pass
 
 
 ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
 DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
+T = TypeVar("T", bound="SubstrateBase")
 
 
-class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
+class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     """
-    Abstract base class for substrate reference.
+    Abstract base class for substrate.
 
-    .. plot::
-
-       >>> import cv2
-       >>> from dipcoatimage.finitedepth import get_samples_path
-       >>> import matplotlib.pyplot as plt #doctest: +SKIP
-       >>> img = cv2.imread(get_samples_path('ref1.png'))
-       >>> plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)) #doctest: +SKIP
-
-    .. rubric:: Image and ROIs
-
-    Substrate reference class wraps the data to locate the substrate in coated
-    substrate image. It consists of the reference image and two ROIs.
-
-    Reference image, which can be accessed by :attr:`image`, is the picture
-    of bare substrate taken before coating. Two ROIs, :attr:`templateROI` and
-    :attr:`substrateROI`, are defined. Template ROI encloses the region which is
-    common in both bare substrate image and coated substrate image. Substrate ROI
-    encloses the bare substrate region, narrowing down the target.
+    Substrate class wraps substrate image from :class:`.SubstrateReferenceBase`
+    and recognizes its geometry.
 
     .. rubric:: Constructor
 
     Constructor signature must not be modified because high-level API use factory
-    to generate reference instances. Additional parameters can be introduced by
+    to generate substrate instances. Additional parameters can be introduced by
     definig class attribute :attr:`Parameters` and :attr:`DrawOptions`.
+
+    Instead of directly calling the constructor, use :meth:`from_reference` to
+    construct the instance.
 
     .. rubric:: Parameters and DrawOptions
 
@@ -111,10 +102,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     ==========
 
     image
-        Reference image.
-
-    templateROI, substrateROI
-        Slice indices in ``(x0, y0, x1, y1)`` for the template and the substrate.
+        Substrate image.
 
     parameters
         Additional parameters. Instance of :attr:`Parameters`, or :obj:`None`.
@@ -126,8 +114,6 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
 
     __slots__ = (
         "_image",
-        "_templateROI",
-        "_substrateROI",
         "_parameters",
         "_draw_options",
     )
@@ -151,11 +137,20 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
             raise TypeError(f"{drawopts} is not dataclass type.")
         return super().__init_subclass__()
 
+    @classmethod
+    def from_reference(
+        cls: Type[T],
+        ref: SubstrateReferenceBase,
+        parameters: Optional[ParametersType] = None,
+        *,
+        draw_options: Optional[DrawOptionsType] = None,
+    ) -> T:
+        """Construct the substrate instance from reference instance."""
+        return cls(ref.substrate_image, parameters, draw_options=draw_options)
+
     def __init__(
         self,
         image: npt.NDArray[np.uint8],
-        templateROI: OptionalROI = (0, 0, None, None),
-        substrateROI: OptionalROI = (0, 0, None, None),
         parameters: Optional[ParametersType] = None,
         *,
         draw_options: Optional[DrawOptionsType] = None,
@@ -164,26 +159,6 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         self._image = image
         self._image = image
         self._image.setflags(write=False)
-
-        h, w = image.shape[:2]
-        full_roi = (0, 0, w, h)
-        max_vars = (w, h, w, h)
-
-        temp_roi = list(templateROI)
-        for i, var in enumerate(templateROI):
-            if var is None:
-                temp_roi[i] = full_roi[i]
-            elif var < 0:
-                temp_roi[i] = max_vars[i] + var
-        self._templateROI = cast(IntROI, tuple(temp_roi))
-
-        subst_roi = list(substrateROI)
-        for i, var in enumerate(substrateROI):
-            if var is None:
-                subst_roi[i] = full_roi[i]
-            elif var < 0:
-                subst_roi[i] = max_vars[i] + var
-        self._substrateROI = cast(IntROI, tuple(subst_roi))
 
         if parameters is None:
             self._parameters = self.Parameters()
@@ -198,21 +173,11 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     @property
     def image(self) -> npt.NDArray[np.uint8]:
         """
-        Reference image, passed to constructor.
+        Substrate image passed to constructor.
 
         This array is not writable to enable caching which requires immutability.
         """
         return self._image
-
-    @property
-    def templateROI(self) -> IntROI:
-        """Slice indices in ``(x0, y0, x1, y1)`` for :attr:`template_image`."""
-        return self._templateROI
-
-    @property
-    def substrateROI(self) -> IntROI:
-        """Slice indices in ``(x0, y0, x1, y1)`` for :attr:`substrate_image`."""
-        return self._substrateROI
 
     @property
     def parameters(self) -> ParametersType:
@@ -237,26 +202,41 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         self._draw_options = options
 
     @property
-    def template_image(self) -> npt.NDArray[np.uint8]:
-        """Template image to locate the substrate in coated substrate image."""
-        x0, y0, x1, y1 = self.templateROI
-        return self.image[y0:y1, x0:x1]
+    def nestled_points(self) -> List[Tuple[int, int]]:
+        """
+        Find the points which are firmly nestled in the substrate.
 
-    @property
-    def substrate_image(self) -> npt.NDArray[np.uint8]:
-        """Image focusing on bare substrate."""
-        x0, y0, x1, y1 = self.substrateROI
-        return self.image[y0:y1, x0:x1]
+        This method is used to eliminate the components in dip coating image
+        which are not connected to the substrate.
 
-    @property
-    def temp2subst(self) -> Tuple[int, int]:
-        """Vector from :attr:`template_image` to :attr:`substrate_image`."""
-        x0, y0 = self.templateROI[:2]
-        x1, y1 = self.substrateROI[:2]
-        return (x1 - x0, y1 - y0)
+        If the substrate is extremely concave or has holes in its image, this
+        method may need to be reimplemented.
+
+        Return value is a list of coordinates in ``(x, y)``, but for most cases
+        this method returns a single point.
+        If the substrate consists of components which are not connected, multiple
+        points may be returned.
+
+        Examples
+        ========
+
+        >>> import cv2
+        >>> from dipcoatimage.finitedepth import (SubstrateReference, Substrate,
+        ...     get_samples_path)
+        >>> ref_path = get_samples_path('ref1.png')
+        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+        >>> substROI = (400, 100, 1000, 500)
+        >>> ref = SubstrateReference(img, substrateROI=substROI)
+        >>> subst = Substrate.from_reference(ref)
+        >>> subst.nestled_points
+        [(300, 0)]
+
+        """
+        w = self.image.shape[1]
+        return [(int(w / 2), 0)]
 
     @abc.abstractmethod
-    def examine(self) -> Optional[SubstrateReferenceError]:
+    def examine(self) -> Optional[SubstrateError]:
         """
         Check the sanity of parameters.
 
@@ -288,64 +268,35 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
 
     @abc.abstractmethod
     def draw(self) -> npt.NDArray[np.uint8]:
-        """Decorate and return the reference image as RGB format."""
+        """Decorate and return the substrate image as RGB format."""
 
 
 @dataclasses.dataclass(frozen=True)
-class SubstrateReferenceParameters:
-    """Additional parameters for :class:`SubstrateReference` instance."""
+class SubstrateParameters:
+    """Additional parameters for :class:`Substrate` instance."""
 
     pass
 
 
 @dataclasses.dataclass
-class SubstrateReferenceDrawOptions:
+class SubstrateDrawOptions:
+    """Drawing options for :class:`Substrate`."""
+
+    pass
+
+
+class Substrate(SubstrateBase):
     """
-    Drawing options for :class:`SubstrateReference`.
-
-    Parameters
-    ==========
-
-    draw_templateROI
-        Flag whether to draw template ROI box.
-
-    templateROI_color
-        Color for template ROI box. Ignored if *draw_templateROI* is false.
-
-    templateROI_thickness
-        Thickness for template ROI box. Ignored if *draw_templateROI* is false.
-
-    draw_substrateROI
-        Flag whether to draw substrate ROI box.
-
-    substrateROI_color
-        Color for substrate ROI box. Ignored if *draw_substrateROI* is false.
-
-    substrateROI_thickness
-        Thickness for substrate ROI box. Ignored if *draw_substrateROI* is false.
-
-    """
-
-    draw_templateROI: bool = True
-    templateROI_color: Tuple[int, int, int] = (0, 255, 0)
-    templateROI_thickness: int = 1
-
-    draw_substrateROI: bool = True
-    substrateROI_color: Tuple[int, int, int] = (255, 0, 0)
-    substrateROI_thickness: int = 1
-
-
-class SubstrateReference(SubstrateReferenceBase):
-    """
-    Simplest substrate reference class.
+    Simplest substrate class with no geometric information.
 
     Examples
     ========
 
-    Construct with RGB image, and visualize with :meth:`draw`.
+    Construct substrate reference class first.
 
     .. plot::
        :include-source:
+       :context: reset
 
        >>> import cv2
        >>> from dipcoatimage.finitedepth import (SubstrateReference,
@@ -358,10 +309,20 @@ class SubstrateReference(SubstrateReferenceBase):
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
+    Construct substrate class from reference class.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> from dipcoatimage.finitedepth import Substrate
+       >>> subst = Substrate.from_reference(ref)
+       >>> plt.imshow(subst.draw()) #doctest: +SKIP
+
     """
 
-    Parameters = SubstrateReferenceParameters
-    DrawOptions = SubstrateReferenceDrawOptions
+    Parameters = SubstrateParameters
+    DrawOptions = SubstrateDrawOptions
 
     def examine(self) -> None:
         return None
@@ -379,16 +340,4 @@ class SubstrateReference(SubstrateReferenceBase):
                 raise TypeError(f"Image with invalid channel: {self.image.shape}")
         else:
             raise TypeError(f"Invalid image shape: {self.image.shape}")
-
-        if self.draw_options.draw_substrateROI:
-            x0, y0, x1, y1 = self.substrateROI
-            color = self.draw_options.substrateROI_color
-            thickness = self.draw_options.substrateROI_thickness
-            cv2.rectangle(ret, (x0, y0), (x1, y1), color, thickness)
-
-        if self.draw_options.draw_templateROI:
-            x0, y0, x1, y1 = self.templateROI
-            color = self.draw_options.templateROI_color
-            thickness = self.draw_options.templateROI_thickness
-            cv2.rectangle(ret, (x0, y0), (x1, y1), color, thickness)
         return ret

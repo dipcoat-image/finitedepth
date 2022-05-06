@@ -19,15 +19,39 @@ This package provides
 from .version import __version__  # noqa
 
 from .reference import (
+    SubstrateReferenceError,
     SubstrateReferenceBase,
     SubstrateReference,
+)
+from .substrate import (
+    SubstrateError,
+    SubstrateBase,
+    Substrate,
+)
+from .rectsubstrate import (
+    CannyParameters,
+    HoughLinesParameters,
+    RectSubstrateError,
+    RectSubstrateHoughLinesError,
+    RectSubstrateEdgeError,
+    RectSubstrate,
 )
 from .util import get_samples_path, data_converter
 
 
 __all__ = [
+    "SubstrateReferenceError",
     "SubstrateReferenceBase",
     "SubstrateReference",
+    "SubstrateError",
+    "SubstrateBase",
+    "Substrate",
+    "CannyParameters",
+    "HoughLinesParameters",
+    "RectSubstrateError",
+    "RectSubstrateHoughLinesError",
+    "RectSubstrateEdgeError",
+    "RectSubstrate",
     "get_samples_path",
     "data_converter",
 ]

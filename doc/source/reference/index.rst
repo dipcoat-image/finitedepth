@@ -4,13 +4,14 @@ DipcoatImage-FiniteDepth Reference
 
 .. module:: dipcoatimage.finitedepth
 
-This manual describes the modules and objects in :mod:`dipcoatimage.finitedepth`.
-Reference for :mod:`dipcoatimage.finitedepth_gui` is provided as well.
+This manual describes the modules and objects in :mod:`dipcoatimage.finitedepth`
+and :mod:`dipcoatimage.finitedepth_gui`.
 
 .. toctree::
    :maxdepth: 2
 
    reference
+   substrate
    experiment
    util
    finitedepth-gui

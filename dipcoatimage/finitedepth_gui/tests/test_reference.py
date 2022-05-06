@@ -24,7 +24,16 @@ REF_IMG = cv2.cvtColor(REF_IMG, cv2.COLOR_BGR2RGB)
 
 
 def dict_includes(sup, sub):
-    return sup == sup | sub
+    for key, value in sub.items():
+        if key not in sup:
+            return False
+        if isinstance(value, dict):
+            if not dict_includes(sup[key], value):
+                return False
+        else:
+            if not value == sup[key]:
+                return False
+    return True
 
 
 @pytest.fixture
@@ -83,13 +92,13 @@ def test_ReferenceWidget_updateROIMaximum(qtbot):
 
 
 def test_ReferenceWidget_onReferenceTypeChange(qtbot, refwidget):
-    with qtbot.waitSignals(
-        [
-            refwidget.parametersWidget().currentChanged,
-            refwidget.drawOptionsWidget().currentChanged,
-            refwidget.dataChanged,
-        ]
-    ):
+    signals = [
+        refwidget.parametersWidget().currentChanged,
+        refwidget.drawOptionsWidget().currentChanged,
+        refwidget.dataChanged,
+    ]
+
+    with qtbot.waitSignals(signals):
         refwidget.typeWidget().variableComboBox().setCurrentIndex(0)
     assert (
         refwidget.parametersWidget().currentWidget().dataclassType()
@@ -100,13 +109,7 @@ def test_ReferenceWidget_onReferenceTypeChange(qtbot, refwidget):
         == SubstrateReference.DrawOptions
     )
 
-    with qtbot.waitSignals(
-        [
-            refwidget.parametersWidget().currentChanged,
-            refwidget.drawOptionsWidget().currentChanged,
-            refwidget.dataChanged,
-        ]
-    ):
+    with qtbot.waitSignals(signals):
         refwidget.typeWidget().setImportInformation("foo", "bar")
     assert refwidget.parametersWidget().currentIndex() == 0
     assert refwidget.drawOptionsWidget().currentIndex() == 0
@@ -156,7 +159,6 @@ def test_ReferenceWidget_setReferenceArgs(qtbot, refwidget):
     assert refwidget.substrateROIWidget().x2SpinBox().value() == refargs.substrateROI[2]
     assert refwidget.substrateROIWidget().y2SpinBox().value() == refargs.substrateROI[3]
 
-    assert refwidget.parametersWidget().currentIndex() == 1
     assert dict_includes(
         data_converter.unstructure(
             refwidget.parametersWidget().currentWidget().dataValue()
@@ -164,7 +166,6 @@ def test_ReferenceWidget_setReferenceArgs(qtbot, refwidget):
         refargs.parameters,
     )
 
-    assert refwidget.drawOptionsWidget().currentIndex() == 1
     assert dict_includes(
         data_converter.unstructure(
             refwidget.drawOptionsWidget().currentWidget().dataValue()
@@ -175,10 +176,8 @@ def test_ReferenceWidget_setReferenceArgs(qtbot, refwidget):
 
 def test_ReferenceWidget_dataChanged_count(qtbot):
     """
-    Test that refwidget.dataChanged do not trigger other signals
-    multiple times.
+    Test that refwidget.dataChanged do not trigger signals multiple times.
     """
-    widget = ReferenceWidget()
 
     class Counter:
         def __init__(self):
@@ -187,19 +186,24 @@ def test_ReferenceWidget_dataChanged_count(qtbot):
         def count(self, _):
             self.i += 1
 
+    widget = ReferenceWidget()
     counter = Counter()
     widget.dataChanged.connect(counter.count)
     widget.onPathEditFinished()
     assert counter.i == 1
 
+    widget = ReferenceWidget()
+    counter = Counter()
+    widget.dataChanged.connect(counter.count)
     refargs = data_converter.unstructure(ReferenceArgs())
     widget.setReferenceArgs(refargs)
-    assert counter.i == 1
+    assert counter.i == 0
 
 
 def test_ReferenceWorker_setReferenceWidgetData(qtbot):
     worker = ReferenceWorker()
     assert worker.referenceType() is None
+    assert worker.image().size == 0
     assert worker.parameters() is None
     assert worker.drawOptions() is None
 

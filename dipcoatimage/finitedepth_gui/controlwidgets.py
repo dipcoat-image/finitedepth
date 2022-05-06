@@ -10,8 +10,12 @@ This module provides widgets to control the analysis parameters.
 import cv2  # type: ignore
 import dataclasses
 from dataclass2PySide6 import DataclassWidget, StackedDataclassWidget
-from dipcoatimage.finitedepth import SubstrateReferenceBase, data_converter
-from dipcoatimage.finitedepth.util import OptionalROI
+from dipcoatimage.finitedepth import (
+    SubstrateReferenceBase,
+    SubstrateBase,
+    data_converter,
+)
+from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
 import numpy as np
 import numpy.typing as npt
 from PySide6.QtCore import Signal, Slot
@@ -34,6 +38,8 @@ from .roimodel import ROIWidget
 __all__ = [
     "ReferenceWidgetData",
     "ReferenceWidget",
+    "SubstrateWidgetData",
+    "SubstrateWidget",
 ]
 
 
@@ -45,8 +51,8 @@ class ReferenceWidgetData:
     image: Optional[npt.NDArray[np.uint8]]
     templateROI: OptionalROI
     substrateROI: OptionalROI
-    parameters: Any
-    draw_options: Any
+    parameters: Optional[DataclassProtocol]
+    draw_options: Optional[DataclassProtocol]
 
 
 class ReferenceWidget(QWidget):
@@ -56,7 +62,7 @@ class ReferenceWidget(QWidget):
     .. rubric:: Substrate reference data
 
     Data consists of substrate reference type, which is a concrete subclass of
-    :class:`.SubstrateReferenceBase`, and its parameters.
+    :class:`.SubstrateReferenceBase`, and its every parameter.
 
     Data are wrapped by :class:`ReferenceWidgetData`. Whenever the widget values
     change :attr:`dataChanged` signal emits the data.
@@ -246,22 +252,6 @@ class ReferenceWidget(QWidget):
             raise TypeError(f"{widget} is not dataclass widget.")
         return widget
 
-    def currentDrawOptionsWidget(self) -> DataclassWidget:
-        widget = self.drawOptionsWidget().currentWidget()
-        if not isinstance(widget, DataclassWidget):
-            raise TypeError(f"{widget} is not dataclass widget.")
-        return widget
-
-    @Slot(object)
-    def onReferenceTypeChange(self):
-        """
-        Apply current variable from import widget to other widgets and emit data.
-        """
-        var = self.typeWidget().variable()
-        self.setCurrentParametersWidget(var)
-        self.setCurrentDrawOptionsWidget(var)
-        self.emitData()
-
     def setCurrentParametersWidget(self, reftype: Any):
         if isinstance(reftype, type) and issubclass(reftype, SubstrateReferenceBase):
             dcls = reftype.Parameters
@@ -273,6 +263,12 @@ class ReferenceWidget(QWidget):
             index = 0
         self.parametersWidget().setCurrentIndex(index)
 
+    def currentDrawOptionsWidget(self) -> DataclassWidget:
+        widget = self.drawOptionsWidget().currentWidget()
+        if not isinstance(widget, DataclassWidget):
+            raise TypeError(f"{widget} is not dataclass widget.")
+        return widget
+
     def setCurrentDrawOptionsWidget(self, reftype: Any):
         if isinstance(reftype, type) and issubclass(reftype, SubstrateReferenceBase):
             dcls = reftype.DrawOptions
@@ -283,6 +279,16 @@ class ReferenceWidget(QWidget):
         else:
             index = 0
         self.drawOptionsWidget().setCurrentIndex(index)
+
+    @Slot(object)
+    def onReferenceTypeChange(self):
+        """
+        Apply current variable from import widget to other widgets and emit data.
+        """
+        var = self.typeWidget().variable()
+        self.setCurrentParametersWidget(var)
+        self.setCurrentDrawOptionsWidget(var)
+        self.emitData()
 
     @Slot()
     def onPathEditFinished(self):
@@ -388,6 +394,230 @@ class ReferenceWidget(QWidget):
             self.currentParametersWidget().setDataValue(params)
             drawopts = data_converter.structure(
                 refargs["draw_options"], reftype.DrawOptions
+            )
+            self.currentDrawOptionsWidget().setDataValue(drawopts)
+
+        self.connectSignals()
+
+
+@dataclasses.dataclass
+class SubstrateWidgetData:
+    """Data from substrate widget to construct substrate object."""
+
+    type: Any
+    parameters: Optional[DataclassProtocol]
+    draw_options: Optional[DataclassProtocol]
+
+
+class SubstrateWidget(QWidget):
+    """
+    Widget to control data for substrate object.
+
+    .. rubric:: Substrate data
+
+    Data consists of substrate type, which is a concrete subclass of
+    :class:`.SubstrateBase`, its *parameters* and *draw_options*.
+    Note that substrate image is not specified by this widget, but by
+    :class:`ReferenceWidget`.
+
+    Data are wrapped by :class:`SubstrateWidgetData`. Whenever the widget values
+    change :attr:`dataChanged` signal emits the data.
+
+    .. rubric:: Setting type
+
+    Substrate type can be specified by :meth:`typeWidget`.
+
+    When current class changes, current indices of :meth:`parametersWidget` and
+    :meth:`drawOptionsWidget` are changed to show the new dataclass widget.
+
+    Changing the image updates the maximum ROI value of :meth:`templateROIWidget`
+    and :meth:`substrateROIWidget`.
+
+    .. rubric:: Setting ROI
+
+    :meth:`templateROIWidget` and :meth:`substrateROIWidget` set the ROI values.
+
+    :meth:`templateROIDrawButton` and :meth:`substrateROIDrawButton` are the API
+    for higher widget. When toggled, external object controls the ROI models of
+    ROI widgets, e.g. drawing on the displaying widget.
+
+    Examples
+    ========
+
+    >>> from PySide6.QtWidgets import QApplication
+    >>> import sys
+    >>> from dipcoatimage.finitedepth_gui.controlwidgets import SubstrateWidget
+    >>> def runGUI():
+    ...     app = QApplication(sys.argv)
+    ...     widget = SubstrateWidget()
+    ...     widget.show()
+    ...     app.exec()
+    ...     app.quit()
+    >>> runGUI() # doctest: +SKIP
+
+    """
+
+    dataChanged = Signal(SubstrateWidgetData)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self._importwidget = ImportWidget()
+        self._param_widget = StackedDataclassWidget()
+        self._drawopt_widget = StackedDataclassWidget()
+
+        self.connectSignals()
+
+        default_paramwdgt = DataclassWidget()  # default empty widget
+        default_drawwdgt = DataclassWidget()  # default empty widget
+        default_paramwdgt.setDataName("Parameters")
+        default_drawwdgt.setDataName("Draw Options")
+        self.parametersWidget().addWidget(default_paramwdgt)
+        self.drawOptionsWidget().addWidget(default_drawwdgt)
+
+        self.initUI()
+
+    def connectSignals(self):
+        """Connect the signals disconnected by :meth:`disconnectSignals`."""
+        self._typeSelectConnection = self.typeWidget().variableChanged.connect(
+            self.onSubstrateTypeChange
+        )
+        self._paramChangeConnection = self.parametersWidget().dataValueChanged.connect(
+            self.emitData
+        )
+        self._drawOptChangeConnection = (
+            self.drawOptionsWidget().dataValueChanged.connect(self.emitData)
+        )
+
+    def disconnectSignals(self):
+        """Disconnect the signals connected by :meth:`connectSignals`."""
+        self.drawOptionsWidget().dataValueChanged.disconnect(
+            self._drawOptChangeConnection
+        )
+        self.parametersWidget().dataValueChanged.disconnect(self._paramChangeConnection)
+        self.typeWidget().variableChanged.disconnect(self._typeSelectConnection)
+
+    def initUI(self):
+        self.typeWidget()._var_cbox.setPlaceholderText(
+            "Select substrate type or specify import info"
+        )
+        self.typeWidget()._varname_ledit.setPlaceholderText("Substrate type name")
+        self.typeWidget()._module_ledit.setPlaceholderText(
+            "Module name for the substrate type"
+        )
+
+        options_layout = QHBoxLayout()
+        options_layout.addWidget(self.parametersWidget())
+        options_layout.addWidget(self.drawOptionsWidget())
+
+        main_layout = QVBoxLayout()
+        main_layout.addWidget(self.typeWidget())
+        main_layout.addLayout(options_layout)
+        self.setLayout(main_layout)
+
+    def typeWidget(self) -> ImportWidget:
+        return self._importwidget
+
+    def parametersWidget(self) -> StackedDataclassWidget:
+        return self._param_widget
+
+    def drawOptionsWidget(self) -> StackedDataclassWidget:
+        return self._drawopt_widget
+
+    def currentParametersWidget(self) -> DataclassWidget:
+        widget = self.parametersWidget().currentWidget()
+        if not isinstance(widget, DataclassWidget):
+            raise TypeError(f"{widget} is not dataclass widget.")
+        return widget
+
+    def setCurrentParametersWidget(self, reftype: Any):
+        if isinstance(reftype, type) and issubclass(reftype, SubstrateBase):
+            dcls = reftype.Parameters
+            index = self.parametersWidget().indexOfDataclass(dcls)
+            if index == -1:
+                self.parametersWidget().addDataclass(dcls, "Parameters")
+                index = self.parametersWidget().indexOfDataclass(dcls)
+        else:
+            index = 0
+        self.parametersWidget().setCurrentIndex(index)
+
+    def currentDrawOptionsWidget(self) -> DataclassWidget:
+        widget = self.drawOptionsWidget().currentWidget()
+        if not isinstance(widget, DataclassWidget):
+            raise TypeError(f"{widget} is not dataclass widget.")
+        return widget
+
+    def setCurrentDrawOptionsWidget(self, reftype: Any):
+        if isinstance(reftype, type) and issubclass(reftype, SubstrateBase):
+            dcls = reftype.DrawOptions
+            index = self.drawOptionsWidget().indexOfDataclass(dcls)
+            if index == -1:
+                self.drawOptionsWidget().addDataclass(dcls, "Draw options")
+                index = self.drawOptionsWidget().indexOfDataclass(dcls)
+        else:
+            index = 0
+        self.drawOptionsWidget().setCurrentIndex(index)
+
+    @Slot(object)
+    def onSubstrateTypeChange(self):
+        """
+        Apply current variable from import widget to other widgets and emit data.
+        """
+        var = self.typeWidget().variable()
+        self.setCurrentParametersWidget(var)
+        self.setCurrentDrawOptionsWidget(var)
+        self.emitData()
+
+    def copyWidgetDataToDict(self, data: Dict[str, Any]):
+        data["substrate"]["type"]["name"] = (
+            self.typeWidget().variableNameLineEdit().text()
+        )
+        data["substrate"]["type"]["module"] = (
+            self.typeWidget().moduleNameLineEdit().text()
+        )
+        data["substrate"]["parameters"] = data_converter.unstructure(
+            self.currentParametersWidget().dataValue()
+        )
+        data["substrate"]["draw_options"] = data_converter.unstructure(
+            self.currentDrawOptionsWidget().dataValue()
+        )
+
+    def substrateWidgetData(self) -> SubstrateWidgetData:
+        subst_type = self.typeWidget().variable()
+        try:
+            param = self.currentParametersWidget().dataValue()
+        except (TypeError, ValueError):
+            param = None
+        try:
+            drawopt = self.currentDrawOptionsWidget().dataValue()
+        except (TypeError, ValueError):
+            drawopt = None
+        data = SubstrateWidgetData(subst_type, param, drawopt)
+        return data
+
+    @Slot()
+    def emitData(self):
+        self.dataChanged.emit(self.substrateWidgetData())
+
+    def setSubstrateArgs(self, substargs: Dict[str, Any]):
+        """Update the widgets data with *substargs*."""
+        self.disconnectSignals()
+
+        self.typeWidget().setImportInformation(
+            substargs["type"]["name"], substargs["type"]["module"]
+        )
+        var = self.typeWidget().variable()
+        self.setCurrentParametersWidget(var)
+        self.setCurrentDrawOptionsWidget(var)
+
+        substtype = self.typeWidget().variable()
+        if isinstance(substtype, type) and issubclass(substtype, SubstrateBase):
+            params = data_converter.structure(
+                substargs["parameters"], substtype.Parameters
+            )
+            self.currentParametersWidget().setDataValue(params)
+            drawopts = data_converter.structure(
+                substargs["draw_options"], substtype.DrawOptions
             )
             self.currentDrawOptionsWidget().setDataValue(drawopts)
 
