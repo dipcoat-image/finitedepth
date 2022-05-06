@@ -203,6 +203,7 @@ def test_ReferenceWidget_dataChanged_count(qtbot):
 def test_ReferenceWorker_setReferenceWidgetData(qtbot):
     worker = ReferenceWorker()
     assert worker.referenceType() is None
+    assert worker.image().size == 0
     assert worker.parameters() is None
     assert worker.drawOptions() is None
 
