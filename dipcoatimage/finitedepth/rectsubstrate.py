@@ -116,20 +116,20 @@ class RectSubstrateDrawType(enum.Enum):
     Attributes
     ==========
 
-    original
+    ORIGINAL
         Show the original substrate image.
 
-    binary
+    BINARY
         Show the binarized substrate image.
 
-    edges
+    EDGES
         Show the edges of the substrate image.
 
     """
 
-    original = "original"
-    binary = "binary"
-    edges = "edges"
+    ORIGINAL = "ORIGINAL"
+    BINARY = "BINARY"
+    EDGES = "EDGES"
 
 
 @dataclasses.dataclass
@@ -149,20 +149,20 @@ class RectSubstrateDrawOptions:
         RGB color and thickness to draw the detected lines.
         Ignored if *draw_lines* is false.
 
-    draw_edges
+    Draw_Edges
         Flag to draw the detected four edges of the substrate.
 
     edge_color, edge_thickness
         RGB color and thickness to draw the detected edges.
-        Ignored if *draw_edges* is false.
+        Ignored if *Draw_Edges* is false.
 
     """
 
-    draw_type: RectSubstrateDrawType = RectSubstrateDrawType.original
+    draw_type: RectSubstrateDrawType = RectSubstrateDrawType.ORIGINAL
     draw_lines: bool = True
     line_color: Tuple[int, int, int] = (0, 255, 0)
     line_thickness: int = 1
-    draw_edges: bool = True
+    Draw_Edges: bool = True
     edge_color: Tuple[int, int, int] = (0, 0, 255)
     edge_thickness: int = 5
 
@@ -192,28 +192,28 @@ class RectSubstrateLineType(enum.Enum):
     Attributes
     ==========
 
-    Unknown
+    UNKNOWN
         Unknown line.
 
-    Left
+    LEFT
         Left-hand side edge line of the substrate.
 
-    Right
+    RIGHT
         Right-hand side edge line of the substrate.
 
-    Top
+    TOP
         Top edge line of the substrate.
 
-    Bottom
+    BOTTOM
         Bottom edge line of the substrate.
 
     """
 
-    Unknown = "Unknown"
-    Left = "Left"
-    Right = "Right"
-    Top = "Top"
-    Bottom = "Bottom"
+    UNKNOWN = "UNKNOWN"
+    LEFT = "LEFT"
+    RIGHT = "RIGHT"
+    TOP = "TOP"
+    BOTTOM = "BOTTOM"
 
 
 class RectSubstratePointType(enum.Enum):
@@ -223,28 +223,28 @@ class RectSubstratePointType(enum.Enum):
     Attributes
     ==========
 
-    Unknown
+    UNKNOWN
         Unknown point.
 
-    TopLeft
+    TOPLEFT
         Top left-hand side vertex point of the substrate.
 
-    BottomLeft
+    BOTTOMLEFT
         Bottom left-hand side vertex point of the substrate.
 
-    BottomRight
+    BOTTOMRIGHT
         Bottom right-hand side vertex point of the substrate.
 
-    TopRight
+    TOPRIGHT
         Top right-hand side vertex point of the substrate.
 
     """
 
-    Unknown = "Unknown"
-    TopLeft = "TopLeft"
-    BottomLeft = "BottomLeft"
-    BottomRight = "BottomRight"
-    TopRight = "TopRight"
+    UNKNOWN = "UNKNOWN"
+    TOPLEFT = "TOPLEFT"
+    BOTTOMLEFT = "BOTTOMLEFT"
+    BOTTOMRIGHT = "BOTTOMRIGHT"
+    TOPRIGHT = "TOPRIGHT"
 
 
 class RectSubstrate(SubstrateBase):
@@ -302,23 +302,23 @@ class RectSubstrate(SubstrateBase):
     DrawOptions = RectSubstrateDrawOptions
 
     DrawType = RectSubstrateDrawType
-    Draw_Original = RectSubstrateDrawType.original
-    Draw_Binary = RectSubstrateDrawType.binary
-    Draw_Edges = RectSubstrateDrawType.edges
+    Draw_Original = RectSubstrateDrawType.ORIGINAL
+    Draw_Binary = RectSubstrateDrawType.BINARY
+    Draw_Edges = RectSubstrateDrawType.EDGES
 
     LineType = RectSubstrateLineType
-    Line_Unknown = RectSubstrateLineType.Unknown
-    Line_Left = RectSubstrateLineType.Left
-    Line_Right = RectSubstrateLineType.Right
-    Line_Top = RectSubstrateLineType.Top
-    Line_Bottom = RectSubstrateLineType.Bottom
+    Line_Unknown = RectSubstrateLineType.UNKNOWN
+    Line_Left = RectSubstrateLineType.LEFT
+    Line_Right = RectSubstrateLineType.RIGHT
+    Line_Top = RectSubstrateLineType.TOP
+    Line_Bottom = RectSubstrateLineType.BOTTOM
 
     PointType = RectSubstratePointType
-    Point_Unknown = RectSubstratePointType.Unknown
-    Point_TopLeft = RectSubstratePointType.TopLeft
-    Point_BottomLeft = RectSubstratePointType.BottomLeft
-    Point_BottomRight = RectSubstratePointType.BottomRight
-    Point_TopRight = RectSubstratePointType.TopRight
+    Point_Unknown = RectSubstratePointType.UNKNOWN
+    Point_TopLeft = RectSubstratePointType.TOPLEFT
+    Point_BottomLeft = RectSubstratePointType.BOTTOMLEFT
+    Point_BottomRight = RectSubstratePointType.BOTTOMRIGHT
+    Point_TopRight = RectSubstratePointType.TOPRIGHT
 
     def __init__(
         self,
@@ -495,13 +495,13 @@ class RectSubstrate(SubstrateBase):
         else:
             msg_tmpl = "Cannot detect %s of the substrate"
             missing = []
-            if RectSubstrateLineType.Left not in self.edge_lines:
+            if self.Line_Left not in self.edge_lines:
                 missing.append("left wall")
-            if RectSubstrateLineType.Right not in self.edge_lines:
+            if self.Line_Right not in self.edge_lines:
                 missing.append("right wall")
-            if RectSubstrateLineType.Top not in self.edge_lines:
+            if self.Line_Top not in self.edge_lines:
                 missing.append("top wall")
-            if RectSubstrateLineType.Bottom not in self.edge_lines:
+            if self.Line_Bottom not in self.edge_lines:
                 missing.append("bottom wall")
 
             if missing:
@@ -546,7 +546,7 @@ class RectSubstrate(SubstrateBase):
                 x2, y2 = int(x0 - w * (-ty)), int(y0 - h * tx)
                 cv2.line(ret, (x1, y1), (x2, y2), color, thickness)
 
-        if self.draw_options.draw_edges:
+        if self.draw_options.Draw_Edges:
             vertex_points = self.vertex_points
             topleft = vertex_points.get(self.Point_TopLeft, None)
             topright = vertex_points.get(self.Point_TopRight, None)
