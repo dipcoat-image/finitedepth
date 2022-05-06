@@ -236,13 +236,11 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     def draw_options(self, options: DrawOptionsType):
         self._draw_options = options
 
-    @property
     def template_image(self) -> npt.NDArray[np.uint8]:
         """Template image to locate the substrate in coated substrate image."""
         x0, y0, x1, y1 = self.templateROI
         return self.image[y0:y1, x0:x1]
 
-    @property
     def substrate_image(self) -> npt.NDArray[np.uint8]:
         """Image focusing on bare substrate."""
         x0, y0, x1, y1 = self.substrateROI

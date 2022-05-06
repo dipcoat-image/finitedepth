@@ -103,11 +103,9 @@ Full code will be shown first, and each line will be explained in subsections.
    ...             args = dataclasses.asdict(self.parameters)
    ...             _, self._binary = cv2.threshold(self.image, **args)
    ...         return self._binary
-   ...     @property
    ...     def template_image(self):
    ...         x0, y0, x1, y1 = self.templateROI
    ...         return self.binary_image()[y0:y1, x0:x1]
-   ...     @property
    ...     def substrate_image(self):
    ...         x0, y0, x1, y1 = self.substrateROI
    ...         return self.binary_image()[y0:y1, x0:x1]
@@ -151,11 +149,9 @@ Binarization
            args = dataclasses.asdict(self.parameters)
            _, self._binary = cv2.threshold(self.image, **args)
        return self._binary
-   @property
    def template_image(self):
        x0, y0, x1, y1 = self.templateROI
        return self.binary_image()[y0:y1, x0:x1]
-   @property
    def substrate_image(self):
        x0, y0, x1, y1 = self.substrateROI
        return self.binary_image()[y0:y1, x0:x1]
@@ -214,7 +210,7 @@ Template image is binarized.
    :include-source:
    :context: close-figs
 
-   >>> plt.imshow(ref.template_image, cmap="gray") #doctest: +SKIP
+   >>> plt.imshow(ref.template_image(), cmap="gray") #doctest: +SKIP
 
 Substrate image is binarized as well.
 
@@ -222,7 +218,7 @@ Substrate image is binarized as well.
    :include-source:
    :context: close-figs
 
-   >>> plt.imshow(ref.substrate_image, cmap="gray") #doctest: +SKIP
+   >>> plt.imshow(ref.substrate_image(), cmap="gray") #doctest: +SKIP
 
 We can change the option to visualize with binarized image.
 

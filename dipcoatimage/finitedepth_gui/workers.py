@@ -393,7 +393,7 @@ class SubstrateWorker(QObject):
             else:
                 image = subst.image
         elif ref is not None:
-            image = ref.substrate_image
+            image = ref.substrate_image()
         else:
             image = np.empty((0, 0, 0), dtype=np.uint8)
         return image

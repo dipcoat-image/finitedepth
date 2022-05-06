@@ -198,7 +198,7 @@ def test_SubstrateWorker_visualizedImage(qtbot):
 
     worker.setSubstrateWidgetData(SubstrateWidgetData(None, None, None))
     worker.updateSubstrate()
-    assert np.all(worker.visualizedImage() == REF.substrate_image)
+    assert np.all(worker.visualizedImage() == REF.substrate_image())
 
     worker.setReference(None)
     assert worker.visualizedImage().size == 0

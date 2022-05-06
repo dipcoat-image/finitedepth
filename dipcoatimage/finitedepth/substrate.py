@@ -146,7 +146,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         draw_options: Optional[DrawOptionsType] = None,
     ) -> T:
         """Construct the substrate instance from reference instance."""
-        return cls(ref.substrate_image, parameters, draw_options=draw_options)
+        return cls(ref.substrate_image(), parameters, draw_options=draw_options)
 
     def __init__(
         self,
