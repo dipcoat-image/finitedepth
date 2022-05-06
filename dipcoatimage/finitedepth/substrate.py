@@ -101,10 +101,10 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         Substrate reference instance.
 
     parameters
-        Additional parameters. Instance of :attr:`Parameters`, or :obj:`None`.
+        Additional parameters.
 
     draw_options
-        Drawing options. Instance of :attr:`DrawOptions`, or :obj:`None`.
+        Drawing options.
 
     """
 
