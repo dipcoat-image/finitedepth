@@ -20,6 +20,9 @@ Implementation
 .. autoclass:: SubstrateReferenceParameters
    :members:
 
+.. autoclass:: SubstrateReferenceDrawMode
+   :members:
+
 .. autoclass:: SubstrateReferenceDrawOptions
    :members:
 
@@ -43,6 +46,7 @@ __all__ = [
     "SubstrateReferenceError",
     "SubstrateReferenceBase",
     "SubstrateReferenceParameters",
+    "SubstrateReferenceDrawMode",
     "SubstrateReferenceDrawOptions",
     "SubstrateReference",
 ]
@@ -238,7 +242,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     def draw_options(self, options: DrawOptionsType):
         self._draw_options = options
 
-    def binary_image(self) -> Optional[npt.NDArray[np.uint8]]:
+    def binary_image(self) -> npt.NDArray[np.uint8]:
         """
         Binarized :attr:`image` using Otsu's thresholding.
 
@@ -261,9 +265,10 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
                     raise TypeError(f"Image with invalid channel: {self.image.shape}")
             else:
                 raise TypeError(f"Invalid image shape: {self.image.shape}")
-            _, self._binary_image = cv2.threshold(
-                gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
-            )
+            _, ret = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+            if ret is None:
+                ret = np.empty((0, 0))
+            self._binary_image = ret
         return self._binary_image
 
     def template_image(self) -> npt.NDArray[np.uint8]:
@@ -325,7 +330,7 @@ class SubstrateReferenceParameters:
     pass
 
 
-class SubstrateReferenceDrawType(enum.Enum):
+class SubstrateReferenceDrawMode(enum.Enum):
     """
     Option for :class:`SubstrateReferenceDrawOptions` to determine how the
     reference image is drawn.
@@ -353,7 +358,7 @@ class SubstrateReferenceDrawOptions:
     Parameters
     ==========
 
-    draw_type
+    draw_mode
 
     draw_templateROI
         Flag whether to draw template ROI box.
@@ -375,7 +380,7 @@ class SubstrateReferenceDrawOptions:
 
     """
 
-    draw_type: SubstrateReferenceDrawType = SubstrateReferenceDrawType.ORIGINAL
+    draw_mode: SubstrateReferenceDrawMode = SubstrateReferenceDrawMode.ORIGINAL
 
     draw_templateROI: bool = True
     templateROI_color: Tuple[int, int, int] = (0, 255, 0)
@@ -414,22 +419,34 @@ class SubstrateReference(SubstrateReferenceBase):
     Parameters = SubstrateReferenceParameters
     DrawOptions = SubstrateReferenceDrawOptions
 
+    DrawMode = SubstrateReferenceDrawMode
+    Draw_Original = SubstrateReferenceDrawMode.ORIGINAL
+    Draw_Binary = SubstrateReferenceDrawMode.BINARY
+
     def examine(self) -> None:
         return None
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        if len(self.image.shape) == 2:
-            ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
-        elif len(self.image.shape) == 3:
-            ch = self.image.shape[-1]
-            if ch == 1:
-                ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
-            elif ch == 3:
-                ret = self.image.copy()
-            else:
-                raise TypeError(f"Image with invalid channel: {self.image.shape}")
+        draw_mode = self.draw_options.draw_mode
+        if draw_mode == self.Draw_Original:
+            image = self.image
+        elif draw_mode == self.Draw_Binary:
+            image = self.binary_image()
         else:
-            raise TypeError(f"Invalid image shape: {self.image.shape}")
+            raise TypeError("Unrecognized draw mode: %s" % draw_mode)
+
+        if len(image.shape) == 2:
+            ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        elif len(image.shape) == 3:
+            ch = image.shape[-1]
+            if ch == 1:
+                ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+            elif ch == 3:
+                ret = image.copy()
+            else:
+                raise TypeError(f"Image with invalid channel: {image.shape}")
+        else:
+            raise TypeError(f"Invalid image shape: {image.shape}")
 
         if self.draw_options.draw_substrateROI:
             x0, y0, x1, y1 = self.substrateROI
