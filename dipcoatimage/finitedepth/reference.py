@@ -325,9 +325,27 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
 
 @dataclasses.dataclass(frozen=True)
 class SubstrateReferenceParameters:
-    """Additional parameters for :class:`SubstrateReference` instance."""
+    """
+    Additional parameters for :class:`SubstrateReference` instance.
 
-    pass
+    This class defines parameters for :func:`cv2.threshold`, which default for
+    Otsu's binarization.
+
+    Attributes
+    ==========
+
+    thresh
+
+    maxval
+
+    type
+        Default is ``cv2.THRESH_BINARY | cv2.THRESH_OTSU`` value.
+
+    """
+
+    thresh: int = 0
+    maxval: int = 255
+    type: int = cv2.THRESH_BINARY | cv2.THRESH_OTSU
 
 
 class SubstrateReferenceDrawMode(enum.Enum):
@@ -422,6 +440,35 @@ class SubstrateReference(SubstrateReferenceBase):
     DrawMode = SubstrateReferenceDrawMode
     Draw_Original = SubstrateReferenceDrawMode.ORIGINAL
     Draw_Binary = SubstrateReferenceDrawMode.BINARY
+
+    def binary_image(self) -> npt.NDArray[np.uint8]:
+        """
+        Binarized :attr:`image` using :meth:`parameters`.
+
+        Notes
+        =====
+
+        This method is cached. Do not modify its result.
+
+        """
+        if not hasattr(self, "_binary_image"):
+            if len(self.image.shape) == 2:
+                gray = self.image
+            elif len(self.image.shape) == 3:
+                ch = self.image.shape[-1]
+                if ch == 1:
+                    gray = self.image
+                elif ch == 3:
+                    gray = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
+                else:
+                    raise TypeError(f"Image with invalid channel: {self.image.shape}")
+            else:
+                raise TypeError(f"Invalid image shape: {self.image.shape}")
+            _, ret = cv2.threshold(gray, **dataclasses.asdict(self.parameters))
+            if ret is None:
+                ret = np.empty((0, 0))
+            self._binary_image = ret
+        return self._binary_image
 
     def examine(self) -> None:
         return None
