@@ -569,8 +569,12 @@ class SubstrateWidget(QWidget):
         self.emitData()
 
     def copyWidgetDataToDict(self, data: Dict[str, Any]):
-        data["substrate"]["type"]["name"] = self.typeNameLineEdit().text()
-        data["substrate"]["type"]["module"] = self.moduleLineEdit().text()
+        data["substrate"]["type"]["name"] = (
+            self.typeWidget().variableNameLineEdit().text()
+        )
+        data["substrate"]["type"]["module"] = (
+            self.typeWidget().moduleNameLineEdit().text()
+        )
         data["substrate"]["parameters"] = data_converter.unstructure(
             self.currentParametersWidget().dataValue()
         )
