@@ -98,7 +98,7 @@ Full code will be shown first, and each line will be explained in subsections.
    ...     def circles(self):
    ...         if not hasattr(self, "_circles"):
    ...             args = dataclasses.asdict(self.parameters)
-   ...             circles = cv2.HoughCircles(self.image, **args)
+   ...             circles = cv2.HoughCircles(self.image(), **args)
    ...             if circles is None:
    ...                 circles = np.empty((0, 0, 3))
    ...             self._circles = circles.astype(np.uint16)
@@ -109,7 +109,7 @@ Full code will be shown first, and each line will be explained in subsections.
    ...             ret = SubstrateError("Hough circle transformation failed.")
    ...         return ret
    ...     def draw(self):
-   ...         ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
+   ...         ret = cv2.cvtColor(self.image(), cv2.COLOR_GRAY2RGB)
    ...         color = self.draw_options.color
    ...         thickness = 3
    ...         for ((x, y, r),) in self.circles()[:1]:
@@ -144,7 +144,7 @@ Hough transformation
    def circles(self):
        if not hasattr(self, "_circles"):
            args = dataclasses.asdict(self.parameters)
-           circles = cv2.HoughCircles(self.image, **args)
+           circles = cv2.HoughCircles(self.image(), **args)
            if circles is None:
                circles = np.empty((0, 0, 3))
            self._circles = circles.astype(np.uint16)
@@ -171,7 +171,7 @@ Visualization
 .. code-block:: python
 
    def draw(self):
-       ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
+       ret = cv2.cvtColor(self.image(), cv2.COLOR_GRAY2RGB)
        color = self.draw_options.color
        thickness = 3
        for ((x, y, r),) in self.circles()[:1]:

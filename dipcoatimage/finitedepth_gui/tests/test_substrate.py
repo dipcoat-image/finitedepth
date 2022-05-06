@@ -194,7 +194,7 @@ def test_SubstrateWorker_visualizedImage(qtbot):
     assert np.all(worker.visualizedImage() == SUBST.draw())
 
     worker.setVisualizationMode(False)
-    assert np.all(worker.visualizedImage() == SUBST.image)
+    assert np.all(worker.visualizedImage() == SUBST.image())
 
     worker.setSubstrateWidgetData(SubstrateWidgetData(None, None, None))
     worker.updateSubstrate()

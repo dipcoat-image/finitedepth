@@ -391,7 +391,7 @@ class SubstrateWorker(QObject):
             if self.visualizationMode():
                 image = subst.draw()
             else:
-                image = subst.image
+                image = subst.image()
         elif ref is not None:
             image = ref.substrate_image()
         else:

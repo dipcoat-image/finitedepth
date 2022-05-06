@@ -180,12 +180,14 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     def draw_options(self, options: DrawOptionsType):
         self._draw_options = options
 
-    @property
     def image(self) -> npt.NDArray[np.uint8]:
-        """
-        Substrate image from :meth:`reference`.
-        """
+        """Substrate image from :meth:`reference`."""
         return self.reference.substrate_image()
+
+    def binary_image(self) -> npt.NDArray[np.uint8]:
+        """Binarized substrate image from :meth:`reference`."""
+        x0, y0, x1, y1 = self.reference.substrateROI
+        return self.reference.binary_image()[y0:y1, x0:x1]
 
     def nestled_points(self) -> List[Tuple[int, int]]:
         """
@@ -217,7 +219,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         [(300, 0)]
 
         """
-        w = self.image.shape[1]
+        w = self.image().shape[1]
         return [(int(w / 2), 0)]
 
     @abc.abstractmethod
@@ -313,16 +315,16 @@ class Substrate(SubstrateBase):
         return None
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        if len(self.image.shape) == 2:
-            ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
-        elif len(self.image.shape) == 3:
-            ch = self.image.shape[-1]
+        if len(self.image().shape) == 2:
+            ret = cv2.cvtColor(self.image(), cv2.COLOR_GRAY2RGB)
+        elif len(self.image().shape) == 3:
+            ch = self.image().shape[-1]
             if ch == 1:
-                ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
+                ret = cv2.cvtColor(self.image(), cv2.COLOR_GRAY2RGB)
             elif ch == 3:
-                ret = self.image.copy()
+                ret = self.image().copy()
             else:
-                raise TypeError(f"Image with invalid channel: {self.image.shape}")
+                raise TypeError(f"Image with invalid channel: {self.image().shape}")
         else:
-            raise TypeError(f"Invalid image shape: {self.image.shape}")
+            raise TypeError(f"Invalid image shape: {self.image().shape}")
         return ret

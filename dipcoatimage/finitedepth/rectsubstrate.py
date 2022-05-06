@@ -291,7 +291,6 @@ class RectSubstrate(SubstrateBase):
     """
 
     __slots__ = (
-        "_binimage",
         "_cannyimage",
         "_lines",
         "_edge_lines",
@@ -319,36 +318,6 @@ class RectSubstrate(SubstrateBase):
     Point_BottomLeft = RectSubstratePointType.BOTTOMLEFT
     Point_BottomRight = RectSubstratePointType.BOTTOMRIGHT
     Point_TopRight = RectSubstratePointType.TOPRIGHT
-
-    def binary_image(self) -> npt.NDArray[np.uint8]:
-        """
-        Binarized :meth:`image`.
-
-        Notes
-        =====
-
-        This property is cached. Do not mutate the result.
-
-        """
-        if not hasattr(self, "_binimage"):
-
-            if len(self.image.shape) == 2:
-                gray = self.image
-            elif len(self.image.shape) == 3:
-                ch = self.image.shape[-1]
-                if ch == 1:
-                    gray = self.image
-                elif ch == 3:
-                    gray = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
-                else:
-                    raise TypeError(f"Image with invalid channel: {self.image.shape}")
-            else:
-                raise TypeError(f"Invalid image shape: {self.image.shape}")
-
-            _, self._binimage = cv2.threshold(
-                gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
-            )
-        return self._binimage  # type: ignore
 
     def canny_image(self) -> npt.NDArray[np.uint8]:
         """
@@ -386,7 +355,7 @@ class RectSubstrate(SubstrateBase):
 
     def classify_line(self, r: float, theta: float) -> RectSubstrateLineType:
         """Classify a line by its distance *r* and angle *theta*."""
-        h, w = self.image.shape[:2]
+        h, w = self.image().shape[:2]
         r = abs(r)
 
         is_horizontal = any(
@@ -491,11 +460,11 @@ class RectSubstrate(SubstrateBase):
         return ret
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        h, w = self.image.shape[:2]
+        h, w = self.image().shape[:2]
 
         draw_type = self.draw_options.draw_type
         if draw_type is self.Draw_Original:
-            image = self.image
+            image = self.image()
         elif draw_type is self.Draw_Binary:
             image = self.binary_image()
         elif draw_type is self.Draw_Edges:
