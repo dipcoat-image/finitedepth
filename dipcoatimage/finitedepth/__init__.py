@@ -37,7 +37,7 @@ from .rectsubstrate import (
 from .coatinglayer import (
     CoatingLayerError,
     CoatingLayerBase,
-    CoatingLayer,
+    LayerArea,
 )
 from .util import (
     get_samples_path,
@@ -62,7 +62,7 @@ __all__ = [
     "RectSubstrate",
     "CoatingLayerError",
     "CoatingLayerBase",
-    "CoatingLayer",
+    "LayerArea",
     "get_samples_path",
     "data_converter",
     "CannyParameters",

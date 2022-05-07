@@ -17,19 +17,19 @@ Base class
 Implementation
 --------------
 
-.. autoclass:: CoatingLayerParameters
+.. autoclass:: LayerAreaParameters
    :members:
 
-.. autoclass:: CoatingLayerDrawOptions
+.. autoclass:: LayerAreaDrawOptions
    :members:
 
-.. autoclass:: CoatingLayerDecoOptions
+.. autoclass:: LayerAreaDecoOptions
    :members:
 
-.. autoclass:: CoatingLayerData
+.. autoclass:: LayerAreaData
    :members:
 
-.. autoclass:: CoatingLayer
+.. autoclass:: LayerArea
    :members:
 
 .. automodule:: dipcoatimage.finitedepth.rectcoatinglayer
@@ -50,11 +50,11 @@ from .util import DataclassProtocol, BinaryImageDrawMode
 __all__ = [
     "CoatingLayerError",
     "CoatingLayerBase",
-    "CoatingLayerParameters",
-    "CoatingLayerDrawOptions",
-    "CoatingLayerDecoOptions",
-    "CoatingLayerData",
-    "CoatingLayer",
+    "LayerAreaParameters",
+    "LayerAreaDrawOptions",
+    "LayerAreaDecoOptions",
+    "LayerAreaData",
+    "LayerArea",
 ]
 
 
@@ -420,16 +420,16 @@ class CoatingLayerBase(
 
 
 @dataclasses.dataclass(frozen=True)
-class CoatingLayerParameters:
-    """Additional parameters for :class:`CoatingLayer` instance."""
+class LayerAreaParameters:
+    """Additional parameters for :class:`LayerArea` instance."""
 
     pass
 
 
 @dataclasses.dataclass
-class CoatingLayerDrawOptions:
+class LayerAreaDrawOptions:
     """
-    Drawing options for :class:`CoatingLayer()`.
+    Drawing options for :class:`LayerArea`.
 
     Parameters
     ==========
@@ -450,9 +450,9 @@ class CoatingLayerDrawOptions:
 
 
 @dataclasses.dataclass
-class CoatingLayerDecoOptions:
+class LayerAreaDecoOptions:
     """
-    Coating layer decorating options for :class:`CoatingLayer`.
+    Coating layer decorating options for :class:`LayerArea`.
 
     Parameters
     ==========
@@ -466,9 +466,9 @@ class CoatingLayerDecoOptions:
 
 
 @dataclasses.dataclass
-class CoatingLayerData:
+class LayerAreaData:
     """
-    Coating layer shape data for :class:`CoatingLayer`.
+    Coating layer shape data for :class:`LayerArea`.
 
     Parameters
     ==========
@@ -481,19 +481,67 @@ class CoatingLayerData:
     Area: int
 
 
-class CoatingLayer(
+class LayerArea(
     CoatingLayerBase[
         SubstrateBase,
-        CoatingLayerParameters,
-        CoatingLayerDrawOptions,
-        CoatingLayerDecoOptions,
-        CoatingLayerData,
+        LayerAreaParameters,
+        LayerAreaDrawOptions,
+        LayerAreaDecoOptions,
+        LayerAreaData,
     ]
 ):
-    Parameters = CoatingLayerParameters
-    DrawOptions = CoatingLayerDrawOptions
-    DecoOptions = CoatingLayerDecoOptions
-    Data = CoatingLayerData
+    """
+    Class to analyze the cross section area of coating layer in pixel number.
+
+    Examples
+    ========
+
+    Construct substrate reference class first.
+
+    .. plot::
+       :include-source:
+       :context: reset
+
+       >>> import cv2
+       >>> from dipcoatimage.finitedepth import (SubstrateReference,
+       ...     get_samples_path)
+       >>> ref_path = get_samples_path('ref1.png')
+       >>> ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+       >>> tempROI = (200, 50, 1200, 200)
+       >>> substROI = (400, 100, 1000, 500)
+       >>> ref = SubstrateReference(ref_img, tempROI, substROI)
+       >>> import matplotlib.pyplot as plt #doctest: +SKIP
+       >>> plt.imshow(ref.draw()) #doctest: +SKIP
+
+    Construct substrate class from reference class.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> from dipcoatimage.finitedepth import Substrate
+       >>> subst = Substrate(ref)
+       >>> plt.imshow(subst.draw()) #doctest: +SKIP
+
+    Construct :class:`LayerArea` from substrate class.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> from dipcoatimage.finitedepth import LayerArea
+       >>> coat_path = get_samples_path('coat1.png')
+       >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
+       >>> coat = LayerArea(coat_img, subst)
+       >>> coat.analyze()
+       LayerAreaData(Area=44348)
+       >>> plt.imshow(coat.draw()) #doctest: +SKIP
+
+    """
+    Parameters = LayerAreaParameters
+    DrawOptions = LayerAreaDrawOptions
+    DecoOptions = LayerAreaDecoOptions
+    Data = LayerAreaData
 
     DrawMode = BinaryImageDrawMode
     Draw_Original = BinaryImageDrawMode.ORIGINAL

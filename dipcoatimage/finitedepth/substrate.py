@@ -296,7 +296,7 @@ class Substrate(SubstrateBase[SubstrateParameters, SubstrateDrawOptions]):
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
-    Construct substrate class from reference class.
+    Construct :class:`Substrate` from reference class.
 
     .. plot::
        :include-source:
