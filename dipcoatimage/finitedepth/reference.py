@@ -20,9 +20,6 @@ Implementation
 .. autoclass:: SubstrateReferenceParameters
    :members:
 
-.. autoclass:: SubstrateReferenceDrawMode
-   :members:
-
 .. autoclass:: SubstrateReferenceDrawOptions
    :members:
 
@@ -35,18 +32,22 @@ Implementation
 import abc
 import cv2  # type: ignore
 import dataclasses
-import enum
 import numpy as np
 import numpy.typing as npt
 from typing import TypeVar, Generic, Type, Optional, cast, Tuple
-from .util import DataclassProtocol, OptionalROI, IntROI, ThresholdParameters
+from .util import (
+    DataclassProtocol,
+    OptionalROI,
+    IntROI,
+    ThresholdParameters,
+    BinaryImageDrawMode,
+)
 
 
 __all__ = [
     "SubstrateReferenceError",
     "SubstrateReferenceBase",
     "SubstrateReferenceParameters",
-    "SubstrateReferenceDrawMode",
     "SubstrateReferenceDrawOptions",
     "SubstrateReference",
 ]
@@ -334,26 +335,6 @@ class SubstrateReferenceParameters:
     threshold: ThresholdParameters = ThresholdParameters()
 
 
-class SubstrateReferenceDrawMode(enum.Enum):
-    """
-    Option for :class:`SubstrateReferenceDrawOptions` to determine how the
-    reference image is drawn.
-
-    Attributes
-    ==========
-
-    ORIGINAL
-        Show the original reference image.
-
-    BINARY
-        Show the binarized reference image.
-
-    """
-
-    ORIGINAL = "ORIGINAL"
-    BINARY = "BINARY"
-
-
 @dataclasses.dataclass
 class SubstrateReferenceDrawOptions:
     """
@@ -384,7 +365,7 @@ class SubstrateReferenceDrawOptions:
 
     """
 
-    draw_mode: SubstrateReferenceDrawMode = SubstrateReferenceDrawMode.ORIGINAL
+    draw_mode: BinaryImageDrawMode = BinaryImageDrawMode.ORIGINAL
 
     draw_templateROI: bool = True
     templateROI_color: Tuple[int, int, int] = (0, 255, 0)
@@ -425,9 +406,9 @@ class SubstrateReference(
     Parameters = SubstrateReferenceParameters
     DrawOptions = SubstrateReferenceDrawOptions
 
-    DrawMode = SubstrateReferenceDrawMode
-    Draw_Original = SubstrateReferenceDrawMode.ORIGINAL
-    Draw_Binary = SubstrateReferenceDrawMode.BINARY
+    DrawMode = BinaryImageDrawMode
+    Draw_Original = BinaryImageDrawMode.ORIGINAL
+    Draw_Binary = BinaryImageDrawMode.BINARY
 
     def binary_image(self) -> npt.NDArray[np.uint8]:
         """

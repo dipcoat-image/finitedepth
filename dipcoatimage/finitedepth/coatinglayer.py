@@ -20,9 +20,6 @@ Implementation
 .. autoclass:: CoatingLayerParameters
    :members:
 
-.. autoclass:: CoatingLayerDrawMode
-   :members:
-
 .. autoclass:: CoatingLayerDrawOptions
    :members:
 
@@ -41,19 +38,17 @@ Implementation
 import abc
 import cv2  # type: ignore
 import dataclasses
-import enum
 import numpy as np
 import numpy.typing as npt
 from typing import TypeVar, Generic, Type, Optional, Tuple
 from .substrate import SubstrateBase
-from .util import DataclassProtocol, ThresholdParameters
+from .util import DataclassProtocol, ThresholdParameters, BinaryImageDrawMode
 
 
 __all__ = [
     "CoatingLayerError",
     "CoatingLayerBase",
     "CoatingLayerParameters",
-    "CoatingLayerDrawMode",
     "CoatingLayerDrawOptions",
     "CoatingLayerDecoOptions",
     "CoatingLayerData",
@@ -429,26 +424,6 @@ class CoatingLayerParameters:
     threshold: ThresholdParameters = ThresholdParameters()
 
 
-class CoatingLayerDrawMode(enum.Enum):
-    """
-    Option for :class:`CoatingLayerDrawOptions` to determine how the coated
-    substrate image is drawn.
-
-    Attributes
-    ==========
-
-    ORIGINAL
-        Show the original coated substrate image.
-
-    BINARY
-        Show the binarized coated substrate image.
-
-    """
-
-    ORIGINAL = "ORIGINAL"
-    BINARY = "BINARY"
-
-
 @dataclasses.dataclass
 class CoatingLayerDrawOptions:
     """
@@ -467,7 +442,7 @@ class CoatingLayerDrawOptions:
 
     """
 
-    draw_mode: CoatingLayerDrawMode = CoatingLayerDrawMode.ORIGINAL
+    draw_mode: BinaryImageDrawMode = BinaryImageDrawMode.ORIGINAL
     remove_substrate: bool = False
     decorate: bool = True
 
@@ -518,9 +493,9 @@ class CoatingLayer(
     DecoOptions = CoatingLayerDecoOptions
     Data = CoatingLayerData
 
-    DrawMode = CoatingLayerDrawMode
-    Draw_Original = CoatingLayerDrawMode.ORIGINAL
-    Draw_Binary = CoatingLayerDrawMode.BINARY
+    DrawMode = BinaryImageDrawMode
+    Draw_Original = BinaryImageDrawMode.ORIGINAL
+    Draw_Binary = BinaryImageDrawMode.BINARY
 
     def binary_image(self) -> npt.NDArray[np.uint8]:
         """
