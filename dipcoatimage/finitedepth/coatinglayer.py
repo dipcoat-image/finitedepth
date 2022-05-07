@@ -61,6 +61,7 @@ __all__ = [
 ]
 
 
+SubstrateType = TypeVar("SubstrateType", bound=SubstrateBase)
 ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
 DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
 DecoOptionsType = TypeVar("DecoOptionsType", bound=DataclassProtocol)
@@ -74,7 +75,8 @@ class CoatingLayerError(Exception):
 
 
 class CoatingLayerBase(
-    abc.ABC, Generic[ParametersType, DrawOptionsType, DecoOptionsType, DataType]
+    abc.ABC,
+    Generic[SubstrateType, ParametersType, DrawOptionsType, DecoOptionsType, DataType],
 ):
     """
     Abstract base class for coating layer.
@@ -85,8 +87,8 @@ class CoatingLayerBase(
     .. rubric:: Constructor
 
     Constructor signature must not be modified because high-level API use factory
-    to generate substrate instances. Additional parameters can be introduced by
-    definig class attribute :attr:`Parameters`, :attr:`DrawOptions` and
+    to generate coating layer instances. Additional parameters can be introduced
+    by definig class attribute :attr:`Parameters`, :attr:`DrawOptions` and
     :attr:`DecoOptions`.
 
     .. rubric:: Parameters, DrawOptions and DecoOptions
@@ -187,7 +189,7 @@ class CoatingLayerBase(
     def __init__(
         self,
         image: npt.NDArray[np.uint8],
-        substrate: SubstrateBase,
+        substrate: SubstrateType,
         parameters: Optional[ParametersType] = None,
         *,
         draw_options: Optional[DrawOptionsType] = None,
@@ -224,7 +226,7 @@ class CoatingLayerBase(
         return self._image
 
     @property
-    def substrate(self) -> SubstrateBase:
+    def substrate(self) -> SubstrateType:
         """Substrate instance passed to the constructor."""
         return self._substrate
 
@@ -504,6 +506,7 @@ class CoatingLayerData:
 
 class CoatingLayer(
     CoatingLayerBase[
+        SubstrateBase,
         CoatingLayerParameters,
         CoatingLayerDrawOptions,
         CoatingLayerDecoOptions,
