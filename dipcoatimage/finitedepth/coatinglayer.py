@@ -20,9 +20,6 @@ Implementation
 .. autoclass:: CoatingLayerParameters
    :members:
 
-.. autoclass:: CoatingLayerDrawMode
-   :members:
-
 .. autoclass:: CoatingLayerDrawOptions
    :members:
 
@@ -43,19 +40,17 @@ Implementation
 import abc
 import cv2  # type: ignore
 import dataclasses
-import enum
 import numpy as np
 import numpy.typing as npt
 from typing import TypeVar, Generic, Type, Optional, Tuple
 from .substrate import SubstrateBase
-from .util import DataclassProtocol, ThresholdParameters
+from .util import DataclassProtocol, ThresholdParameters, BinaryImageDrawMode
 
 
 __all__ = [
     "CoatingLayerError",
     "CoatingLayerBase",
     "CoatingLayerParameters",
-    "CoatingLayerDrawMode",
     "CoatingLayerDrawOptions",
     "CoatingLayerDecoOptions",
     "CoatingLayerData",
@@ -63,6 +58,7 @@ __all__ = [
 ]
 
 
+SubstrateType = TypeVar("SubstrateType", bound=SubstrateBase)
 ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
 DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
 DecoOptionsType = TypeVar("DecoOptionsType", bound=DataclassProtocol)
@@ -76,7 +72,8 @@ class CoatingLayerError(Exception):
 
 
 class CoatingLayerBase(
-    abc.ABC, Generic[ParametersType, DrawOptionsType, DecoOptionsType, DataType]
+    abc.ABC,
+    Generic[SubstrateType, ParametersType, DrawOptionsType, DecoOptionsType, DataType],
 ):
     """
     Abstract base class for coating layer.
@@ -87,8 +84,8 @@ class CoatingLayerBase(
     .. rubric:: Constructor
 
     Constructor signature must not be modified because high-level API use factory
-    to generate substrate instances. Additional parameters can be introduced by
-    definig class attribute :attr:`Parameters`, :attr:`DrawOptions` and
+    to generate coating layer instances. Additional parameters can be introduced
+    by definig class attribute :attr:`Parameters`, :attr:`DrawOptions` and
     :attr:`DecoOptions`.
 
     .. rubric:: Parameters, DrawOptions and DecoOptions
@@ -189,7 +186,7 @@ class CoatingLayerBase(
     def __init__(
         self,
         image: npt.NDArray[np.uint8],
-        substrate: SubstrateBase,
+        substrate: SubstrateType,
         parameters: Optional[ParametersType] = None,
         *,
         draw_options: Optional[DrawOptionsType] = None,
@@ -226,7 +223,7 @@ class CoatingLayerBase(
         return self._image
 
     @property
-    def substrate(self) -> SubstrateBase:
+    def substrate(self) -> SubstrateType:
         """Substrate instance passed to the constructor."""
         return self._substrate
 
@@ -429,26 +426,6 @@ class CoatingLayerParameters:
     threshold: ThresholdParameters = ThresholdParameters()
 
 
-class CoatingLayerDrawMode(enum.Enum):
-    """
-    Option for :class:`CoatingLayerDrawOptions` to determine how the coated
-    substrate image is drawn.
-
-    Attributes
-    ==========
-
-    ORIGINAL
-        Show the original coated substrate image.
-
-    BINARY
-        Show the binarized coated substrate image.
-
-    """
-
-    ORIGINAL = "ORIGINAL"
-    BINARY = "BINARY"
-
-
 @dataclasses.dataclass
 class CoatingLayerDrawOptions:
     """
@@ -467,7 +444,7 @@ class CoatingLayerDrawOptions:
 
     """
 
-    draw_mode: CoatingLayerDrawMode = CoatingLayerDrawMode.ORIGINAL
+    draw_mode: BinaryImageDrawMode = BinaryImageDrawMode.ORIGINAL
     remove_substrate: bool = False
     decorate: bool = True
 
@@ -506,6 +483,7 @@ class CoatingLayerData:
 
 class CoatingLayer(
     CoatingLayerBase[
+        SubstrateBase,
         CoatingLayerParameters,
         CoatingLayerDrawOptions,
         CoatingLayerDecoOptions,
@@ -517,9 +495,9 @@ class CoatingLayer(
     DecoOptions = CoatingLayerDecoOptions
     Data = CoatingLayerData
 
-    DrawMode = CoatingLayerDrawMode
-    Draw_Original = CoatingLayerDrawMode.ORIGINAL
-    Draw_Binary = CoatingLayerDrawMode.BINARY
+    DrawMode = BinaryImageDrawMode
+    Draw_Original = BinaryImageDrawMode.ORIGINAL
+    Draw_Binary = BinaryImageDrawMode.BINARY
 
     def binary_image(self) -> npt.NDArray[np.uint8]:
         """

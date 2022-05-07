@@ -1,14 +1,15 @@
 """
-Parameter dataclasses
-=====================
+Parameter classes
+=================
 
-:mod:`dipcoatimage.finitedepth.util.parameters` provides common dataclasses for
-*parameters* argument of image analysis classes.
+:mod:`dipcoatimage.finitedepth.util.parameters` provides common classes to
+construct dataclasses for image analysis classes.
 
 """
 
 import cv2  # type: ignore
 import dataclasses
+import enum
 import numpy as np
 
 
@@ -16,6 +17,7 @@ __all__ = [
     "ThresholdParameters",
     "CannyParameters",
     "HoughLinesParameters",
+    "BinaryImageDrawMode",
 ]
 
 
@@ -64,3 +66,22 @@ class HoughLinesParameters:
     stn: float = 0
     min_theta: float = 0
     max_theta: float = np.pi
+
+
+class BinaryImageDrawMode(enum.Enum):
+    """
+    Option to determine if the image is drawn in original/binary.
+
+    Attributes
+    ==========
+
+    ORIGINAL
+        Show the original image.
+
+    BINARY
+        Show the binarized image.
+
+    """
+
+    ORIGINAL = "ORIGINAL"
+    BINARY = "BINARY"
