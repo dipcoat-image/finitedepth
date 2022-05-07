@@ -37,11 +37,6 @@ import dataclasses
 import numpy as np
 import numpy.typing as npt
 from typing import TypeVar, Generic, Type, Optional, List, Tuple
-
-try:
-    from typing import TypeAlias  # type: ignore
-except ImportError:
-    from typing_extensions import TypeAlias  # type: ignore
 from .util import DataclassProtocol
 from .reference import SubstrateReferenceBase
 
@@ -313,8 +308,8 @@ class Substrate(SubstrateBase[SubstrateParameters, SubstrateDrawOptions]):
 
     """
 
-    Parameters: TypeAlias = SubstrateParameters
-    DrawOptions: TypeAlias = SubstrateDrawOptions
+    Parameters = SubstrateParameters
+    DrawOptions = SubstrateDrawOptions
 
     def examine(self) -> None:
         return None

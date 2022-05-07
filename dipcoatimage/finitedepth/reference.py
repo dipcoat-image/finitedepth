@@ -39,11 +39,6 @@ import enum
 import numpy as np
 import numpy.typing as npt
 from typing import TypeVar, Generic, Type, Optional, cast, Tuple
-
-try:
-    from typing import TypeAlias  # type: ignore
-except ImportError:
-    from typing_extensions import TypeAlias  # type: ignore
 from .util import DataclassProtocol, OptionalROI, IntROI, ThresholdParameters
 
 
@@ -427,8 +422,8 @@ class SubstrateReference(
 
     """
 
-    Parameters: TypeAlias = SubstrateReferenceParameters
-    DrawOptions: TypeAlias = SubstrateReferenceDrawOptions
+    Parameters = SubstrateReferenceParameters
+    DrawOptions = SubstrateReferenceDrawOptions
 
     DrawMode = SubstrateReferenceDrawMode
     Draw_Original = SubstrateReferenceDrawMode.ORIGINAL

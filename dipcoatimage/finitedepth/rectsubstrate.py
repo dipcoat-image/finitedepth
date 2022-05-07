@@ -52,11 +52,6 @@ from math import isclose
 import numpy as np
 import numpy.typing as npt
 from typing import Tuple, Optional, Dict
-
-try:
-    from typing import TypeAlias  # type: ignore
-except ImportError:
-    from typing_extensions import TypeAlias  # type: ignore
 from .substrate import SubstrateError, SubstrateBase
 from .util import intrsct_pt_polar, CannyParameters, HoughLinesParameters
 
@@ -271,8 +266,8 @@ class RectSubstrate(SubstrateBase[RectSubstrateParameters, RectSubstrateDrawOpti
         "_vertex_points",
     )
 
-    Parameters: TypeAlias = RectSubstrateParameters
-    DrawOptions: TypeAlias = RectSubstrateDrawOptions
+    Parameters = RectSubstrateParameters
+    DrawOptions = RectSubstrateDrawOptions
 
     DrawMode = RectSubstrateDrawMode
     Draw_Original = RectSubstrateDrawMode.ORIGINAL
