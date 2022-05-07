@@ -2,8 +2,8 @@
 Coated Substrate Image
 ======================
 
-:mod:`dipcoatimage.finitedepth.coatinglayer` provides class to extract the
-coating layer region from coated substrate image.
+:mod:`dipcoatimage.finitedepth.coatinglayer` provides class to analyze the
+coating layer from coated substrate image.
 
 Base class
 ----------
@@ -34,6 +34,8 @@ Implementation
 
 .. autoclass:: CoatingLayer
    :members:
+
+.. automodule:: dipcoatimage.finitedepth.rectcoatinglayer
 
 """
 
