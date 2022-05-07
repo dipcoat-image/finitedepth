@@ -34,6 +34,11 @@ from .rectsubstrate import (
     RectSubstrateEdgeError,
     RectSubstrate,
 )
+from .coatinglayer import (
+    CoatingLayerError,
+    CoatingLayerBase,
+    CoatingLayer,
+)
 from .util import (
     get_samples_path,
     data_converter,
@@ -56,6 +61,9 @@ __all__ = [
     "RectSubstrateHoughLinesError",
     "RectSubstrateEdgeError",
     "RectSubstrate",
+    "CoatingLayerError",
+    "CoatingLayerBase",
+    "CoatingLayer",
     "get_samples_path",
     "data_converter",
     "ThresholdParameters",

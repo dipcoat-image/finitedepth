@@ -368,7 +368,7 @@ class SubstrateReferenceDrawOptions:
         Flag whether to draw template ROI box.
 
     templateROI_color
-        Color for template ROI box. Ignored if *draw_templateROI* is false.
+        RGB color for template ROI box. Ignored if *draw_templateROI* is false.
 
     templateROI_thickness
         Thickness for template ROI box. Ignored if *draw_templateROI* is false.
@@ -377,7 +377,7 @@ class SubstrateReferenceDrawOptions:
         Flag whether to draw substrate ROI box.
 
     substrateROI_color
-        Color for substrate ROI box. Ignored if *draw_substrateROI* is false.
+        RGB color for substrate ROI box. Ignored if *draw_substrateROI* is false.
 
     substrateROI_thickness
         Thickness for substrate ROI box. Ignored if *draw_substrateROI* is false.

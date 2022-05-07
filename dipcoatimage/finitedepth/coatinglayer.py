@@ -14,28 +14,57 @@ Base class
 .. autoclass:: CoatingLayerBase
    :members:
 
+Implementation
+--------------
+
+.. autoclass:: CoatingLayerParameters
+   :members:
+
+.. autoclass:: CoatingLayerDrawMode
+   :members:
+
+.. autoclass:: CoatingLayerDrawOptions
+   :members:
+
+.. autoclass:: CoatingLayerDecoOptions
+   :members:
+
+.. autoclass:: CoatingLayerData
+   :members:
+
+.. autoclass:: CoatingLayer
+   :members:
+
 """
 
 
 import abc
 import cv2  # type: ignore
 import dataclasses
+import enum
 import numpy as np
 import numpy.typing as npt
 from typing import TypeVar, Generic, Type, Optional, Tuple
 from .substrate import SubstrateBase
-from .util import DataclassProtocol
+from .util import DataclassProtocol, ThresholdParameters
 
 
 __all__ = [
     "CoatingLayerError",
     "CoatingLayerBase",
+    "CoatingLayerParameters",
+    "CoatingLayerDrawMode",
+    "CoatingLayerDrawOptions",
+    "CoatingLayerDecoOptions",
+    "CoatingLayerData",
+    "CoatingLayer",
 ]
 
 
 ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
 DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
 DecoOptionsType = TypeVar("DecoOptionsType", bound=DataclassProtocol)
+DataType = TypeVar("DataType", bound=DataclassProtocol)
 
 
 class CoatingLayerError(Exception):
@@ -45,7 +74,7 @@ class CoatingLayerError(Exception):
 
 
 class CoatingLayerBase(
-    abc.ABC, Generic[ParametersType, DrawOptionsType, DecoOptionsType]
+    abc.ABC, Generic[ParametersType, DrawOptionsType, DecoOptionsType, DataType]
 ):
     """
     Abstract base class for coating layer.
@@ -88,16 +117,16 @@ class CoatingLayerBase(
 
     .. rubric:: Analysis
 
-    Type of analysis result differs by type of :attr:`substrate`.
-    :meth:`data_type` and :meth:`analyze_layer` must be compatibly implemented to
-    return the analysis result of :attr:`image`, whatever analysis user may
-    define.
+    Concrete class must have :attr:`Data` which returns dataclass type and
+    implement :meth:`analyze_layer` which returns data tuple compatible with
+    :attr:`Data`.
+    :meth:`analyze` is the API for analysis result.
 
     Parameters
     ==========
 
     image
-        Reference image. May be grayscale or RGB.
+        Coated substrate image. May be grayscale or RGB.
 
     substrate
         Substrate instance.
@@ -124,6 +153,7 @@ class CoatingLayerBase(
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
     DecoOptions: Type[DecoOptionsType]
+    Data: Type[DataType]
 
     def __init_subclass__(cls) -> None:
         params = getattr(cls, "Parameters", None)
@@ -146,18 +176,13 @@ class CoatingLayerBase(
         elif not (isinstance(decoopts, type) and dataclasses.is_dataclass(decoopts)):
             raise TypeError(f"{decoopts} is not dataclass type.")
 
+        data = getattr(cls, "Data", None)
+        if data is None:
+            raise TypeError(f"{cls} has no attribute 'Data'.")
+        elif not (isinstance(data, type) and dataclasses.is_dataclass(data)):
+            raise TypeError(f"{data} is not dataclass type.")
+
         return super().__init_subclass__()
-
-    @classmethod
-    @abc.abstractmethod
-    def data_type(cls, substtype: Type[SubstrateBase]) -> Type[DataclassProtocol]:
-        """
-        Type of data acquired by analyzing :attr:`image` with :attr:`substrate`.
-
-        Result serves as type for the result of :meth:`analyze`, and as data
-        header for exporting analysis result.
-        """
-        pass
 
     def __init__(
         self,
@@ -388,11 +413,187 @@ class CoatingLayerBase(
     def analyze_layer(self) -> Tuple:
         """Analyze the coated substrate image and return the data in tuple."""
 
-    def analyze(self) -> DataclassProtocol:
+    def analyze(self) -> DataType:
         """
-        Analyze the coated substrate image and return the data.
+        Return the result of :meth:`analyze_layer` as dataclass instance.
+        """
+        return self.Data(*self.analyze_layer())
 
-        Result is :meth:`analyze_layer` wrapped by :meth:`data_type`.
+
+@dataclasses.dataclass(frozen=True)
+class CoatingLayerParameters:
+    """Additional parameters for :class:`CoatingLayer` instance."""
+
+    threshold: ThresholdParameters = ThresholdParameters()
+
+
+class CoatingLayerDrawMode(enum.Enum):
+    """
+    Option for :class:`CoatingLayerDrawOptions` to determine how the coated
+    substrate image is drawn.
+
+    Attributes
+    ==========
+
+    ORIGINAL
+        Show the original coated substrate image.
+
+    BINARY
+        Show the binarized coated substrate image.
+
+    """
+
+    ORIGINAL = "ORIGINAL"
+    BINARY = "BINARY"
+
+
+@dataclasses.dataclass
+class CoatingLayerDrawOptions:
+    """
+    Drawing options for :class:`CoatingLayer()`.
+
+    Parameters
+    ==========
+
+    draw_mode
+
+    remove_substrate
+        Flag whether to remove the substrate from the image.
+
+    decorate
+        Flag wheter to decorate the coating layer.
+
+    """
+
+    draw_mode: CoatingLayerDrawMode = CoatingLayerDrawMode.ORIGINAL
+    remove_substrate: bool = False
+    decorate: bool = True
+
+
+@dataclasses.dataclass
+class CoatingLayerDecoOptions:
+    """
+    Coating layer decorating options for :class:`CoatingLayer`.
+
+    Parameters
+    ==========
+
+    layer_color
+        RGB color to paint the coating layer.
+
+    """
+
+    layer_color: Tuple[int, int, int] = (0, 0, 255)
+
+
+@dataclasses.dataclass
+class CoatingLayerData:
+    """
+    Coating layer shape data for :class:`CoatingLayer`.
+
+    Parameters
+    ==========
+
+    Area
+        Number of the pixels in cross section image of coating layer.
+
+    """
+
+    Area: int
+
+
+class CoatingLayer(
+    CoatingLayerBase[
+        CoatingLayerParameters,
+        CoatingLayerDrawOptions,
+        CoatingLayerDecoOptions,
+        CoatingLayerData,
+    ]
+):
+    Parameters = CoatingLayerParameters
+    DrawOptions = CoatingLayerDrawOptions
+    DecoOptions = CoatingLayerDecoOptions
+    Data = CoatingLayerData
+
+    DrawMode = CoatingLayerDrawMode
+    Draw_Original = CoatingLayerDrawMode.ORIGINAL
+    Draw_Binary = CoatingLayerDrawMode.BINARY
+
+    def binary_image(self) -> npt.NDArray[np.uint8]:
         """
-        datatype = self.data_type(type(self.substrate))
-        return datatype(*self.analyze_layer())
+        Binarized :attr:`image` using :meth:`parameters`.
+
+        Notes
+        =====
+
+        This method is cached. Do not modify its result.
+
+        """
+        if not hasattr(self, "_binary_image"):
+            if len(self.image.shape) == 2:
+                gray = self.image
+            elif len(self.image.shape) == 3:
+                ch = self.image.shape[-1]
+                if ch == 1:
+                    gray = self.image
+                elif ch == 3:
+                    gray = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
+                else:
+                    raise TypeError(f"Image with invalid channel: {self.image.shape}")
+            else:
+                raise TypeError(f"Invalid image shape: {self.image.shape}")
+            _, ret = cv2.threshold(
+                gray, **dataclasses.asdict(self.parameters.threshold)
+            )
+            if ret is None:
+                ret = np.empty((0, 0))
+            self._binary_image = ret
+        return self._binary_image
+
+    def examine(self) -> None:
+        return None
+
+    def decorate_layer(self, image: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
+        """Decorate the coating layer in *image* by mutating."""
+        decorated_layer = np.full(image.shape, 255, dtype=image.dtype)
+        decorated_layer[
+            ~self.extract_layer().astype(bool)
+        ] = self.deco_options.layer_color
+        bool_layer = np.all(decorated_layer.astype(bool), axis=2)
+        mask = ~bool_layer
+        ret = image.copy()
+        ret[mask] = decorated_layer[mask]
+        return ret
+
+    def draw(self) -> npt.NDArray[np.uint8]:
+        draw_mode = self.draw_options.draw_mode
+        if self.draw_options.remove_substrate:
+            ret = self.extract_layer()
+        elif draw_mode == self.Draw_Original:
+            image = self.image
+        elif draw_mode == self.Draw_Binary:
+            image = self.binary_image()
+        else:
+            raise TypeError("Unrecognized draw mode: %s" % draw_mode)
+
+        if len(image.shape) == 2:
+            ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        elif len(image.shape) == 3:
+            ch = image.shape[-1]
+            if ch == 1:
+                ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+            elif ch == 3:
+                ret = image.copy()
+            else:
+                raise TypeError(f"Image with invalid channel: {image.shape}")
+        else:
+            raise TypeError(f"Invalid image shape: {image.shape}")
+
+        if self.draw_options.decorate:
+            ret = self.decorate_layer(ret)
+        return ret
+
+    def analyze_layer(self) -> Tuple:
+        layer_img = self.extract_layer()
+        area = layer_img.size - np.count_nonzero(layer_img)
+        return (area,)
