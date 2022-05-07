@@ -7,42 +7,16 @@ construct dataclasses for image analysis classes.
 
 """
 
-import cv2  # type: ignore
 import dataclasses
 import enum
 import numpy as np
 
 
 __all__ = [
-    "ThresholdParameters",
     "CannyParameters",
     "HoughLinesParameters",
     "BinaryImageDrawMode",
 ]
-
-
-@dataclasses.dataclass(frozen=True)
-class ThresholdParameters:
-    """
-    Parameters for :func:`cv2.threshold`.
-
-    This parameters defaults to Otsu's binarization.
-
-    Attributes
-    ==========
-
-    thresh
-
-    maxval
-
-    type
-        Default is ``cv2.THRESH_BINARY | cv2.THRESH_OTSU`` value.
-
-    """
-
-    thresh: int = 0
-    maxval: int = 255
-    type: int = cv2.THRESH_BINARY | cv2.THRESH_OTSU
 
 
 @dataclasses.dataclass(frozen=True)

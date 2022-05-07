@@ -42,7 +42,6 @@ from .coatinglayer import (
 from .util import (
     get_samples_path,
     data_converter,
-    ThresholdParameters,
     CannyParameters,
     HoughLinesParameters,
 )
@@ -66,7 +65,6 @@ __all__ = [
     "CoatingLayer",
     "get_samples_path",
     "data_converter",
-    "ThresholdParameters",
     "CannyParameters",
     "HoughLinesParameters",
 ]

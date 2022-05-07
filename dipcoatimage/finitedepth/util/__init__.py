@@ -30,7 +30,6 @@ from .importing import import_variable, get_importinfo
 from .path import get_samples_path, cwd
 from .typing import DataclassProtocol, OptionalROI, IntROI
 from .parameters import (
-    ThresholdParameters,
     CannyParameters,
     HoughLinesParameters,
     BinaryImageDrawMode,
@@ -47,7 +46,6 @@ __all__ = [
     "DataclassProtocol",
     "OptionalROI",
     "IntROI",
-    "ThresholdParameters",
     "CannyParameters",
     "HoughLinesParameters",
     "BinaryImageDrawMode",
