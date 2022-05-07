@@ -217,8 +217,7 @@ We can also verify the instance using either :meth:`valid` or :meth:`verify`.
      ...
    TypeError: Binarization failed.
 
-Exercise
+See Also
 ========
 
-In this guide, :class:`BinaryReference` does not visualize ROI boxes in order to keep the document simple.
-Try implement your own class with this feature.
+:doc:`dataclass-design` describes advanced dataclass design for :class:`Parameters` and :class:`DrawOptions`.
