@@ -45,6 +45,11 @@ import enum
 import numpy as np
 import numpy.typing as npt
 from typing import TypeVar, Generic, Type, Optional, Tuple
+
+try:
+    from typing import TypeAlias  # type: ignore
+except ImportError:
+    from typing_extensions import TypeAlias  # type: ignore
 from .substrate import SubstrateBase
 from .util import DataclassProtocol, ThresholdParameters
 
@@ -510,10 +515,10 @@ class CoatingLayer(
         CoatingLayerData,
     ]
 ):
-    Parameters = CoatingLayerParameters
-    DrawOptions = CoatingLayerDrawOptions
-    DecoOptions = CoatingLayerDecoOptions
-    Data = CoatingLayerData
+    Parameters: TypeAlias = CoatingLayerParameters
+    DrawOptions: TypeAlias = CoatingLayerDrawOptions
+    DecoOptions: TypeAlias = CoatingLayerDecoOptions
+    Data: TypeAlias = CoatingLayerData
 
     DrawMode = CoatingLayerDrawMode
     Draw_Original = CoatingLayerDrawMode.ORIGINAL

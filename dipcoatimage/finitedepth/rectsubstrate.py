@@ -52,6 +52,11 @@ from math import isclose
 import numpy as np
 import numpy.typing as npt
 from typing import Tuple, Optional, Dict
+
+try:
+    from typing import TypeAlias  # type: ignore
+except ImportError:
+    from typing_extensions import TypeAlias  # type: ignore
 from .substrate import SubstrateError, SubstrateBase
 from .util import intrsct_pt_polar, CannyParameters, HoughLinesParameters
 
@@ -216,7 +221,7 @@ class RectSubstratePointType(enum.Enum):
     TOPRIGHT = "TOPRIGHT"
 
 
-class RectSubstrate(SubstrateBase):
+class RectSubstrate(SubstrateBase[RectSubstrateParameters, RectSubstrateDrawOptions]):
     """
     Class for the substrate image in rectangular shape.
 
@@ -266,8 +271,8 @@ class RectSubstrate(SubstrateBase):
         "_vertex_points",
     )
 
-    Parameters = RectSubstrateParameters
-    DrawOptions = RectSubstrateDrawOptions
+    Parameters: TypeAlias = RectSubstrateParameters
+    DrawOptions: TypeAlias = RectSubstrateDrawOptions
 
     DrawMode = RectSubstrateDrawMode
     Draw_Original = RectSubstrateDrawMode.ORIGINAL

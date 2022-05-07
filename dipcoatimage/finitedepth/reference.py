@@ -39,6 +39,11 @@ import enum
 import numpy as np
 import numpy.typing as npt
 from typing import TypeVar, Generic, Type, Optional, cast, Tuple
+
+try:
+    from typing import TypeAlias  # type: ignore
+except ImportError:
+    from typing_extensions import TypeAlias  # type: ignore
 from .util import DataclassProtocol, OptionalROI, IntROI, ThresholdParameters
 
 
@@ -395,7 +400,9 @@ class SubstrateReferenceDrawOptions:
     substrateROI_thickness: int = 1
 
 
-class SubstrateReference(SubstrateReferenceBase):
+class SubstrateReference(
+    SubstrateReferenceBase[SubstrateReferenceParameters, SubstrateReferenceDrawOptions]
+):
     """
     Substrate reference class with customizable binarization.
 
@@ -420,8 +427,8 @@ class SubstrateReference(SubstrateReferenceBase):
 
     """
 
-    Parameters = SubstrateReferenceParameters
-    DrawOptions = SubstrateReferenceDrawOptions
+    Parameters: TypeAlias = SubstrateReferenceParameters
+    DrawOptions: TypeAlias = SubstrateReferenceDrawOptions
 
     DrawMode = SubstrateReferenceDrawMode
     Draw_Original = SubstrateReferenceDrawMode.ORIGINAL
