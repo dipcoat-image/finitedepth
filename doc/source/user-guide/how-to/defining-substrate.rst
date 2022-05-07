@@ -227,3 +227,8 @@ We can also verify the instance using either :meth:`valid` or :meth:`verify`.
    Traceback (most recent call last):
      ...
    SubstrateError: Hough circle transformation failed.
+
+See Also
+========
+
+:doc:`dataclass-design` describes advanced dataclass design for :class:`Parameters` and :class:`DrawOptions`.
