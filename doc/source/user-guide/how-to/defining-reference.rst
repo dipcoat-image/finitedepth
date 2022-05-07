@@ -221,3 +221,5 @@ See Also
 ========
 
 :doc:`dataclass-design` describes advanced dataclass design for :class:`Parameters` and :class:`DrawOptions`.
+
+:doc:`../explanation/generic-typing` describes how to define robust class with type annoataions.
