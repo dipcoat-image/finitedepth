@@ -558,7 +558,7 @@ class CoatingLayer(
     def examine(self) -> None:
         return None
 
-    def decorate_layer(self, image: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
+    def decorate_layer(self, image: npt.NDArray[np.uint8]):
         """Decorate the coating layer in *image* by mutating."""
         decorated_layer = np.full(image.shape, 255, dtype=image.dtype)
         decorated_layer[
@@ -566,9 +566,7 @@ class CoatingLayer(
         ] = self.deco_options.layer_color
         bool_layer = np.all(decorated_layer.astype(bool), axis=2)
         mask = ~bool_layer
-        ret = image.copy()
-        ret[mask] = decorated_layer[mask]
-        return ret
+        image[mask] = decorated_layer[mask]
 
     def draw(self) -> npt.NDArray[np.uint8]:
         draw_mode = self.draw_options.draw_mode
@@ -595,10 +593,10 @@ class CoatingLayer(
             raise TypeError(f"Invalid image shape: {image.shape}")
 
         if self.draw_options.decorate:
-            ret = self.decorate_layer(ret)
+            self.decorate_layer(ret)
         return ret
 
-    def analyze_layer(self) -> Tuple:
+    def analyze_layer(self) -> Tuple[int]:
         layer_img = self.extract_layer()
         area = layer_img.size - np.count_nonzero(layer_img)
         return (area,)
