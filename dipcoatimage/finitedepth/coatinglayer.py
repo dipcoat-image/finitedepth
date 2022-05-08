@@ -558,6 +558,7 @@ class LayerArea(
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
     """
+
     Parameters = LayerAreaParameters
     DrawOptions = LayerAreaDrawOptions
     DecoOptions = LayerAreaDecoOptions

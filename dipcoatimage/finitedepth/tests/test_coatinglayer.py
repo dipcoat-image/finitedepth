@@ -21,7 +21,6 @@ def test_invalid_subclassing():
         class Data:
             pass
 
-
     with pytest.raises(TypeError):
 
         class NoParameters(CoatingLayerBase):
