@@ -257,6 +257,16 @@ class RectSubstrate(SubstrateBase[RectSubstrateParameters, RectSubstrateDrawOpti
        >>> subst = RectSubstrate(ref, parameters=params)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
+    Visualization can be controlled by modifying :attr:`draw_options`.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> subst.draw_options.draw_lines = False
+       >>> subst.draw_options.edge_color = (255, 0, 0)
+       >>> plt.imshow(subst.draw()) #doctest: +SKIP
+
     """
 
     __slots__ = (

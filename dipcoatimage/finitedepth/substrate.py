@@ -93,6 +93,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     .. rubric:: Visualization
 
     :meth:`draw` defines the visualization logic for concrete class.
+    Modifying :attr:`draw_options` changes the visualization result.
 
     Parameters
     ==========

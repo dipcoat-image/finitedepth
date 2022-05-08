@@ -108,7 +108,8 @@ class CoatingLayerBase(
     .. rubric:: Visualization
 
     :meth:`draw` defines the visualization logic for concrete class using
-    attr:`draw_options` and :attr:`deco_options`.
+    :attr:`draw_options` and :attr:`deco_options`. Modifying these attributes
+    changes the visualization result.
 
     Two options are not strictly distinguished, but the intention is that draw
     option controls the overall behavior and deco option controls how the coating
@@ -523,7 +524,8 @@ class LayerArea(
        >>> subst = Substrate(ref)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
-    Construct :class:`LayerArea` from substrate class.
+    Construct :class:`LayerArea` from substrate class. :meth:`analyze` returns
+    the number of pixels in coating area region.
 
     .. plot::
        :include-source:
@@ -535,6 +537,24 @@ class LayerArea(
        >>> coat = LayerArea(coat_img, subst)
        >>> coat.analyze()
        LayerAreaData(Area=44348)
+       >>> plt.imshow(coat.draw()) #doctest: +SKIP
+
+    :attr:`draw_options` controls the overall visualization.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> coat.draw_options.remove_substrate = True
+       >>> plt.imshow(coat.draw()) #doctest: +SKIP
+
+    :attr:`deco_options` controls the decoration of coating layer reigon.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> coat.deco_options.layer_color = (0, 255, 0)
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
     """
@@ -550,20 +570,10 @@ class LayerArea(
     def examine(self) -> None:
         return None
 
-    def decorate_layer(self, image: npt.NDArray[np.uint8]):
-        """Decorate the coating layer in *image* by mutating."""
-        decorated_layer = np.full(image.shape, 255, dtype=image.dtype)
-        decorated_layer[
-            ~self.extract_layer().astype(bool)
-        ] = self.deco_options.layer_color
-        bool_layer = np.all(decorated_layer.astype(bool), axis=2)
-        mask = ~bool_layer
-        image[mask] = decorated_layer[mask]
-
     def draw(self) -> npt.NDArray[np.uint8]:
         draw_mode = self.draw_options.draw_mode
         if self.draw_options.remove_substrate:
-            ret = self.extract_layer()
+            image = self.extract_layer()
         elif draw_mode == self.Draw_Original:
             image = self.image
         elif draw_mode == self.Draw_Binary:
@@ -585,7 +595,13 @@ class LayerArea(
             raise TypeError(f"Invalid image shape: {image.shape}")
 
         if self.draw_options.decorate:
-            self.decorate_layer(ret)
+            decorated_layer = np.full(ret.shape, 255, dtype=ret.dtype)
+            decorated_layer[
+                ~self.extract_layer().astype(bool)
+            ] = self.deco_options.layer_color
+            bool_layer = np.all(decorated_layer.astype(bool), axis=2)
+            mask = ~bool_layer
+            ret[mask] = decorated_layer[mask]
         return ret
 
     def analyze_layer(self) -> Tuple[int]:

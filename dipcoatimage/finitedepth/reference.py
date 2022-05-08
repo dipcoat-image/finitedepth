@@ -117,6 +117,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     .. rubric:: Visualization
 
     :meth:`draw` defines the visualization logic for concrete class.
+    Modifying :attr:`draw_options` changes the visualization result.
 
     Parameters
     ==========
@@ -388,6 +389,7 @@ class SubstrateReference(
 
     .. plot::
        :include-source:
+       :context: reset
 
        >>> import cv2
        >>> from dipcoatimage.finitedepth import (SubstrateReference,
@@ -398,6 +400,15 @@ class SubstrateReference(
        >>> substROI = (400, 100, 1000, 500)
        >>> ref = SubstrateReference(img, tempROI, substROI)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
+       >>> plt.imshow(ref.draw()) #doctest: +SKIP
+
+    Visualization can be controlled by modifying :attr:`draw_options`.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> ref.draw_options.substrateROI_color = (0, 0, 255)
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
     """
