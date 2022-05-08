@@ -155,35 +155,6 @@ class CoatingLayerBase(
     DecoOptions: Type[DecoOptionsType]
     Data: Type[DataType]
 
-    def __init_subclass__(cls) -> None:
-        params = getattr(cls, "Parameters", None)
-        if params is None:
-            raise TypeError(f"{cls} has no attribute 'Parameters'.")
-        elif not (isinstance(params, type) and dataclasses.is_dataclass(params)):
-            raise TypeError(f"{params} is not dataclass type.")
-        elif not params.__dataclass_params__.frozen:  # type: ignore
-            raise TypeError(f"{params} is not frozen.")
-
-        drawopts = getattr(cls, "DrawOptions", None)
-        if drawopts is None:
-            raise TypeError(f"{cls} has no attribute 'DrawOptions'.")
-        elif not (isinstance(drawopts, type) and dataclasses.is_dataclass(drawopts)):
-            raise TypeError(f"{drawopts} is not dataclass type.")
-
-        decoopts = getattr(cls, "DecoOptions", None)
-        if decoopts is None:
-            raise TypeError(f"{cls} has no attribute 'DecoOptions'.")
-        elif not (isinstance(decoopts, type) and dataclasses.is_dataclass(decoopts)):
-            raise TypeError(f"{decoopts} is not dataclass type.")
-
-        data = getattr(cls, "Data", None)
-        if data is None:
-            raise TypeError(f"{cls} has no attribute 'Data'.")
-        elif not (isinstance(data, type) and dataclasses.is_dataclass(data)):
-            raise TypeError(f"{data} is not dataclass type.")
-
-        return super().__init_subclass__()
-
     def __init__(
         self,
         image: npt.NDArray[np.uint8],
