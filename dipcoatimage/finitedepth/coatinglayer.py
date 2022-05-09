@@ -2,6 +2,10 @@
 Coated Substrate Image
 ======================
 
+-------------------
+Basic coating layer
+-------------------
+
 :mod:`dipcoatimage.finitedepth.coatinglayer` provides class to analyze the
 coating layer from coated substrate image.
 
@@ -31,6 +35,10 @@ Implementation
 
 .. autoclass:: LayerArea
    :members:
+
+----------------------------------------
+Coating layer over rectangular substrate
+----------------------------------------
 
 .. automodule:: dipcoatimage.finitedepth.rectcoatinglayer
 
