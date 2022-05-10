@@ -20,6 +20,9 @@ Implementation
 .. autoclass:: RectLayerAreaData
    :members:
 
+.. autoclass:: RectLayerArea
+   :members:
+
 """
 
 import cv2  # type: ignore
@@ -29,7 +32,11 @@ import numpy as np
 import numpy.typing as npt
 from typing import TypeVar, Type, Tuple
 from .rectsubstrate import RectSubstrate
-from .coatinglayer import CoatingLayerBase
+from .coatinglayer import (
+    CoatingLayerBase,
+    BasicCoatingLayerParameters,
+    BasicCoatingLayerDrawOptions,
+)
 from .util import DataclassProtocol
 
 
@@ -38,6 +45,7 @@ __all__ = [
     "RectCoatingLayerBase",
     "RectLayerAreaDecoOptions",
     "RectLayerAreaData",
+    "RectLayerArea",
 ]
 
 
@@ -211,3 +219,17 @@ class RectLayerAreaData:
     BottomArea: int
     RightCornerArea: int
     RightArea: int
+
+
+class RectLayerArea(
+    RectCoatingLayerBase[
+        BasicCoatingLayerParameters,
+        BasicCoatingLayerDrawOptions,
+        RectLayerAreaDecoOptions,
+        RectLayerAreaData,
+    ]
+):
+    Parameters = BasicCoatingLayerParameters
+    DrawOptions = BasicCoatingLayerDrawOptions
+    DecoOptions = RectLayerAreaDecoOptions
+    Data = RectLayerAreaData

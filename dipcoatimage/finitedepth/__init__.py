@@ -39,9 +39,7 @@ from .coatinglayer import (
     CoatingLayerBase,
     LayerArea,
 )
-from .rectcoatinglayer import (
-    RectCoatingLayerBase,
-)
+from .rectcoatinglayer import RectCoatingLayerBase, RectLayerArea
 from .util import (
     get_samples_path,
     data_converter,
@@ -67,6 +65,7 @@ __all__ = [
     "CoatingLayerBase",
     "LayerArea",
     "RectCoatingLayerBase",
+    "RectLayerArea",
     "get_samples_path",
     "data_converter",
     "CannyParameters",
