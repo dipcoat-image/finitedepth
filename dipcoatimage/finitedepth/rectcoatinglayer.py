@@ -14,19 +14,31 @@ Base class
 Implementation
 ==============
 
+.. autoclass:: RectLayerAreaDecoOptions
+   :members:
+
+.. autoclass:: RectLayerAreaData
+   :members:
+
 """
 
 import cv2  # type: ignore
+import dataclasses
 import enum
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Type
+from typing import TypeVar, Type, Tuple
 from .rectsubstrate import RectSubstrate
 from .coatinglayer import CoatingLayerBase
 from .util import DataclassProtocol
 
 
-__all__ = ["LayerRegionFlag", "RectCoatingLayerBase"]
+__all__ = [
+    "LayerRegionFlag",
+    "RectCoatingLayerBase",
+    "RectLayerAreaDecoOptions",
+    "RectLayerAreaData",
+]
 
 
 class LayerRegionFlag(enum.IntFlag):
@@ -122,3 +134,80 @@ class RectCoatingLayerBase(
         ret[right_y, right_x] |= self.Region_Right
 
         return ret
+
+
+@dataclasses.dataclass
+class RectLayerAreaDecoOptions:
+    """
+    Decorating options for :class:`RectLayerArea`.
+
+    Parameters
+    ==========
+
+    paint_Left
+        Flag to paint the left-side region of the coating layer.
+
+    Left_color
+        RGB color to paint the left-side region of the coating layer.
+        Ignored if *paint_Left* is false.
+
+    paint_LeftCorner
+        Flag to paint the left-side corner region of the coating layer.
+
+    LeftCorner_color
+        RGB color to paint the left-side corner region of the coating layer.
+        Ignored if *paint_LeftCorner* is false.
+
+    paint_Bottom
+        Flag to paint the bottom region of the coating layer.
+
+    Bottom_color
+        RGB color to paint the bottom region of the coating layer.
+        Ignored if *paint_Left* is false.
+
+    paint_RightCorner
+        Flag to paint the right-side corner region of the coating layer.
+
+    RightCorner_color
+        RGB color to paint the right-side corner region of the coating layer.
+        Ignored if *paint_RightCorner* is false.
+
+    paint_Right
+        Flag to paint the right-side region of the coating layer.
+
+    Right_color
+        RGB color to paint the right-side region of the coating layer.
+        Ignored if *paint_Right* is false.
+
+    """
+
+    paint_Left: bool = True
+    Left_color: Tuple[int, int, int] = (0, 0, 255)
+    paint_LeftCorner: bool = True
+    LeftCorner_color: Tuple[int, int, int] = (0, 255, 0)
+    paint_Bottom: bool = True
+    Bottom_color: Tuple[int, int, int] = (0, 0, 255)
+    paint_RightCorner: bool = True
+    RightCorner_color: Tuple[int, int, int] = (0, 255, 0)
+    paint_Right: bool = True
+    Right_color: Tuple[int, int, int] = (0, 0, 255)
+
+
+@dataclasses.dataclass
+class RectLayerAreaData:
+    """
+    Analysis data for :class:`RectLayerArea`.
+
+    Parameters
+    ==========
+
+    LeftArea, LeftCornerArea, BottomArea, RightCornerArea, RightArea
+        Number of the pixels in cross section image of coating layer regions.
+
+    """
+
+    LeftArea: int
+    LeftCornerArea: int
+    BottomArea: int
+    RightCornerArea: int
+    RightArea: int

@@ -451,7 +451,7 @@ class LayerAreaDecoOptions:
 @dataclasses.dataclass
 class LayerAreaData:
     """
-    Coating layer shape data for :class:`LayerArea`.
+    Analysis data for :class:`LayerArea`.
 
     Parameters
     ==========
