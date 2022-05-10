@@ -71,7 +71,20 @@ class RectCoatingLayerBase(
         RectSubstrate, ParametersType, DrawOptionsType, DecoOptionsType, DataType
     ]
 ):
-    """Abstract base class for coating layer over rectangular substrate."""
+    """
+    Abstract base class for coating layer over rectangular substrate.
+
+    For rectangular substrate, coating layer is classified into five regions.
+
+    1. Left
+    2. Left corner (bottom and left)
+    3. Bottom
+    4. Right corner (right and bottom)
+    5. Right
+
+    Classified layer can be retrieved by :meth:`label_layer`.
+
+    """
 
     __slots__ = ("_labelled_layer",)
 
@@ -104,11 +117,8 @@ class RectCoatingLayerBase(
         """
         Return the array of coating layer divided and labelled.
 
-        Returns
-        =======
-
-        ret
-            :class:`numpy.ndarray` with :class:`LayerRegionFlag` elements.
+        Return value is :class:`numpy.ndarray` with :class:`LayerRegionFlag`
+        elements combined to represent coating layer regions.
 
         """
         h, w = self.image.shape[:2]
