@@ -37,7 +37,7 @@ from .coatinglayer import (
     BasicCoatingLayerParameters,
     BasicCoatingLayerDrawOptions,
 )
-from .util import DataclassProtocol
+from .util import DataclassProtocol, BinaryImageDrawMode
 
 
 __all__ = [
@@ -229,7 +229,156 @@ class RectLayerArea(
         RectLayerAreaData,
     ]
 ):
+    """
+    Class to analyze the cross section area of coating layer regions over
+    rectangular substrate. Area unit is number of pixels.
+
+    Examples
+    ========
+
+    Construct substrate reference class first.
+
+    .. plot::
+       :include-source:
+       :context: reset
+
+       >>> import cv2
+       >>> from dipcoatimage.finitedepth import (SubstrateReference,
+       ...     get_samples_path)
+       >>> ref_path = get_samples_path("ref1.png")
+       >>> ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+       >>> tempROI = (200, 50, 1200, 200)
+       >>> substROI = (400, 100, 1000, 500)
+       >>> ref = SubstrateReference(ref_img, tempROI, substROI)
+       >>> import matplotlib.pyplot as plt #doctest: +SKIP
+       >>> plt.imshow(ref.draw()) #doctest: +SKIP
+
+    Construct the parameters and substrate instance from reference instance.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> from dipcoatimage.finitedepth import (CannyParameters,
+       ...     HoughLinesParameters, RectSubstrate)
+       >>> cparams = CannyParameters(50, 150)
+       >>> hparams = HoughLinesParameters(1, 0.01, 100)
+       >>> params = RectSubstrate.Parameters(cparams, hparams)
+       >>> subst = RectSubstrate(ref, parameters=params)
+       >>> plt.imshow(subst.draw()) #doctest: +SKIP
+
+    Construct :class:`RectLayerArea` from substrate class. :meth:`analyze`
+    returns the number of pixels in coating area region.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> from dipcoatimage.finitedepth import RectLayerArea
+       >>> coat_path = get_samples_path("coat1.png")
+       >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
+       >>> coat = RectLayerArea(coat_img, subst)
+       >>> coat.analyze()
+       RectLayerAreaData(LeftArea=8262, LeftCornerArea=173, BottomArea=27457,
+       ...               RightCornerArea=193, RightArea=8263)
+       >>> plt.imshow(coat.draw()) #doctest: +SKIP
+
+    :attr:`draw_options` controls the overall visualization.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> coat.draw_options.remove_substrate = True
+       >>> plt.imshow(coat.draw()) #doctest: +SKIP
+
+    :attr:`deco_options` controls the decoration of coating layer reigon.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> coat.deco_options.Bottom_color = (255, 0, 0)
+       >>> plt.imshow(coat.draw()) #doctest: +SKIP
+
+    """
     Parameters = BasicCoatingLayerParameters
     DrawOptions = BasicCoatingLayerDrawOptions
     DecoOptions = RectLayerAreaDecoOptions
     Data = RectLayerAreaData
+
+    DrawMode = BinaryImageDrawMode
+    Draw_Original = BinaryImageDrawMode.ORIGINAL
+    Draw_Binary = BinaryImageDrawMode.BINARY
+
+    def examine(self) -> None:
+        return None
+
+    def draw(self) -> npt.NDArray[np.uint8]:
+        draw_mode = self.draw_options.draw_mode
+        if self.draw_options.remove_substrate:
+            image = self.extract_layer()
+        elif draw_mode == self.Draw_Original:
+            image = self.image
+        elif draw_mode == self.Draw_Binary:
+            image = self.binary_image()
+        else:
+            raise TypeError("Unrecognized draw mode: %s" % draw_mode)
+
+        if len(image.shape) == 2:
+            ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        elif len(image.shape) == 3:
+            ch = image.shape[-1]
+            if ch == 1:
+                ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+            elif ch == 3:
+                ret = image.copy()
+            else:
+                raise TypeError(f"Image with invalid channel: {image.shape}")
+        else:
+            raise TypeError(f"Invalid image shape: {image.shape}")
+
+        if self.draw_options.decorate:
+            layer_label = self.label_layer()
+            if self.deco_options.paint_Left:
+                color = self.deco_options.Left_color
+                ret[layer_label == self.Region_Left] = color
+            if self.deco_options.paint_LeftCorner:
+                color = self.deco_options.LeftCorner_color
+                ret[layer_label == self.Region_Left | self.Region_Bottom] = color
+            if self.deco_options.paint_Bottom:
+                color = self.deco_options.Bottom_color
+                ret[layer_label == self.Region_Bottom] = color
+            if self.deco_options.paint_RightCorner:
+                color = self.deco_options.RightCorner_color
+                ret[layer_label == self.Region_Bottom | self.Region_Right] = color
+            if self.deco_options.paint_Right:
+                color = self.deco_options.Right_color
+                ret[layer_label == self.Region_Right] = color
+        return ret
+
+    def analyze_layer(self) -> Tuple[int, int, int, int, int]:
+        layer_label = self.label_layer()
+        val, counts = np.unique(layer_label, return_counts=True)
+
+        i = self.Region_Left
+        count = counts[np.where(val == i)]
+        (left_a,) = count if count.size > 0 else (0,)
+
+        i = self.Region_Left | self.Region_Bottom
+        count = counts[np.where(val == i)]
+        (leftcorner_a,) = count if count.size > 0 else (0,)
+
+        i = self.Region_Bottom
+        count = counts[np.where(val == i)]
+        (bottom_a,) = count if count.size > 0 else (0,)
+
+        i = self.Region_Bottom | self.Region_Right
+        count = counts[np.where(val == i)]
+        (rightcorner_a,) = count if count.size > 0 else (0,)
+
+        i = self.Region_Right
+        count = counts[np.where(val == i)]
+        (right_a,) = count if count.size > 0 else (0,)
+
+        return (left_a, leftcorner_a, bottom_a, rightcorner_a, right_a)

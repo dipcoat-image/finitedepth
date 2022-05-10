@@ -195,7 +195,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         >>> import cv2
         >>> from dipcoatimage.finitedepth import (SubstrateReference, Substrate,
         ...     get_samples_path)
-        >>> ref_path = get_samples_path('ref1.png')
+        >>> ref_path = get_samples_path("ref1.png")
         >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
         >>> substROI = (400, 100, 1000, 500)
         >>> ref = SubstrateReference(img, substrateROI=substROI)
@@ -264,7 +264,7 @@ class Substrate(SubstrateBase[SubstrateParameters, SubstrateDrawOptions]):
     Examples
     ========
 
-    Construct substrate reference class first.
+    Construct substrate reference instance first.
 
     .. plot::
        :include-source:
@@ -273,7 +273,7 @@ class Substrate(SubstrateBase[SubstrateParameters, SubstrateDrawOptions]):
        >>> import cv2
        >>> from dipcoatimage.finitedepth import (SubstrateReference,
        ...     get_samples_path)
-       >>> ref_path = get_samples_path('ref1.png')
+       >>> ref_path = get_samples_path("ref1.png")
        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
        >>> tempROI = (200, 50, 1200, 200)
        >>> substROI = (400, 100, 1000, 500)
@@ -281,7 +281,7 @@ class Substrate(SubstrateBase[SubstrateParameters, SubstrateDrawOptions]):
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
-    Construct :class:`Substrate` from reference class.
+    Construct :class:`Substrate` instance from reference instance.
 
     .. plot::
        :include-source:

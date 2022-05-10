@@ -474,12 +474,13 @@ class LayerArea(
     ]
 ):
     """
-    Class to analyze the cross section area of coating layer in pixel number.
+    Class to analyze the cross section area of coating layer regions over
+    substrate with arbitrary shape. Area unit is number of pixels.
 
     Examples
     ========
 
-    Construct substrate reference class first.
+    Construct substrate reference instance first.
 
     .. plot::
        :include-source:
@@ -488,7 +489,7 @@ class LayerArea(
        >>> import cv2
        >>> from dipcoatimage.finitedepth import (SubstrateReference,
        ...     get_samples_path)
-       >>> ref_path = get_samples_path('ref1.png')
+       >>> ref_path = get_samples_path("ref1.png")
        >>> ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
        >>> tempROI = (200, 50, 1200, 200)
        >>> substROI = (400, 100, 1000, 500)
@@ -496,7 +497,7 @@ class LayerArea(
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
-    Construct substrate class from reference class.
+    Construct substrate instance from reference instance.
 
     .. plot::
        :include-source:
@@ -506,7 +507,7 @@ class LayerArea(
        >>> subst = Substrate(ref)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
-    Construct :class:`LayerArea` from substrate class. :meth:`analyze` returns
+    Construct :class:`LayerArea` from substrate instance. :meth:`analyze` returns
     the number of pixels in coating area region.
 
     .. plot::
@@ -514,7 +515,7 @@ class LayerArea(
        :context: close-figs
 
        >>> from dipcoatimage.finitedepth import LayerArea
-       >>> coat_path = get_samples_path('coat1.png')
+       >>> coat_path = get_samples_path("coat1.png")
        >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
        >>> coat = LayerArea(coat_img, subst)
        >>> coat.analyze()

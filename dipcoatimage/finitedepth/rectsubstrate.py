@@ -226,7 +226,7 @@ class RectSubstrate(SubstrateBase[RectSubstrateParameters, RectSubstrateDrawOpti
     Examples
     ========
 
-    Construct substrate reference class first.
+    Construct substrate reference instance first.
 
     .. plot::
        :include-source:
@@ -235,7 +235,7 @@ class RectSubstrate(SubstrateBase[RectSubstrateParameters, RectSubstrateDrawOpti
        >>> import cv2
        >>> from dipcoatimage.finitedepth import (SubstrateReference,
        ...     get_samples_path)
-       >>> ref_path = get_samples_path('ref1.png')
+       >>> ref_path = get_samples_path("ref1.png")
        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
        >>> tempROI = (200, 50, 1200, 200)
        >>> substROI = (400, 100, 1000, 500)
@@ -243,7 +243,7 @@ class RectSubstrate(SubstrateBase[RectSubstrateParameters, RectSubstrateDrawOpti
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
-    Construct the parameters.
+    Construct the parameters and substrate instance from reference instance.
 
     .. plot::
        :include-source:
