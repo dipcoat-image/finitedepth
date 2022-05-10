@@ -21,10 +21,10 @@ Base class
 Implementation
 --------------
 
-.. autoclass:: LayerAreaParameters
+.. autoclass:: BasicCoatingLayerParameters
    :members:
 
-.. autoclass:: LayerAreaDrawOptions
+.. autoclass:: BasicCoatingLayerDrawOptions
    :members:
 
 .. autoclass:: LayerAreaDecoOptions
@@ -58,8 +58,8 @@ from .util import DataclassProtocol, BinaryImageDrawMode
 __all__ = [
     "CoatingLayerError",
     "CoatingLayerBase",
-    "LayerAreaParameters",
-    "LayerAreaDrawOptions",
+    "BasicCoatingLayerParameters",
+    "BasicCoatingLayerDrawOptions",
     "LayerAreaDecoOptions",
     "LayerAreaData",
     "LayerArea",
@@ -400,16 +400,19 @@ class CoatingLayerBase(
 
 
 @dataclasses.dataclass(frozen=True)
-class LayerAreaParameters:
-    """Additional parameters for :class:`LayerArea` instance."""
+class BasicCoatingLayerParameters:
+    """
+    Basic additional parameters for implementation of :class:`CoatingLayerBase`.
+
+    """
 
     pass
 
 
 @dataclasses.dataclass
-class LayerAreaDrawOptions:
+class BasicCoatingLayerDrawOptions:
     """
-    Drawing options for :class:`LayerArea`.
+    Basic drawing options for implementation of :class:`CoatingLayerBase`.
 
     Parameters
     ==========
@@ -464,8 +467,8 @@ class LayerAreaData:
 class LayerArea(
     CoatingLayerBase[
         SubstrateBase,
-        LayerAreaParameters,
-        LayerAreaDrawOptions,
+        BasicCoatingLayerParameters,
+        BasicCoatingLayerDrawOptions,
         LayerAreaDecoOptions,
         LayerAreaData,
     ]
@@ -538,8 +541,8 @@ class LayerArea(
 
     """
 
-    Parameters = LayerAreaParameters
-    DrawOptions = LayerAreaDrawOptions
+    Parameters = BasicCoatingLayerParameters
+    DrawOptions = BasicCoatingLayerDrawOptions
     DecoOptions = LayerAreaDecoOptions
     Data = LayerAreaData
 
