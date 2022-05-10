@@ -579,13 +579,7 @@ class LayerArea(
             raise TypeError(f"Invalid image shape: {image.shape}")
 
         if self.draw_options.decorate:
-            decorated_layer = np.full(ret.shape, 255, dtype=ret.dtype)
-            decorated_layer[
-                ~self.extract_layer().astype(bool)
-            ] = self.deco_options.layer_color
-            bool_layer = np.all(decorated_layer.astype(bool), axis=2)
-            mask = ~bool_layer
-            ret[mask] = decorated_layer[mask]
+            ret[~self.extract_layer().astype(bool)] = self.deco_options.layer_color
         return ret
 
     def analyze_layer(self) -> Tuple[int]:
