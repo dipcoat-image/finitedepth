@@ -1,6 +1,9 @@
 """
 Analysis
-==========
+========
+
+:mod:`dipcoatimage.finitedepth.analysis` provides classes to save the analysis
+result from experiment, and classes to serialize the analysis parameters.
 
 --------
 Analysis
@@ -27,6 +30,9 @@ Data serialization
 .. autoclass:: CoatingLayerArgs
    :members:
 
+.. autoclass:: ExperimentArgs
+   :members:
+
 """
 
 import cv2  # type: ignore
@@ -35,12 +41,13 @@ import enum
 import mimetypes
 import numpy as np
 import numpy.typing as npt
-from typing import List
+from typing import List, Type, Optional
 
 from .reference import SubstrateReferenceBase
 from .substrate import SubstrateBase
 from .coatinglayer import CoatingLayerBase
-from .util import import_variable, data_converter, OptionalROI
+from .experiment import ExperimentBase
+from .util import import_variable, data_converter, OptionalROI, DataclassProtocol
 
 
 __all__ = [
@@ -50,6 +57,7 @@ __all__ = [
     "ReferenceArgs",
     "SubstrateArgs",
     "CoatingLayerArgs",
+    "ExperimentArgs",
 ]
 
 
@@ -142,7 +150,7 @@ class ReferenceArgs:
         Path to the reference image file.
 
     templateROI, substrateROI, parameters, draw_options
-        Arguments for :class:`SubstrateReferenceBase` instance.
+        Arguments for reference class.
 
     Examples
     ========
@@ -219,7 +227,7 @@ class SubstrateArgs:
         Class name defaults to ``Substrate``.
 
     parameters, draw_options
-        Arguments for :class:`SubstrateBase` instance.
+        Arguments for substrate class.
 
     Examples
     ========
@@ -266,16 +274,7 @@ class SubstrateArgs:
             self.type.name = "Substrate"
 
     def as_substrate(self, ref: SubstrateReferenceBase) -> SubstrateBase:
-        """
-        Construct the substrate instance.
-
-        Parameters
-        ==========
-
-        img
-            Substrate reference instance.
-
-        """
+        """Construct the substrate instance."""
         name = self.type.name
         module = self.type.module
         substcls = import_variable(name, module)
@@ -309,7 +308,7 @@ class CoatingLayerArgs:
         Class name defaults to ``LayerArea``.
 
     parameters, draw_options, deco_options
-        Arguments for :class:`CoatingLayerBase` instance.
+        Arguments for coating layer class.
 
     Examples
     ========
@@ -364,19 +363,7 @@ class CoatingLayerArgs:
     def as_coatinglayer(
         self, img: npt.NDArray[np.uint8], subst: SubstrateBase
     ) -> CoatingLayerBase:
-        """
-        Construct the coating layer instance.
-
-        Parameters
-        ==========
-
-        img
-            Coated substrate image. May be grayscale or RGB.
-
-        subst
-            Substrate instance.
-
-        """
+        """Construct the coating layer instance."""
         name = self.type.name
         module = self.type.module
         layercls = import_variable(name, module)
@@ -396,3 +383,55 @@ class CoatingLayerArgs:
             img, subst, parameters=params, draw_options=drawopts, deco_options=decoopts
         )
         return layer
+
+
+@dataclasses.dataclass
+class ExperimentArgs:
+    """
+    Data for the concrete instance of :class:`ExperimentBase`.
+
+    Parameters
+    ==========
+
+    type
+        Information to import substrate class.
+        Class name defaults to ``Experiment``.
+
+    parameters
+        Arguments for experiment class.
+    """
+
+    type: ImportArgs = dataclasses.field(default_factory=ImportArgs)
+    parameters: dict = dataclasses.field(default_factory=dict)
+
+    def __post_init__(self):
+        if not self.type.name:
+            self.type.name = "Experiment"
+
+    def as_experiment(
+        self,
+        subst: SubstrateBase,
+        layer_type: Type[CoatingLayerBase],
+        layer_parameters: Optional[DataclassProtocol] = None,
+        layer_drawoptions: Optional[DataclassProtocol] = None,
+        layer_decooptions: Optional[DataclassProtocol] = None,
+    ) -> ExperimentBase:
+        """Construct the experiment instance."""
+        name = self.type.name
+        module = self.type.module
+        exptcls = import_variable(name, module)
+        if not (isinstance(exptcls, type) and issubclass(exptcls, ExperimentBase)):
+            raise TypeError(f"{exptcls} is not coating layer class.")
+
+        params = data_converter.structure(
+            self.parameters, exptcls.Parameters  # type: ignore
+        )
+        expt = exptcls(  # type: ignore
+            subst,
+            layer_type,
+            layer_parameters,
+            layer_drawoptions,
+            layer_decooptions,
+            parameters=params,
+        )
+        return expt
