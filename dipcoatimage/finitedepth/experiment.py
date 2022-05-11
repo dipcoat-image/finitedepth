@@ -14,9 +14,17 @@ This module provides factory to handle consecutive images of coated substrate
 with single image of bare substrate. Also, it serializes the parameters to
 analyze the images and to save the result.
 
+----------------
 Analysis factory
 ----------------
 
+Base class
+----------
+
+Implementation
+--------------
+
+------------------
 Data serialization
 ------------------
 
@@ -36,9 +44,12 @@ Data serialization
 
 import cv2  # type: ignore
 import dataclasses
+import numpy as np
+import numpy.typing as npt
 
 from .reference import SubstrateReferenceBase
 from .substrate import SubstrateBase
+from .coatinglayer import CoatingLayerBase
 from .util import import_variable, data_converter, OptionalROI
 
 
@@ -82,7 +93,6 @@ class ReferenceArgs:
     .. plot::
        :include-source:
 
-       >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> from dipcoatimage.finitedepth import get_samples_path
        >>> from dipcoatimage.finitedepth.experiment import ReferenceArgs
        >>> from dipcoatimage.finitedepth.util import cwd
@@ -91,6 +101,7 @@ class ReferenceArgs:
        ...                         substrateROI=(300, 50, 1100, 600))
        >>> with cwd(get_samples_path()):
        ...     ref = refargs.as_reference()
+       >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
     """
@@ -162,10 +173,8 @@ class SubstrateArgs:
        :include-source:
        :context: reset
 
-       >>> import matplotlib.pyplot as plt #doctest: +SKIP
-       >>> from dipcoatimage.finitedepth import get_samples_path, data_converter
-       >>> from dipcoatimage.finitedepth.experiment import (ReferenceArgs,
-       ...     SubstrateArgs)
+       >>> from dipcoatimage.finitedepth import get_samples_path
+       >>> from dipcoatimage.finitedepth.experiment import ReferenceArgs
        >>> from dipcoatimage.finitedepth.util import cwd
        >>> refargs = ReferenceArgs(path="ref1.png",
        ...                         templateROI=(200, 100, 1200, 500),
@@ -179,11 +188,14 @@ class SubstrateArgs:
        :include-source:
        :context: close-figs
 
+       >>> from dipcoatimage.finitedepth import data_converter
+       >>> from dipcoatimage.finitedepth.experiment import SubstrateArgs
        >>> params = {"Canny": {"threshold1": 50, "threshold2": 150},
        ...           "HoughLines": {"rho": 1, "theta": 0.01, "threshold": 100}}
        >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)
        >>> substargs = data_converter.structure(arg, SubstrateArgs)
        >>> subst = substargs.as_substrate(ref)
+       >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
     """
@@ -241,6 +253,46 @@ class CoatingLayerArgs:
 
     parameters, draw_options, deco_options
         Arguments for :class:`CoatingLayerBase` instance.
+
+    Examples
+    ========
+
+    Construct substrate reference instance and substrate instance first.
+
+    .. plot::
+       :include-source:
+       :context: reset
+
+       >>> from dipcoatimage.finitedepth import get_samples_path, data_converter
+       >>> from dipcoatimage.finitedepth.experiment import (ReferenceArgs,
+       ...     SubstrateArgs)
+       >>> from dipcoatimage.finitedepth.util import cwd
+       >>> refargs = ReferenceArgs(path="ref1.png",
+       ...                         templateROI=(200, 100, 1200, 500),
+       ...                         substrateROI=(300, 50, 1100, 600))
+       >>> with cwd(get_samples_path()):
+       ...     ref = refargs.as_reference()
+       >>> params = {"Canny": {"threshold1": 50, "threshold2": 150},
+       ...           "HoughLines": {"rho": 1, "theta": 0.01, "threshold": 100}}
+       >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)
+       >>> substargs = data_converter.structure(arg, SubstrateArgs)
+       >>> subst = substargs.as_substrate(ref)
+
+    Construct coating layer instance from the data.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> import cv2
+       >>> from dipcoatimage.finitedepth.experiment import CoatingLayerArgs
+       >>> arg = dict(type={"name": "RectLayerArea"})
+       >>> layerargs = data_converter.structure(arg, CoatingLayerArgs)
+       >>> img_path = get_samples_path("coat1.png")
+       >>> layer = layerargs.as_coatinglayer(cv2.imread(img_path), subst)
+       >>> import matplotlib.pyplot as plt #doctest: +SKIP
+       >>> plt.imshow(layer.draw()) #doctest: +SKIP
+
     """
 
     type: ImportArgs = dataclasses.field(default_factory=ImportArgs)
@@ -251,3 +303,39 @@ class CoatingLayerArgs:
     def __post_init__(self):
         if not self.type.name:
             self.type.name = "LayerArea"
+
+    def as_coatinglayer(
+        self, img: npt.NDArray[np.uint8], subst: SubstrateBase
+    ) -> CoatingLayerBase:
+        """
+        Construct the coating layer instance.
+
+        Parameters
+        ==========
+
+        img
+            Coated substrate image. May be grayscale or RGB.
+
+        subst
+            Substrate instance.
+
+        """
+        name = self.type.name
+        module = self.type.module
+        layercls = import_variable(name, module)
+        if not (isinstance(layercls, type) and issubclass(layercls, CoatingLayerBase)):
+            raise TypeError(f"{layercls} is not coating layer class.")
+
+        params = data_converter.structure(
+            self.parameters, layercls.Parameters  # type: ignore
+        )
+        drawopts = data_converter.structure(
+            self.draw_options, layercls.DrawOptions  # type: ignore
+        )
+        decoopts = data_converter.structure(
+            self.deco_options, layercls.DecoOptions  # type: ignore
+        )
+        layer = layercls(  # type: ignore
+            img, subst, parameters=params, draw_options=drawopts, deco_options=decoopts
+        )
+        return layer
