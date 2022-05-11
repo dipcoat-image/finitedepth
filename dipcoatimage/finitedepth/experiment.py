@@ -30,6 +30,12 @@ Base class
 Implementation
 --------------
 
+.. autoclass:: ExperimentParameters
+   :members:
+
+.. autoclass:: Experiment
+   :members:
+
 ------------------
 Data serialization
 ------------------
@@ -64,6 +70,8 @@ from .util import DataclassProtocol, import_variable, data_converter, OptionalRO
 __all__ = [
     "ExperimentError",
     "ExperimentBase",
+    "ExperimentParameters",
+    "Experiment",
     "ImportArgs",
     "ReferenceArgs",
     "SubstrateArgs",
@@ -104,6 +112,18 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
 
     Validity of the parameters can be checked by :meth:`verify` or :meth:`valid`.
     Their result can be implemented by defining :meth:`examine`.
+
+    .. rubric:: Coating layer construction
+
+    Coating layer is constructed by :meth:`construct_coatinglayer`. When
+    analyzing consecutive images, coating layer parameters may need to be
+    different for each instance. To support this, image number and previous
+    instance can be passed. Subclass may override this method to apply different
+    parameters.
+
+    :meth:`layer_generator` returns a generator which receives coated substrate
+    image and automatically calls :meth:`construct_coatinglayer` with image
+    number and previous instance.
 
     Parameters
     ==========
@@ -179,8 +199,8 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
 
     def construct_coatinglayer(
         self,
-        i: int,
         image: npt.NDArray[np.uint8],
+        i: int = 0,
         prev: Optional[CoatingLayerBase] = None,
     ) -> CoatingLayerBase:
         """
@@ -193,11 +213,11 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
         Parameters
         ==========
 
-        i
-            Frame number for *img*.
-
         image
             *image* argument for coating layer class.
+
+        i
+            Frame number for *img*.
 
         prev
             Previous coating layer instance.
@@ -230,10 +250,28 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
         prev_ls = None
         while True:
             img = yield  # type: ignore
-            ls = self.construct_coatinglayer(i, img, prev_ls)
+            ls = self.construct_coatinglayer(img, i, prev_ls)
             yield ls
             prev_ls = ls
             i += 1
+
+
+@dataclasses.dataclass(frozen=True)
+class ExperimentParameters:
+    """Additional parameters for :class:`Experiment` instance."""
+
+    pass
+
+
+class Experiment(ExperimentBase[ExperimentParameters]):
+    """
+    Simplest experiment class with no parameter.
+
+    """
+    Parameters = ExperimentParameters
+
+    def examine(self) -> None:
+        return None
 
 
 @dataclasses.dataclass
