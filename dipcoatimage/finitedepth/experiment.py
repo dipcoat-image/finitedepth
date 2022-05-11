@@ -36,6 +36,14 @@ Implementation
 .. autoclass:: Experiment
    :members:
 
+Utilities
+---------
+
+.. autoclass:: ExperimentKind
+   :members:
+
+.. autofunction:: experiment_kind
+
 ------------------
 Data serialization
 ------------------
@@ -57,9 +65,11 @@ Data serialization
 import abc
 import cv2  # type: ignore
 import dataclasses
+import enum
+import mimetypes
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Generic, Type, Optional, Generator
+from typing import TypeVar, Generic, Type, Optional, Generator, List
 
 from .reference import SubstrateReferenceBase
 from .substrate import SubstrateBase
@@ -68,6 +78,8 @@ from .util import DataclassProtocol, import_variable, data_converter, OptionalRO
 
 
 __all__ = [
+    "ExperimentKind",
+    "experiment_kind",
     "ExperimentError",
     "ExperimentBase",
     "ExperimentParameters",
@@ -77,6 +89,71 @@ __all__ = [
     "SubstrateArgs",
     "CoatingLayerArgs",
 ]
+
+
+class ExperimentKind(enum.Enum):
+    """
+    Enumeration of the experiment category by coated substrate files.
+
+    NullExperiment
+        Invalid file
+
+    SingleImageExperiment
+        Single image file
+
+    MultiImageExperiment
+        Multiple image files
+
+    VideoExperiment
+        Single video file
+
+    """
+
+    NullExperiment = "NullExperiment"
+    SingleImageExperiment = "SingleImageExperiment"
+    MultiImageExperiment = "MultiImageExperiment"
+    VideoExperiment = "VideoExperiment"
+
+
+def experiment_kind(paths: List[str]) -> ExperimentKind:
+    """Get :class:`ExperimentKind` for given paths using MIME type."""
+    INVALID = False
+    video_count, image_count = 0, 0
+    for p in paths:
+        mtype, _ = mimetypes.guess_type(p)
+        if mtype is None:
+            INVALID = True
+            break
+        file_type, _ = mtype.split("/")
+        if file_type == "video":
+            video_count += 1
+        elif file_type == "image":
+            image_count += 1
+        else:
+            # unrecognized type
+            INVALID = True
+            break
+
+        if video_count > 1:
+            # video must be unique
+            INVALID = True
+            break
+        elif video_count and image_count:
+            # video cannot be combined with image
+            INVALID = True
+            break
+
+    if INVALID:
+        ret = ExperimentKind.NullExperiment
+    elif video_count:
+        ret = ExperimentKind.VideoExperiment
+    elif image_count > 1:
+        ret = ExperimentKind.MultiImageExperiment
+    elif image_count:
+        ret = ExperimentKind.SingleImageExperiment
+    else:
+        ret = ExperimentKind.NullExperiment
+    return ret
 
 
 ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
@@ -268,6 +345,7 @@ class Experiment(ExperimentBase[ExperimentParameters]):
     Simplest experiment class with no parameter.
 
     """
+
     Parameters = ExperimentParameters
 
     def examine(self) -> None:
