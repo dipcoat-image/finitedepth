@@ -65,9 +65,9 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
     """
     Abstract base class for finite-depth dip coating experiment.
 
-    Dip coating experiment consists of reference image, and coated substrate
-    image(s) or video. Experiment class is a factory which constructs
-    :class:`CoatingLayerBase` instances from the data.
+    Experiment consists of a bare substrate image and coated substrate images.
+    Experiment class is a factory which constructs :class:`CoatingLayerBase`
+    instances from the data.
 
     .. rubric:: Constructor
 
@@ -214,9 +214,7 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
 
         As new image is sent, coating layer instance is created using
         :meth:`construct_coatinglayer` with the number of images passed so far
-        and previous instance.
-
-        Sending non-consecutive images may result incorrect result.
+        and previous coating layer instance.
 
         """
         i = 0
