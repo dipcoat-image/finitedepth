@@ -324,12 +324,12 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
 
         """
         i = 0
-        prev_ls = None
+        prev = None
         while True:
             img = yield  # type: ignore
-            ls = self.construct_coatinglayer(img, i, prev_ls)
-            yield ls
-            prev_ls = ls
+            layer = self.construct_coatinglayer(img, i, prev)
+            yield layer
+            prev = layer
             i += 1
 
 
