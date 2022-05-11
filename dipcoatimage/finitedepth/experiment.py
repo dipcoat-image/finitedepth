@@ -39,7 +39,6 @@ import dataclasses
 
 from .reference import SubstrateReferenceBase
 from .substrate import SubstrateBase
-from .coatinglayer import CoatingLayerBase
 from .util import import_variable, data_converter, OptionalROI
 
 
