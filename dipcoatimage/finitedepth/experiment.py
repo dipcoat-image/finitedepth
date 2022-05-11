@@ -29,6 +29,9 @@ Data serialization
 .. autoclass:: SubstrateArgs
    :members:
 
+.. autoclass:: CoatingLayerArgs
+   :members:
+
 """
 
 import cv2  # type: ignore
@@ -36,6 +39,7 @@ import dataclasses
 
 from .reference import SubstrateReferenceBase
 from .substrate import SubstrateBase
+from .coatinglayer import CoatingLayerBase
 from .util import import_variable, data_converter, OptionalROI
 
 
@@ -43,6 +47,7 @@ __all__ = [
     "ImportArgs",
     "ReferenceArgs",
     "SubstrateArgs",
+    "CoatingLayerArgs",
 ]
 
 
@@ -147,7 +152,7 @@ class SubstrateArgs:
         Class name defaults to ``Substrate``.
 
     parameters, draw_options
-        Arguments for :class:`Substrate` instance.
+        Arguments for :class:`SubstrateBase` instance.
 
     Examples
     ========
@@ -221,3 +226,29 @@ class SubstrateArgs:
             draw_options=drawopts,
         )
         return subst
+
+
+@dataclasses.dataclass
+class CoatingLayerArgs:
+    """
+    Data for the concrete instance of :class:`CoatingLayerBase`.
+
+    Parameters
+    ==========
+
+    type
+        Information to import substrate class.
+        Class name defaults to ``LayerArea``.
+
+    parameters, draw_options, deco_options
+        Arguments for :class:`CoatingLayerBase` instance.
+    """
+
+    type: ImportArgs = dataclasses.field(default_factory=ImportArgs)
+    parameters: dict = dataclasses.field(default_factory=dict)
+    draw_options: dict = dataclasses.field(default_factory=dict)
+    deco_options: dict = dataclasses.field(default_factory=dict)
+
+    def __post_init__(self):
+        if not self.type.name:
+            self.type.name = "LayerArea"
