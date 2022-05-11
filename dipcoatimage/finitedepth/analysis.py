@@ -33,6 +33,12 @@ Data serialization
 .. autoclass:: ExperimentArgs
    :members:
 
+.. autoclass:: AnalysisArgs
+   :members:
+
+.. autoclass:: ExperimentData
+   :members:
+
 """
 
 import cv2  # type: ignore
@@ -41,7 +47,7 @@ import enum
 import mimetypes
 import numpy as np
 import numpy.typing as npt
-from typing import List, Type, Optional
+from typing import List, Type, Optional, Union
 
 from .reference import SubstrateReferenceBase
 from .substrate import SubstrateBase
@@ -58,6 +64,8 @@ __all__ = [
     "SubstrateArgs",
     "CoatingLayerArgs",
     "ExperimentArgs",
+    "AnalysisArgs",
+    "ExperimentData",
 ]
 
 
@@ -435,3 +443,29 @@ class ExperimentArgs:
             parameters=params,
         )
         return expt
+
+
+@dataclasses.dataclass
+class AnalysisArgs:
+    """
+    Arguments to save the analyis result.
+    """
+
+    data_path: str = ""
+    image_path: str = ""
+    video_path: str = ""
+    fps: Union[int, float, None] = None
+
+
+@dataclasses.dataclass
+class ExperimentData:
+    """
+    Class which wraps every information to construct and analyze the experiment.
+    """
+
+    paths: List[str] = dataclasses.field(default_factory=list)
+    reference: ReferenceArgs = dataclasses.field(default_factory=ReferenceArgs)
+    substrate: SubstrateArgs = dataclasses.field(default_factory=SubstrateArgs)
+    coatinglayer: CoatingLayerArgs = dataclasses.field(default_factory=CoatingLayerArgs)
+    experiment: ExperimentArgs = dataclasses.field(default_factory=ExperimentArgs)
+    analysis: AnalysisArgs = dataclasses.field(default_factory=AnalysisArgs)
