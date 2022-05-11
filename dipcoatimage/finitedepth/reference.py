@@ -20,9 +20,6 @@ Implementation
 .. autoclass:: SubstrateReferenceParameters
    :members:
 
-.. autoclass:: SubstrateReferenceDrawMode
-   :members:
-
 .. autoclass:: SubstrateReferenceDrawOptions
    :members:
 
@@ -35,18 +32,21 @@ Implementation
 import abc
 import cv2  # type: ignore
 import dataclasses
-import enum
 import numpy as np
 import numpy.typing as npt
 from typing import TypeVar, Generic, Type, Optional, cast, Tuple
-from .util import DataclassProtocol, OptionalROI, IntROI
+from .util import (
+    DataclassProtocol,
+    OptionalROI,
+    IntROI,
+    BinaryImageDrawMode,
+)
 
 
 __all__ = [
     "SubstrateReferenceError",
     "SubstrateReferenceBase",
     "SubstrateReferenceParameters",
-    "SubstrateReferenceDrawMode",
     "SubstrateReferenceDrawOptions",
     "SubstrateReference",
 ]
@@ -71,7 +71,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
        >>> import cv2
        >>> from dipcoatimage.finitedepth import get_samples_path
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
-       >>> img = cv2.imread(get_samples_path('ref1.png'))
+       >>> img = cv2.imread(get_samples_path("ref1.png"))
        >>> plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)) #doctest: +SKIP
 
     .. rubric:: Image and ROIs
@@ -117,6 +117,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     .. rubric:: Visualization
 
     :meth:`draw` defines the visualization logic for concrete class.
+    Modifying :attr:`draw_options` changes the visualization result.
 
     Parameters
     ==========
@@ -146,23 +147,6 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
 
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
-
-    def __init_subclass__(cls) -> None:
-        params = getattr(cls, "Parameters", None)
-        if params is None:
-            raise TypeError(f"{cls} has no attribute 'Parameters'.")
-        elif not (isinstance(params, type) and dataclasses.is_dataclass(params)):
-            raise TypeError(f"{params} is not dataclass type.")
-        elif not params.__dataclass_params__.frozen:  # type: ignore
-            raise TypeError(f"{params} is not frozen.")
-
-        drawopts = getattr(cls, "DrawOptions", None)
-        if drawopts is None:
-            raise TypeError(f"{cls} has no attribute 'DrawOptions'.")
-        elif not (isinstance(drawopts, type) and dataclasses.is_dataclass(drawopts)):
-            raise TypeError(f"{drawopts} is not dataclass type.")
-
-        return super().__init_subclass__()
 
     def __init__(
         self,
@@ -329,47 +313,9 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
 
 @dataclasses.dataclass(frozen=True)
 class SubstrateReferenceParameters:
-    """
-    Additional parameters for :class:`SubstrateReference` instance.
+    """Additional parameters for :class:`SubstrateReference` instance."""
 
-    This class defines parameters for :func:`cv2.threshold`, which default for
-    Otsu's binarization.
-
-    Attributes
-    ==========
-
-    thresh
-
-    maxval
-
-    type
-        Default is ``cv2.THRESH_BINARY | cv2.THRESH_OTSU`` value.
-
-    """
-
-    thresh: int = 0
-    maxval: int = 255
-    type: int = cv2.THRESH_BINARY | cv2.THRESH_OTSU
-
-
-class SubstrateReferenceDrawMode(enum.Enum):
-    """
-    Option for :class:`SubstrateReferenceDrawOptions` to determine how the
-    reference image is drawn.
-
-    Attributes
-    ==========
-
-    ORIGINAL
-        Show the original reference image.
-
-    BINARY
-        Show the binarized reference image.
-
-    """
-
-    ORIGINAL = "ORIGINAL"
-    BINARY = "BINARY"
+    pass
 
 
 @dataclasses.dataclass
@@ -386,7 +332,7 @@ class SubstrateReferenceDrawOptions:
         Flag whether to draw template ROI box.
 
     templateROI_color
-        Color for template ROI box. Ignored if *draw_templateROI* is false.
+        RGB color for template ROI box. Ignored if *draw_templateROI* is false.
 
     templateROI_thickness
         Thickness for template ROI box. Ignored if *draw_templateROI* is false.
@@ -395,14 +341,14 @@ class SubstrateReferenceDrawOptions:
         Flag whether to draw substrate ROI box.
 
     substrateROI_color
-        Color for substrate ROI box. Ignored if *draw_substrateROI* is false.
+        RGB color for substrate ROI box. Ignored if *draw_substrateROI* is false.
 
     substrateROI_thickness
         Thickness for substrate ROI box. Ignored if *draw_substrateROI* is false.
 
     """
 
-    draw_mode: SubstrateReferenceDrawMode = SubstrateReferenceDrawMode.ORIGINAL
+    draw_mode: BinaryImageDrawMode = BinaryImageDrawMode.ORIGINAL
 
     draw_templateROI: bool = True
     templateROI_color: Tuple[int, int, int] = (0, 255, 0)
@@ -413,7 +359,9 @@ class SubstrateReferenceDrawOptions:
     substrateROI_thickness: int = 1
 
 
-class SubstrateReference(SubstrateReferenceBase):
+class SubstrateReference(
+    SubstrateReferenceBase[SubstrateReferenceParameters, SubstrateReferenceDrawOptions]
+):
     """
     Substrate reference class with customizable binarization.
 
@@ -424,11 +372,12 @@ class SubstrateReference(SubstrateReferenceBase):
 
     .. plot::
        :include-source:
+       :context: reset
 
        >>> import cv2
        >>> from dipcoatimage.finitedepth import (SubstrateReference,
        ...     get_samples_path)
-       >>> ref_path = get_samples_path('ref1.png')
+       >>> ref_path = get_samples_path("ref1.png")
        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
        >>> tempROI = (200, 50, 1200, 200)
        >>> substROI = (400, 100, 1000, 500)
@@ -436,43 +385,23 @@ class SubstrateReference(SubstrateReferenceBase):
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
+    Visualization can be controlled by modifying :attr:`draw_options`.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> ref.draw_options.substrateROI_color = (0, 0, 255)
+       >>> plt.imshow(ref.draw()) #doctest: +SKIP
+
     """
 
     Parameters = SubstrateReferenceParameters
     DrawOptions = SubstrateReferenceDrawOptions
 
-    DrawMode = SubstrateReferenceDrawMode
-    Draw_Original = SubstrateReferenceDrawMode.ORIGINAL
-    Draw_Binary = SubstrateReferenceDrawMode.BINARY
-
-    def binary_image(self) -> npt.NDArray[np.uint8]:
-        """
-        Binarized :attr:`image` using :meth:`parameters`.
-
-        Notes
-        =====
-
-        This method is cached. Do not modify its result.
-
-        """
-        if not hasattr(self, "_binary_image"):
-            if len(self.image.shape) == 2:
-                gray = self.image
-            elif len(self.image.shape) == 3:
-                ch = self.image.shape[-1]
-                if ch == 1:
-                    gray = self.image
-                elif ch == 3:
-                    gray = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
-                else:
-                    raise TypeError(f"Image with invalid channel: {self.image.shape}")
-            else:
-                raise TypeError(f"Invalid image shape: {self.image.shape}")
-            _, ret = cv2.threshold(gray, **dataclasses.asdict(self.parameters))
-            if ret is None:
-                ret = np.empty((0, 0))
-            self._binary_image = ret
-        return self._binary_image
+    DrawMode = BinaryImageDrawMode
+    Draw_Original = BinaryImageDrawMode.ORIGINAL
+    Draw_Binary = BinaryImageDrawMode.BINARY
 
     def examine(self) -> None:
         return None

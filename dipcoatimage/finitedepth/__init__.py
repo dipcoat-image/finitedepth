@@ -7,10 +7,11 @@ process. Analysis is done by locating the bare substrate from coated substrate
 image, and extracting the coating layer region.
 
 This package provides
-  1. Handling substrate reference image and coated substrate image
-  2. Detecting bare substrate geometry
-  3. Extracting and analyzing coating layer
-  4. Saving analysis result
+
+1. Handling substrate reference image and coated substrate image
+2. Detecting bare substrate geometry
+3. Extracting and analyzing coating layer
+4. Saving analysis result
 
 :mod:`dipcoatimage.finitedepth_gui` provides GUI for this package.
 
@@ -29,14 +30,23 @@ from .substrate import (
     Substrate,
 )
 from .rectsubstrate import (
-    CannyParameters,
-    HoughLinesParameters,
     RectSubstrateError,
     RectSubstrateHoughLinesError,
     RectSubstrateEdgeError,
     RectSubstrate,
 )
-from .util import get_samples_path, data_converter
+from .coatinglayer import (
+    CoatingLayerError,
+    CoatingLayerBase,
+    LayerArea,
+)
+from .rectcoatinglayer import RectCoatingLayerBase, RectLayerArea
+from .util import (
+    get_samples_path,
+    data_converter,
+    CannyParameters,
+    HoughLinesParameters,
+)
 
 
 __all__ = [
@@ -52,6 +62,13 @@ __all__ = [
     "RectSubstrateHoughLinesError",
     "RectSubstrateEdgeError",
     "RectSubstrate",
+    "CoatingLayerError",
+    "CoatingLayerBase",
+    "LayerArea",
+    "RectCoatingLayerBase",
+    "RectLayerArea",
     "get_samples_path",
     "data_converter",
+    "CannyParameters",
+    "HoughLinesParameters",
 ]

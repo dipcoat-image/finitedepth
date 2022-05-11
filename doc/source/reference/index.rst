@@ -12,6 +12,7 @@ and :mod:`dipcoatimage.finitedepth_gui`.
 
    reference
    substrate
+   coatinglayer
    experiment
    util
    finitedepth-gui

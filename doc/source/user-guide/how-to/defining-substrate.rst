@@ -37,8 +37,6 @@ We import and directly subclass it to show how abstract members are implemented.
 
    >>> from dipcoatimage.finitedepth import SubstrateBase, SubstrateError
 
-Note that it is totally fine to inherit already-implemented concrete class, e.g. :class:`RectSubstrate`, instead.
-
 Defining parameter class
 ========================
 
@@ -232,3 +230,5 @@ See Also
 ========
 
 :doc:`dataclass-design` describes advanced dataclass design for :class:`Parameters` and :class:`DrawOptions`.
+
+:doc:`../explanation/generic-typing` describes how to define robust class with type annoataions.

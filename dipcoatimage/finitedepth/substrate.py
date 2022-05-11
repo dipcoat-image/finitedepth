@@ -93,6 +93,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     .. rubric:: Visualization
 
     :meth:`draw` defines the visualization logic for concrete class.
+    Modifying :attr:`draw_options` changes the visualization result.
 
     Parameters
     ==========
@@ -101,10 +102,10 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         Substrate reference instance.
 
     parameters
-        Additional parameters. Instance of :attr:`Parameters`, or :obj:`None`.
+        Additional parameters.
 
     draw_options
-        Drawing options. Instance of :attr:`DrawOptions`, or :obj:`None`.
+        Drawing options.
 
     """
 
@@ -116,22 +117,6 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
 
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
-
-    def __init_subclass__(cls) -> None:
-        params = getattr(cls, "Parameters", None)
-        if params is None:
-            raise TypeError(f"{cls} has no attribute 'Parameters'.")
-        elif not (isinstance(params, type) and dataclasses.is_dataclass(params)):
-            raise TypeError(f"{params} is not dataclass type.")
-        elif not params.__dataclass_params__.frozen:  # type: ignore
-            raise TypeError(f"{params} is not frozen.")
-
-        drawopts = getattr(cls, "DrawOptions", None)
-        if drawopts is None:
-            raise TypeError(f"{cls} has no attribute 'DrawOptions'.")
-        elif not (isinstance(drawopts, type) and dataclasses.is_dataclass(drawopts)):
-            raise TypeError(f"{drawopts} is not dataclass type.")
-        return super().__init_subclass__()
 
     def __init__(
         self,
@@ -210,7 +195,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         >>> import cv2
         >>> from dipcoatimage.finitedepth import (SubstrateReference, Substrate,
         ...     get_samples_path)
-        >>> ref_path = get_samples_path('ref1.png')
+        >>> ref_path = get_samples_path("ref1.png")
         >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
         >>> substROI = (400, 100, 1000, 500)
         >>> ref = SubstrateReference(img, substrateROI=substROI)
@@ -272,14 +257,14 @@ class SubstrateDrawOptions:
     pass
 
 
-class Substrate(SubstrateBase):
+class Substrate(SubstrateBase[SubstrateParameters, SubstrateDrawOptions]):
     """
     Simplest substrate class with no geometric information.
 
     Examples
     ========
 
-    Construct substrate reference class first.
+    Construct substrate reference instance first.
 
     .. plot::
        :include-source:
@@ -288,7 +273,7 @@ class Substrate(SubstrateBase):
        >>> import cv2
        >>> from dipcoatimage.finitedepth import (SubstrateReference,
        ...     get_samples_path)
-       >>> ref_path = get_samples_path('ref1.png')
+       >>> ref_path = get_samples_path("ref1.png")
        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
        >>> tempROI = (200, 50, 1200, 200)
        >>> substROI = (400, 100, 1000, 500)
@@ -296,7 +281,7 @@ class Substrate(SubstrateBase):
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
-    Construct substrate class from reference class.
+    Construct :class:`Substrate` instance from reference instance.
 
     .. plot::
        :include-source:
