@@ -40,6 +40,7 @@ __all__ = [
     "ReferenceWidget",
     "SubstrateWidgetData",
     "SubstrateWidget",
+    "CoatingLayerWidgetData",
 ]
 
 
@@ -622,3 +623,13 @@ class SubstrateWidget(QWidget):
             self.currentDrawOptionsWidget().setDataValue(drawopts)
 
         self.connectSignals()
+
+
+@dataclasses.dataclass
+class CoatingLayerWidgetData:
+    """Data from coating layer widget to construct coating layer object."""
+
+    type: Any
+    parameters: Optional[DataclassProtocol]
+    draw_options: Optional[DataclassProtocol]
+    deco_options: Optional[DataclassProtocol]
