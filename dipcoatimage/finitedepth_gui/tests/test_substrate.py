@@ -8,7 +8,7 @@ from dipcoatimage.finitedepth import (
     RectSubstrate,
     data_converter,
 )
-from dipcoatimage.finitedepth.experiment import SubstrateArgs, ImportArgs
+from dipcoatimage.finitedepth.analysis import SubstrateArgs, ImportArgs
 from dipcoatimage.finitedepth_gui.controlwidgets import (
     SubstrateWidget,
     SubstrateWidgetData,

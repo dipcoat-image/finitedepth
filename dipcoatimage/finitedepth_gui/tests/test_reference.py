@@ -6,7 +6,7 @@ from dipcoatimage.finitedepth import (
     SubstrateReference,
     data_converter,
 )
-from dipcoatimage.finitedepth.experiment import ReferenceArgs
+from dipcoatimage.finitedepth.analysis import ReferenceArgs
 from dipcoatimage.finitedepth_gui.controlwidgets import (
     ReferenceWidget,
     ReferenceWidgetData,

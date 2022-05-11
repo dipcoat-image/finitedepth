@@ -14,5 +14,6 @@ and :mod:`dipcoatimage.finitedepth_gui`.
    substrate
    coatinglayer
    experiment
+   analysis
    util
    finitedepth-gui

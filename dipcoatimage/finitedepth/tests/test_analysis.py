@@ -1,5 +1,5 @@
 from dipcoatimage.finitedepth import get_samples_path
-from dipcoatimage.finitedepth.experiment import ExperimentKind, experiment_kind
+from dipcoatimage.finitedepth.analysis import ExperimentKind, experiment_kind
 
 
 def test_experiment_kind():

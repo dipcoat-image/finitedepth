@@ -10,7 +10,7 @@ from dipcoatimage.finitedepth import (
     RectLayerArea,
     data_converter,
 )
-from dipcoatimage.finitedepth.experiment import CoatingLayerArgs, ImportArgs
+from dipcoatimage.finitedepth.analysis import CoatingLayerArgs, ImportArgs
 from dipcoatimage.finitedepth_gui.controlwidgets import (
     CoatingLayerWidget,
 )
