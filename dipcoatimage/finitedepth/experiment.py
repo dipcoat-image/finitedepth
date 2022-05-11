@@ -21,6 +21,12 @@ Analysis factory
 Base class
 ----------
 
+.. autoclass:: ExperimentError
+   :members:
+
+.. autoclass:: ExperimentBase
+   :members:
+
 Implementation
 --------------
 
@@ -42,23 +48,192 @@ Data serialization
 
 """
 
+import abc
 import cv2  # type: ignore
 import dataclasses
 import numpy as np
 import numpy.typing as npt
+from typing import TypeVar, Generic, Type, Optional, Generator
 
 from .reference import SubstrateReferenceBase
 from .substrate import SubstrateBase
 from .coatinglayer import CoatingLayerBase
-from .util import import_variable, data_converter, OptionalROI
+from .util import DataclassProtocol, import_variable, data_converter, OptionalROI
 
 
 __all__ = [
+    "ExperimentError",
+    "ExperimentBase",
     "ImportArgs",
     "ReferenceArgs",
     "SubstrateArgs",
     "CoatingLayerArgs",
 ]
+
+
+ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
+
+
+class ExperimentError(Exception):
+    """Base class for error from :class:`ExperimentBase`."""
+
+    pass
+
+
+class ExperimentBase(abc.ABC, Generic[ParametersType]):
+    """
+    Abstract base class for finite-depth dip coating experiment.
+
+    Dip coating experiment consists of reference image, and coated substrate
+    image(s) or video. Experiment class is a factory which constructs
+    :class:`CoatingLayerBase` instances from the data.
+
+    .. rubric:: Constructor
+
+    Constructor signature must not be modified because high-level API use factory
+    to generate experiment instances. Additional parameters can be introduced
+    by definig class attribute :attr:`Parameters``.
+
+    .. rubric:: Parameters
+
+    Concrete class must have :attr:`Parameters` which returns dataclass type.
+    Its instance is passed to the constructor at instance initialization, and can
+    be accessed by :attr:`parameters`.
+
+    .. rubric:: Sanity check
+
+    Validity of the parameters can be checked by :meth:`verify` or :meth:`valid`.
+    Their result can be implemented by defining :meth:`examine`.
+
+    Parameters
+    ==========
+
+    substrate
+        Substrate instance.
+
+    layer_type
+        Concrete subclass of :class:`CoatingLayerBase`.
+
+    layer_parameters, layer_drawoptions, layer_decooptions
+        *parameters*, *draw_options*, and *deco_options* arguments for
+        *layer_type*.
+
+    parameters
+        Additional parameters.
+
+    """
+
+    Parameters: Type[ParametersType]
+
+    def __init__(
+        self,
+        substrate: SubstrateBase,
+        layer_type: Type[CoatingLayerBase],
+        layer_parameters: Optional[DataclassProtocol] = None,
+        layer_drawoptions: Optional[DataclassProtocol] = None,
+        layer_decooptions: Optional[DataclassProtocol] = None,
+        *,
+        parameters: Optional[ParametersType] = None,
+    ):
+        self.substrate = substrate
+        self.layer_type = layer_type
+        self.layer_parameters = layer_parameters
+        self.layer_drawoptions = layer_drawoptions
+        self.layer_decooptions = layer_decooptions
+
+        if parameters is None:
+            self._parameters = self.Parameters()
+        else:
+            self._parameters = dataclasses.replace(parameters)
+
+    @abc.abstractmethod
+    def examine(self) -> Optional[ExperimentError]:
+        """
+        Check the sanity of parameters.
+
+        If the instance is invalid, return error instance.
+        Else, return :obj:`None`.
+        """
+
+    def verify(self):
+        """
+        Verify if all parameters are suitably set by raising error on failure.
+
+        To implement sanity check for concrete class, define :meth:`examine`.
+        """
+        err = self.examine()
+        if err is not None:
+            raise err
+
+    def valid(self) -> bool:
+        """
+        Verify if all parameters are suitably set by returning boolean value.
+
+        To implement sanity check for concrete class, define :meth:`examine`.
+        """
+        err = self.examine()
+        ret = True
+        if err is not None:
+            ret = False
+        return ret
+
+    def construct_coatinglayer(
+        self,
+        i: int,
+        image: npt.NDArray[np.uint8],
+        prev: Optional[CoatingLayerBase] = None,
+    ) -> CoatingLayerBase:
+        """
+        Construct instance of :attr:`layer_type` with *image* and attributes.
+
+        *i* and *prev* are passed to allow passing different parameters for
+        each coating layer instance. Subclass may override this method modify
+        the parameters.
+
+        Parameters
+        ==========
+
+        i
+            Frame number for *img*.
+
+        image
+            *image* argument for coating layer class.
+
+        prev
+            Previous coating layer instance.
+
+        """
+        ret = self.layer_type(
+            image,
+            self.substrate,
+            parameters=self.layer_parameters,
+            draw_options=self.layer_drawoptions,
+            deco_options=self.layer_decooptions,
+        )
+        return ret
+
+    def layer_generator(
+        self,
+    ) -> Generator[CoatingLayerBase, npt.NDArray[np.uint8], None]:
+        """
+        Generator which receives coated substrate image to yield instance of
+        :attr:`layer_type`.
+
+        As new image is sent, coating layer instance is created using
+        :meth:`construct_coatinglayer` with the number of images passed so far
+        and previous instance.
+
+        Sending non-consecutive images may result incorrect result.
+
+        """
+        i = 0
+        prev_ls = None
+        while True:
+            img = yield  # type: ignore
+            ls = self.construct_coatinglayer(i, img, prev_ls)
+            yield ls
+            prev_ls = ls
+            i += 1
 
 
 @dataclasses.dataclass
