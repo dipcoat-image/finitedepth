@@ -9,3 +9,4 @@ In this document, informations to use DipcoatImage-FiniteDepth are provided.
 
    defining-reference
    defining-substrate
+   dataclass-design

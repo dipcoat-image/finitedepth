@@ -8,12 +8,6 @@ analyze the substrate with rectangular cross-section shape.
 Parameter classes
 -----------------
 
-.. autoclass:: CannyParameters
-   :members:
-
-.. autoclass:: HoughLinesParameters
-   :members:
-
 .. autoclass:: RectSubstrateParameters
    :members:
 
@@ -59,12 +53,10 @@ import numpy as np
 import numpy.typing as npt
 from typing import Tuple, Optional, Dict
 from .substrate import SubstrateError, SubstrateBase
-from .util import intrsct_pt_polar
+from .util import intrsct_pt_polar, CannyParameters, HoughLinesParameters
 
 
 __all__ = [
-    "CannyParameters",
-    "HoughLinesParameters",
     "RectSubstrateParameters",
     "RectSubstrateDrawMode",
     "RectSubstrateDrawOptions",
@@ -75,29 +67,6 @@ __all__ = [
     "RectSubstratePointType",
     "RectSubstrate",
 ]
-
-
-@dataclasses.dataclass(frozen=True)
-class CannyParameters:
-    """Parameters for :func:`cv2.Canny`."""
-
-    threshold1: float
-    threshold2: float
-    apertureSize: int = 3
-    L2gradient: bool = False
-
-
-@dataclasses.dataclass(frozen=True)
-class HoughLinesParameters:
-    """Parameters for :func:`cv2.HoughLines`."""
-
-    rho: float
-    theta: float
-    threshold: int
-    srn: float = 0
-    stn: float = 0
-    min_theta: float = 0
-    max_theta: float = np.pi
 
 
 @dataclasses.dataclass(frozen=True)
@@ -247,7 +216,7 @@ class RectSubstratePointType(enum.Enum):
     TOPRIGHT = "TOPRIGHT"
 
 
-class RectSubstrate(SubstrateBase):
+class RectSubstrate(SubstrateBase[RectSubstrateParameters, RectSubstrateDrawOptions]):
     """
     Class for the substrate image in rectangular shape.
 
@@ -257,7 +226,7 @@ class RectSubstrate(SubstrateBase):
     Examples
     ========
 
-    Construct substrate reference class first.
+    Construct substrate reference instance first.
 
     .. plot::
        :include-source:
@@ -266,7 +235,7 @@ class RectSubstrate(SubstrateBase):
        >>> import cv2
        >>> from dipcoatimage.finitedepth import (SubstrateReference,
        ...     get_samples_path)
-       >>> ref_path = get_samples_path('ref1.png')
+       >>> ref_path = get_samples_path("ref1.png")
        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
        >>> tempROI = (200, 50, 1200, 200)
        >>> substROI = (400, 100, 1000, 500)
@@ -274,7 +243,7 @@ class RectSubstrate(SubstrateBase):
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
-    Construct the parameters.
+    Construct the parameters and substrate instance from reference instance.
 
     .. plot::
        :include-source:
@@ -286,6 +255,16 @@ class RectSubstrate(SubstrateBase):
        >>> hparams = HoughLinesParameters(1, 0.01, 100)
        >>> params = RectSubstrate.Parameters(cparams, hparams)
        >>> subst = RectSubstrate(ref, parameters=params)
+       >>> plt.imshow(subst.draw()) #doctest: +SKIP
+
+    Visualization can be controlled by modifying :attr:`draw_options`.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> subst.draw_options.draw_lines = False
+       >>> subst.draw_options.edge_color = (255, 0, 0)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
     """

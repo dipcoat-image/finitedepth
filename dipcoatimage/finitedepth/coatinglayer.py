@@ -2,8 +2,12 @@
 Coated Substrate Image
 ======================
 
-:mod:`dipcoatimage.finitedepth.coatinglayer` provides class to extract the
-coating layer region from coated substrate image.
+-------------------
+Basic coating layer
+-------------------
+
+:mod:`dipcoatimage.finitedepth.coatinglayer` provides class to analyze the
+coating layer from coated substrate image.
 
 Base class
 ----------
@@ -13,6 +17,30 @@ Base class
 
 .. autoclass:: CoatingLayerBase
    :members:
+
+Implementation
+--------------
+
+.. autoclass:: BasicCoatingLayerParameters
+   :members:
+
+.. autoclass:: BasicCoatingLayerDrawOptions
+   :members:
+
+.. autoclass:: LayerAreaDecoOptions
+   :members:
+
+.. autoclass:: LayerAreaData
+   :members:
+
+.. autoclass:: LayerArea
+   :members:
+
+----------------------------------------
+Coating layer over rectangular substrate
+----------------------------------------
+
+.. automodule:: dipcoatimage.finitedepth.rectcoatinglayer
 
 """
 
@@ -24,15 +52,21 @@ import numpy as np
 import numpy.typing as npt
 from typing import TypeVar, Generic, Type, Optional, Tuple
 from .substrate import SubstrateBase
-from .util import DataclassProtocol
+from .util import DataclassProtocol, BinaryImageDrawMode
 
 
 __all__ = [
     "CoatingLayerError",
     "CoatingLayerBase",
+    "BasicCoatingLayerParameters",
+    "BasicCoatingLayerDrawOptions",
+    "LayerAreaDecoOptions",
+    "LayerAreaData",
+    "LayerArea",
 ]
 
 
+SubstrateType = TypeVar("SubstrateType", bound=SubstrateBase)
 ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
 DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
 DecoOptionsType = TypeVar("DecoOptionsType", bound=DataclassProtocol)
@@ -40,13 +74,14 @@ DataType = TypeVar("DataType", bound=DataclassProtocol)
 
 
 class CoatingLayerError(Exception):
-    """Base class for error from :class:`CoatingLayer`."""
+    """Base class for error from :class:`CoatingLayerBase`."""
 
     pass
 
 
 class CoatingLayerBase(
-    abc.ABC, Generic[ParametersType, DrawOptionsType, DecoOptionsType, DataType]
+    abc.ABC,
+    Generic[SubstrateType, ParametersType, DrawOptionsType, DecoOptionsType, DataType],
 ):
     """
     Abstract base class for coating layer.
@@ -57,8 +92,8 @@ class CoatingLayerBase(
     .. rubric:: Constructor
 
     Constructor signature must not be modified because high-level API use factory
-    to generate substrate instances. Additional parameters can be introduced by
-    definig class attribute :attr:`Parameters`, :attr:`DrawOptions` and
+    to generate coating layer instances. Additional parameters can be introduced
+    by definig class attribute :attr:`Parameters`, :attr:`DrawOptions` and
     :attr:`DecoOptions`.
 
     .. rubric:: Parameters, DrawOptions and DecoOptions
@@ -81,17 +116,25 @@ class CoatingLayerBase(
     .. rubric:: Visualization
 
     :meth:`draw` defines the visualization logic for concrete class using
-    attr:`draw_options` and :attr:`deco_options`.
+    :attr:`draw_options` and :attr:`deco_options`. Modifying these attributes
+    changes the visualization result.
 
     Two options are not strictly distinguished, but the intention is that draw
     option controls the overall behavior and deco option controls how the coating
     layer is painted.
 
+    .. rubric:: Analysis
+
+    Concrete class must have :attr:`Data` which returns dataclass type and
+    implement :meth:`analyze_layer` which returns data tuple compatible with
+    :attr:`Data`.
+    :meth:`analyze` is the API for analysis result.
+
     Parameters
     ==========
 
     image
-        Reference image. May be grayscale or RGB.
+        Coated substrate image. May be grayscale or RGB.
 
     substrate
         Substrate instance.
@@ -120,39 +163,10 @@ class CoatingLayerBase(
     DecoOptions: Type[DecoOptionsType]
     Data: Type[DataType]
 
-    def __init_subclass__(cls) -> None:
-        params = getattr(cls, "Parameters", None)
-        if params is None:
-            raise TypeError(f"{cls} has no attribute 'Parameters'.")
-        elif not (isinstance(params, type) and dataclasses.is_dataclass(params)):
-            raise TypeError(f"{params} is not dataclass type.")
-        elif not params.__dataclass_params__.frozen:  # type: ignore
-            raise TypeError(f"{params} is not frozen.")
-
-        drawopts = getattr(cls, "DrawOptions", None)
-        if drawopts is None:
-            raise TypeError(f"{cls} has no attribute 'DrawOptions'.")
-        elif not (isinstance(drawopts, type) and dataclasses.is_dataclass(drawopts)):
-            raise TypeError(f"{drawopts} is not dataclass type.")
-
-        decoopts = getattr(cls, "DecoOptions", None)
-        if decoopts is None:
-            raise TypeError(f"{cls} has no attribute 'DecoOptions'.")
-        elif not (isinstance(decoopts, type) and dataclasses.is_dataclass(decoopts)):
-            raise TypeError(f"{decoopts} is not dataclass type.")
-
-        data = getattr(cls, "Data", None)
-        if data is None:
-            raise TypeError(f"{cls} has no attribute 'Data'.")
-        elif not (isinstance(data, type) and dataclasses.is_dataclass(data)):
-            raise TypeError(f"{data} is not dataclass type.")
-
-        return super().__init_subclass__()
-
     def __init__(
         self,
         image: npt.NDArray[np.uint8],
-        substrate: SubstrateBase,
+        substrate: SubstrateType,
         parameters: Optional[ParametersType] = None,
         *,
         draw_options: Optional[DrawOptionsType] = None,
@@ -189,7 +203,7 @@ class CoatingLayerBase(
         return self._image
 
     @property
-    def substrate(self) -> SubstrateBase:
+    def substrate(self) -> SubstrateType:
         """Substrate instance passed to the constructor."""
         return self._substrate
 
@@ -379,5 +393,196 @@ class CoatingLayerBase(
         """Analyze the coated substrate image and return the data in tuple."""
 
     def analyze(self) -> DataType:
-        """Analyze the coated substrate image and return the data."""
+        """
+        Return the result of :meth:`analyze_layer` as dataclass instance.
+        """
         return self.Data(*self.analyze_layer())
+
+
+@dataclasses.dataclass(frozen=True)
+class BasicCoatingLayerParameters:
+    """
+    Basic additional parameters for implementation of :class:`CoatingLayerBase`.
+
+    """
+
+    pass
+
+
+@dataclasses.dataclass
+class BasicCoatingLayerDrawOptions:
+    """
+    Basic drawing options for implementation of :class:`CoatingLayerBase`.
+
+    Parameters
+    ==========
+
+    draw_mode
+
+    remove_substrate
+        Flag whether to remove the substrate from the image.
+
+    decorate
+        Flag wheter to decorate the coating layer.
+
+    """
+
+    draw_mode: BinaryImageDrawMode = BinaryImageDrawMode.ORIGINAL
+    remove_substrate: bool = False
+    decorate: bool = True
+
+
+@dataclasses.dataclass
+class LayerAreaDecoOptions:
+    """
+    Coating layer decorating options for :class:`LayerArea`.
+
+    Parameters
+    ==========
+
+    layer_color
+        RGB color to paint the coating layer.
+
+    """
+
+    layer_color: Tuple[int, int, int] = (0, 0, 255)
+
+
+@dataclasses.dataclass
+class LayerAreaData:
+    """
+    Analysis data for :class:`LayerArea`.
+
+    Parameters
+    ==========
+
+    Area
+        Number of the pixels in cross section image of coating layer.
+
+    """
+
+    Area: int
+
+
+class LayerArea(
+    CoatingLayerBase[
+        SubstrateBase,
+        BasicCoatingLayerParameters,
+        BasicCoatingLayerDrawOptions,
+        LayerAreaDecoOptions,
+        LayerAreaData,
+    ]
+):
+    """
+    Class to analyze the cross section area of coating layer regions over
+    substrate with arbitrary shape. Area unit is number of pixels.
+
+    Examples
+    ========
+
+    Construct substrate reference instance first.
+
+    .. plot::
+       :include-source:
+       :context: reset
+
+       >>> import cv2
+       >>> from dipcoatimage.finitedepth import (SubstrateReference,
+       ...     get_samples_path)
+       >>> ref_path = get_samples_path("ref1.png")
+       >>> ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+       >>> tempROI = (200, 50, 1200, 200)
+       >>> substROI = (400, 100, 1000, 500)
+       >>> ref = SubstrateReference(ref_img, tempROI, substROI)
+       >>> import matplotlib.pyplot as plt #doctest: +SKIP
+       >>> plt.imshow(ref.draw()) #doctest: +SKIP
+
+    Construct substrate instance from reference instance.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> from dipcoatimage.finitedepth import Substrate
+       >>> subst = Substrate(ref)
+       >>> plt.imshow(subst.draw()) #doctest: +SKIP
+
+    Construct :class:`LayerArea` from substrate instance. :meth:`analyze` returns
+    the number of pixels in coating area region.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> from dipcoatimage.finitedepth import LayerArea
+       >>> coat_path = get_samples_path("coat1.png")
+       >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
+       >>> coat = LayerArea(coat_img, subst)
+       >>> coat.analyze()
+       LayerAreaData(Area=44348)
+       >>> plt.imshow(coat.draw()) #doctest: +SKIP
+
+    :attr:`draw_options` controls the overall visualization.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> coat.draw_options.remove_substrate = True
+       >>> plt.imshow(coat.draw()) #doctest: +SKIP
+
+    :attr:`deco_options` controls the decoration of coating layer reigon.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> coat.deco_options.layer_color = (0, 255, 0)
+       >>> plt.imshow(coat.draw()) #doctest: +SKIP
+
+    """
+
+    Parameters = BasicCoatingLayerParameters
+    DrawOptions = BasicCoatingLayerDrawOptions
+    DecoOptions = LayerAreaDecoOptions
+    Data = LayerAreaData
+
+    DrawMode = BinaryImageDrawMode
+    Draw_Original = BinaryImageDrawMode.ORIGINAL
+    Draw_Binary = BinaryImageDrawMode.BINARY
+
+    def examine(self) -> None:
+        return None
+
+    def draw(self) -> npt.NDArray[np.uint8]:
+        draw_mode = self.draw_options.draw_mode
+        if self.draw_options.remove_substrate:
+            image = self.extract_layer()
+        elif draw_mode == self.Draw_Original:
+            image = self.image
+        elif draw_mode == self.Draw_Binary:
+            image = self.binary_image()
+        else:
+            raise TypeError("Unrecognized draw mode: %s" % draw_mode)
+
+        if len(image.shape) == 2:
+            ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        elif len(image.shape) == 3:
+            ch = image.shape[-1]
+            if ch == 1:
+                ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+            elif ch == 3:
+                ret = image.copy()
+            else:
+                raise TypeError(f"Image with invalid channel: {image.shape}")
+        else:
+            raise TypeError(f"Invalid image shape: {image.shape}")
+
+        if self.draw_options.decorate:
+            ret[~self.extract_layer().astype(bool)] = self.deco_options.layer_color
+        return ret
+
+    def analyze_layer(self) -> Tuple[int]:
+        layer_img = self.extract_layer()
+        area = layer_img.size - np.count_nonzero(layer_img)
+        return (area,)

@@ -28,10 +28,6 @@ DipcoatImage-FiniteDepth provides base class which should be inherited to define
 In this guide, a new class :class:`BinaryReference` will be defined from abstract base class.
 It binarizes grayscale image with :func:`cv2.threshold`, whose parameters we will control.
 
-.. note::
-   This feature, in fact, is already supported by :class:`SubstrateReference`.
-   Rather than the full-fledged implementation, here we keep everything minimal for detailed explanation.
-
 Importing parent class
 ======================
 
@@ -217,8 +213,9 @@ We can also verify the instance using either :meth:`valid` or :meth:`verify`.
      ...
    TypeError: Binarization failed.
 
-Exercise
+See Also
 ========
 
-In this guide, :class:`BinaryReference` does not visualize ROI boxes in order to keep the document simple.
-Try implement your own class with this feature.
+:doc:`dataclass-design` describes advanced dataclass design for :class:`Parameters` and :class:`DrawOptions`.
+
+:doc:`../explanation/generic-typing` describes how to define robust class with type annoataions.
