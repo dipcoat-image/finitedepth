@@ -20,6 +20,9 @@ Analysis
 .. autoclass:: CSVWriter
    :members:
 
+.. autoclass:: Analyzer
+   :members:
+
 ------------------
 Data serialization
 ------------------
@@ -71,6 +74,7 @@ __all__ = [
     "experiment_kind",
     "DataWriter",
     "CSVWriter",
+    "Analyzer",
     "ImportArgs",
     "ReferenceArgs",
     "SubstrateArgs",
@@ -235,6 +239,7 @@ class Analyzer:
         Dictionary of video extensions and their FourCC values.
 
     """
+
     def __init__(self, paths: List[str], experiment: ExperimentBase):
         self.paths = paths
         self.experiment = experiment
@@ -749,3 +754,36 @@ class ExperimentData:
     coatinglayer: CoatingLayerArgs = dataclasses.field(default_factory=CoatingLayerArgs)
     experiment: ExperimentArgs = dataclasses.field(default_factory=ExperimentArgs)
     analysis: AnalysisArgs = dataclasses.field(default_factory=AnalysisArgs)
+
+    def analyze(self, name: str = ""):
+        """Analyze and save the data."""
+        ref = self.reference.as_reference()
+        subst = self.substrate.as_substrate(ref)
+
+        layercls = import_variable(
+            self.coatinglayer.type.name, self.coatinglayer.type.module
+        )
+        if not (isinstance(layercls, type) and issubclass(layercls, CoatingLayerBase)):
+            raise TypeError(f"{layercls} is not coating layer class.")
+        params = data_converter.structure(
+            self.parameters, layercls.Parameters  # type: ignore
+        )
+        drawopts = data_converter.structure(
+            self.draw_options, layercls.DrawOptions  # type: ignore
+        )
+        decoopts = data_converter.structure(
+            self.deco_options, layercls.DecoOptions  # type: ignore
+        )
+
+        expt = self.experiment.as_experiment(
+            subst, layercls, params, drawopts, decoopts
+        )
+        analyzer = Analyzer(self.paths, expt)
+
+        analyzer.analyze(
+            self.analysis.data_path,
+            self.analysis.image_path,
+            self.analysis.video_path,
+            fps=self.analysis.fps,
+            name=name,
+        )

@@ -42,6 +42,7 @@ from .coatinglayer import (
 )
 from .rectcoatinglayer import RectCoatingLayerBase, RectLayerArea
 from .experiment import ExperimentError, ExperimentBase, Experiment
+from .analysis import ExperimentData
 from .util import (
     get_samples_path,
     data_converter,
@@ -71,6 +72,7 @@ __all__ = [
     "ExperimentError",
     "ExperimentBase",
     "Experiment",
+    "ExperimentData",
     "get_samples_path",
     "data_converter",
     "CannyParameters",
