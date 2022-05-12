@@ -399,6 +399,7 @@ class Analyzer:
                         visualized = layer.draw()
                     else:
                         visualized = img
+                    visualized = cv2.cvtColor(visualized, cv2.COLOR_RGB2BGR)
 
                     if write_image:
                         if image_path_formattable:
