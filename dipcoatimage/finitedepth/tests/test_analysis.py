@@ -13,6 +13,8 @@ from dipcoatimage.finitedepth.analysis import (
     SubstrateArgs,
     CoatingLayerArgs,
     ExperimentArgs,
+    AnalysisArgs,
+    ExperimentData,
 )
 
 
@@ -90,8 +92,8 @@ def test_CSVWriter(tmp_path):
 
 def test_ReferenceArgs():
     refargs = ReferenceArgs(
-        templateROI=(50, 50, 100, 100),
-        substrateROI=(100, 100, 200, 200),
+        templateROI=(200, 100, 1200, 500),
+        substrateROI=(300, 50, 1100, 600),
         draw_options=dict(substrateROI_thickness=2),
     )
     ref = refargs.as_reference(REF_IMG)
@@ -111,8 +113,8 @@ def test_ReferenceArgs():
 
 def test_SubstrateArgs():
     refargs = ReferenceArgs(
-        templateROI=(50, 50, 100, 100),
-        substrateROI=(100, 100, 200, 200),
+        templateROI=(200, 100, 1200, 500),
+        substrateROI=(300, 50, 1100, 600),
         draw_options=dict(substrateROI_thickness=2),
     )
     ref = refargs.as_reference(REF_IMG)
@@ -140,8 +142,8 @@ def test_SubstrateArgs():
 
 def test_CoatingLayerArgs():
     refargs = ReferenceArgs(
-        templateROI=(50, 50, 100, 100),
-        substrateROI=(100, 100, 200, 200),
+        templateROI=(200, 100, 1200, 500),
+        substrateROI=(300, 50, 1100, 600),
         draw_options=dict(substrateROI_thickness=2),
     )
     ref = refargs.as_reference(REF_IMG)
@@ -159,7 +161,7 @@ def test_CoatingLayerArgs():
     layerargs = CoatingLayerArgs(
         type=ImportArgs(name="RectLayerArea"),
         draw_options=dict(remove_substrate=True),
-        deco_options=dict(paint_Left=False)
+        deco_options=dict(paint_Left=False),
     )
     layer = layerargs.as_coatinglayer(COAT_IMG, subst)
 
@@ -180,27 +182,16 @@ def test_CoatingLayerArgs():
 
 def test_ExperimentArgs():
     refargs = ReferenceArgs(
-        templateROI=(50, 50, 100, 100),
-        substrateROI=(100, 100, 200, 200),
+        templateROI=(200, 100, 1200, 500),
+        substrateROI=(300, 50, 1100, 600),
         draw_options=dict(substrateROI_thickness=2),
     )
     ref = refargs.as_reference(REF_IMG)
 
-    substargs = SubstrateArgs(
-        type=ImportArgs(name="RectSubstrate"),
-        parameters=dict(
-            Canny=dict(threshold1=50.0, threshold2=150.0),
-            HoughLines=dict(rho=1.0, theta=0.01, threshold=100),
-        ),
-        draw_options=dict(draw_lines=False),
-    )
+    substargs = SubstrateArgs()
     subst = substargs.as_substrate(ref)
 
-    layerargs = CoatingLayerArgs(
-        type=ImportArgs(name="RectLayerArea"),
-        draw_options=dict(remove_substrate=True),
-        deco_options=dict(paint_Left=False)
-    )
+    layerargs = CoatingLayerArgs()
     exptargs = ExperimentArgs()
     expt = exptargs.as_experiment(subst, *layerargs.as_structured_args())
 
@@ -209,3 +200,108 @@ def test_ExperimentArgs():
         data_converter.unstructure(expt.parameters),
         exptargs.parameters,
     )
+
+
+def test_ExperimentData_analyze_singleimage(tmp_path):
+    refargs = ReferenceArgs(
+        templateROI=(200, 100, 1200, 500),
+        substrateROI=(300, 50, 1100, 600),
+        draw_options=dict(substrateROI_thickness=2),
+    )
+    substargs = SubstrateArgs()
+    layerargs = CoatingLayerArgs()
+    exptargs = ExperimentArgs()
+
+    data_path=os.path.join(tmp_path, "expt_data1.csv")
+    image_path=os.path.join(tmp_path, "expt_img1.png")
+    video_path=os.path.join(tmp_path, "expt_img1.mp4")
+    analargs = AnalysisArgs(
+        data_path=data_path,
+        image_path=image_path,
+        video_path=video_path,
+        fps=1,
+    )
+    data = ExperimentData(
+        ref_path=get_samples_path("ref1.png"),
+        coat_paths=[get_samples_path("coat1.png")],
+        reference=refargs,
+        substrate=substargs,
+        coatinglayer=layerargs,
+        experiment=exptargs,
+        analysis=analargs,
+    )
+    data.analyze("test_ExperimentData_analyze_singleimage")
+
+    assert os.path.exists(data_path)
+    assert os.path.exists(image_path)
+    assert os.path.exists(video_path)
+
+
+def test_ExperimentData_analyze_multiimage(tmp_path):
+    refargs = ReferenceArgs(
+        templateROI=(200, 100, 1200, 500),
+        substrateROI=(300, 50, 1100, 600),
+        draw_options=dict(substrateROI_thickness=2),
+    )
+    substargs = SubstrateArgs()
+    layerargs = CoatingLayerArgs()
+    exptargs = ExperimentArgs()
+
+    data_path=os.path.join(tmp_path, "expt_data1.csv")
+    image_path=os.path.join(tmp_path, "expt_img1.png")
+    video_path=os.path.join(tmp_path, "expt_img1.mp4")
+    analargs = AnalysisArgs(
+        data_path=data_path,
+        image_path=image_path,
+        video_path=video_path,
+        fps=1,
+    )
+    data = ExperimentData(
+        ref_path=get_samples_path("ref1.png"),
+        coat_paths=[get_samples_path("coat1.png"), get_samples_path("coat1.png")],
+        reference=refargs,
+        substrate=substargs,
+        coatinglayer=layerargs,
+        experiment=exptargs,
+        analysis=analargs,
+    )
+    data.analyze("test_ExperimentData_analyze_multiimage")
+
+    assert os.path.exists(data_path)
+    assert os.path.exists(image_path)
+    assert os.path.exists(video_path)
+
+
+def test_ExperimentData_analyze_video(tmp_path):
+    refargs = ReferenceArgs(
+        templateROI=(200, 100, 1200, 500),
+        substrateROI=(300, 50, 1100, 600),
+        draw_options=dict(substrateROI_thickness=2),
+    )
+    substargs = SubstrateArgs()
+    layerargs = CoatingLayerArgs()
+    exptargs = ExperimentArgs()
+
+    data_path=os.path.join(tmp_path, "expt_data1.csv")
+    image_path=os.path.join(tmp_path, "expt_img1.png")
+    video_path=os.path.join(tmp_path, "expt_img1.mp4")
+    analargs = AnalysisArgs(
+        data_path=data_path,
+        image_path=image_path,
+        video_path=video_path,
+        fps=1,
+    )
+    data = ExperimentData(
+        ref_path=get_samples_path("ref3.png"),
+        coat_paths=[get_samples_path("coat3.mp4")],
+        reference=refargs,
+        substrate=substargs,
+        coatinglayer=layerargs,
+        experiment=exptargs,
+        analysis=analargs,
+    )
+    data.analyze("test_ExperimentData_analyze_video")
+
+    assert os.path.exists(data_path)
+    assert os.path.exists(image_path)
+    assert os.path.exists(video_path)

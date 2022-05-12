@@ -230,22 +230,20 @@ class Analyzer:
     Attributes
     ==========
 
-    paths, experiment
-
-    datawriters
+    data_writers
         Dictionary of file extensions and their data writers.
 
-    videocodecs
+    video_codecs
         Dictionary of video extensions and their FourCC values.
 
     """
 
+    data_writers: Dict[str, Type[DataWriter]] = dict(csv=CSVWriter)
+    video_codecs: Dict[str, int] = dict(mp4=cv2.VideoWriter_fourcc(*"mp4v"))
+
     def __init__(self, paths: List[str], experiment: ExperimentBase):
         self.paths = paths
         self.experiment = experiment
-
-        self.datawriters: Dict[str, Type[DataWriter]] = dict(csv=CSVWriter)
-        self.videocodecs: Dict[str, int] = dict(mp4=cv2.VideoWriter_fourcc(*"mp4v"))
 
     def analyze(
         self,
@@ -262,7 +260,7 @@ class Analyzer:
         .. rubric:: Analysis data
 
         If *data_path* is passed, analysis result is saved as data file.
-        Data writer is searched from :attr:`datawriters` using file extension.
+        Data writer is searched from :attr:`data_writers` using file extension.
 
         If FPS value is nonzero, time value for each coating layer is
         automatically prepended to the row.
@@ -276,7 +274,7 @@ class Analyzer:
         .. rubric:: Visualization video
 
         If *video_path* is passed, visualization results are saved as video file.
-        FourCC codec value is searched from :attr:`videocodecs` using file
+        FourCC codec value is searched from :attr:`video_codecs` using file
         extension.
 
         .. rubric:: FPS
@@ -331,7 +329,7 @@ class Analyzer:
 
             _, data_ext = os.path.splitext(data_path)
             data_ext = data_ext.lstrip(os.path.extsep).lower()
-            writercls = self.datawriters.get(data_ext, None)
+            writercls = self.data_writers.get(data_ext, None)
             if writercls is None:
                 raise TypeError(f"Unsupported extension: {data_ext}")
             headers = [
@@ -365,7 +363,7 @@ class Analyzer:
 
             _, video_ext = os.path.splitext(video_path)
             video_ext = video_ext.lstrip(os.path.extsep).lower()
-            fourcc = self.videocodecs.get(video_ext, None)
+            fourcc = self.video_codecs.get(video_ext, None)
             if fourcc is None:
                 raise TypeError(f"Unsupported extension: {video_ext}")
 
@@ -378,7 +376,7 @@ class Analyzer:
 
         layer_gen = self.experiment.layer_generator()
         try:
-            for i, img in enumerate(tqdm(img_gen, total=total, desc=name)):
+            for i, img in enumerate(tqdm.tqdm(img_gen, total=total, desc=name)):
                 if img is None:
                     continue
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
