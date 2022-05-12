@@ -1,6 +1,6 @@
-================
-Dataclass Design
-================
+===================
+Designing Dataclass
+===================
 
 As shown in :doc:`defining-substrate` and other documents, user needs to define dataclasses and assign them to specific class attributes.
 This document explaines the steps to design the dataclass fully compatible with API.

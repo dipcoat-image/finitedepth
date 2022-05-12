@@ -4,7 +4,7 @@
 How-to guides
 =============
 
-In this document, informations to use DipcoatImage-FiniteDepth are provided.
+This document provides advanced examples.
 
 .. toctree::
    :maxdepth: 1

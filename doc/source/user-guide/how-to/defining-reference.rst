@@ -25,7 +25,7 @@ Defining reference class
 Reference class provides boilerplate to analyze the coated substrate image, and sometimes you may want to modify it.
 DipcoatImage-FiniteDepth provides base class which should be inherited to define new reference class.
 
-In this guide, a new class :class:`BinaryReference` will be defined from abstract base class.
+In this guide, a new class :class:`BinaryReference` will be defined from :class:`SubstrateReferenceBase` which is an abstract base class.
 It binarizes grayscale image with :func:`cv2.threshold`, whose parameters we will control.
 
 Importing parent class
@@ -122,7 +122,7 @@ Reference class uses slots for better performance.
 
 .. note::
    In fact, :class:`SubstrateReferenceBase` already supports binarization by Otsu's method and defines ``_binary_image`` slot for it.
-   We do not use it here to point out that slots must be defined for custom attribute.
+   In order to point out that slots must be defined for custom attribute, we did not use it here.
 
 Parameters and DrawOptions
 --------------------------

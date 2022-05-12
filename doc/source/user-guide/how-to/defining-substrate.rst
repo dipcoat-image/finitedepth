@@ -22,8 +22,8 @@ For example, :class:`RectSubstrate` detects the vertices of rectangular cross se
 To analyze the substrate with particular geometry, a new class dedicated to it needs to be defined.
 DipcoatImage-FiniteDepth provides base class which should be inherited to define new substrate class.
 
-In this guide, a new class :class:`CircularSubstrate` will be defined from abstract base class.
-It receives grayscale image and detects the center and radius of the substrate with circular cross section.
+In this guide, a new class :class:`CircularSubstrate` will be defined :class:`SubstrateBase` which is an abstract base class.
+It detects the center and the radius from the grayscale image of substrate with circular cross section.
 
 Importing parent class
 ======================
