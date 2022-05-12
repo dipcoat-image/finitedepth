@@ -60,7 +60,7 @@ import numpy as np
 import numpy.typing as npt
 import os
 import tqdm  # type: ignore
-from typing import List, Type, Optional, Union, Dict, Any
+from typing import List, Type, Optional, Union, Dict, Any, Tuple
 
 from .reference import SubstrateReferenceBase
 from .substrate import SubstrateBase
@@ -440,7 +440,7 @@ class ReferenceArgs:
         Class name defaults to ``SubstrateReference``.
 
     templateROI, substrateROI, parameters, draw_options
-        Arguments for reference class.
+        Data for arguments of reference class.
 
     Examples
     ========
@@ -471,8 +471,19 @@ class ReferenceArgs:
         if not self.type.name:
             self.type.name = "SubstrateReference"
 
-    def as_reference(self, img: npt.NDArray[np.uint8]) -> SubstrateReferenceBase:
-        """Construct the substrate reference instance."""
+    def as_structured_args(
+        self,
+    ) -> Tuple[Type[SubstrateReferenceBase], DataclassProtocol, DataclassProtocol]:
+        """
+        Structure the primitive data.
+
+        Returns
+        =======
+
+        (refcls, params, drawopts)
+            Type and arguments for reference class, structured from the data.
+
+        """
         name = self.type.name
         module = self.type.module
         refcls = import_variable(name, module)
@@ -487,6 +498,11 @@ class ReferenceArgs:
         drawopts = data_converter.structure(
             self.draw_options, refcls.DrawOptions  # type: ignore
         )
+        return (refcls, params, drawopts)
+
+    def as_reference(self, img: npt.NDArray[np.uint8]) -> SubstrateReferenceBase:
+        """Construct the substrate reference instance."""
+        refcls, params, drawopts = self.as_structured_args()
 
         ref = refcls(  # type: ignore
             img,
@@ -511,7 +527,7 @@ class SubstrateArgs:
         Class name defaults to ``Substrate``.
 
     parameters, draw_options
-        Arguments for substrate class.
+        Data for arguments of substrate class.
 
     Examples
     ========
@@ -557,8 +573,19 @@ class SubstrateArgs:
         if not self.type.name:
             self.type.name = "Substrate"
 
-    def as_substrate(self, ref: SubstrateReferenceBase) -> SubstrateBase:
-        """Construct the substrate instance."""
+    def as_structured_args(
+        self,
+    ) -> Tuple[Type[SubstrateBase], DataclassProtocol, DataclassProtocol]:
+        """
+        Structure the primitive data.
+
+        Returns
+        =======
+
+        (substcls, params, drawopts)
+            Type and arguments for substrate class, structured from the data.
+
+        """
         name = self.type.name
         module = self.type.module
         substcls = import_variable(name, module)
@@ -571,6 +598,11 @@ class SubstrateArgs:
         drawopts = data_converter.structure(
             self.draw_options, substcls.DrawOptions  # type: ignore
         )
+        return (substcls, params, drawopts)
+
+    def as_substrate(self, ref: SubstrateReferenceBase) -> SubstrateBase:
+        """Construct the substrate instance."""
+        substcls, params, drawopts = self.as_structured_args()
         subst = substcls(  # type: ignore
             ref,
             parameters=params,
@@ -592,7 +624,7 @@ class CoatingLayerArgs:
         Class name defaults to ``LayerArea``.
 
     parameters, draw_options, deco_options
-        Arguments for coating layer class.
+        Data for arguments of coating layer class.
 
     Examples
     ========
@@ -644,10 +676,21 @@ class CoatingLayerArgs:
         if not self.type.name:
             self.type.name = "LayerArea"
 
-    def as_coatinglayer(
-        self, img: npt.NDArray[np.uint8], subst: SubstrateBase
-    ) -> CoatingLayerBase:
-        """Construct the coating layer instance."""
+    def as_structured_args(
+        self,
+    ) -> Tuple[
+        Type[CoatingLayerBase], DataclassProtocol, DataclassProtocol, DataclassProtocol
+    ]:
+        """
+        Structure the primitive data.
+
+        Returns
+        =======
+
+        (layercls, params, drawopts, decoopts)
+            Type and arguments for coating layer class, structured from the data.
+
+        """
         name = self.type.name
         module = self.type.module
         layercls = import_variable(name, module)
@@ -663,6 +706,13 @@ class CoatingLayerArgs:
         decoopts = data_converter.structure(
             self.deco_options, layercls.DecoOptions  # type: ignore
         )
+        return (layercls, params, drawopts, decoopts)
+
+    def as_coatinglayer(
+        self, img: npt.NDArray[np.uint8], subst: SubstrateBase
+    ) -> CoatingLayerBase:
+        """Construct the coating layer instance."""
+        layercls, params, drawopts, decoopts = self.as_structured_args()
         layer = layercls(  # type: ignore
             img, subst, parameters=params, draw_options=drawopts, deco_options=decoopts
         )
@@ -682,7 +732,7 @@ class ExperimentArgs:
         Class name defaults to ``Experiment``.
 
     parameters
-        Arguments for experiment class.
+        Data for arguments of experiment class.
     """
 
     type: ImportArgs = dataclasses.field(default_factory=ImportArgs)
@@ -691,6 +741,28 @@ class ExperimentArgs:
     def __post_init__(self):
         if not self.type.name:
             self.type.name = "Experiment"
+
+    def as_structured_args(self) -> Tuple[Type[ExperimentBase], DataclassProtocol]:
+        """
+        Structure the primitive data.
+
+        Returns
+        =======
+
+        (exptcls, params)
+            Type and arguments for substrate class, structured from the data.
+
+        """
+        name = self.type.name
+        module = self.type.module
+        exptcls = import_variable(name, module)
+        if not (isinstance(exptcls, type) and issubclass(exptcls, ExperimentBase)):
+            raise TypeError(f"{exptcls} is not coating layer class.")
+
+        params = data_converter.structure(
+            self.parameters, exptcls.Parameters  # type: ignore
+        )
+        return (exptcls, params)
 
     def as_experiment(
         self,
@@ -701,15 +773,7 @@ class ExperimentArgs:
         layer_decooptions: Optional[DataclassProtocol] = None,
     ) -> ExperimentBase:
         """Construct the experiment instance."""
-        name = self.type.name
-        module = self.type.module
-        exptcls = import_variable(name, module)
-        if not (isinstance(exptcls, type) and issubclass(exptcls, ExperimentBase)):
-            raise TypeError(f"{exptcls} is not coating layer class.")
-
-        params = data_converter.structure(
-            self.parameters, exptcls.Parameters  # type: ignore
-        )
+        exptcls, params = self.as_structured_args()
         expt = exptcls(  # type: ignore
             subst,
             layer_type,
@@ -753,20 +817,7 @@ class ExperimentData:
         ref = self.reference.as_reference(refimg)
         subst = self.substrate.as_substrate(ref)
 
-        layercls = import_variable(
-            self.coatinglayer.type.name, self.coatinglayer.type.module
-        )
-        if not (isinstance(layercls, type) and issubclass(layercls, CoatingLayerBase)):
-            raise TypeError(f"{layercls} is not coating layer class.")
-        params = data_converter.structure(
-            self.parameters, layercls.Parameters  # type: ignore
-        )
-        drawopts = data_converter.structure(
-            self.draw_options, layercls.DrawOptions  # type: ignore
-        )
-        decoopts = data_converter.structure(
-            self.deco_options, layercls.DecoOptions  # type: ignore
-        )
+        layercls, params, drawopts, decoopts = self.coatinglayer.as_structured_args()
 
         expt = self.experiment.as_experiment(
             subst, layercls, params, drawopts, decoopts
