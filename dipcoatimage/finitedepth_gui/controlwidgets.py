@@ -293,6 +293,11 @@ class ReferenceWidget(QWidget):
         self.setCurrentDrawOptionsWidget(var)
         self.emitData()
 
+    @Slot(str)
+    def setReferencePath(self, path: str):
+        self.pathLineEdit().setText(path)
+        self.onPathEditFinished()
+
     @Slot()
     def onPathEditFinished(self):
         self.disconnectSignals()
@@ -309,10 +314,6 @@ class ReferenceWidget(QWidget):
             w, h = (img.shape[1], img.shape[0])
         self.templateROIWidget().setROIMaximum(w, h)
         self.substrateROIWidget().setROIMaximum(w, h)
-
-    def setReferencePath(self, path: str):
-        self.pathLineEdit().setText(path)
-        self.onPathEditFinished()
 
     def copyWidgetDataToDict(self, data: Dict[str, Any]):
         data["reference"]["type"]["name"] = (
@@ -384,9 +385,6 @@ class ReferenceWidget(QWidget):
         var = self.typeWidget().variable()
         self.setCurrentParametersWidget(var)
         self.setCurrentDrawOptionsWidget(var)
-
-        self.pathLineEdit().setText(refargs["path"])
-        self.updateROIMaximum()
 
         self.templateROIWidget().setROI(*refargs["templateROI"])
         self.substrateROIWidget().setROI(*refargs["substrateROI"])

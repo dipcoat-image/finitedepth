@@ -6,11 +6,12 @@ from dipcoatimage.finitedepth import (
     SubstrateReference,
     data_converter,
 )
-from dipcoatimage.finitedepth.experiment import ReferenceArgs
+from dipcoatimage.finitedepth.analysis import ReferenceArgs
 from dipcoatimage.finitedepth_gui.controlwidgets import (
     ReferenceWidget,
     ReferenceWidgetData,
 )
+from dipcoatimage.finitedepth.util import dict_includes
 from dipcoatimage.finitedepth_gui.workers import ReferenceWorker
 from PySide6.QtCore import Qt
 import pytest
@@ -21,19 +22,6 @@ REF_IMG = cv2.imread(REF_PATH)
 if REF_IMG is None:
     raise TypeError("Invalid reference image sample.")
 REF_IMG = cv2.cvtColor(REF_IMG, cv2.COLOR_BGR2RGB)
-
-
-def dict_includes(sup, sub):
-    for key, value in sub.items():
-        if key not in sup:
-            return False
-        if isinstance(value, dict):
-            if not dict_includes(sup[key], value):
-                return False
-        else:
-            if not value == sup[key]:
-                return False
-    return True
 
 
 @pytest.fixture
@@ -132,18 +120,16 @@ def test_ReferenceWidget_exclusiveButtons(qtbot):
 
 def test_ReferenceWidget_setReferenceArgs(qtbot, refwidget):
     refargs = ReferenceArgs(
-        path=REF_PATH,
         templateROI=(50, 50, 100, 100),
         substrateROI=(100, 100, 200, 200),
         draw_options=dict(substrateROI_thickness=2),
     )
+    refwidget.setReferencePath(REF_PATH)
     refwidget.setReferenceArgs(data_converter.unstructure(refargs))
 
     assert refwidget.typeWidget().variableComboBox().currentIndex() == -1
     assert refwidget.typeWidget().variableNameLineEdit().text() == refargs.type.name
     assert refwidget.typeWidget().moduleNameLineEdit().text() == refargs.type.module
-
-    assert refwidget.pathLineEdit().text() == refargs.path
 
     assert refwidget.templateROIWidget().roiMaximum() == (1407, 1125)
     assert refwidget.templateROIWidget().roiModel().roi() == refargs.templateROI

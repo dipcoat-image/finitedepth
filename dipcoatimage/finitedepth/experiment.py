@@ -2,252 +2,245 @@
 Experiment
 ==========
 
-:mod:`dipcoatimage.finitedepth.experiment` helps analyze the full dip coating
-experiment with finite-depth substrate.
+:mod:`dipcoatimage.finitedepth.experiment` provides factory to construct coating
+layer objects.
 
-Single experiment consists of:
+A finite-depth dip coating experiment consists of:
 
-    * Bare substrate image file
-    * Coated substrate image file(s), or video file
+* Bare substrate image
+* Coated substrate images
 
-This module provides factory to handle consecutive images of coated substrate
-with single image of bare substrate. Also, it serializes the parameters to
-analyze the images and to save the result.
+With each coated substrate image, experiment class constructs coating layer
+instance using common bare substrate instance.
 
-Analysis factory
-----------------
+Base class
+----------
 
-Data serialization
-------------------
-
-.. autoclass:: ImportArgs
+.. autoclass:: ExperimentError
    :members:
 
-.. autoclass:: ReferenceArgs
+.. autoclass:: ExperimentBase
    :members:
 
-.. autoclass:: SubstrateArgs
+Implementation
+--------------
+
+.. autoclass:: ExperimentParameters
    :members:
 
-.. autoclass:: CoatingLayerArgs
+.. autoclass:: Experiment
    :members:
 
 """
 
-import cv2  # type: ignore
+import abc
 import dataclasses
+import numpy as np
+import numpy.typing as npt
+from typing import TypeVar, Generic, Type, Optional, Generator
 
-from .reference import SubstrateReferenceBase
 from .substrate import SubstrateBase
-from .util import import_variable, data_converter, OptionalROI
+from .coatinglayer import CoatingLayerBase
+from .util import DataclassProtocol
 
 
 __all__ = [
-    "ImportArgs",
-    "ReferenceArgs",
-    "SubstrateArgs",
-    "CoatingLayerArgs",
+    "ExperimentError",
+    "ExperimentBase",
+    "ExperimentParameters",
+    "Experiment",
 ]
 
 
-@dataclasses.dataclass
-class ImportArgs:
-    """Arguments to import the variable from module."""
-
-    name: str = ""
-    module: str = "dipcoatimage.finitedepth"
+ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
 
 
-@dataclasses.dataclass
-class ReferenceArgs:
+class ExperimentError(Exception):
+    """Base class for error from :class:`ExperimentBase`."""
+
+    pass
+
+
+class ExperimentBase(abc.ABC, Generic[ParametersType]):
     """
-    Data for the concrete instance of :class:`SubstrateReferenceBase`.
+    Abstract base class for finite-depth dip coating experiment.
+
+    Experiment consists of a bare substrate image and coated substrate images.
+    Experiment class is a factory which constructs :class:`CoatingLayerBase`
+    instances from the data.
+
+    .. rubric:: Constructor
+
+    Constructor signature must not be modified because high-level API use factory
+    to generate experiment instances. Additional parameters can be introduced
+    by definig class attribute :attr:`Parameters``.
+
+    .. rubric:: Parameters
+
+    Concrete class must have :attr:`Parameters` which returns dataclass type.
+    Its instance is passed to the constructor at instance initialization, and can
+    be accessed by :attr:`parameters`.
+
+    .. rubric:: Sanity check
+
+    Validity of the parameters can be checked by :meth:`verify` or :meth:`valid`.
+    Their result can be implemented by defining :meth:`examine`.
+
+    .. rubric:: Coating layer construction
+
+    Coating layer is constructed by :meth:`construct_coatinglayer`. When
+    analyzing consecutive images, coating layer parameters may need to be
+    different for each instance. To support this, image number and previous
+    instance can be passed. Subclass may override this method to apply different
+    parameters.
+
+    :meth:`layer_generator` returns a generator which receives coated substrate
+    image and automatically calls :meth:`construct_coatinglayer` with image
+    number and previous instance.
 
     Parameters
     ==========
 
-    type
-        Information to import reference class.
-        Class name defaults to ``SubstrateReference``.
+    substrate
+        Substrate instance.
 
-    path
-        Path to the reference image file.
+    layer_type
+        Concrete subclass of :class:`CoatingLayerBase`.
 
-    templateROI, substrateROI, parameters, draw_options
-        Arguments for :class:`SubstrateReferenceBase` instance.
+    layer_parameters, layer_drawoptions, layer_decooptions
+        *parameters*, *draw_options*, and *deco_options* arguments for
+        *layer_type*.
 
-    Examples
-    ========
-
-    .. plot::
-       :include-source:
-
-       >>> import matplotlib.pyplot as plt #doctest: +SKIP
-       >>> from dipcoatimage.finitedepth import get_samples_path
-       >>> from dipcoatimage.finitedepth.experiment import ReferenceArgs
-       >>> from dipcoatimage.finitedepth.util import cwd
-       >>> refargs = ReferenceArgs(path="ref1.png",
-       ...                         templateROI=(200, 100, 1200, 500),
-       ...                         substrateROI=(300, 50, 1100, 600))
-       >>> with cwd(get_samples_path()):
-       ...     ref = refargs.as_reference()
-       >>> plt.imshow(ref.draw()) #doctest: +SKIP
+    parameters
+        Additional parameters.
 
     """
 
-    type: ImportArgs = dataclasses.field(default_factory=ImportArgs)
-    path: str = ""
-    templateROI: OptionalROI = (0, 0, None, None)
-    substrateROI: OptionalROI = (0, 0, None, None)
-    parameters: dict = dataclasses.field(default_factory=dict)
-    draw_options: dict = dataclasses.field(default_factory=dict)
+    Parameters: Type[ParametersType]
 
-    def __post_init__(self):
-        if not self.type.name:
-            self.type.name = "SubstrateReference"
+    def __init__(
+        self,
+        substrate: SubstrateBase,
+        layer_type: Type[CoatingLayerBase],
+        layer_parameters: Optional[DataclassProtocol] = None,
+        layer_drawoptions: Optional[DataclassProtocol] = None,
+        layer_decooptions: Optional[DataclassProtocol] = None,
+        *,
+        parameters: Optional[ParametersType] = None,
+    ):
+        self.substrate = substrate
+        self.layer_type = layer_type
+        self.layer_parameters = layer_parameters
+        self.layer_drawoptions = layer_drawoptions
+        self.layer_decooptions = layer_decooptions
 
-    def as_reference(self) -> SubstrateReferenceBase:
-        """Construct the substrate reference instance."""
-        name = self.type.name
-        module = self.type.module
-        refcls = import_variable(name, module)
-        if not (
-            isinstance(refcls, type) and issubclass(refcls, SubstrateReferenceBase)
-        ):
-            raise TypeError(f"{refcls} is not substrate reference class.")
+        if parameters is None:
+            self.parameters = self.Parameters()
+        else:
+            self.parameters = dataclasses.replace(parameters)
 
-        img = cv2.imread(self.path)
-        if img is None:
-            raise TypeError(f"Invalid path: {self.path}")
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-        params = data_converter.structure(
-            self.parameters, refcls.Parameters  # type: ignore
-        )
-        drawopts = data_converter.structure(
-            self.draw_options, refcls.DrawOptions  # type: ignore
-        )
-
-        ref = refcls(  # type: ignore
-            img,
-            self.templateROI,
-            self.substrateROI,
-            parameters=params,
-            draw_options=drawopts,
-        )
-        return ref
-
-
-@dataclasses.dataclass
-class SubstrateArgs:
-    """
-    Data for the concrete instance of :class:`SubstrateBase`.
-
-    Parameters
-    ==========
-
-    type
-        Information to import substrate class.
-        Class name defaults to ``Substrate``.
-
-    parameters, draw_options
-        Arguments for :class:`SubstrateBase` instance.
-
-    Examples
-    ========
-
-    Construct substrate reference instance first.
-
-    .. plot::
-       :include-source:
-       :context: reset
-
-       >>> import matplotlib.pyplot as plt #doctest: +SKIP
-       >>> from dipcoatimage.finitedepth import get_samples_path, data_converter
-       >>> from dipcoatimage.finitedepth.experiment import (ReferenceArgs,
-       ...     SubstrateArgs)
-       >>> from dipcoatimage.finitedepth.util import cwd
-       >>> refargs = ReferenceArgs(path="ref1.png",
-       ...                         templateROI=(200, 100, 1200, 500),
-       ...                         substrateROI=(300, 50, 1100, 600))
-       >>> with cwd(get_samples_path()):
-       ...     ref = refargs.as_reference()
-
-    Construct substrate instance from the data.
-
-    .. plot::
-       :include-source:
-       :context: close-figs
-
-       >>> params = {"Canny": {"threshold1": 50, "threshold2": 150},
-       ...           "HoughLines": {"rho": 1, "theta": 0.01, "threshold": 100}}
-       >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)
-       >>> substargs = data_converter.structure(arg, SubstrateArgs)
-       >>> subst = substargs.as_substrate(ref)
-       >>> plt.imshow(subst.draw()) #doctest: +SKIP
-
-    """
-
-    type: ImportArgs = dataclasses.field(default_factory=ImportArgs)
-    parameters: dict = dataclasses.field(default_factory=dict)
-    draw_options: dict = dataclasses.field(default_factory=dict)
-
-    def __post_init__(self):
-        if not self.type.name:
-            self.type.name = "Substrate"
-
-    def as_substrate(self, ref: SubstrateReferenceBase) -> SubstrateBase:
+    @abc.abstractmethod
+    def examine(self) -> Optional[ExperimentError]:
         """
-        Construct the substrate instance.
+        Check the sanity of parameters.
+
+        If the instance is invalid, return error instance.
+        Else, return :obj:`None`.
+        """
+
+    def verify(self):
+        """
+        Verify if all parameters are suitably set by raising error on failure.
+
+        To implement sanity check for concrete class, define :meth:`examine`.
+        """
+        err = self.examine()
+        if err is not None:
+            raise err
+
+    def valid(self) -> bool:
+        """
+        Verify if all parameters are suitably set by returning boolean value.
+
+        To implement sanity check for concrete class, define :meth:`examine`.
+        """
+        err = self.examine()
+        ret = True
+        if err is not None:
+            ret = False
+        return ret
+
+    def construct_coatinglayer(
+        self,
+        image: npt.NDArray[np.uint8],
+        i: int = 0,
+        prev: Optional[CoatingLayerBase] = None,
+    ) -> CoatingLayerBase:
+        """
+        Construct instance of :attr:`layer_type` with *image* and attributes.
+
+        *i* and *prev* are passed to allow passing different parameters for
+        each coating layer instance. Subclass may override this method modify
+        the parameters.
 
         Parameters
         ==========
 
-        img
-            Substrate reference instance.
+        image
+            *image* argument for coating layer class.
+
+        i
+            Frame number for *img*.
+
+        prev
+            Previous coating layer instance.
 
         """
-        name = self.type.name
-        module = self.type.module
-        substcls = import_variable(name, module)
-        if not (isinstance(substcls, type) and issubclass(substcls, SubstrateBase)):
-            raise TypeError(f"{substcls} is not substrate class.")
-
-        params = data_converter.structure(
-            self.parameters, substcls.Parameters  # type: ignore
+        ret = self.layer_type(
+            image,
+            self.substrate,
+            parameters=self.layer_parameters,
+            draw_options=self.layer_drawoptions,
+            deco_options=self.layer_decooptions,
         )
-        drawopts = data_converter.structure(
-            self.draw_options, substcls.DrawOptions  # type: ignore
-        )
-        subst = substcls(  # type: ignore
-            ref,
-            parameters=params,
-            draw_options=drawopts,
-        )
-        return subst
+        return ret
+
+    def layer_generator(
+        self,
+    ) -> Generator[CoatingLayerBase, npt.NDArray[np.uint8], None]:
+        """
+        Generator which receives coated substrate image to yield instance of
+        :attr:`layer_type`.
+
+        As new image is sent, coating layer instance is created using
+        :meth:`construct_coatinglayer` with the number of images passed so far
+        and previous coating layer instance.
+
+        """
+        i = 0
+        prev = None
+        while True:
+            img = yield  # type: ignore
+            layer = self.construct_coatinglayer(img, i, prev)
+            yield layer
+            prev = layer
+            i += 1
 
 
-@dataclasses.dataclass
-class CoatingLayerArgs:
+@dataclasses.dataclass(frozen=True)
+class ExperimentParameters:
+    """Additional parameters for :class:`Experiment` instance."""
+
+    pass
+
+
+class Experiment(ExperimentBase[ExperimentParameters]):
     """
-    Data for the concrete instance of :class:`CoatingLayerBase`.
+    Simplest experiment class with no parameter.
 
-    Parameters
-    ==========
-
-    type
-        Information to import substrate class.
-        Class name defaults to ``LayerArea``.
-
-    parameters, draw_options, deco_options
-        Arguments for :class:`CoatingLayerBase` instance.
     """
 
-    type: ImportArgs = dataclasses.field(default_factory=ImportArgs)
-    parameters: dict = dataclasses.field(default_factory=dict)
-    draw_options: dict = dataclasses.field(default_factory=dict)
-    deco_options: dict = dataclasses.field(default_factory=dict)
+    Parameters = ExperimentParameters
 
-    def __post_init__(self):
-        if not self.type.name:
-            self.type.name = "LayerArea"
+    def examine(self) -> None:
+        return None

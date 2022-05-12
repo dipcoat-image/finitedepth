@@ -10,7 +10,8 @@ from dipcoatimage.finitedepth import (
     RectLayerArea,
     data_converter,
 )
-from dipcoatimage.finitedepth.experiment import CoatingLayerArgs, ImportArgs
+from dipcoatimage.finitedepth.analysis import CoatingLayerArgs, ImportArgs
+from dipcoatimage.finitedepth.util import dict_includes
 from dipcoatimage.finitedepth_gui.controlwidgets import (
     CoatingLayerWidget,
 )
@@ -36,19 +37,6 @@ LAYER_IMG = cv2.imread(LAYER_PATH)
 if LAYER_IMG is None:
     raise TypeError("Invalid coated substrate image sample.")
 LAYER = RectLayerArea(LAYER_IMG, SUBST)
-
-
-def dict_includes(sup, sub):
-    for key, value in sub.items():
-        if key not in sup:
-            return False
-        if isinstance(value, dict):
-            if not dict_includes(sup[key], value):
-                return False
-        else:
-            if not value == sup[key]:
-                return False
-    return True
 
 
 @pytest.fixture

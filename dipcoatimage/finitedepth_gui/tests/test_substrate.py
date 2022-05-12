@@ -8,11 +8,12 @@ from dipcoatimage.finitedepth import (
     RectSubstrate,
     data_converter,
 )
-from dipcoatimage.finitedepth.experiment import SubstrateArgs, ImportArgs
+from dipcoatimage.finitedepth.analysis import SubstrateArgs, ImportArgs
 from dipcoatimage.finitedepth_gui.controlwidgets import (
     SubstrateWidget,
     SubstrateWidgetData,
 )
+from dipcoatimage.finitedepth.util import dict_includes
 from dipcoatimage.finitedepth_gui.workers import SubstrateWorker
 import numpy as np
 import pytest
@@ -32,19 +33,6 @@ params = data_converter.structure(
     RectSubstrate.Parameters,
 )
 SUBST = RectSubstrate(REF, parameters=params)
-
-
-def dict_includes(sup, sub):
-    for key, value in sub.items():
-        if key not in sup:
-            return False
-        if isinstance(value, dict):
-            if not dict_includes(sup[key], value):
-                return False
-        else:
-            if not value == sup[key]:
-                return False
-    return True
 
 
 @pytest.fixture
