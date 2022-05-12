@@ -22,6 +22,9 @@ Core utilities
 .. automodule:: dipcoatimage.finitedepth.util.parameters
    :members:
 
+.. automodule:: dipcoatimage.finitedepth.util.testing
+   :members:
+
 """
 
 from .dataclass import data_converter
@@ -34,6 +37,7 @@ from .parameters import (
     HoughLinesParameters,
     BinaryImageDrawMode,
 )
+from .testing import dict_includes
 
 __all__ = [
     "data_converter",
@@ -49,4 +53,5 @@ __all__ = [
     "CannyParameters",
     "HoughLinesParameters",
     "BinaryImageDrawMode",
+    "dict_includes",
 ]

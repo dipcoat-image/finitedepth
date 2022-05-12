@@ -11,6 +11,7 @@ from dipcoatimage.finitedepth_gui.controlwidgets import (
     ReferenceWidget,
     ReferenceWidgetData,
 )
+from dipcoatimage.finitedepth.util import dict_includes
 from dipcoatimage.finitedepth_gui.workers import ReferenceWorker
 from PySide6.QtCore import Qt
 import pytest
@@ -21,19 +22,6 @@ REF_IMG = cv2.imread(REF_PATH)
 if REF_IMG is None:
     raise TypeError("Invalid reference image sample.")
 REF_IMG = cv2.cvtColor(REF_IMG, cv2.COLOR_BGR2RGB)
-
-
-def dict_includes(sup, sub):
-    for key, value in sub.items():
-        if key not in sup:
-            return False
-        if isinstance(value, dict):
-            if not dict_includes(sup[key], value):
-                return False
-        else:
-            if not value == sup[key]:
-                return False
-    return True
 
 
 @pytest.fixture
