@@ -212,9 +212,9 @@ def test_ExperimentData_analyze_singleimage(tmp_path):
     layerargs = CoatingLayerArgs()
     exptargs = ExperimentArgs()
 
-    data_path=os.path.join(tmp_path, "expt_data1.csv")
-    image_path=os.path.join(tmp_path, "expt_img1.png")
-    video_path=os.path.join(tmp_path, "expt_img1.mp4")
+    data_path = os.path.join(tmp_path, "expt_data1.csv")
+    image_path = os.path.join(tmp_path, "expt_img1.png")
+    video_path = os.path.join(tmp_path, "expt_img1.mp4")
     analargs = AnalysisArgs(
         data_path=data_path,
         image_path=image_path,
@@ -247,9 +247,9 @@ def test_ExperimentData_analyze_multiimage(tmp_path):
     layerargs = CoatingLayerArgs()
     exptargs = ExperimentArgs()
 
-    data_path=os.path.join(tmp_path, "expt_data1.csv")
-    image_path=os.path.join(tmp_path, "expt_img1.png")
-    video_path=os.path.join(tmp_path, "expt_img1.mp4")
+    data_path = os.path.join(tmp_path, "expt_data1.csv")
+    image_path = os.path.join(tmp_path, "expt_img1.png")
+    video_path = os.path.join(tmp_path, "expt_img1.mp4")
     analargs = AnalysisArgs(
         data_path=data_path,
         image_path=image_path,
@@ -282,9 +282,9 @@ def test_ExperimentData_analyze_video(tmp_path):
     layerargs = CoatingLayerArgs()
     exptargs = ExperimentArgs()
 
-    data_path=os.path.join(tmp_path, "expt_data1.csv")
-    image_path=os.path.join(tmp_path, "expt_img1.png")
-    video_path=os.path.join(tmp_path, "expt_img1.mp4")
+    data_path = os.path.join(tmp_path, "expt_data1.csv")
+    image_path = os.path.join(tmp_path, "expt_img1.png")
+    video_path = os.path.join(tmp_path, "expt_img1.mp4")
     analargs = AnalysisArgs(
         data_path=data_path,
         image_path=image_path,
