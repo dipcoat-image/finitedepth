@@ -451,11 +451,9 @@ class ReferenceArgs:
        >>> import cv2
        >>> from dipcoatimage.finitedepth import get_samples_path
        >>> from dipcoatimage.finitedepth.analysis import ReferenceArgs
-       >>> from dipcoatimage.finitedepth.util import cwd
        >>> refargs = ReferenceArgs(templateROI=(200, 100, 1200, 500),
        ...                         substrateROI=(300, 50, 1100, 600))
-       >>> with cwd(get_samples_path()):
-       ...     ref = refargs.as_reference(cv2.imread("ref1.png"))
+       >>> ref = refargs.as_reference(cv2.imread(get_samples_path("ref1.png")))
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
