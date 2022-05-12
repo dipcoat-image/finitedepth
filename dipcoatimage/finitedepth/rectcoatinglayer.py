@@ -121,37 +121,43 @@ class RectCoatingLayerBase(
         elements combined to represent coating layer regions.
 
         """
-        h, w = self.image.shape[:2]
-        ret = np.full((h, w), self.Region_Background)
+        if not hasattr(self, "_labelled_layer"):
+            h, w = self.image.shape[:2]
+            ret = np.full((h, w), self.Region_Background)
 
-        mask = cv2.bitwise_not(self.extract_layer()).astype(bool)
-        row, col = np.where(mask)
-        points = np.stack([col, row], axis=1)
+            mask = cv2.bitwise_not(self.extract_layer()).astype(bool)
+            row, col = np.where(mask)
+            points = np.stack([col, row], axis=1)
 
-        p0 = np.array(self.substrate_point())
-        A = p0 + np.array(self.substrate.vertex_points()[self.substrate.Point_TopLeft])
-        B = p0 + np.array(
-            self.substrate.vertex_points()[self.substrate.Point_BottomLeft]
-        )
-        C = p0 + np.array(
-            self.substrate.vertex_points()[self.substrate.Point_BottomRight]
-        )
-        D = p0 + np.array(self.substrate.vertex_points()[self.substrate.Point_TopRight])
+            p0 = np.array(self.substrate_point())
+            A = p0 + np.array(
+                self.substrate.vertex_points()[self.substrate.Point_TopLeft]
+            )
+            B = p0 + np.array(
+                self.substrate.vertex_points()[self.substrate.Point_BottomLeft]
+            )
+            C = p0 + np.array(
+                self.substrate.vertex_points()[self.substrate.Point_BottomRight]
+            )
+            D = p0 + np.array(
+                self.substrate.vertex_points()[self.substrate.Point_TopRight]
+            )
 
-        left_of_AB = np.cross(B - A, points - A) >= 0
-        under_BC = np.cross(C - B, points - B) >= 0
-        right_of_CD = np.cross(D - C, points - C) >= 0
+            left_of_AB = np.cross(B - A, points - A) >= 0
+            under_BC = np.cross(C - B, points - B) >= 0
+            right_of_CD = np.cross(D - C, points - C) >= 0
 
-        left_x, left_y = points[left_of_AB].T
-        ret[left_y, left_x] |= self.Region_Left
+            left_x, left_y = points[left_of_AB].T
+            ret[left_y, left_x] |= self.Region_Left
 
-        bottom_x, bottom_y = points[under_BC].T
-        ret[bottom_y, bottom_x] |= self.Region_Bottom
+            bottom_x, bottom_y = points[under_BC].T
+            ret[bottom_y, bottom_x] |= self.Region_Bottom
 
-        right_x, right_y = points[right_of_CD].T
-        ret[right_y, right_x] |= self.Region_Right
+            right_x, right_y = points[right_of_CD].T
+            ret[right_y, right_x] |= self.Region_Right
+            self._labelled_layer = ret
 
-        return ret
+        return self._labelled_layer
 
 
 @dataclasses.dataclass

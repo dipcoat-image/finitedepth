@@ -61,5 +61,5 @@ To know how to define new abstract class, :class:`.RectLayerArea` can serve as a
 
 .. note::
 
-   Do not use :obj:`typing.TypeAlias` for type variable values in class attribute definition, e.g. ``Paarameters``.
+   Do not use :obj:`typing.TypeAlias` for type variable values in class attribute definition, e.g. ``Parameters``.
    It breaks type inference.
