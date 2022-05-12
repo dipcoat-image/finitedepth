@@ -51,7 +51,7 @@ def test_CSVWriter(tmp_path):
 
     assert os.path.exists(datapath)
 
-    with open(datapath, 'r') as datafile:
+    with open(datapath, "r") as datafile:
         reader = csv.reader(datafile)
         data_headers = next(reader)
         data_row1 = next(reader)

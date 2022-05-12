@@ -439,9 +439,6 @@ class ReferenceArgs:
         Information to import reference class.
         Class name defaults to ``SubstrateReference``.
 
-    path
-        Path to the reference image file.
-
     templateROI, substrateROI, parameters, draw_options
         Arguments for reference class.
 
@@ -451,21 +448,20 @@ class ReferenceArgs:
     .. plot::
        :include-source:
 
+       >>> import cv2
        >>> from dipcoatimage.finitedepth import get_samples_path
        >>> from dipcoatimage.finitedepth.analysis import ReferenceArgs
        >>> from dipcoatimage.finitedepth.util import cwd
-       >>> refargs = ReferenceArgs(path="ref1.png",
-       ...                         templateROI=(200, 100, 1200, 500),
+       >>> refargs = ReferenceArgs(templateROI=(200, 100, 1200, 500),
        ...                         substrateROI=(300, 50, 1100, 600))
        >>> with cwd(get_samples_path()):
-       ...     ref = refargs.as_reference()
+       ...     ref = refargs.as_reference(cv2.imread("ref1.png"))
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
     """
 
     type: ImportArgs = dataclasses.field(default_factory=ImportArgs)
-    path: str = ""
     templateROI: OptionalROI = (0, 0, None, None)
     substrateROI: OptionalROI = (0, 0, None, None)
     parameters: dict = dataclasses.field(default_factory=dict)
@@ -475,7 +471,7 @@ class ReferenceArgs:
         if not self.type.name:
             self.type.name = "SubstrateReference"
 
-    def as_reference(self) -> SubstrateReferenceBase:
+    def as_reference(self, img: npt.NDArray[np.uint8]) -> SubstrateReferenceBase:
         """Construct the substrate reference instance."""
         name = self.type.name
         module = self.type.module
@@ -484,11 +480,6 @@ class ReferenceArgs:
             isinstance(refcls, type) and issubclass(refcls, SubstrateReferenceBase)
         ):
             raise TypeError(f"{refcls} is not substrate reference class.")
-
-        img = cv2.imread(self.path)
-        if img is None:
-            raise TypeError(f"Invalid path: {self.path}")
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         params = data_converter.structure(
             self.parameters, refcls.Parameters  # type: ignore
@@ -531,14 +522,14 @@ class SubstrateArgs:
        :include-source:
        :context: reset
 
+       >>> import cv2
        >>> from dipcoatimage.finitedepth import get_samples_path
        >>> from dipcoatimage.finitedepth.analysis import ReferenceArgs
        >>> from dipcoatimage.finitedepth.util import cwd
-       >>> refargs = ReferenceArgs(path="ref1.png",
-       ...                         templateROI=(200, 100, 1200, 500),
+       >>> refargs = ReferenceArgs(templateROI=(200, 100, 1200, 500),
        ...                         substrateROI=(300, 50, 1100, 600))
        >>> with cwd(get_samples_path()):
-       ...     ref = refargs.as_reference()
+       ...     ref = refargs.as_reference(cv2.imread("ref1.png"))
 
     Construct substrate instance from the data.
 
@@ -612,15 +603,15 @@ class CoatingLayerArgs:
        :include-source:
        :context: reset
 
+       >>> import cv2
        >>> from dipcoatimage.finitedepth import get_samples_path, data_converter
        >>> from dipcoatimage.finitedepth.analysis import (ReferenceArgs,
        ...     SubstrateArgs)
        >>> from dipcoatimage.finitedepth.util import cwd
-       >>> refargs = ReferenceArgs(path="ref1.png",
-       ...                         templateROI=(200, 100, 1200, 500),
+       >>> refargs = ReferenceArgs(templateROI=(200, 100, 1200, 500),
        ...                         substrateROI=(300, 50, 1100, 600))
        >>> with cwd(get_samples_path()):
-       ...     ref = refargs.as_reference()
+       ...     ref = refargs.as_reference(cv2.imread("ref1.png"))
        >>> params = {"Canny": {"threshold1": 50, "threshold2": 150},
        ...           "HoughLines": {"rho": 1, "theta": 0.01, "threshold": 100}}
        >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)
@@ -748,7 +739,8 @@ class ExperimentData:
     Class which wraps every information to construct and analyze the experiment.
     """
 
-    paths: List[str] = dataclasses.field(default_factory=list)
+    ref_path: str = ""
+    coat_paths: List[str] = dataclasses.field(default_factory=list)
     reference: ReferenceArgs = dataclasses.field(default_factory=ReferenceArgs)
     substrate: SubstrateArgs = dataclasses.field(default_factory=SubstrateArgs)
     coatinglayer: CoatingLayerArgs = dataclasses.field(default_factory=CoatingLayerArgs)
@@ -757,7 +749,8 @@ class ExperimentData:
 
     def analyze(self, name: str = ""):
         """Analyze and save the data."""
-        ref = self.reference.as_reference()
+        refimg = cv2.cvtColor(cv2.imread(self.ref_path), cv2.COLOR_BGR2RGB)
+        ref = self.reference.as_reference(refimg)
         subst = self.substrate.as_substrate(ref)
 
         layercls = import_variable(
@@ -778,7 +771,7 @@ class ExperimentData:
         expt = self.experiment.as_experiment(
             subst, layercls, params, drawopts, decoopts
         )
-        analyzer = Analyzer(self.paths, expt)
+        analyzer = Analyzer(self.coat_paths, expt)
 
         analyzer.analyze(
             self.analysis.data_path,
