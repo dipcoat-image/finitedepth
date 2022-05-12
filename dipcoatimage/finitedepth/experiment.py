@@ -52,6 +52,7 @@ __all__ = [
 ]
 
 
+CoatingLayerType = TypeVar("CoatingLayerType", bound=CoatingLayerBase)
 ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
 
 
@@ -61,7 +62,7 @@ class ExperimentError(Exception):
     pass
 
 
-class ExperimentBase(abc.ABC, Generic[ParametersType]):
+class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
     """
     Abstract base class for finite-depth dip coating experiment.
 
@@ -121,7 +122,7 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
     def __init__(
         self,
         substrate: SubstrateBase,
-        layer_type: Type[CoatingLayerBase],
+        layer_type: Type[CoatingLayerType],
         layer_parameters: Optional[DataclassProtocol] = None,
         layer_drawoptions: Optional[DataclassProtocol] = None,
         layer_decooptions: Optional[DataclassProtocol] = None,
@@ -130,9 +131,21 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
     ):
         self.substrate = substrate
         self.layer_type = layer_type
-        self.layer_parameters = layer_parameters
-        self.layer_drawoptions = layer_drawoptions
-        self.layer_decooptions = layer_decooptions
+
+        if layer_parameters is None:
+            self.layer_parameters = self.layer_type.Parameters()
+        else:
+            self.layer_parameters = dataclasses.replace(layer_parameters)
+
+        if layer_drawoptions is None:
+            self.layer_drawoptions = self.layer_type.DrawOptions()
+        else:
+            self.layer_drawoptions = dataclasses.replace(layer_drawoptions)
+
+        if layer_decooptions is None:
+            self.layer_decooptions = self.layer_type.DecoOptions()
+        else:
+            self.layer_decooptions = dataclasses.replace(layer_decooptions)
 
         if parameters is None:
             self.parameters = self.Parameters()
@@ -234,7 +247,7 @@ class ExperimentParameters:
     pass
 
 
-class Experiment(ExperimentBase[ExperimentParameters]):
+class Experiment(ExperimentBase[CoatingLayerBase, ExperimentParameters]):
     """
     Simplest experiment class with no parameter.
 
