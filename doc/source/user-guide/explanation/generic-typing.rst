@@ -20,10 +20,12 @@ We say that their generic patterns are ``Generic[ParametersType, DrawOptionsType
 
 :class:`.CoatingLayerBase` has five type variables; additional three are ``SubstrateType``, ``DecoOptionsType`` and ``DataType``.
 
+:class:`.ExperimentBase` has two type variables; ``CoatingLayerType`` and ``ParametersType``.
+
 Concrete class
 --------------
 
-:class:`.SubstrateReference` and :class:`.Substrate` are concrete classes which fully implement their own base class.
+:class:`.SubstrateReference`, :class:`.Substrate` and :class:`.Experiment` are concrete classes which fully implement their own base class.
 This means that they no longer have type variables.
 
 For example, :class:`.Substrate` has :class:`SubstrateParameters <substrate.SubstrateParameters>` for ``ParametersType`` and :class:`SubstrateDrawOptions <substrate.SubstrateDrawOptions>` for ``DrawOptionsType``,
