@@ -345,8 +345,8 @@ class CoatingLayerBase(
 
             # remove the area outside of the ROI
             image[:y0, :] = 255
-            image[:, :x0] = 255
-            image[:, x1:] = 255
+            image[:y1, :x0] = 255
+            image[:y1, x1:] = 255
             self._extracted_layer = image
         return self._extracted_layer
 
