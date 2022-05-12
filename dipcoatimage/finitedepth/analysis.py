@@ -539,11 +539,9 @@ class SubstrateArgs:
        >>> import cv2
        >>> from dipcoatimage.finitedepth import get_samples_path
        >>> from dipcoatimage.finitedepth.analysis import ReferenceArgs
-       >>> from dipcoatimage.finitedepth.util import cwd
        >>> refargs = ReferenceArgs(templateROI=(200, 100, 1200, 500),
        ...                         substrateROI=(300, 50, 1100, 600))
-       >>> with cwd(get_samples_path()):
-       ...     ref = refargs.as_reference(cv2.imread("ref1.png"))
+       >>> ref = refargs.as_reference(cv2.imread(get_samples_path("ref1.png")))
 
     Construct substrate instance from the data.
 
@@ -637,11 +635,9 @@ class CoatingLayerArgs:
        >>> from dipcoatimage.finitedepth import get_samples_path, data_converter
        >>> from dipcoatimage.finitedepth.analysis import (ReferenceArgs,
        ...     SubstrateArgs)
-       >>> from dipcoatimage.finitedepth.util import cwd
        >>> refargs = ReferenceArgs(templateROI=(200, 100, 1200, 500),
        ...                         substrateROI=(300, 50, 1100, 600))
-       >>> with cwd(get_samples_path()):
-       ...     ref = refargs.as_reference(cv2.imread("ref1.png"))
+       >>> ref = refargs.as_reference(cv2.imread(get_samples_path("ref1.png")))
        >>> params = {"Canny": {"threshold1": 50, "threshold2": 150},
        ...           "HoughLines": {"rho": 1, "theta": 0.01, "threshold": 100}}
        >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)

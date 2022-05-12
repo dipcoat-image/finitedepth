@@ -8,7 +8,11 @@ from dipcoatimage.finitedepth.analysis import (
     ExperimentKind,
     experiment_kind,
     CSVWriter,
+    ImportArgs,
     ReferenceArgs,
+    SubstrateArgs,
+    CoatingLayerArgs,
+    ExperimentArgs,
 )
 
 
@@ -17,6 +21,12 @@ REF_IMG = cv2.imread(REF_PATH)
 if REF_IMG is None:
     raise TypeError("Invalid reference image sample.")
 REF_IMG = cv2.cvtColor(REF_IMG, cv2.COLOR_BGR2RGB)
+
+COAT_PATH = get_samples_path("coat1.png")
+COAT_IMG = cv2.imread(COAT_PATH)
+if COAT_IMG is None:
+    raise TypeError("Invalid coating layer image sample.")
+COAT_IMG = cv2.cvtColor(COAT_IMG, cv2.COLOR_BGR2RGB)
 
 
 def test_experiment_kind():
@@ -96,4 +106,106 @@ def test_ReferenceArgs():
     assert dict_includes(
         data_converter.unstructure(ref.draw_options),
         refargs.draw_options,
+    )
+
+
+def test_SubstrateArgs():
+    refargs = ReferenceArgs(
+        templateROI=(50, 50, 100, 100),
+        substrateROI=(100, 100, 200, 200),
+        draw_options=dict(substrateROI_thickness=2),
+    )
+    ref = refargs.as_reference(REF_IMG)
+
+    substargs = SubstrateArgs(
+        type=ImportArgs(name="RectSubstrate"),
+        parameters=dict(
+            Canny=dict(threshold1=50.0, threshold2=150.0),
+            HoughLines=dict(rho=1.0, theta=0.01, threshold=100),
+        ),
+        draw_options=dict(draw_lines=False),
+    )
+    subst = substargs.as_substrate(ref)
+
+    assert type(subst).__name__ == substargs.type.name
+    assert dict_includes(
+        data_converter.unstructure(subst.parameters),
+        substargs.parameters,
+    )
+    assert dict_includes(
+        data_converter.unstructure(subst.draw_options),
+        substargs.draw_options,
+    )
+
+
+def test_CoatingLayerArgs():
+    refargs = ReferenceArgs(
+        templateROI=(50, 50, 100, 100),
+        substrateROI=(100, 100, 200, 200),
+        draw_options=dict(substrateROI_thickness=2),
+    )
+    ref = refargs.as_reference(REF_IMG)
+
+    substargs = SubstrateArgs(
+        type=ImportArgs(name="RectSubstrate"),
+        parameters=dict(
+            Canny=dict(threshold1=50.0, threshold2=150.0),
+            HoughLines=dict(rho=1.0, theta=0.01, threshold=100),
+        ),
+        draw_options=dict(draw_lines=False),
+    )
+    subst = substargs.as_substrate(ref)
+
+    layerargs = CoatingLayerArgs(
+        type=ImportArgs(name="RectLayerArea"),
+        draw_options=dict(remove_substrate=True),
+        deco_options=dict(paint_Left=False)
+    )
+    layer = layerargs.as_coatinglayer(COAT_IMG, subst)
+
+    assert type(layer).__name__ == layerargs.type.name
+    assert dict_includes(
+        data_converter.unstructure(layer.parameters),
+        layerargs.parameters,
+    )
+    assert dict_includes(
+        data_converter.unstructure(layer.draw_options),
+        layerargs.draw_options,
+    )
+    assert dict_includes(
+        data_converter.unstructure(layer.deco_options),
+        layerargs.deco_options,
+    )
+
+
+def test_ExperimentArgs():
+    refargs = ReferenceArgs(
+        templateROI=(50, 50, 100, 100),
+        substrateROI=(100, 100, 200, 200),
+        draw_options=dict(substrateROI_thickness=2),
+    )
+    ref = refargs.as_reference(REF_IMG)
+
+    substargs = SubstrateArgs(
+        type=ImportArgs(name="RectSubstrate"),
+        parameters=dict(
+            Canny=dict(threshold1=50.0, threshold2=150.0),
+            HoughLines=dict(rho=1.0, theta=0.01, threshold=100),
+        ),
+        draw_options=dict(draw_lines=False),
+    )
+    subst = substargs.as_substrate(ref)
+
+    layerargs = CoatingLayerArgs(
+        type=ImportArgs(name="RectLayerArea"),
+        draw_options=dict(remove_substrate=True),
+        deco_options=dict(paint_Left=False)
+    )
+    exptargs = ExperimentArgs()
+    expt = exptargs.as_experiment(subst, *layerargs.as_structured_args())
+
+    assert type(expt).__name__ == exptargs.type.name
+    assert dict_includes(
+        data_converter.unstructure(expt.parameters),
+        exptargs.parameters,
     )

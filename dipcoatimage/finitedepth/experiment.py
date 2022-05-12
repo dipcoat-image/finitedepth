@@ -135,9 +135,9 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
         self.layer_decooptions = layer_decooptions
 
         if parameters is None:
-            self._parameters = self.Parameters()
+            self.parameters = self.Parameters()
         else:
-            self._parameters = dataclasses.replace(parameters)
+            self.parameters = dataclasses.replace(parameters)
 
     @abc.abstractmethod
     def examine(self) -> Optional[ExperimentError]:
