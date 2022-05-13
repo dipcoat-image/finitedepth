@@ -55,6 +55,11 @@ from typing import Tuple, Optional, Dict
 from .substrate import SubstrateError, SubstrateBase
 from .util import intrsct_pt_polar, CannyParameters, HoughLinesParameters
 
+try:
+    from typing import TypeAlias  # type: ignore[attr-defined]
+except ImportError:
+    from typing_extensions import TypeAlias
+
 
 __all__ = [
     "RectSubstrateParameters",
@@ -279,19 +284,19 @@ class RectSubstrate(SubstrateBase[RectSubstrateParameters, RectSubstrateDrawOpti
     Parameters = RectSubstrateParameters
     DrawOptions = RectSubstrateDrawOptions
 
-    DrawMode = RectSubstrateDrawMode
+    DrawMode: TypeAlias = RectSubstrateDrawMode
     Draw_Original = RectSubstrateDrawMode.ORIGINAL
     Draw_Binary = RectSubstrateDrawMode.BINARY
     Draw_Edges = RectSubstrateDrawMode.EDGES
 
-    LineType = RectSubstrateLineType
+    LineType: TypeAlias = RectSubstrateLineType
     Line_Unknown = RectSubstrateLineType.UNKNOWN
     Line_Left = RectSubstrateLineType.LEFT
     Line_Right = RectSubstrateLineType.RIGHT
     Line_Top = RectSubstrateLineType.TOP
     Line_Bottom = RectSubstrateLineType.BOTTOM
 
-    PointType = RectSubstratePointType
+    PointType: TypeAlias = RectSubstratePointType
     Point_Unknown = RectSubstratePointType.UNKNOWN
     Point_TopLeft = RectSubstratePointType.TOPLEFT
     Point_BottomLeft = RectSubstratePointType.BOTTOMLEFT

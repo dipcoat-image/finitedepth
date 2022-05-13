@@ -61,7 +61,6 @@ import numpy.typing as npt
 import os
 import tqdm  # type: ignore
 from typing import List, Type, Optional, Union, Dict, Any, Tuple
-
 from .reference import SubstrateReferenceBase
 from .substrate import SubstrateBase
 from .coatinglayer import CoatingLayerBase

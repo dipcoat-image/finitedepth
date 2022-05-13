@@ -34,10 +34,15 @@ from typing import TypeVar, Type, Tuple
 from .rectsubstrate import RectSubstrate
 from .coatinglayer import (
     CoatingLayerBase,
-    BasicCoatingLayerParameters,
-    BasicCoatingLayerDrawOptions,
+    LayerAreaParameters,
+    LayerAreaDrawOptions,
 )
 from .util import DataclassProtocol, BinaryImageDrawMode
+
+try:
+    from typing import TypeAlias  # type: ignore[attr-defined]
+except ImportError:
+    from typing_extensions import TypeAlias
 
 
 __all__ = [
@@ -239,8 +244,8 @@ class RectLayerAreaData:
 
 class RectLayerArea(
     RectCoatingLayerBase[
-        BasicCoatingLayerParameters,
-        BasicCoatingLayerDrawOptions,
+        LayerAreaParameters,
+        LayerAreaDrawOptions,
         RectLayerAreaDecoOptions,
         RectLayerAreaData,
     ]
@@ -319,12 +324,12 @@ class RectLayerArea(
 
     """
 
-    Parameters = BasicCoatingLayerParameters
-    DrawOptions = BasicCoatingLayerDrawOptions
+    Parameters = LayerAreaParameters
+    DrawOptions = LayerAreaDrawOptions
     DecoOptions = RectLayerAreaDecoOptions
     Data = RectLayerAreaData
 
-    DrawMode = BinaryImageDrawMode
+    DrawMode: TypeAlias = BinaryImageDrawMode
     Draw_Original = BinaryImageDrawMode.ORIGINAL
     Draw_Binary = BinaryImageDrawMode.BINARY
 

@@ -42,6 +42,11 @@ from .util import (
     BinaryImageDrawMode,
 )
 
+try:
+    from typing import TypeAlias  # type: ignore[attr-defined]
+except ImportError:
+    from typing_extensions import TypeAlias
+
 
 __all__ = [
     "SubstrateReferenceError",
@@ -399,7 +404,7 @@ class SubstrateReference(
     Parameters = SubstrateReferenceParameters
     DrawOptions = SubstrateReferenceDrawOptions
 
-    DrawMode = BinaryImageDrawMode
+    DrawMode: TypeAlias = BinaryImageDrawMode
     Draw_Original = BinaryImageDrawMode.ORIGINAL
     Draw_Binary = BinaryImageDrawMode.BINARY
 

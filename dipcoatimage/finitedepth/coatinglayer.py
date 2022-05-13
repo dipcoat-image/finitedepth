@@ -21,10 +21,10 @@ Base class
 Implementation
 --------------
 
-.. autoclass:: BasicCoatingLayerParameters
+.. autoclass:: LayerAreaParameters
    :members:
 
-.. autoclass:: BasicCoatingLayerDrawOptions
+.. autoclass:: LayerAreaDrawOptions
    :members:
 
 .. autoclass:: LayerAreaDecoOptions
@@ -54,12 +54,17 @@ from typing import TypeVar, Generic, Type, Optional, Tuple
 from .substrate import SubstrateBase
 from .util import DataclassProtocol, BinaryImageDrawMode
 
+try:
+    from typing import TypeAlias  # type: ignore[attr-defined]
+except ImportError:
+    from typing_extensions import TypeAlias
+
 
 __all__ = [
     "CoatingLayerError",
     "CoatingLayerBase",
-    "BasicCoatingLayerParameters",
-    "BasicCoatingLayerDrawOptions",
+    "LayerAreaParameters",
+    "LayerAreaDrawOptions",
     "LayerAreaDecoOptions",
     "LayerAreaData",
     "LayerArea",
@@ -400,19 +405,16 @@ class CoatingLayerBase(
 
 
 @dataclasses.dataclass(frozen=True)
-class BasicCoatingLayerParameters:
-    """
-    Basic additional parameters for implementation of :class:`CoatingLayerBase`.
-
-    """
+class LayerAreaParameters:
+    """Additional parameters for :class:`LayerArea` instance."""
 
     pass
 
 
 @dataclasses.dataclass
-class BasicCoatingLayerDrawOptions:
+class LayerAreaDrawOptions:
     """
-    Basic drawing options for implementation of :class:`CoatingLayerBase`.
+    Basic drawing options for :class:`LayerArea` instance.
 
     Parameters
     ==========
@@ -467,8 +469,8 @@ class LayerAreaData:
 class LayerArea(
     CoatingLayerBase[
         SubstrateBase,
-        BasicCoatingLayerParameters,
-        BasicCoatingLayerDrawOptions,
+        LayerAreaParameters,
+        LayerAreaDrawOptions,
         LayerAreaDecoOptions,
         LayerAreaData,
     ]
@@ -542,12 +544,12 @@ class LayerArea(
 
     """
 
-    Parameters = BasicCoatingLayerParameters
-    DrawOptions = BasicCoatingLayerDrawOptions
+    Parameters = LayerAreaParameters
+    DrawOptions = LayerAreaDrawOptions
     DecoOptions = LayerAreaDecoOptions
     Data = LayerAreaData
 
-    DrawMode = BinaryImageDrawMode
+    DrawMode: TypeAlias = BinaryImageDrawMode
     Draw_Original = BinaryImageDrawMode.ORIGINAL
     Draw_Binary = BinaryImageDrawMode.BINARY
 
