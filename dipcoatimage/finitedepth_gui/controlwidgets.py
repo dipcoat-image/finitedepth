@@ -36,6 +36,7 @@ from .roimodel import ROIWidget
 
 
 __all__ = [
+    "ExperimentWidgetData",
     "ReferenceWidgetData",
     "ReferenceWidget",
     "SubstrateWidgetData",
@@ -43,6 +44,14 @@ __all__ = [
     "CoatingLayerWidgetData",
     "CoatingLayerWidget",
 ]
+
+
+@dataclasses.dataclass
+class ExperimentWidgetData:
+    """Data from experiment widget to construct experiment object."""
+
+    type: Any
+    parameters: Optional[DataclassProtocol]
 
 
 @dataclasses.dataclass
