@@ -2,7 +2,7 @@
 Tutorials
 =========
 
-In this document, introductory examples are provided.
+Introductory examples are provided in this document.
 
 .. toctree::
    :maxdepth: 1

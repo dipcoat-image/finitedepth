@@ -20,31 +20,28 @@ We say that their generic patterns are ``Generic[ParametersType, DrawOptionsType
 
 :class:`.CoatingLayerBase` has five type variables; additional three are ``SubstrateType``, ``DecoOptionsType`` and ``DataType``.
 
+:class:`.ExperimentBase` has two type variables; ``CoatingLayerType`` and ``ParametersType``.
+
 Concrete class
 --------------
 
-:class:`.SubstrateReference` and :class:`.Substrate` are concrete classes which fully implement their own base class.
+Classes such as :class:`.Substrate` are concrete classes which fully implement their own base class.
 This means that they no longer have type variables.
 
 For example, :class:`.Substrate` has :class:`SubstrateParameters <substrate.SubstrateParameters>` for ``ParametersType`` and :class:`SubstrateDrawOptions <substrate.SubstrateDrawOptions>` for ``DrawOptionsType``,
 thus having generic pattern ``SubstrateBase[SubstrateParameters, SubstrateDrawOptions]``.
 
-Simillary, :class:`.LayerArea` implements :class:`.CoatingLayerBase` by having type values for five variable types.
+Partially concrete class
+------------------------
 
-Partial concrete class
-----------------------
-
-:class:`.RectCoatingLayerBase` is an abstract base class which partially implements :class:`CoatingLayerBase`.
-Its ``SubstrateType`` is fixed to be :class:`.RectSubstrate` and other four variables remain.
+:class:`.RectCoatingLayerBase` is an abstract base class which partially implements :class:`CoatingLayerBase` by fixing ``SubstrateType`` to :class:`.RectSubstrate`.
 Thus the generic pattern is ``CoatingLayerBase[RectSubstrate, ParametersType, DrawOptionsType, DecoOptionsType, DataType]``.
 
-Its implementation now needs only four more types to be concrete.
-For example :class:`.RectLayerArea` defines remaining four variables.
-Its generic pattern is ``RectCoatingLayerBase[Parameters, DrawOptions, DecoOptions, Data]`` (type names are aliased).
+Its concrete implementation now needs only four more type variables to be fixed.
+For example :class:`.RectLayerArea` has generic pattern ``RectCoatingLayerBase[Parameters, DrawOptions, DecoOptions, Data]`` (type names are aliased).
 
-
-Implementing classes
-====================
+Implementing concrete classes
+=============================
 
 There are three ways to define a new concrete class:
 
@@ -52,16 +49,20 @@ There are three ways to define a new concrete class:
 * Define abstract class and implement from it.
 * Inherit the other concrete class.
 
-Which way to choose depends on your purpose.
+Which to choose depends on your purpose.
 
-1. If you expect your class to be extended, defining abstract class is the right choice.
-2. If the new class is one-shot, directly implement concrete class.
-3. If you just want to override a few methods, inheriting from concrete class can be good.
+1. If the new class will be used one-shot only, just directly implement concrete class.
+2. If you expect your class to be further extended, defining abstract class is the right choice.
+3. If you just want to override a few methods, you may inherit from concrete class.
 
 :ref:`how-to` provides guide to implement concrete class from abstract class.
 To know how to define new abstract class, :class:`.RectLayerArea` can serve as a good example.
 
+Inheriting concrete class is generally not recommended because the class design is extremely restricted.
+Fixed type values cannot be re-assigned, disallowing any new parameter.
+Also, types of method arguments and outputs must be preserved.
+
 .. note::
 
-   Do not use :obj:`typing.TypeAlias` for type variable values in class attribute definition, e.g. ``Paarameters``.
+   Do not use :obj:`typing.TypeAlias` for type variable values in class attribute definition, e.g. ``Parameters``.
    It breaks type inference.

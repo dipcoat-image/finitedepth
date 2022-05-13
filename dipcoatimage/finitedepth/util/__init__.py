@@ -1,6 +1,6 @@
 """
-Core utilities
-==============
+Utilities
+=========
 
 :mod:`dipcoatimage.finitedepth.util` provides utility functions.
 

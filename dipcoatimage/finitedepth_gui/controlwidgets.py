@@ -31,7 +31,6 @@ from PySide6.QtWidgets import (
     QSizePolicy,
 )
 from typing import Optional, Dict, Any
-
 from .importwidget import ImportWidget
 from .roimodel import ROIWidget
 
