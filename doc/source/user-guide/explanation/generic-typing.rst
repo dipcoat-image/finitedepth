@@ -40,7 +40,6 @@ Thus the generic pattern is ``CoatingLayerBase[RectSubstrate, ParametersType, Dr
 Its concrete implementation now needs only four more type variables to be fixed.
 For example :class:`.RectLayerArea` has generic pattern ``RectCoatingLayerBase[Parameters, DrawOptions, DecoOptions, Data]`` (type names are aliased).
 
-
 Implementing concrete classes
 =============================
 
@@ -54,10 +53,14 @@ Which to choose depends on your purpose.
 
 1. If the new class will be used one-shot only, just directly implement concrete class.
 2. If you expect your class to be further extended, defining abstract class is the right choice.
-3. If you just want to override a few methods, inheriting from concrete class can be a good choice.
+3. If you just want to override a few methods, you may inherit from concrete class.
 
 :ref:`how-to` provides guide to implement concrete class from abstract class.
 To know how to define new abstract class, :class:`.RectLayerArea` can serve as a good example.
+
+Inheriting concrete class is generally not recommended because the class design is extremely restricted.
+Fixed type values cannot be re-assigned, disallowing any new parameter.
+Also, types of method arguments and outputs must be preserved.
 
 .. note::
 
