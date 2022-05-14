@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QVBoxLayout,
     QHBoxLayout,
-    QSizePolicy
+    QSizePolicy,
 )
 
 
