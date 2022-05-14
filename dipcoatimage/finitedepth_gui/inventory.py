@@ -1,7 +1,8 @@
-from PySide6.QtGui import QStandardItemModel
+from PySide6.QtCore import Slot
+from PySide6.QtGui import QStandardItemModel, QStandardItem
 from PySide6.QtWidgets import (
     QWidget,
-    QListWidget,
+    QListView,
     QToolButton,
     QPushButton,
     QVBoxLayout,
@@ -18,12 +19,15 @@ class ExperimentInventory(QWidget):
         super().__init__(parent)
 
         self._item_model = QStandardItemModel(0, 3)
-        self._list_widget = QListWidget()
+        self._list_view = QListView()
         self._add_button = QToolButton()
         self._delete_button = QPushButton()
 
+        self.experimentListView().setModel(self.experimentItemModel())
+        self.addButton().clicked.connect(self.addItem)
+
         layout = QVBoxLayout()
-        layout.addWidget(self.experimentListWidget())
+        layout.addWidget(self.experimentListView())
         button_layout = QHBoxLayout()
         self.addButton().setText("Add")
         self.addButton().setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
@@ -45,11 +49,17 @@ class ExperimentInventory(QWidget):
         """
         return self._item_model
 
-    def experimentListWidget(self) -> QListWidget:
-        return self._list_widget
+    def experimentListView(self) -> QListView:
+        return self._list_view
 
     def addButton(self) -> QToolButton:
         return self._add_button
 
     def deleteButton(self) -> QPushButton:
         return self._delete_button
+
+    @Slot()
+    def addItem(self):
+        self.experimentItemModel().appendRow(
+            QStandardItem(f"Experiment {self.experimentItemModel().rowCount()}")
+        )
