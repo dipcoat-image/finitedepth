@@ -14,15 +14,18 @@ from dipcoatimage.finitedepth import (
     SubstrateReferenceBase,
     SubstrateBase,
     CoatingLayerBase,
+    ExperimentBase,
     data_converter,
 )
 from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
 import numpy as np
 import numpy.typing as npt
-from PySide6.QtCore import Signal, Slot
+from PySide6.QtCore import Signal, Slot, Qt
 from PySide6.QtWidgets import (
     QWidget,
     QLineEdit,
+    QListWidget,
+    QListWidgetItem,
     QPushButton,
     QHBoxLayout,
     QVBoxLayout,
@@ -30,13 +33,14 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QSizePolicy,
 )
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from .importwidget import ImportWidget
 from .roimodel import ROIWidget
 
 
 __all__ = [
     "ExperimentWidgetData",
+    "ExperimentWidget",
     "ReferenceWidgetData",
     "ReferenceWidget",
     "SubstrateWidgetData",
@@ -52,6 +56,203 @@ class ExperimentWidgetData:
 
     type: Any
     parameters: Optional[DataclassProtocol]
+
+
+@dataclasses.dataclass
+class ExperimentWidget(QWidget):
+    """
+    Widget to control data for experiment object.
+
+    Examples
+    ========
+
+    >>> from PySide6.QtWidgets import QApplication
+    >>> import sys
+    >>> from dipcoatimage.finitedepth_gui.controlwidgets import ExperimentWidget
+    >>> def runGUI():
+    ...     app = QApplication(sys.argv)
+    ...     widget = ExperimentWidget()
+    ...     widget.show()
+    ...     app.exec()
+    ...     app.quit()
+    >>> runGUI() # doctest: +SKIP
+
+    """
+
+    pathsChanged = Signal(list)
+    dataChanged = Signal(ExperimentWidgetData)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self._exptname_lineedit = QLineEdit()
+        self._paths_listwidget = QListWidget()
+        self._add_button = QPushButton("Add")
+        self._delete_button = QPushButton("Delete")
+        self._browse_button = QPushButton("Browse")
+        self._importinfo_widget = ImportWidget()
+        self._param_widget = StackedDataclassWidget()
+
+        self.connectSignals()
+        self.pathsListWidget().setSelectionMode(QListWidget.ExtendedSelection)
+        self.pathsListWidget().setEditTriggers(QListWidget.SelectedClicked)
+        self.pathAddButton().clicked.connect(self.addButtonClicked)
+        self.pathDeleteButton().clicked.connect(self.deletePaths)
+        self.pathBrowseButton().clicked.connect(self.browseFiles)
+
+        default_paramwdgt = DataclassWidget()  # default empty widget
+        default_paramwdgt.setDataName("Parameters")
+        self.parametersWidget().addWidget(default_paramwdgt)
+
+        self.initUI()
+
+    def connectSignals(self):
+        """Connect the signals disconnected by :meth:`disconnectSignals`."""
+        self._typeSelectConnection = self.typeWidget().variableChanged.connect(
+            self.onExperimentTypeChange
+        )
+        self._paramChangeConnection = self.parametersWidget().dataValueChanged.connect(
+            self.emitData
+        )
+
+    def disconnectSignals(self):
+        """Disconnect the signals connected by :meth:`connectSignals`."""
+        self.parametersWidget().dataValueChanged.disconnect(self._paramChangeConnection)
+        self.typeWidget().variableChanged.disconnect(self._typeSelectConnection)
+
+    def initUI(self):
+        self.typeWidget().variableComboBox().setPlaceholderText(
+            "Select experiment type or specify import information"
+        )
+        self.typeWidget().variableNameLineEdit().setPlaceholderText(
+            "Experiment type name"
+        )
+        self.typeWidget().moduleNameLineEdit().setPlaceholderText(
+            "Module name for the experiment type"
+        )
+
+        path_groupbox = QGroupBox("Experiment files path")
+        path_layout = QVBoxLayout()
+        path_layout.addWidget(self.pathsListWidget())
+        buttons_layout = QHBoxLayout()
+        buttons_layout.addWidget(self.pathAddButton())
+        buttons_layout.addWidget(self.pathDeleteButton())
+        path_layout.addLayout(buttons_layout)
+        path_layout.addWidget(self.pathBrowseButton())
+        path_groupbox.setLayout(path_layout)
+
+        main_layout = QVBoxLayout()
+        main_layout.addWidget(self.experimentNameLineEdit())
+        main_layout.addWidget(self.typeWidget())
+        main_layout.addWidget(path_groupbox)
+        main_layout.addWidget(self.parametersWidget())
+        self.setLayout(main_layout)
+
+    def experimentNameLineEdit(self):
+        return self._exptname_lineedit
+
+    def pathsListWidget(self):
+        return self._paths_listwidget
+
+    def pathAddButton(self):
+        return self._add_button
+
+    def pathDeleteButton(self):
+        return self._delete_button
+
+    def pathBrowseButton(self):
+        return self._browse_button
+
+    def typeWidget(self) -> ImportWidget:
+        return self._importinfo_widget
+
+    def parametersWidget(self):
+        return self._param_widget
+
+    def currentParametersWidget(self) -> DataclassWidget:
+        widget = self.parametersWidget().currentWidget()
+        if not isinstance(widget, DataclassWidget):
+            raise TypeError(f"{widget} is not dataclass widget.")
+        return widget
+
+    def setCurrentParametersWidget(self, expttype: Any):
+        if isinstance(expttype, type) and issubclass(expttype, ExperimentBase):
+            dcls = expttype.Parameters
+            index = self.parametersWidget().indexOfDataclass(dcls)
+            if index == -1:
+                self.parametersWidget().addDataclass(dcls, "Parameters")
+                index = self.parametersWidget().indexOfDataclass(dcls)
+        else:
+            index = 0
+        self.parametersWidget().setCurrentIndex(index)
+
+    @Slot(object)
+    def onExperimentTypeChange(self):
+        """
+        Apply current variable from import widget to other widgets and emit data.
+        """
+        var = self.typeWidget().variable()
+        self.setCurrentParametersWidget(var)
+        self.emitData()
+
+    @Slot()
+    def emitData(self):
+        self.dataChanged.emit(self.experimentWidgetData())
+
+    def paths(self) -> List[str]:
+        ret = []
+        rows = self.pathsListWidget().count()
+        for i in range(rows):
+            item = self.pathsListWidget().item(i)
+            ret.append(item.text())
+        return ret
+
+    @Slot(list)
+    def setPaths(self, paths: List[str]):
+        self.pathsListWidget().clear()
+        for path in paths:
+            item = QListWidgetItem(path)
+            item.setFlags(item.flags() | Qt.ItemIsEditable)  # type: ignore[operator]
+            self.pathsListWidget().addItem(item)
+        self.emitPathsChanged()
+
+    @Slot()
+    def addButtonClicked(self):
+        self.addPath("New path")
+
+    @Slot(str)
+    def addPath(self, path: str):
+        item = QListWidgetItem(path)
+        item.setFlags(item.flags() | Qt.ItemIsEditable)  # type: ignore[operator]
+        self.pathsListWidget().addItem(item)
+        self.emitPathsChanged()
+
+    @Slot()
+    def deletePaths(self):
+        items = self.pathsListWidget().selectedItems()
+        rows = sorted([self.pathsListWidget().row(item) for item in items])
+        for i in reversed(rows):
+            item = self.pathsListWidget().takeItem(i)
+            del item
+        self.emitPathsChanged()
+
+    @Slot()
+    def browseFiles(self):
+        paths, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Select experiment files",
+            "./",
+            options=QFileDialog.DontUseNativeDialog,
+        )
+        for p in paths:
+            item = QListWidgetItem(p)
+            item.setFlags(item.flags() | Qt.ItemIsEditable)
+            self.pathsListWidget().addItem(item)
+        self.emitPathsChanged()
+
+    def emitPathsChanged(self):
+        paths = self.paths()
+        self.pathsChanged.emit(paths)
 
 
 @dataclasses.dataclass
@@ -187,7 +388,7 @@ class ReferenceWidget(QWidget):
         self.pathLineEdit().setPlaceholderText("Path for the reference image file")
         self.browseButton().setText("Browse")
         self.typeWidget().variableComboBox().setPlaceholderText(
-            "Select reference type or specify import info"
+            "Select reference type or specify import information"
         )
         self.typeWidget().variableNameLineEdit().setPlaceholderText(
             "Reference type name"
@@ -497,7 +698,7 @@ class SubstrateWidget(QWidget):
 
     def initUI(self):
         self.typeWidget().variableComboBox().setPlaceholderText(
-            "Select substrate type or specify import info"
+            "Select substrate type or specify import information"
         )
         self.typeWidget().variableNameLineEdit().setPlaceholderText(
             "Substrate type name"
@@ -726,7 +927,7 @@ class CoatingLayerWidget(QWidget):
 
     def initUI(self):
         self.typeWidget().variableComboBox().setPlaceholderText(
-            "Select coating layer type or specify import info"
+            "Select coating layer type or specify import information"
         )
         self.typeWidget().variableNameLineEdit().setPlaceholderText(
             "Coating layer type name"
