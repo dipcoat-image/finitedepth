@@ -1,11 +1,12 @@
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QMainWindow, QTabWidget, QScrollArea, QDockWidget
+from PySide6.QtWidgets import QMainWindow, QTabWidget, QScrollArea, QDockWidget, QWidget
 from .controlwidgets import (
     ExperimentWidget,
     ReferenceWidget,
     SubstrateWidget,
     CoatingLayerWidget,
 )
+from .inventory import ExperimentInventory
 
 
 __all__ = ["AnalysisGUI"]
@@ -28,6 +29,7 @@ class AnalysisGUI(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self._expt_inv = ExperimentInventory()
         self._exptitem_tab = QTabWidget()
         self._expt_scroll = QScrollArea()
         self._expt_widget = ExperimentWidget()
@@ -37,6 +39,12 @@ class AnalysisGUI(QMainWindow):
         self._subst_widget = SubstrateWidget()
         self._layer_scroll = QScrollArea()
         self._layer_widget = CoatingLayerWidget()
+
+        self.setCentralWidget(QWidget())
+
+        expt_inv_dock = QDockWidget("Experiment inventory")
+        expt_inv_dock.setWidget(self.experimentInventory())
+        self.addDockWidget(Qt.LeftDockWidgetArea, expt_inv_dock)
 
         exptitem_dock = QDockWidget("Experiment item")
         self._expt_scroll.setWidgetResizable(True)
@@ -53,6 +61,10 @@ class AnalysisGUI(QMainWindow):
         self.experimentItemTab().addTab(self._layer_scroll, "Coating Layer")
         exptitem_dock.setWidget(self.experimentItemTab())
         self.addDockWidget(Qt.BottomDockWidgetArea, exptitem_dock)
+
+    def experimentInventory(self) -> ExperimentInventory:
+        """Widget to display the experiment items.."""
+        return self._expt_inv
 
     def experimentItemTab(self) -> QTabWidget:
         """Tab widget to display the data of activated experiment item."""
