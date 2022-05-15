@@ -19,8 +19,6 @@ from dipcoatimage.finitedepth import (
 )
 from dipcoatimage.finitedepth.analysis import ImportArgs, ExperimentArgs
 from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
-import numpy as np
-import numpy.typing as npt
 from PySide6.QtCore import Signal, Slot, QSignalBlocker
 from PySide6.QtGui import QStandardItem
 from PySide6.QtWidgets import (
@@ -265,7 +263,6 @@ class ReferenceWidgetData:
     """Data from reference widget to construct substrate reference object."""
 
     type: Any
-    image: Optional[npt.NDArray[np.uint8]]
     templateROI: OptionalROI
     substrateROI: OptionalROI
     parameters: Optional[DataclassProtocol]
@@ -279,7 +276,9 @@ class ReferenceWidget(QWidget):
     .. rubric:: Substrate reference data
 
     Data consists of substrate reference type which is a concrete subclass of
-    :class:`.SubstrateReferenceBase`, and its every parameter.
+    :class:`.SubstrateReferenceBase`, its image and its parameters.
+
+    Image is emitted by :attr:`imageChanged` signal.
 
     Data are wrapped by :class:`ReferenceWidgetData`. Whenever the widget values
     change :attr:`dataChanged` signal emits the data.
@@ -324,6 +323,7 @@ class ReferenceWidget(QWidget):
 
     """
 
+    imageChanged = Signal(object)
     dataChanged = Signal(ReferenceWidgetData)
 
     def __init__(self, parent=None):
@@ -517,6 +517,7 @@ class ReferenceWidget(QWidget):
         self.disconnectSignals()
         self.updateROIMaximum()
         self.connectSignals()
+        self.emitImage()
         self.emitData()
 
     def updateROIMaximum(self):
@@ -548,9 +549,6 @@ class ReferenceWidget(QWidget):
 
     def referenceWidgetData(self) -> ReferenceWidgetData:
         ref_type = self.typeWidget().variable()
-        img = cv2.imread(self.pathLineEdit().text())
-        if img is not None:
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         templateROI = self.templateROIWidget().roiModel().roi()
         substrateROI = self.substrateROIWidget().roiModel().roi()
         try:
@@ -562,10 +560,15 @@ class ReferenceWidget(QWidget):
         except (TypeError, ValueError):
             drawopt = None
 
-        data = ReferenceWidgetData(
-            ref_type, img, templateROI, substrateROI, param, drawopt
-        )
+        data = ReferenceWidgetData(ref_type, templateROI, substrateROI, param, drawopt)
         return data
+
+    @Slot()
+    def emitImage(self):
+        img = cv2.imread(self.pathLineEdit().text())
+        if img is not None:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        self.imageChanged.emit(img)
 
     @Slot()
     def emitData(self):

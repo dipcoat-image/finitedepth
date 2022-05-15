@@ -194,7 +194,7 @@ def test_ReferenceWorker_setReferenceWidgetData(qtbot):
     assert worker.drawOptions() is None
 
     valid_data1 = ReferenceWidgetData(
-        SubstrateReference, REF_IMG, (0, 0, None, None), (0, 0, None, None), None, None
+        SubstrateReference, (0, 0, None, None), (0, 0, None, None), None, None
     )
     worker.setReferenceWidgetData(valid_data1)
     assert worker.referenceType() == valid_data1.type
@@ -203,7 +203,6 @@ def test_ReferenceWorker_setReferenceWidgetData(qtbot):
 
     valid_data2 = ReferenceWidgetData(
         SubstrateReference,
-        REF_IMG,
         (0, 0, None, None),
         (0, 0, None, None),
         SubstrateReference.Parameters(),
@@ -216,7 +215,6 @@ def test_ReferenceWorker_setReferenceWidgetData(qtbot):
 
     type_invalid_data = ReferenceWidgetData(
         type,
-        REF_IMG,
         (0, 0, None, None),
         (0, 0, None, None),
         SubstrateReference.Parameters(),

@@ -34,8 +34,8 @@ class ReferenceWorker(QObject):
         4. :meth:`substrateROI`
         5. :meth:`paramters`
         6. :meth:`drawOptions`
-    All data can be updated by :meth:`setReferenceWidgetData`.
-    Exceptionally, :meth:`image` can be directly updated by :meth:`setImage`.
+    :meth:`image` is updated by :meth:`setImage`. Other data are updated by
+    :meth:`setReferenceWidgetData`.
 
     :meth:`updateReference` constructs the reference object with current data.
     Resulting object can be acquired from :meth:`reference`, or calling
@@ -79,15 +79,7 @@ class ReferenceWorker(QObject):
         return img
 
     def setImage(self, img: Optional[npt.NDArray[np.uint8]]):
-        """
-        Directly update :meth:`image` with *img*.
-
-        See Also
-        ========
-
-        setReferenceWidgetData
-            Update the image along with other data.
-        """
+        """Update :meth:`image` with *img*."""
         self._img = img
 
     def templateROI(self) -> OptionalROI:
@@ -134,7 +126,6 @@ class ReferenceWorker(QObject):
             reftype = None
         self._type = reftype
 
-        self._img = data.image
         self._temproi = data.templateROI
         self._substroi = data.substrateROI
 
