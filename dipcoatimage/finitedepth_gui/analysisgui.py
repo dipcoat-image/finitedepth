@@ -1,4 +1,4 @@
-from dipcoatimage.finitedepth.analysis import ExperimentArgs
+from dipcoatimage.finitedepth.analysis import ReferenceArgs, ExperimentArgs
 from PySide6.QtCore import Qt, Slot, QModelIndex
 from PySide6.QtWidgets import (
     QMainWindow,
@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 from .controlwidgets import (
     ExperimentWidgetData,
     ExperimentWidget,
+    ReferenceWidgetData,
     ReferenceWidget,
     SubstrateWidget,
     CoatingLayerWidget,
@@ -67,6 +68,7 @@ class AnalysisGUI(QMainWindow):
             self.onExperimentActivation
         )
         self.experimentWidget().dataChanged.connect(self.onExperimentWidgetDataChange)
+        self.referenceWidget().dataChanged.connect(self.onReferenceWidgetDataChange)
 
         expt_inv_dock = QDockWidget("Experiment inventory")
         expt_inv_dock.setWidget(self.experimentInventory())
@@ -138,3 +140,14 @@ class AnalysisGUI(QMainWindow):
             model = self.experimentInventory().experimentItemModel()
             item = model.item(index.row(), ExperimentItemModelColumns.EXPERIMENT)
             item.setData((widgetdata, exptargs))
+
+    @Slot(ReferenceWidgetData, ReferenceArgs)
+    def onReferenceWidgetDataChange(
+        self, widgetdata: ReferenceWidgetData, refargs: ReferenceArgs
+    ):
+        """Update the data from :meth:`referenceWidget` to current model."""
+        index = self.experimentInventory().experimentListView().currentIndex()
+        if index.isValid():
+            model = self.experimentInventory().experimentItemModel()
+            item = model.item(index.row(), ExperimentItemModelColumns.REFERENCE)
+            item.setData((widgetdata, refargs))
