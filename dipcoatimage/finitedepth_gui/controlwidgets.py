@@ -17,6 +17,7 @@ from dipcoatimage.finitedepth import (
     ExperimentBase,
     data_converter,
 )
+from dipcoatimage.finitedepth.analysis import ImportArgs, ExperimentArgs
 from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
 import numpy as np
 import numpy.typing as npt
@@ -80,7 +81,7 @@ class ExperimentWidget(QWidget):
     """
 
     pathsChanged = Signal(list)
-    dataChanged = Signal(ExperimentWidgetData)
+    dataChanged = Signal(ExperimentWidgetData, ExperimentArgs)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -195,9 +196,34 @@ class ExperimentWidget(QWidget):
         self.setCurrentParametersWidget(var)
         self.emitData()
 
+    def experimentWidgetData(self) -> ExperimentWidgetData:
+        """Return :class:`ExperimentWidgetData` from current widget values."""
+        expt_type = self.typeWidget().variable()
+        try:
+            param = self.currentParametersWidget().dataValue()
+        except (TypeError, ValueError):
+            param = None
+        data = ExperimentWidgetData(expt_type, param)
+        return data
+
+    def experimentArgs(self) -> ExperimentArgs:
+        """Return :class:`ExperimentArgs` from current widget values."""
+        importArgs = ImportArgs(
+            self.typeWidget().variableNameLineEdit().text(),
+            self.typeWidget().moduleNameLineEdit().text(),
+        )
+        try:
+            param = data_converter.unstructure(
+                self.currentParametersWidget().dataValue()
+            )
+        except (TypeError, ValueError):
+            param = dict()
+        args = ExperimentArgs(importArgs, param)
+        return args
+
     @Slot()
     def emitData(self):
-        self.dataChanged.emit(self.experimentWidgetData())
+        self.dataChanged.emit(self.experimentWidgetData(), self.experimentArgs())
 
     @Slot()
     def onAddButtonClicked(self):
