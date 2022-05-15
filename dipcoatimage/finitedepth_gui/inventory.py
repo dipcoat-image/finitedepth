@@ -1,3 +1,4 @@
+import enum
 from PySide6.QtCore import Slot
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from PySide6.QtWidgets import (
@@ -11,14 +12,35 @@ from PySide6.QtWidgets import (
 )
 
 
-__all__ = ["ExperimentInventory"]
+__all__ = ["ExperimentItemModelColumns", "ExperimentInventory"]
+
+
+class ExperimentItemModelColumns(enum.IntEnum):
+    """
+    Columns for :meth:`ExperimentInventory.experimentItemModel`. Data can make up
+    :class:`ExperimentData` instance.
+
+    0. EXPERIMENT_NAME
+        Name of the experiment.
+    1. REFERENCE_PATH
+        Path to reference file.
+        Corresponds to :attr:`ExperimentData.ref_path`.
+    2. COAT_PATHS
+        Paths to coated substrate files. This is the root item, and each path is
+        stored in children item.
+        Corresponds to :attr:`ExperimentData.coat_paths`.
+    """
+
+    EXPERIMENT_NAME = 0
+    REFERENCE_PATH = 1
+    COAT_PATHS = 2
 
 
 class ExperimentInventory(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._item_model = QStandardItemModel(0, 3)
+        self._item_model = QStandardItemModel(0, len(ExperimentItemModelColumns))
         self._list_view = QListView()
         self._add_button = QToolButton()
         self._delete_button = QPushButton()
@@ -44,11 +66,7 @@ class ExperimentInventory(QWidget):
         """
         Model to store the data which makes up :class:`ExperimentData`.
 
-        Columns correspond to the members of :class:`ExperimentData`:
-
-        0. Header (with experiment name)
-        1. Reference path
-        2. Coated substrate file paths (stored in child items)
+        Columns are described in :class:`ExperimentItemModelColumns`.
         """
         return self._item_model
 

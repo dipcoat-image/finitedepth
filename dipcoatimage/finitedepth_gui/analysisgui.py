@@ -13,7 +13,7 @@ from .controlwidgets import (
     SubstrateWidget,
     CoatingLayerWidget,
 )
-from .inventory import ExperimentInventory
+from .inventory import ExperimentItemModelColumns, ExperimentInventory
 
 
 __all__ = ["AnalysisGUI"]
@@ -54,9 +54,13 @@ class AnalysisGUI(QMainWindow):
             self.experimentInventory().experimentItemModel()
         )
         self.experimentDataMapper().addMapping(
-            self.experimentWidget().experimentNameLineEdit(), 0
+            self.experimentWidget().experimentNameLineEdit(),
+            ExperimentItemModelColumns.EXPERIMENT_NAME,
         )
-        self.experimentDataMapper().addMapping(self.referenceWidget().pathLineEdit(), 1)
+        self.experimentDataMapper().addMapping(
+            self.referenceWidget().pathLineEdit(),
+            ExperimentItemModelColumns.REFERENCE_PATH,
+        )
         self.experimentInventory().experimentListView().activated.connect(
             self.onExperimentActivation
         )
@@ -113,4 +117,6 @@ class AnalysisGUI(QMainWindow):
         self.experimentDataMapper().setCurrentIndex(index.row())
         model = self.experimentInventory().experimentItemModel()
         self.experimentWidget().pathsView().setModel(model)
-        self.experimentWidget().pathsView().setRootIndex(model.index(index.row(), 2))
+        self.experimentWidget().pathsView().setRootIndex(
+            model.index(index.row(), ExperimentItemModelColumns.COAT_PATHS)
+        )
