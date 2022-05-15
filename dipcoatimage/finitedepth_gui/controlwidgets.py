@@ -20,12 +20,12 @@ from dipcoatimage.finitedepth import (
 from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
 import numpy as np
 import numpy.typing as npt
-from PySide6.QtCore import Signal, Slot, Qt
+from PySide6.QtCore import Signal, Slot
+from PySide6.QtGui import QStandardItem
 from PySide6.QtWidgets import (
     QWidget,
     QLineEdit,
-    QListWidget,
-    QListWidgetItem,
+    QListView,
     QPushButton,
     QHBoxLayout,
     QVBoxLayout,
@@ -33,7 +33,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QSizePolicy,
 )
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from .importwidget import ImportWidget
 from .roimodel import ROIWidget
 
@@ -86,7 +86,7 @@ class ExperimentWidget(QWidget):
         super().__init__(parent)
 
         self._exptname_lineedit = QLineEdit()
-        self._paths_listwidget = QListWidget()
+        self._paths_listview = QListView()
         self._add_button = QPushButton("Add")
         self._delete_button = QPushButton("Delete")
         self._browse_button = QPushButton("Browse")
@@ -94,11 +94,11 @@ class ExperimentWidget(QWidget):
         self._param_widget = StackedDataclassWidget()
 
         self.connectSignals()
-        self.pathsListWidget().setSelectionMode(QListWidget.ExtendedSelection)
-        self.pathsListWidget().setEditTriggers(QListWidget.SelectedClicked)
-        self.pathAddButton().clicked.connect(self.addButtonClicked)
-        self.pathDeleteButton().clicked.connect(self.deletePaths)
-        self.pathBrowseButton().clicked.connect(self.browseFiles)
+        self.pathsView().setSelectionMode(QListView.ExtendedSelection)
+        self.pathsView().setEditTriggers(QListView.SelectedClicked)
+        self.pathAddButton().clicked.connect(self.onAddButtonClicked)
+        self.pathDeleteButton().clicked.connect(self.onDeleteButtonClicked)
+        self.pathBrowseButton().clicked.connect(self.onBrowseButtonClicked)
 
         default_paramwdgt = DataclassWidget()  # default empty widget
         default_paramwdgt.setDataName("Parameters")
@@ -133,7 +133,7 @@ class ExperimentWidget(QWidget):
 
         path_groupbox = QGroupBox("Experiment files path")
         path_layout = QVBoxLayout()
-        path_layout.addWidget(self.pathsListWidget())
+        path_layout.addWidget(self.pathsView())
         buttons_layout = QHBoxLayout()
         buttons_layout.addWidget(self.pathAddButton())
         buttons_layout.addWidget(self.pathDeleteButton())
@@ -151,8 +151,8 @@ class ExperimentWidget(QWidget):
     def experimentNameLineEdit(self):
         return self._exptname_lineedit
 
-    def pathsListWidget(self):
-        return self._paths_listwidget
+    def pathsView(self):
+        return self._paths_listview
 
     def pathAddButton(self):
         return self._add_button
@@ -199,60 +199,35 @@ class ExperimentWidget(QWidget):
     def emitData(self):
         self.dataChanged.emit(self.experimentWidgetData())
 
-    def paths(self) -> List[str]:
-        ret = []
-        rows = self.pathsListWidget().count()
-        for i in range(rows):
-            item = self.pathsListWidget().item(i)
-            ret.append(item.text())
-        return ret
-
-    @Slot(list)
-    def setPaths(self, paths: List[str]):
-        self.pathsListWidget().clear()
-        for path in paths:
-            item = QListWidgetItem(path)
-            item.setFlags(item.flags() | Qt.ItemIsEditable)  # type: ignore[operator]
-            self.pathsListWidget().addItem(item)
-        self.emitPathsChanged()
+    @Slot()
+    def onAddButtonClicked(self):
+        model = self.pathsView().model()
+        if model is not None:
+            parentItem = model.itemFromIndex(self.pathsView().rootIndex())
+            item = QStandardItem(f"Path {parentItem.rowCount()}")
+            parentItem.appendRow(item)
 
     @Slot()
-    def addButtonClicked(self):
-        self.addPath("New path")
-
-    @Slot(str)
-    def addPath(self, path: str):
-        item = QListWidgetItem(path)
-        item.setFlags(item.flags() | Qt.ItemIsEditable)  # type: ignore[operator]
-        self.pathsListWidget().addItem(item)
-        self.emitPathsChanged()
+    def onDeleteButtonClicked(self):
+        model = self.pathsView().model()
+        if model is not None:
+            parentItem = model.itemFromIndex(self.pathsView().rootIndex())
+            for items in reversed(sorted(self.pathsView().selectedIndexes())):
+                parentItem.removeRow(items.row())
 
     @Slot()
-    def deletePaths(self):
-        items = self.pathsListWidget().selectedItems()
-        rows = sorted([self.pathsListWidget().row(item) for item in items])
-        for i in reversed(rows):
-            item = self.pathsListWidget().takeItem(i)
-            del item
-        self.emitPathsChanged()
-
-    @Slot()
-    def browseFiles(self):
-        paths, _ = QFileDialog.getOpenFileNames(
-            self,
-            "Select experiment files",
-            "./",
-            options=QFileDialog.DontUseNativeDialog,
-        )
-        for p in paths:
-            item = QListWidgetItem(p)
-            item.setFlags(item.flags() | Qt.ItemIsEditable)
-            self.pathsListWidget().addItem(item)
-        self.emitPathsChanged()
-
-    def emitPathsChanged(self):
-        paths = self.paths()
-        self.pathsChanged.emit(paths)
+    def onBrowseButtonClicked(self):
+        model = self.pathsView().model()
+        if model is not None:
+            parentItem = model.itemFromIndex(self.pathsView().rootIndex())
+            paths, _ = QFileDialog.getOpenFileNames(
+                self,
+                "Select experiment files",
+                "./",
+                options=QFileDialog.DontUseNativeDialog,
+            )
+            for p in paths:
+                parentItem.appendRow(QStandardItem(p))
 
 
 @dataclasses.dataclass

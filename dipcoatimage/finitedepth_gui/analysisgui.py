@@ -56,9 +56,7 @@ class AnalysisGUI(QMainWindow):
         self.experimentDataMapper().addMapping(
             self.experimentWidget().experimentNameLineEdit(), 0
         )
-        self.experimentDataMapper().addMapping(
-            self.referenceWidget().pathLineEdit(), 1
-        )
+        self.experimentDataMapper().addMapping(self.referenceWidget().pathLineEdit(), 1)
         self.experimentInventory().experimentListView().activated.connect(
             self.onExperimentActivation
         )
@@ -113,3 +111,6 @@ class AnalysisGUI(QMainWindow):
     @Slot(QModelIndex)
     def onExperimentActivation(self, index: QModelIndex):
         self.experimentDataMapper().setCurrentIndex(index.row())
+        model = self.experimentInventory().experimentItemModel()
+        self.experimentWidget().pathsView().setModel(model)
+        self.experimentWidget().pathsView().setRootIndex(model.index(index.row(), 2))

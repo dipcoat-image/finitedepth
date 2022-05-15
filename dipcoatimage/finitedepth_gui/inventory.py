@@ -18,7 +18,7 @@ class ExperimentInventory(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._item_model = QStandardItemModel(0, 2)
+        self._item_model = QStandardItemModel(0, 3)
         self._list_view = QListView()
         self._add_button = QToolButton()
         self._delete_button = QPushButton()
@@ -44,11 +44,11 @@ class ExperimentInventory(QWidget):
         """
         Model to store the data which makes up :class:`ExperimentData`.
 
-        The model consists of N columns:
+        Columns correspond to the members of :class:`ExperimentData`:
 
         0. Header (with experiment name)
         1. Reference path
-        ... (to be added)
+        2. Coated substrate file paths (stored in child items)
         """
         return self._item_model
 
@@ -63,6 +63,8 @@ class ExperimentInventory(QWidget):
 
     @Slot()
     def addItem(self):
-        self.experimentItemModel().appendRow(
-            QStandardItem(f"Experiment {self.experimentItemModel().rowCount()}")
-        )
+        items = [
+            QStandardItem() for _ in range(self.experimentItemModel().columnCount())
+        ]
+        items[0].setText(f"Experiment {self.experimentItemModel().rowCount()}")
+        self.experimentItemModel().appendRow(items)
