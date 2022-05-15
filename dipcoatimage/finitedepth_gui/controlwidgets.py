@@ -21,7 +21,7 @@ from dipcoatimage.finitedepth.analysis import ImportArgs, ExperimentArgs
 from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
 import numpy as np
 import numpy.typing as npt
-from PySide6.QtCore import Signal, Slot
+from PySide6.QtCore import Signal, Slot, QSignalBlocker
 from PySide6.QtGui import QStandardItem
 from PySide6.QtWidgets import (
     QWidget,
@@ -55,8 +55,8 @@ __all__ = [
 class ExperimentWidgetData:
     """Data from experiment widget to construct experiment object."""
 
-    type: Any
-    parameters: Optional[DataclassProtocol]
+    type: Any = ImportWidget.INVALID
+    parameters: Optional[DataclassProtocol] = None
 
 
 @dataclasses.dataclass
@@ -80,7 +80,6 @@ class ExperimentWidget(QWidget):
 
     """
 
-    pathsChanged = Signal(list)
     dataChanged = Signal(ExperimentWidgetData, ExperimentArgs)
 
     def __init__(self, parent=None):
@@ -94,32 +93,19 @@ class ExperimentWidget(QWidget):
         self._importinfo_widget = ImportWidget()
         self._param_widget = StackedDataclassWidget()
 
-        self.connectSignals()
+        self.typeWidget().variableChanged.connect(self.onExperimentTypeChange)
         self.pathsView().setSelectionMode(QListView.ExtendedSelection)
         self.pathsView().setEditTriggers(QListView.SelectedClicked)
         self.pathAddButton().clicked.connect(self.onAddButtonClicked)
         self.pathDeleteButton().clicked.connect(self.onDeleteButtonClicked)
         self.pathBrowseButton().clicked.connect(self.onBrowseButtonClicked)
+        self.parametersWidget().dataValueChanged.connect(self.emitData)
 
         default_paramwdgt = DataclassWidget()  # default empty widget
         default_paramwdgt.setDataName("Parameters")
         self.parametersWidget().addWidget(default_paramwdgt)
 
         self.initUI()
-
-    def connectSignals(self):
-        """Connect the signals disconnected by :meth:`disconnectSignals`."""
-        self._typeSelectConnection = self.typeWidget().variableChanged.connect(
-            self.onExperimentTypeChange
-        )
-        self._paramChangeConnection = self.parametersWidget().dataValueChanged.connect(
-            self.emitData
-        )
-
-    def disconnectSignals(self):
-        """Disconnect the signals connected by :meth:`connectSignals`."""
-        self.parametersWidget().dataValueChanged.disconnect(self._paramChangeConnection)
-        self.typeWidget().variableChanged.disconnect(self._typeSelectConnection)
 
     def initUI(self):
         self.typeWidget().variableComboBox().setPlaceholderText(
@@ -220,6 +206,24 @@ class ExperimentWidget(QWidget):
             param = dict()
         args = ExperimentArgs(importArgs, param)
         return args
+
+    @Slot(ExperimentArgs)
+    def setExperimentArgs(self, args: ExperimentArgs):
+        """
+        Update the widgets with *args*.
+
+        This does not emit :attr:`dataChanged` signal. Run :meth:`emitData`
+        manually after running this method.
+        """
+        with QSignalBlocker(self):
+            self.typeWidget().variableNameLineEdit().setText(args.type.name)
+            self.typeWidget().moduleNameLineEdit().setText(args.type.module)
+            self.typeWidget().onInformationEdit()
+
+            paramWidget = self.currentParametersWidget()
+            paramWidget.setDataValue(
+                data_converter.structure(args.parameters, paramWidget.dataclassType())
+            )
 
     @Slot()
     def emitData(self):

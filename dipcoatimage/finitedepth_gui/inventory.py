@@ -1,3 +1,4 @@
+from dipcoatimage.finitedepth.analysis import ExperimentArgs
 import enum
 from PySide6.QtCore import Slot
 from PySide6.QtGui import QStandardItemModel, QStandardItem
@@ -10,6 +11,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QSizePolicy,
 )
+from .controlwidgets import ExperimentWidgetData
 
 
 __all__ = ["ExperimentItemModelColumns", "ExperimentInventory"]
@@ -33,6 +35,9 @@ class ExperimentItemModelColumns(enum.IntEnum):
     4. SUBSTRATE
     5. COATINGLAYER
     6. EXPERIMENT
+        Data to construct experiment object. Data are stored in :meth:`data`,
+        which returns (:class:`ExperimentWidgetData`, :class:`ExperimentArgs`).
+        Corresponds to :attr:`ExperimentData.experiment`.
     """
 
     EXPERIMENT_NAME = 0
@@ -56,7 +61,7 @@ class ExperimentInventory(QWidget):
         self.experimentListView().setSelectionMode(QListView.ExtendedSelection)
         self.experimentListView().setEditTriggers(QListView.SelectedClicked)
         self.experimentListView().setModel(self.experimentItemModel())
-        self.addButton().clicked.connect(self.addItem)
+        self.addButton().clicked.connect(self.onAddButtonClicked)
 
         layout = QVBoxLayout()
         layout.addWidget(self.experimentListView())
@@ -88,9 +93,15 @@ class ExperimentInventory(QWidget):
         return self._delete_button
 
     @Slot()
-    def addItem(self):
+    def onAddButtonClicked(self):
+        """Add new row to :meth:`experimentItemModel`."""
         items = [
             QStandardItem() for _ in range(self.experimentItemModel().columnCount())
         ]
-        items[0].setText(f"Experiment {self.experimentItemModel().rowCount()}")
+        items[ExperimentItemModelColumns.EXPERIMENT_NAME].setText(
+            f"Experiment {self.experimentItemModel().rowCount()}"
+        )
+        items[ExperimentItemModelColumns.EXPERIMENT].setData(
+            (ExperimentWidgetData(), ExperimentArgs())
+        )
         self.experimentItemModel().appendRow(items)

@@ -1,3 +1,4 @@
+from dipcoatimage.finitedepth.analysis import ExperimentArgs
 from PySide6.QtCore import Qt, Slot, QModelIndex
 from PySide6.QtWidgets import (
     QMainWindow,
@@ -8,6 +9,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from .controlwidgets import (
+    ExperimentWidgetData,
     ExperimentWidget,
     ReferenceWidget,
     SubstrateWidget,
@@ -64,6 +66,7 @@ class AnalysisGUI(QMainWindow):
         self.experimentInventory().experimentListView().activated.connect(
             self.onExperimentActivation
         )
+        self.experimentWidget().dataChanged.connect(self.onExperimentWidgetDataChange)
 
         expt_inv_dock = QDockWidget("Experiment inventory")
         expt_inv_dock.setWidget(self.experimentInventory())
@@ -114,9 +117,24 @@ class AnalysisGUI(QMainWindow):
 
     @Slot(QModelIndex)
     def onExperimentActivation(self, index: QModelIndex):
-        self.experimentDataMapper().setCurrentIndex(index.row())
+        """Update the experiment data to widgets."""
         model = self.experimentInventory().experimentItemModel()
+        self.experimentDataMapper().setCurrentIndex(index.row())
         self.experimentWidget().pathsView().setModel(model)
         self.experimentWidget().pathsView().setRootIndex(
             model.index(index.row(), ExperimentItemModelColumns.COAT_PATHS)
         )
+        self.experimentWidget().setExperimentArgs(
+            model.item(index.row(), ExperimentItemModelColumns.EXPERIMENT).data()[1]
+        )
+
+    @Slot(ExperimentWidgetData, ExperimentArgs)
+    def onExperimentWidgetDataChange(
+        self, widgetdata: ExperimentWidgetData, exptargs: ExperimentArgs
+    ):
+        """Update the data from :meth:`experimentWidget` to current model."""
+        index = self.experimentInventory().experimentListView().currentIndex()
+        if index.isValid():
+            model = self.experimentInventory().experimentItemModel()
+            item = model.item(index.row(), ExperimentItemModelColumns.EXPERIMENT)
+            item.setData((widgetdata, exptargs))
