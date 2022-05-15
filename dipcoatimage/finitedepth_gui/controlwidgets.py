@@ -17,7 +17,7 @@ from dipcoatimage.finitedepth import (
     ExperimentBase,
     data_converter,
 )
-from dipcoatimage.finitedepth.analysis import ImportArgs, ExperimentArgs
+from dipcoatimage.finitedepth.analysis import ImportArgs, ReferenceArgs, ExperimentArgs
 from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
 from PySide6.QtCore import Signal, Slot, QSignalBlocker
 from PySide6.QtGui import QStandardItem
@@ -262,11 +262,11 @@ class ExperimentWidget(QWidget):
 class ReferenceWidgetData:
     """Data from reference widget to construct substrate reference object."""
 
-    type: Any
-    templateROI: OptionalROI
-    substrateROI: OptionalROI
-    parameters: Optional[DataclassProtocol]
-    draw_options: Optional[DataclassProtocol]
+    type: Any = ImportWidget.INVALID
+    templateROI: OptionalROI = (0, 0, None, None)
+    substrateROI: OptionalROI = (0, 0, None, None)
+    parameters: Optional[DataclassProtocol] = None
+    draw_options: Optional[DataclassProtocol] = None
 
 
 class ReferenceWidget(QWidget):
@@ -324,7 +324,7 @@ class ReferenceWidget(QWidget):
     """
 
     imageChanged = Signal(object)
-    dataChanged = Signal(ReferenceWidgetData)
+    dataChanged = Signal(ReferenceWidgetData, ReferenceArgs)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -507,6 +507,50 @@ class ReferenceWidget(QWidget):
         self.setCurrentDrawOptionsWidget(var)
         self.emitData()
 
+    def referenceWidgetData(self) -> ReferenceWidgetData:
+        """Return :class:`ReferenceWidgetData` from current widget values."""
+        ref_type = self.typeWidget().variable()
+        templateROI = self.templateROIWidget().roiModel().roi()
+        substrateROI = self.substrateROIWidget().roiModel().roi()
+        try:
+            param = self.currentParametersWidget().dataValue()
+        except (TypeError, ValueError):
+            param = None
+        try:
+            drawopt = self.currentDrawOptionsWidget().dataValue()
+        except (TypeError, ValueError):
+            drawopt = None
+
+        data = ReferenceWidgetData(ref_type, templateROI, substrateROI, param, drawopt)
+        return data
+
+    def referenceArgs(self) -> ReferenceArgs:
+        """Return :class:`ReferenceArgs` from current widget values."""
+        importArgs = ImportArgs(
+            self.typeWidget().variableNameLineEdit().text(),
+            self.typeWidget().moduleNameLineEdit().text(),
+        )
+        templateROI = self.templateROIWidget().roiModel().roi()
+        substrateROI = self.substrateROIWidget().roiModel().roi()
+        try:
+            param = data_converter.unstructure(
+                self.currentParametersWidget().dataValue()
+            )
+        except (TypeError, ValueError):
+            param = dict()
+        try:
+            drawopt = data_converter.unstructure(
+                self.currentDrawOptionsWidget().dataValue()
+            )
+        except (TypeError, ValueError):
+            drawopt = dict()
+        args = ReferenceArgs(importArgs, templateROI, substrateROI, param, drawopt)
+        return args
+
+    @Slot()
+    def emitData(self):
+        self.dataChanged.emit(self.referenceWidgetData(), self.referenceArgs())
+
     @Slot(str)
     def setReferencePath(self, path: str):
         self.pathLineEdit().setText(path)
@@ -547,32 +591,12 @@ class ReferenceWidget(QWidget):
             self.currentDrawOptionsWidget().dataValue()
         )
 
-    def referenceWidgetData(self) -> ReferenceWidgetData:
-        ref_type = self.typeWidget().variable()
-        templateROI = self.templateROIWidget().roiModel().roi()
-        substrateROI = self.substrateROIWidget().roiModel().roi()
-        try:
-            param = self.currentParametersWidget().dataValue()
-        except (TypeError, ValueError):
-            param = None
-        try:
-            drawopt = self.currentDrawOptionsWidget().dataValue()
-        except (TypeError, ValueError):
-            drawopt = None
-
-        data = ReferenceWidgetData(ref_type, templateROI, substrateROI, param, drawopt)
-        return data
-
     @Slot()
     def emitImage(self):
         img = cv2.imread(self.pathLineEdit().text())
         if img is not None:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.imageChanged.emit(img)
-
-    @Slot()
-    def emitData(self):
-        self.dataChanged.emit(self.referenceWidgetData())
 
     def browseReferenceImage(self):
         path, _ = QFileDialog.getOpenFileName(
