@@ -1,5 +1,12 @@
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QMainWindow, QTabWidget, QScrollArea, QDockWidget, QWidget
+from PySide6.QtCore import Qt, Slot, QModelIndex
+from PySide6.QtWidgets import (
+    QMainWindow,
+    QTabWidget,
+    QScrollArea,
+    QDockWidget,
+    QDataWidgetMapper,
+    QWidget,
+)
 from .controlwidgets import (
     ExperimentWidget,
     ReferenceWidget,
@@ -30,6 +37,7 @@ class AnalysisGUI(QMainWindow):
         super().__init__(parent)
 
         self._expt_inv = ExperimentInventory()
+        self._exptdata_mapper = QDataWidgetMapper()
         self._exptitem_tab = QTabWidget()
         self._expt_scroll = QScrollArea()
         self._expt_widget = ExperimentWidget()
@@ -41,6 +49,16 @@ class AnalysisGUI(QMainWindow):
         self._layer_widget = CoatingLayerWidget()
 
         self.setCentralWidget(QWidget())
+
+        self.experimentDataMapper().setModel(
+            self.experimentInventory().experimentItemModel()
+        )
+        self.experimentDataMapper().addMapping(
+            self.experimentWidget().experimentNameLineEdit(), 0
+        )
+        self.experimentInventory().experimentListView().activated.connect(
+            self.onExperimentActivation
+        )
 
         expt_inv_dock = QDockWidget("Experiment inventory")
         expt_inv_dock.setWidget(self.experimentInventory())
@@ -66,6 +84,9 @@ class AnalysisGUI(QMainWindow):
         """Widget to display the experiment items.."""
         return self._expt_inv
 
+    def experimentDataMapper(self) -> QDataWidgetMapper:
+        return self._exptdata_mapper
+
     def experimentItemTab(self) -> QTabWidget:
         """Tab widget to display the data of activated experiment item."""
         return self._exptitem_tab
@@ -85,3 +106,7 @@ class AnalysisGUI(QMainWindow):
     def coatingLayerWidget(self) -> CoatingLayerWidget:
         """Widget to manage data for coating layer class."""
         return self._layer_widget
+
+    @Slot(QModelIndex)
+    def onExperimentActivation(self, index: QModelIndex):
+        self.experimentDataMapper().setCurrentIndex(index.row())

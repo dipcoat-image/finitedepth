@@ -23,6 +23,8 @@ class ExperimentInventory(QWidget):
         self._add_button = QToolButton()
         self._delete_button = QPushButton()
 
+        self.experimentListView().setSelectionMode(QListView.ExtendedSelection)
+        self.experimentListView().setEditTriggers(QListView.SelectedClicked)
         self.experimentListView().setModel(self.experimentItemModel())
         self.addButton().clicked.connect(self.addItem)
 
