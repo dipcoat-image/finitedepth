@@ -29,11 +29,19 @@ class ExperimentItemModelColumns(enum.IntEnum):
         Paths to coated substrate files. This is the root item, and each path is
         stored in children item.
         Corresponds to :attr:`ExperimentData.coat_paths`.
+    3. REFERENCE
+    4. SUBSTRATE
+    5. COATINGLAYER
+    6. EXPERIMENT
     """
 
     EXPERIMENT_NAME = 0
     REFERENCE_PATH = 1
     COAT_PATHS = 2
+    REFERENCE = 3
+    SUBSTRATE = 4
+    COATINGLAYER = 5
+    EXPERIMENT = 6
 
 
 class ExperimentInventory(QWidget):
