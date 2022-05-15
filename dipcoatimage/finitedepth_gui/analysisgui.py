@@ -56,6 +56,9 @@ class AnalysisGUI(QMainWindow):
         self.experimentDataMapper().addMapping(
             self.experimentWidget().experimentNameLineEdit(), 0
         )
+        self.experimentDataMapper().addMapping(
+            self.referenceWidget().pathLineEdit(), 1
+        )
         self.experimentInventory().experimentListView().activated.connect(
             self.onExperimentActivation
         )

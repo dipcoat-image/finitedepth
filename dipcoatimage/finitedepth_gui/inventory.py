@@ -18,7 +18,7 @@ class ExperimentInventory(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._item_model = QStandardItemModel(0, 3)
+        self._item_model = QStandardItemModel(0, 2)
         self._list_view = QListView()
         self._add_button = QToolButton()
         self._delete_button = QPushButton()
@@ -47,6 +47,7 @@ class ExperimentInventory(QWidget):
         The model consists of N columns:
 
         0. Header (with experiment name)
+        1. Reference path
         ... (to be added)
         """
         return self._item_model
