@@ -11,7 +11,7 @@ from dipcoatimage.finitedepth import SubstrateReferenceBase, SubstrateBase
 from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
 import numpy as np
 import numpy.typing as npt
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Slot, Signal
 from typing import Optional, Type
 from .controlwidgets import ReferenceWidgetData, SubstrateWidgetData
 
@@ -28,12 +28,14 @@ class ReferenceWorker(QObject):
     and to visualize it.
 
     Data for reference object are:
-        1. :meth:`referenceType`
-        2. :meth:`image`
-        3. :meth:`templateROI`
-        4. :meth:`substrateROI`
-        5. :meth:`paramters`
-        6. :meth:`drawOptions`
+
+    1. :meth:`referenceType`
+    2. :meth:`image`
+    3. :meth:`templateROI`
+    4. :meth:`substrateROI`
+    5. :meth:`paramters`
+    6. :meth:`drawOptions`
+
     :meth:`image` is updated by :meth:`setImage`. Other data are updated by
     :meth:`setReferenceWidgetData`.
 
@@ -78,6 +80,7 @@ class ReferenceWorker(QObject):
             img = np.empty((0, 0, 0), dtype=np.uint8)
         return img
 
+    @Slot(object)
     def setImage(self, img: Optional[npt.NDArray[np.uint8]]):
         """Update :meth:`image` with *img*."""
         self._img = img
@@ -228,10 +231,12 @@ class SubstrateWorker(QObject):
     visualize it.
 
     Data for substrate object are:
-        1. :meth:`substrateType`
-        2. :meth:`reference`
-        3. :meth:`paramters`
-        4. :meth:`drawOptions`
+
+    1. :meth:`substrateType`
+    2. :meth:`reference`
+    3. :meth:`paramters`
+    4. :meth:`drawOptions`
+
     All data, except :meth:`reference` which is updated by :meth:`setReference`,
     are updated by :meth:`setSubstrateWidgetData`.
 
