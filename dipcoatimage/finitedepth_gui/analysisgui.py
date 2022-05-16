@@ -5,6 +5,7 @@ from dipcoatimage.finitedepth.analysis import (
     ExperimentArgs,
 )
 from PySide6.QtCore import Qt, Slot, QModelIndex
+from PySide6.QtGui import QStandardItem
 from PySide6.QtWidgets import (
     QMainWindow,
     QTabWidget,
@@ -86,6 +87,15 @@ class AnalysisGUI(QMainWindow):
         )
 
         self.referenceWidget().imageChanged.connect(self.referenceWorker().setImage)
+        self.experimentInventory().experimentItemModel().itemChanged.connect(
+            self.onExperimentItemChange
+        )
+        self.experimentInventory().experimentItemModel().rowsInserted.connect(
+            self.onExperimentItemRowsChange
+        )
+        self.experimentInventory().experimentItemModel().rowsRemoved.connect(
+            self.onExperimentItemRowsChange
+        )
 
         expt_inv_dock = QDockWidget("Experiment inventory")
         expt_inv_dock.setWidget(self.experimentInventory())
@@ -229,3 +239,12 @@ class AnalysisGUI(QMainWindow):
             model = self.experimentInventory().experimentItemModel()
             item = model.item(index.row(), ExperimentItemModelColumns.COATINGLAYER)
             item.setData((widgetdata, layerargs))
+
+    @Slot(QStandardItem)
+    def onExperimentItemChange(self, item: QStandardItem):
+        model = self.experimentInventory().experimentItemModel()
+
+    @Slot(QModelIndex, int, int)
+    def onExperimentItemRowsChange(self, index: QModelIndex, first: int, last: int):
+        """Apply the change of experiment file paths to experiment worker."""
+        pass
