@@ -1,9 +1,11 @@
+import dataclasses
 from dipcoatimage.finitedepth.analysis import (
     ReferenceArgs,
     SubstrateArgs,
     CoatingLayerArgs,
     ExperimentArgs,
 )
+from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
 import enum
 from PySide6.QtCore import Slot, Qt
 from PySide6.QtGui import QStandardItemModel, QStandardItem
@@ -16,12 +18,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QSizePolicy,
 )
-from .controlwidgets import (
-    ReferenceWidgetData,
-    SubstrateWidgetData,
-    CoatingLayerWidgetData,
-    ExperimentWidgetData,
-)
+from typing import Any, Optional
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -29,7 +26,53 @@ except ImportError:
     from typing_extensions import TypeAlias
 
 
-__all__ = ["ExperimentItemModelColumns", "ExperimentItemModel", "ExperimentInventory"]
+__all__ = [
+    "StructuredExperimentArgs",
+    "StructuredReferenceArgs",
+    "StructuredSubstrateArgs",
+    "StructuredCoatingLayerArgs",
+    "ExperimentItemModelColumns",
+    "ExperimentItemModel",
+    "ExperimentInventory",
+]
+
+
+@dataclasses.dataclass
+class StructuredExperimentArgs:
+    """Structured data to construct experiment object."""
+
+    type: Any = object()
+    parameters: Optional[DataclassProtocol] = None
+
+
+@dataclasses.dataclass
+class StructuredReferenceArgs:
+    """Structured data to construct reference object."""
+
+    type: Any = object()
+    templateROI: OptionalROI = (0, 0, None, None)
+    substrateROI: OptionalROI = (0, 0, None, None)
+    parameters: Optional[DataclassProtocol] = None
+    draw_options: Optional[DataclassProtocol] = None
+
+
+@dataclasses.dataclass
+class StructuredSubstrateArgs:
+    """Structured data to construct substrate object."""
+
+    type: Any = object()
+    parameters: Optional[DataclassProtocol] = None
+    draw_options: Optional[DataclassProtocol] = None
+
+
+@dataclasses.dataclass
+class StructuredCoatingLayerArgs:
+    """Structured data to construct coating layer object."""
+
+    type: Any = object()
+    parameters: Optional[DataclassProtocol] = None
+    draw_options: Optional[DataclassProtocol] = None
+    deco_options: Optional[DataclassProtocol] = None
 
 
 class ExperimentItemModelColumns(enum.IntEnum):
@@ -72,19 +115,19 @@ class ExperimentItemModel(QStandardItemModel):
         Corresponds to :attr:`ExperimentData.coat_paths`.
     3. REFERENCE
         Data to construct reference object. Data are stored in :meth:`data` as
-        tuple (:class:`ReferenceWidgetData`, :class:`ReferenceArgs`) with
+        tuple (:class:`StructuredReferenceArgs`, :class:`ReferenceArgs`) with
         ``Qt.UserRole``. Corresponds to :attr:`ExperimentData.reference`.
     4. SUBSTRATE
         Data to construct substrate object. Data are stored in :meth:`data` as
-        tuple (:class:`SubstrateWidgetData`, :class:`SubstrateArgs`) with
+        tuple (:class:`StructuredSubstrateArgs`, :class:`SubstrateArgs`) with
         ``Qt.UserRole``. Corresponds to :attr:`ExperimentData.substrate`.
     5. COATINGLAYER
         Data to construct coating layer object. Data are stored in :meth:`data`
-        as tuple (:class:`CoatingLayerWidgetData`, :class:`CoatingLayerArgs`)
+        as tuple (:class:`StructuredCoatingLayerArgs`, :class:`CoatingLayerArgs`)
         with ``Qt.UserRole``. Corresponds to :attr:`ExperimentData.coatinglayer`.
     6. EXPERIMENT
         Data to construct experiment object. Data are stored in :meth:`data` as
-        tuple (:class:`ExperimentWidgetData`, :class:`ExperimentArgs`) with
+        tuple (:class:`StructuredExperimentArgs`, :class:`ExperimentArgs`) with
         ``Qt.UserRole``. Corresponds to :attr:`ExperimentData.experiment`.
     """
 
@@ -104,13 +147,13 @@ class ExperimentItemModel(QStandardItemModel):
         ret = super().data(index, role)
         if role == Qt.UserRole and ret is None and not index.parent().isValid():
             if index.column() == self.Col_Reference:
-                ret = (ReferenceWidgetData(), ReferenceArgs())
+                ret = (StructuredReferenceArgs(), ReferenceArgs())
             elif index.column() == self.Col_Substrate:
-                ret = (SubstrateWidgetData(), SubstrateArgs())
+                ret = (StructuredSubstrateArgs(), SubstrateArgs())
             elif index.column() == self.Col_CoatingLayer:
-                ret = (CoatingLayerWidgetData(), CoatingLayerArgs())
+                ret = (StructuredCoatingLayerArgs(), CoatingLayerArgs())
             elif index.column() == self.Col_Experiment:
-                ret = (ExperimentWidgetData(), ExperimentArgs())
+                ret = (StructuredExperimentArgs(), ExperimentArgs())
         return ret
 
 

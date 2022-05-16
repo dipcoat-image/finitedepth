@@ -24,7 +24,6 @@ from dipcoatimage.finitedepth.analysis import (
     CoatingLayerArgs,
     ExperimentArgs,
 )
-from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
 from PySide6.QtCore import Signal, Slot, QSignalBlocker
 from PySide6.QtGui import QStandardItem
 from PySide6.QtWidgets import (
@@ -38,29 +37,23 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QSizePolicy,
 )
-from typing import Optional, Any
+from typing import Any
 from .importwidget import ImportWidget
+from .inventory import (
+    StructuredExperimentArgs,
+    StructuredReferenceArgs,
+    StructuredSubstrateArgs,
+    StructuredCoatingLayerArgs,
+)
 from .roimodel import ROIWidget
 
 
 __all__ = [
-    "ExperimentWidgetData",
     "ExperimentWidget",
-    "ReferenceWidgetData",
     "ReferenceWidget",
-    "SubstrateWidgetData",
     "SubstrateWidget",
-    "CoatingLayerWidgetData",
     "CoatingLayerWidget",
 ]
-
-
-@dataclasses.dataclass
-class ExperimentWidgetData:
-    """Data from experiment widget to construct experiment object."""
-
-    type: Any = ImportWidget.INVALID
-    parameters: Optional[DataclassProtocol] = None
 
 
 @dataclasses.dataclass
@@ -84,7 +77,7 @@ class ExperimentWidget(QWidget):
 
     """
 
-    dataChanged = Signal(ExperimentWidgetData, ExperimentArgs)
+    dataChanged = Signal(StructuredExperimentArgs, ExperimentArgs)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -186,14 +179,16 @@ class ExperimentWidget(QWidget):
         self.setCurrentParametersWidget(var)
         self.emitData()
 
-    def experimentWidgetData(self) -> ExperimentWidgetData:
-        """Return :class:`ExperimentWidgetData` from current widget values."""
+    def structuredExperimentArgs(self) -> StructuredExperimentArgs:
+        """
+        Return :class:`StructuredExperimentArgs` from current widget values.
+        """
         expt_type = self.typeWidget().variable()
         try:
             param = self.currentParametersWidget().dataValue()
         except (TypeError, ValueError):
             param = None
-        data = ExperimentWidgetData(expt_type, param)
+        data = StructuredExperimentArgs(expt_type, param)
         return data
 
     def experimentArgs(self) -> ExperimentArgs:
@@ -236,7 +231,7 @@ class ExperimentWidget(QWidget):
 
     @Slot()
     def emitData(self):
-        self.dataChanged.emit(self.experimentWidgetData(), self.experimentArgs())
+        self.dataChanged.emit(self.structuredExperimentArgs(), self.experimentArgs())
 
     @Slot()
     def onAddButtonClicked(self):
@@ -269,17 +264,6 @@ class ExperimentWidget(QWidget):
                 parentItem.appendRow(QStandardItem(p))
 
 
-@dataclasses.dataclass
-class ReferenceWidgetData:
-    """Data from reference widget to construct substrate reference object."""
-
-    type: Any = ImportWidget.INVALID
-    templateROI: OptionalROI = (0, 0, None, None)
-    substrateROI: OptionalROI = (0, 0, None, None)
-    parameters: Optional[DataclassProtocol] = None
-    draw_options: Optional[DataclassProtocol] = None
-
-
 class ReferenceWidget(QWidget):
     """
     Widget to control data for substrate reference object.
@@ -291,8 +275,8 @@ class ReferenceWidget(QWidget):
 
     Image is emitted by :attr:`imageChanged` signal.
 
-    Data are wrapped by :class:`ReferenceWidgetData`. Whenever the widget values
-    change :attr:`dataChanged` signal emits the data.
+    Data are wrapped by :class:`StructuredReferenceArgs`. Whenever the widget
+    values change :attr:`dataChanged` signal emits the data.
 
     .. rubric:: Setting type
 
@@ -335,7 +319,7 @@ class ReferenceWidget(QWidget):
     """
 
     imageChanged = Signal(object)
-    dataChanged = Signal(ReferenceWidgetData, ReferenceArgs)
+    dataChanged = Signal(StructuredReferenceArgs, ReferenceArgs)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -491,8 +475,8 @@ class ReferenceWidget(QWidget):
         self.setCurrentDrawOptionsWidget(var)
         self.emitData()
 
-    def referenceWidgetData(self) -> ReferenceWidgetData:
-        """Return :class:`ReferenceWidgetData` from current widget values."""
+    def structuredReferenceArgs(self) -> StructuredReferenceArgs:
+        """Return :class:`StructuredReferenceArgs` from current widget values."""
         ref_type = self.typeWidget().variable()
         templateROI = self.templateROIWidget().roiModel().roi()
         substrateROI = self.substrateROIWidget().roiModel().roi()
@@ -505,7 +489,9 @@ class ReferenceWidget(QWidget):
         except (TypeError, ValueError):
             drawopt = None
 
-        data = ReferenceWidgetData(ref_type, templateROI, substrateROI, param, drawopt)
+        data = StructuredReferenceArgs(
+            ref_type, templateROI, substrateROI, param, drawopt
+        )
         return data
 
     def referenceArgs(self) -> ReferenceArgs:
@@ -563,7 +549,7 @@ class ReferenceWidget(QWidget):
 
     @Slot()
     def emitData(self):
-        self.dataChanged.emit(self.referenceWidgetData(), self.referenceArgs())
+        self.dataChanged.emit(self.structuredReferenceArgs(), self.referenceArgs())
 
     @Slot(str)
     def setReferencePath(self, path: str):
@@ -612,15 +598,6 @@ class ReferenceWidget(QWidget):
             self.templateROIDrawButton().setChecked(False)
 
 
-@dataclasses.dataclass
-class SubstrateWidgetData:
-    """Data from substrate widget to construct substrate object."""
-
-    type: Any = ImportWidget.INVALID
-    parameters: Optional[DataclassProtocol] = None
-    draw_options: Optional[DataclassProtocol] = None
-
-
 class SubstrateWidget(QWidget):
     """
     Widget to control data for substrate object.
@@ -632,8 +609,8 @@ class SubstrateWidget(QWidget):
     Note that substrate image is not specified by this widget, but by
     :class:`ReferenceWidget`.
 
-    Data are wrapped by :class:`SubstrateWidgetData`. Whenever the widget values
-    change :attr:`dataChanged` signal emits the data.
+    Data are wrapped by :class:`StructuredSubstrateArgs`. Whenever the widget
+    values change :attr:`dataChanged` signal emits the data.
 
     .. rubric:: Setting type
 
@@ -658,7 +635,7 @@ class SubstrateWidget(QWidget):
 
     """
 
-    dataChanged = Signal(SubstrateWidgetData, SubstrateArgs)
+    dataChanged = Signal(StructuredSubstrateArgs, SubstrateArgs)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -753,8 +730,8 @@ class SubstrateWidget(QWidget):
         self.setCurrentDrawOptionsWidget(var)
         self.emitData()
 
-    def substrateWidgetData(self) -> SubstrateWidgetData:
-        """Return :class:`SubstrateWidgetData` from current widget values."""
+    def structuredSubstrateArgs(self) -> StructuredSubstrateArgs:
+        """Return :class:`StructuredSubstrateArgs` from current widget values."""
         subst_type = self.typeWidget().variable()
         try:
             param = self.currentParametersWidget().dataValue()
@@ -764,7 +741,7 @@ class SubstrateWidget(QWidget):
             drawopt = self.currentDrawOptionsWidget().dataValue()
         except (TypeError, ValueError):
             drawopt = None
-        data = SubstrateWidgetData(subst_type, param, drawopt)
+        data = StructuredSubstrateArgs(subst_type, param, drawopt)
         return data
 
     def substrateArgs(self) -> SubstrateArgs:
@@ -817,17 +794,7 @@ class SubstrateWidget(QWidget):
 
     @Slot()
     def emitData(self):
-        self.dataChanged.emit(self.substrateWidgetData(), self.substrateArgs())
-
-
-@dataclasses.dataclass
-class CoatingLayerWidgetData:
-    """Data from coating layer widget to construct coating layer object."""
-
-    type: Any = ImportWidget.INVALID
-    parameters: Optional[DataclassProtocol] = None
-    draw_options: Optional[DataclassProtocol] = None
-    deco_options: Optional[DataclassProtocol] = None
+        self.dataChanged.emit(self.structuredSubstrateArgs(), self.substrateArgs())
 
 
 class CoatingLayerWidget(QWidget):
@@ -841,7 +808,7 @@ class CoatingLayerWidget(QWidget):
     *deco_options*. Note that coated substrate image is not specified by this
     widget, but by :class:`ExperimentWidget`.
 
-    Data are wrapped by :class:`CoatingLayerWidgetData`. Whenever the widget
+    Data are wrapped by :class:`StructuredCoatingLayerArgs`. Whenever the widget
     values change :attr:`dataChanged` signal emits the data.
 
     .. rubric:: Setting type
@@ -870,7 +837,7 @@ class CoatingLayerWidget(QWidget):
 
     """
 
-    dataChanged = Signal(CoatingLayerWidgetData, SubstrateArgs)
+    dataChanged = Signal(StructuredCoatingLayerArgs, SubstrateArgs)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -992,8 +959,10 @@ class CoatingLayerWidget(QWidget):
         self.setCurrentDecoOptionsWidget(var)
         self.emitData()
 
-    def coatingLayerWidgetData(self) -> CoatingLayerWidgetData:
-        """Return :class:`CoatingLayerWidgetData` from current widget values."""
+    def structuredCoatingLayerArgs(self) -> StructuredCoatingLayerArgs:
+        """
+        Return :class:`StructuredCoatingLayerArgs` from current widget values.
+        """
         layer_type = self.typeWidget().variable()
         try:
             param = self.currentParametersWidget().dataValue()
@@ -1007,7 +976,7 @@ class CoatingLayerWidget(QWidget):
             decoopt = self.currentDecoOptionsWidget().dataValue()
         except (TypeError, ValueError):
             decoopt = None
-        data = CoatingLayerWidgetData(layer_type, param, drawopt, decoopt)
+        data = StructuredCoatingLayerArgs(layer_type, param, drawopt, decoopt)
         return data
 
     def coatingLayerArgs(self) -> CoatingLayerArgs:
@@ -1076,4 +1045,6 @@ class CoatingLayerWidget(QWidget):
 
     @Slot()
     def emitData(self):
-        self.dataChanged.emit(self.coatingLayerWidgetData(), self.coatingLayerArgs())
+        self.dataChanged.emit(
+            self.structuredCoatingLayerArgs(), self.coatingLayerArgs()
+        )

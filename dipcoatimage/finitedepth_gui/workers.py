@@ -20,11 +20,11 @@ import numpy as np
 import numpy.typing as npt
 from PySide6.QtCore import QObject, Slot, Signal
 from typing import Optional, Type, Generator
-from .controlwidgets import (
-    ReferenceWidgetData,
-    SubstrateWidgetData,
-    CoatingLayerWidgetData,
-    ExperimentWidgetData,
+from .inventory import (
+    StructuredReferenceArgs,
+    StructuredSubstrateArgs,
+    StructuredCoatingLayerArgs,
+    StructuredExperimentArgs,
 )
 
 
@@ -51,7 +51,7 @@ class ReferenceWorker(QObject):
     6. :meth:`drawOptions`
 
     :meth:`image` is updated by :meth:`setImage`. Other data are updated by
-    :meth:`setReferenceWidgetData`.
+    :meth:`setStructuredReferenceArgs`.
 
     :meth:`updateReference` constructs the reference object with current data.
     Resulting object can be acquired from :meth:`reference`, or calling
@@ -125,7 +125,7 @@ class ReferenceWorker(QObject):
         """
         return self._draw_opts
 
-    def setReferenceWidgetData(self, data: ReferenceWidgetData):
+    def setStructuredReferenceArgs(self, data: StructuredReferenceArgs):
         """
         Update following values with *data*.
 
@@ -252,7 +252,7 @@ class SubstrateWorker(QObject):
     4. :meth:`drawOptions`
 
     All data, except :meth:`reference` which is updated by :meth:`setReference`,
-    are updated by :meth:`setSubstrateWidgetData`.
+    are updated by :meth:`setStructuredSubstrateArgs`.
 
     :meth:`updateSubstrate` constructs the substrate object with current data.
     Resulting object can be acquired from :meth:`substrate`, or calling
@@ -307,7 +307,7 @@ class SubstrateWorker(QObject):
         """
         return self._draw_opts
 
-    def setSubstrateWidgetData(self, data: SubstrateWidgetData):
+    def setStructuredSubstrateArgs(self, data: StructuredSubstrateArgs):
         """
         Update following values with *data*.
 
@@ -461,9 +461,9 @@ class ExperimentWorker(QObject):
     6. :meth:`coatingLayerDecoOptions`
     7. :meth:`parameters`
 
-    1st and 7th data are updated by :meth:`setExperimentWidgetData`. 2nd datum is
+    1st and 7th data are updated by :meth:`setStructuredExperimentArgs`. 2nd datum is
     updated by :meth:`setSubstrate`. 3rd, 4th, 5th and 6th data are updated by
-    :meth:`setCoatingLayerWidgetData`.
+    :meth:`setStructuredCoatingLayerArgs`.
 
     :meth:`updateExperiment` constructs the experiment object with data.
     Resulting object can be acquired by :meth:`experiment`, or calling
@@ -547,7 +547,7 @@ class ExperimentWorker(QObject):
         """
         return self._params
 
-    def setExperimentWidgetData(self, data: ExperimentWidgetData):
+    def setStructuredExperimentArgs(self, data: StructuredExperimentArgs):
         """
         Update following values with *data*.
 
@@ -575,7 +575,7 @@ class ExperimentWorker(QObject):
         """Update :meth:`substrate` with *subst*."""
         self._subst = subst
 
-    def setCoatingLayerWidgetData(self, data: CoatingLayerWidgetData):
+    def setStructuredCoatingLayerArgs(self, data: StructuredCoatingLayerArgs):
         """
         Update following values with *data*.
 

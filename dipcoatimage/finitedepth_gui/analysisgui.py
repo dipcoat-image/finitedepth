@@ -15,16 +15,19 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from .controlwidgets import (
-    ExperimentWidgetData,
     ExperimentWidget,
-    ReferenceWidgetData,
     ReferenceWidget,
-    SubstrateWidgetData,
     SubstrateWidget,
-    CoatingLayerWidgetData,
     CoatingLayerWidget,
 )
-from .inventory import ExperimentItemModel, ExperimentInventory
+from .inventory import (
+    StructuredExperimentArgs,
+    StructuredReferenceArgs,
+    StructuredSubstrateArgs,
+    StructuredCoatingLayerArgs,
+    ExperimentItemModel,
+    ExperimentInventory,
+)
 from .workers import ReferenceWorker, SubstrateWorker, ExperimentWorker
 
 
@@ -79,11 +82,13 @@ class AnalysisGUI(QMainWindow):
         self.experimentInventory().experimentListView().activated.connect(
             self.onExperimentActivation
         )
-        self.experimentWidget().dataChanged.connect(self.onExperimentWidgetDataChange)
-        self.referenceWidget().dataChanged.connect(self.onReferenceWidgetDataChange)
-        self.substrateWidget().dataChanged.connect(self.onSubstrateWidgetDataChange)
+        self.experimentWidget().dataChanged.connect(
+            self.onStructuredExperimentArgsChange
+        )
+        self.referenceWidget().dataChanged.connect(self.onStructuredReferenceArgsChange)
+        self.substrateWidget().dataChanged.connect(self.onStructuredSubstrateArgsChange)
         self.coatingLayerWidget().dataChanged.connect(
-            self.onCoatingLayerWidgetDataChange
+            self.onStructuredCoatingLayerArgsChange
         )
 
         self.referenceWidget().imageChanged.connect(self.referenceWorker().setImage)
@@ -195,34 +200,34 @@ class AnalysisGUI(QMainWindow):
         self.substrateWorker().clear()
         self.experimentWorker().clear()
 
-        self.referenceWorker().setReferenceWidgetData(
+        self.referenceWorker().setStructuredReferenceArgs(
             model.data(
                 model.index(index.row(), ExperimentItemModel.Col_Reference),
                 Qt.UserRole,
             )[0]
         )
-        self.substrateWorker().setSubstrateWidgetData(
+        self.substrateWorker().setStructuredSubstrateArgs(
             model.data(
                 model.index(index.row(), ExperimentItemModel.Col_Substrate),
                 Qt.UserRole,
             )[0]
         )
-        self.experimentWorker().setCoatingLayerWidgetData(
+        self.experimentWorker().setStructuredCoatingLayerArgs(
             model.data(
                 model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
                 Qt.UserRole,
             )[0]
         )
-        self.experimentWorker().setExperimentWidgetData(
+        self.experimentWorker().setStructuredExperimentArgs(
             model.data(
                 model.index(index.row(), ExperimentItemModel.Col_Experiment),
                 Qt.UserRole,
             )[0]
         )
 
-    @Slot(ExperimentWidgetData, ExperimentArgs)
-    def onExperimentWidgetDataChange(
-        self, widgetdata: ExperimentWidgetData, exptargs: ExperimentArgs
+    @Slot(StructuredExperimentArgs, ExperimentArgs)
+    def onStructuredExperimentArgsChange(
+        self, widgetdata: StructuredExperimentArgs, exptargs: ExperimentArgs
     ):
         """Update the data from :meth:`experimentWidget` to current model."""
         index = self.experimentInventory().experimentListView().currentIndex()
@@ -234,9 +239,9 @@ class AnalysisGUI(QMainWindow):
                 Qt.UserRole,  # type: ignore[arg-type]
             )
 
-    @Slot(ReferenceWidgetData, ReferenceArgs)
-    def onReferenceWidgetDataChange(
-        self, widgetdata: ReferenceWidgetData, refargs: ReferenceArgs
+    @Slot(StructuredReferenceArgs, ReferenceArgs)
+    def onStructuredReferenceArgsChange(
+        self, widgetdata: StructuredReferenceArgs, refargs: ReferenceArgs
     ):
         """Update the data from :meth:`referenceWidget` to current model."""
         index = self.experimentInventory().experimentListView().currentIndex()
@@ -248,9 +253,9 @@ class AnalysisGUI(QMainWindow):
                 Qt.UserRole,  # type: ignore[arg-type]
             )
 
-    @Slot(SubstrateWidgetData, SubstrateArgs)
-    def onSubstrateWidgetDataChange(
-        self, widgetdata: SubstrateWidgetData, substargs: SubstrateArgs
+    @Slot(StructuredSubstrateArgs, SubstrateArgs)
+    def onStructuredSubstrateArgsChange(
+        self, widgetdata: StructuredSubstrateArgs, substargs: SubstrateArgs
     ):
         """Update the data from :meth:`substrateWidget` to current model."""
         index = self.experimentInventory().experimentListView().currentIndex()
@@ -262,9 +267,9 @@ class AnalysisGUI(QMainWindow):
                 Qt.UserRole,  # type: ignore[arg-type]
             )
 
-    @Slot(CoatingLayerWidgetData, CoatingLayerArgs)
-    def onCoatingLayerWidgetDataChange(
-        self, widgetdata: CoatingLayerWidgetData, layerargs: CoatingLayerArgs
+    @Slot(StructuredCoatingLayerArgs, CoatingLayerArgs)
+    def onStructuredCoatingLayerArgsChange(
+        self, widgetdata: StructuredCoatingLayerArgs, layerargs: CoatingLayerArgs
     ):
         """Update the data from :meth:`coatingLayerWidget` to current model."""
         index = self.experimentInventory().experimentListView().currentIndex()

@@ -9,11 +9,11 @@ from dipcoatimage.finitedepth import (
     data_converter,
 )
 from dipcoatimage.finitedepth.analysis import SubstrateArgs, ImportArgs
+from dipcoatimage.finitedepth.util import dict_includes
 from dipcoatimage.finitedepth_gui.controlwidgets import (
     SubstrateWidget,
-    SubstrateWidgetData,
 )
-from dipcoatimage.finitedepth.util import dict_includes
+from dipcoatimage.finitedepth_gui.inventory import StructuredSubstrateArgs
 from dipcoatimage.finitedepth_gui.workers import SubstrateWorker
 import numpy as np
 import pytest
@@ -132,38 +132,38 @@ def test_SubstrateWidget_dataChanged_count(qtbot):
     assert counter.i == 0
 
 
-def test_SubstrateWorker_setSubstrateWidgetData(qtbot):
+def test_SubstrateWorker_setStructuredSubstrateArgs(qtbot):
     worker = SubstrateWorker()
     assert worker.substrateType() is None
     assert worker.reference() is None
     assert worker.parameters() is None
     assert worker.drawOptions() is None
 
-    valid_data1 = SubstrateWidgetData(Substrate, None, None)
-    worker.setSubstrateWidgetData(valid_data1)
+    valid_data1 = StructuredSubstrateArgs(Substrate, None, None)
+    worker.setStructuredSubstrateArgs(valid_data1)
     assert worker.substrateType() == valid_data1.type
     assert worker.parameters() == worker.substrateType().Parameters()
     assert worker.drawOptions() == worker.substrateType().DrawOptions()
 
-    valid_data2 = SubstrateWidgetData(
+    valid_data2 = StructuredSubstrateArgs(
         Substrate, Substrate.Parameters(), Substrate.DrawOptions()
     )
-    worker.setSubstrateWidgetData(valid_data2)
+    worker.setStructuredSubstrateArgs(valid_data2)
     assert worker.substrateType() == valid_data1.type
     assert worker.parameters() == worker.substrateType().Parameters()
     assert worker.drawOptions() == worker.substrateType().DrawOptions()
 
-    type_invalid_data = SubstrateWidgetData(
+    type_invalid_data = StructuredSubstrateArgs(
         type, Substrate.Parameters(), Substrate.DrawOptions()
     )
-    worker.setSubstrateWidgetData(type_invalid_data)
+    worker.setStructuredSubstrateArgs(type_invalid_data)
     assert worker.substrateType() is None
     assert worker.parameters() is None
     assert worker.drawOptions() is None
 
-    options_invalid_data = SubstrateWidgetData(RectSubstrate, None, None)
+    options_invalid_data = StructuredSubstrateArgs(RectSubstrate, None, None)
     # invalid data can be converted to default (if exists)
-    worker.setSubstrateWidgetData(options_invalid_data)
+    worker.setStructuredSubstrateArgs(options_invalid_data)
     assert worker.substrateType() == options_invalid_data.type
     assert worker.parameters() is None
     assert worker.drawOptions() == worker.substrateType().DrawOptions()
@@ -174,8 +174,8 @@ def test_SubstrateWorker_visualizedImage(qtbot):
     assert worker.visualizedImage().size == 0
 
     worker.setReference(REF)
-    worker.setSubstrateWidgetData(
-        SubstrateWidgetData(type(SUBST), SUBST.parameters, SUBST.draw_options)
+    worker.setStructuredSubstrateArgs(
+        StructuredSubstrateArgs(type(SUBST), SUBST.parameters, SUBST.draw_options)
     )
     worker.updateSubstrate()
     assert np.all(worker.visualizedImage() == SUBST.draw())
@@ -183,7 +183,7 @@ def test_SubstrateWorker_visualizedImage(qtbot):
     worker.setVisualizationMode(False)
     assert np.all(worker.visualizedImage() == SUBST.image())
 
-    worker.setSubstrateWidgetData(SubstrateWidgetData(None, None, None))
+    worker.setStructuredSubstrateArgs(StructuredSubstrateArgs(None, None, None))
     worker.updateSubstrate()
     assert np.all(worker.visualizedImage() == REF.substrate_image())
 

@@ -7,11 +7,11 @@ from dipcoatimage.finitedepth import (
     data_converter,
 )
 from dipcoatimage.finitedepth.analysis import ReferenceArgs
+from dipcoatimage.finitedepth.util import dict_includes
 from dipcoatimage.finitedepth_gui.controlwidgets import (
     ReferenceWidget,
-    ReferenceWidgetData,
 )
-from dipcoatimage.finitedepth.util import dict_includes
+from dipcoatimage.finitedepth_gui.inventory import StructuredReferenceArgs
 from dipcoatimage.finitedepth_gui.workers import ReferenceWorker
 from PySide6.QtCore import Qt
 import pytest
@@ -185,41 +185,41 @@ def test_ReferenceWidget_dataChanged_count(qtbot):
     assert counter.i == 0
 
 
-def test_ReferenceWorker_setReferenceWidgetData(qtbot):
+def test_ReferenceWorker_setStructuredReferenceArgs(qtbot):
     worker = ReferenceWorker()
     assert worker.referenceType() is None
     assert worker.image().size == 0
     assert worker.parameters() is None
     assert worker.drawOptions() is None
 
-    valid_data1 = ReferenceWidgetData(
+    valid_data1 = StructuredReferenceArgs(
         SubstrateReference, (0, 0, None, None), (0, 0, None, None), None, None
     )
-    worker.setReferenceWidgetData(valid_data1)
+    worker.setStructuredReferenceArgs(valid_data1)
     assert worker.referenceType() == valid_data1.type
     assert worker.parameters() == worker.referenceType().Parameters()
     assert worker.drawOptions() == worker.referenceType().DrawOptions()
 
-    valid_data2 = ReferenceWidgetData(
+    valid_data2 = StructuredReferenceArgs(
         SubstrateReference,
         (0, 0, None, None),
         (0, 0, None, None),
         SubstrateReference.Parameters(),
         SubstrateReference.DrawOptions(),
     )
-    worker.setReferenceWidgetData(valid_data2)
+    worker.setStructuredReferenceArgs(valid_data2)
     assert worker.referenceType() == valid_data2.type
     assert worker.parameters() == valid_data2.parameters
     assert worker.drawOptions() == valid_data2.draw_options
 
-    type_invalid_data = ReferenceWidgetData(
+    type_invalid_data = StructuredReferenceArgs(
         type,
         (0, 0, None, None),
         (0, 0, None, None),
         SubstrateReference.Parameters(),
         SubstrateReference.DrawOptions(),
     )
-    worker.setReferenceWidgetData(type_invalid_data)
+    worker.setStructuredReferenceArgs(type_invalid_data)
     assert worker.referenceType() is None
     assert worker.parameters() is None
     assert worker.drawOptions() is None
