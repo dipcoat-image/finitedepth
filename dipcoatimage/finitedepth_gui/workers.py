@@ -9,6 +9,7 @@ control widgets.
 
 from dipcoatimage.finitedepth import SubstrateReferenceBase, SubstrateBase
 from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
+import enum
 import numpy as np
 import numpy.typing as npt
 from PySide6.QtCore import QObject, Slot, Signal
@@ -19,6 +20,7 @@ from .controlwidgets import ReferenceWidgetData, SubstrateWidgetData
 __all__ = [
     "ReferenceWorker",
     "SubstrateWorker",
+    "ExperimentVisualizationMode",
 ]
 
 
@@ -406,3 +408,26 @@ class SubstrateWorker(QObject):
     def clear(self):
         """Initialize substrate object data and :meth:`substrate`."""
         self.initArgs()
+
+
+class ExperimentVisualizationMode(enum.IntEnum):
+    """
+    Option for :class:`ExperimentWorker` to determine how the image is shown.
+
+    Attributes
+    ==========
+
+    OFF
+        Do not visualize.
+
+    FULL
+        Full visualization using coating layer decoration.
+
+    FAST
+        Fast visualization without coating layer decoration. Only
+        substrate removal is performed.
+
+    """
+    OFF = 0
+    FULL = 1
+    FAST = 2
