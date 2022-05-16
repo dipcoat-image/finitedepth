@@ -24,7 +24,7 @@ from .controlwidgets import (
     CoatingLayerWidget,
 )
 from .inventory import ExperimentItemModelColumns, ExperimentInventory
-from .workers import ReferenceWorker
+from .workers import ReferenceWorker, SubstrateWorker, ExperimentWorker
 
 
 __all__ = ["AnalysisGUI"]
@@ -59,6 +59,8 @@ class AnalysisGUI(QMainWindow):
         self._layer_scroll = QScrollArea()
         self._layer_widget = CoatingLayerWidget()
         self._ref_worker = ReferenceWorker()
+        self._subst_worker = SubstrateWorker()
+        self._expt_worker = ExperimentWorker()
 
         self.setCentralWidget(QWidget())
 
@@ -133,8 +135,16 @@ class AnalysisGUI(QMainWindow):
         return self._layer_widget
 
     def referenceWorker(self) -> ReferenceWorker:
-        """Worker for API with :Class:`SubstrateReference`."""
+        """Worker for API with :class:`SubstrateReferenceBase`."""
         return self._ref_worker
+
+    def substrateWorker(self) -> SubstrateWorker:
+        """Worker for API with :class:`SubstrateBase`."""
+        return self._subst_worker
+
+    def experimentWorker(self) -> ExperimentWorker:
+        """Worker for API with :class:`ExperimentBase`."""
+        return self._expt_worker
 
     @Slot(QModelIndex)
     def onExperimentActivation(self, index: QModelIndex):
