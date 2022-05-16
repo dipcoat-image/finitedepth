@@ -123,6 +123,8 @@ class ExperimentWidget(ControlWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self._blockModelUpdate = False
+
         self._exptname_mapper = QDataWidgetMapper()
         self._exptname_lineedit = QLineEdit()
         self._paths_listview = QListView()
@@ -132,26 +134,19 @@ class ExperimentWidget(ControlWidget):
         self._importinfo_widget = ImportWidget()
         self._param_widget = StackedDataclassWidget()
 
-        self._connectSignals()
+        self.typeWidget().variableChanged.connect(self.onExperimentTypeChange)
         self.pathsView().setSelectionMode(QListView.ExtendedSelection)
         self.pathsView().setEditTriggers(QListView.SelectedClicked)
         self.pathAddButton().clicked.connect(self.onAddButtonClicked)
         self.pathDeleteButton().clicked.connect(self.onDeleteButtonClicked)
         self.pathBrowseButton().clicked.connect(self.onBrowseButtonClicked)
+        self.parametersWidget().dataValueChanged.connect(self.commitToCurrentItem)
 
         default_paramwdgt = DataclassWidget()  # default empty widget
         default_paramwdgt.setDataName("Parameters")
         self.parametersWidget().addWidget(default_paramwdgt)
 
         self.initUI()
-
-    def _connectSignals(self):
-        self.typeWidget().variableChanged.connect(self.onExperimentTypeChange)
-        self.parametersWidget().dataValueChanged.connect(self.commitToCurrentItem)
-
-    def _disconnectSignals(self):
-        self.typeWidget().variableChanged.disconnect(self.onExperimentTypeChange)
-        self.parametersWidget().dataValueChanged.disconnect(self.commitToCurrentItem)
 
     def initUI(self):
         self.typeWidget().variableComboBox().setPlaceholderText(
@@ -311,13 +306,11 @@ class ExperimentWidget(ControlWidget):
         This does not emit :attr:`dataChanged` signal.
         Run :meth:`commitToCurrentItem` manually after running this method.
         """
-        self._disconnectSignals()
+        self._blockModelUpdate = True
+
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
         self.typeWidget().onInformationEdit()
-
-        var = self.typeWidget().variable()
-        self.setCurrentParametersWidget(var)
 
         paramWidget = self.currentParametersWidget()
         try:
@@ -326,7 +319,8 @@ class ExperimentWidget(ControlWidget):
             )
         except TypeError:
             pass
-        self._connectSignals()
+
+        self._blockModelUpdate = False
 
     @Slot()
     def commitToCurrentItem(self):
@@ -335,7 +329,7 @@ class ExperimentWidget(ControlWidget):
         currently activated item from :meth:`experimentItemModel`.
         """
         index = self.currentExperimentIndex()
-        if index.isValid():
+        if not self._blockModelUpdate and index.isValid():
             model = self.experimentItemModel()
             model.setData(
                 model.index(index.row(), ExperimentItemModel.Col_Experiment),
@@ -433,6 +427,8 @@ class ReferenceWidget(ControlWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self._blockModelUpdate = False
+
         self._refpath_mapper = QDataWidgetMapper()
         self._refpath_lineedit = QLineEdit()
         self._browse_button = QPushButton()
@@ -444,14 +440,21 @@ class ReferenceWidget(ControlWidget):
         self._param_widget = StackedDataclassWidget()
         self._drawopt_widget = StackedDataclassWidget()
 
-        self._connectSignals()
+        self.pathLineEdit().editingFinished.connect(self.onPathEditFinished)
         self.browseButton().clicked.connect(self.browseReferenceImage)
+        self.typeWidget().variableChanged.connect(self.onReferenceTypeChange)
+        self.templateROIWidget().roiModel().roiChanged.connect(self.commitToCurrentItem)
         self.templateROIDrawButton().setCheckable(True)
         self.templateROIDrawButton().toggled.connect(self.onTemplateROIDrawButtonToggle)
+        self.substrateROIWidget().roiModel().roiChanged.connect(
+            self.commitToCurrentItem
+        )
         self.substrateROIDrawButton().setCheckable(True)
         self.substrateROIDrawButton().toggled.connect(
             self.onSubstrateROIDrawButtonToggle
         )
+        self.parametersWidget().dataValueChanged.connect(self.commitToCurrentItem)
+        self.drawOptionsWidget().dataValueChanged.connect(self.commitToCurrentItem)
 
         default_paramwdgt = DataclassWidget()  # default empty widget
         default_drawwdgt = DataclassWidget()  # default empty widget
@@ -461,30 +464,6 @@ class ReferenceWidget(ControlWidget):
         self.drawOptionsWidget().addWidget(default_drawwdgt)
 
         self.initUI()
-
-    def _connectSignals(self):
-        self._pathEditConnection = self.pathLineEdit().editingFinished.connect(
-            self.onPathEditFinished
-        )
-        self.typeWidget().variableChanged.connect(self.onReferenceTypeChange)
-        self.templateROIWidget().roiModel().roiChanged.connect(self.commitToCurrentItem)
-        self.substrateROIWidget().roiModel().roiChanged.connect(
-            self.commitToCurrentItem
-        )
-        self.parametersWidget().dataValueChanged.connect(self.commitToCurrentItem)
-        self.drawOptionsWidget().dataValueChanged.connect(self.commitToCurrentItem)
-
-    def _disconnectSignals(self):
-        self.pathLineEdit().editingFinished.disconnect(self._pathEditConnection)
-        self.typeWidget().variableChanged.disconnect(self.onReferenceTypeChange)
-        self.templateROIWidget().roiModel().roiChanged.disconnect(
-            self.commitToCurrentItem
-        )
-        self.substrateROIWidget().roiModel().roiChanged.disconnect(
-            self.commitToCurrentItem
-        )
-        self.parametersWidget().dataValueChanged.disconnect(self.commitToCurrentItem)
-        self.drawOptionsWidget().dataValueChanged.disconnect(self.commitToCurrentItem)
 
     def initUI(self):
         self.pathLineEdit().setPlaceholderText("Path for the reference image file")
@@ -679,17 +658,14 @@ class ReferenceWidget(ControlWidget):
 
     @Slot(ReferenceArgs)
     def setReferenceArgs(self, args: ReferenceArgs):
-        self._disconnectSignals()
+        self._blockModelUpdate = True
+
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
         self.typeWidget().onInformationEdit()
 
         self.templateROIWidget().roiModel().setROI(*args.templateROI)
         self.substrateROIWidget().roiModel().setROI(*args.substrateROI)
-
-        var = self.typeWidget().variable()
-        self.setCurrentParametersWidget(var)
-        self.setCurrentDrawOptionsWidget(var)
 
         paramWidget = self.currentParametersWidget()
         try:
@@ -706,7 +682,8 @@ class ReferenceWidget(ControlWidget):
             )
         except TypeError:
             pass
-        self._connectSignals()
+
+        self._blockModelUpdate = False
 
     @Slot()
     def commitToCurrentItem(self):
@@ -715,7 +692,7 @@ class ReferenceWidget(ControlWidget):
         currently activated item from :meth:`experimentItemModel`.
         """
         index = self.currentExperimentIndex()
-        if index.isValid():
+        if not self._blockModelUpdate and index.isValid():
             model = self.experimentItemModel()
             model.setData(
                 model.index(index.row(), ExperimentItemModel.Col_Reference),
