@@ -129,6 +129,9 @@ class AnalysisGUI(QMainWindow):
         self.experimentWidget().setExperimentArgs(
             model.item(index.row(), ExperimentItemModelColumns.EXPERIMENT).data()[1]
         )
+        self.referenceWidget().setReferenceArgs(
+            model.item(index.row(), ExperimentItemModelColumns.REFERENCE).data()[1]
+        )
 
     @Slot(ExperimentWidgetData, ExperimentArgs)
     def onExperimentWidgetDataChange(
