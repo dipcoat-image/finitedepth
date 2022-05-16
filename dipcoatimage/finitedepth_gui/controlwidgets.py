@@ -365,11 +365,11 @@ class ReferenceWidget(QWidget):
         self._pathEditConnection = self.pathLineEdit().editingFinished.connect(
             self.onPathEditFinished
         )
-        self._tempROIChangeConnection = self.templateROIWidget().roiChanged.connect(
-            self.emitData
+        self._tempROIChangeConnection = (
+            self.templateROIWidget().roiModel().roiChanged.connect(self.emitData)
         )
-        self._substROIChangeConnection = self.substrateROIWidget().roiChanged.connect(
-            self.emitData
+        self._substROIChangeConnection = (
+            self.substrateROIWidget().roiModel().roiChanged.connect(self.emitData)
         )
         self._paramChangeConnection = self.parametersWidget().dataValueChanged.connect(
             self.emitData
@@ -384,8 +384,12 @@ class ReferenceWidget(QWidget):
             self._drawoptChangeConnection
         )
         self.parametersWidget().dataValueChanged.disconnect(self._paramChangeConnection)
-        self.substrateROIWidget().roiChanged.disconnect(self._substROIChangeConnection)
-        self.templateROIWidget().roiChanged.disconnect(self._tempROIChangeConnection)
+        self.substrateROIWidget().roiModel().roiChanged.disconnect(
+            self._substROIChangeConnection
+        )
+        self.templateROIWidget().roiModel().roiChanged.disconnect(
+            self._tempROIChangeConnection
+        )
         self.pathLineEdit().editingFinished.disconnect(self._pathEditConnection)
         self.typeWidget().variableChanged.disconnect(self._typeSelectConnection)
 

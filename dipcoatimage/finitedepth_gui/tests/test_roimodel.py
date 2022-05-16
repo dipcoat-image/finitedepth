@@ -78,12 +78,9 @@ def test_ROIWidget_view(qtbot):
 
     maxroi = (10, 20)
     newroi = (0, 0, maxroi[0], maxroi[1])
-    with qtbot.waitSignals(
-        [widget.roiMaximumChanged, widget.roiChanged],
-        check_params_cbs=[
-            lambda w, h: (w, h) == maxroi,
-            lambda x1, y1, x2, y2: (x1, y1, x2, y2) == newroi,
-        ],
+    with qtbot.waitSignal(
+        widget.roiMaximumChanged,
+        check_params_cb=lambda w, h: (w, h) == maxroi,
     ):
         widget.setROIMaximum(*maxroi)
     assert widget.x1SpinBox().maximum() == maxroi[0]
@@ -93,18 +90,10 @@ def test_ROIWidget_view(qtbot):
     assert widget.displayedROI() == newroi
 
     newroi = (1, 2, 3, 4)
-    with qtbot.waitSignal(
-        widget.roiChanged,
-        check_params_cb=lambda x1, y1, x2, y2: (x1, y1, x2, y2) == newroi,
-    ):
-        model.setROI(*newroi)
+    model.setROI(*newroi)
     assert widget.displayedROI() == newroi
 
     newroi = (5, 6, None, None)
     resultroi = (newroi[0], newroi[1], maxroi[0], maxroi[1])
-    with qtbot.waitSignal(
-        widget.roiChanged,
-        check_params_cb=lambda x1, y1, x2, y2: (x1, y1, x2, y2) == resultroi,
-    ):
-        model.setROI(*newroi)
+    model.setROI(*newroi)
     assert widget.displayedROI() == resultroi
