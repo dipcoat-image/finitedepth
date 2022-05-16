@@ -24,7 +24,7 @@ from .controlwidgets import (
     CoatingLayerWidgetData,
     CoatingLayerWidget,
 )
-from .inventory import ExperimentItemModelColumns, ExperimentInventory
+from .inventory import ExperimentItemModel, ExperimentInventory
 from .workers import ReferenceWorker, SubstrateWorker, ExperimentWorker
 
 
@@ -70,11 +70,11 @@ class AnalysisGUI(QMainWindow):
         )
         self.experimentDataMapper().addMapping(
             self.experimentWidget().experimentNameLineEdit(),
-            ExperimentItemModelColumns.EXPERIMENT_NAME,
+            ExperimentItemModel.Col_ExperimentName,
         )
         self.experimentDataMapper().addMapping(
             self.referenceWidget().pathLineEdit(),
-            ExperimentItemModelColumns.REFERENCE_PATH,
+            ExperimentItemModel.Col_ReferencePath,
         )
         self.experimentInventory().experimentListView().activated.connect(
             self.onExperimentActivation
@@ -164,19 +164,31 @@ class AnalysisGUI(QMainWindow):
         self.experimentDataMapper().setCurrentIndex(index.row())
         self.experimentWidget().pathsView().setModel(model)
         self.experimentWidget().pathsView().setRootIndex(
-            model.index(index.row(), ExperimentItemModelColumns.COAT_PATHS)
+            model.index(index.row(), ExperimentItemModel.Col_CoatPaths)
         )
         self.experimentWidget().setExperimentArgs(
-            model.item(index.row(), ExperimentItemModelColumns.EXPERIMENT).data()[1]
+            model.data(
+                model.index(index.row(), ExperimentItemModel.Col_Experiment),
+                Qt.UserRole,
+            )[1]
         )
         self.referenceWidget().setReferenceArgs(
-            model.item(index.row(), ExperimentItemModelColumns.REFERENCE).data()[1]
+            model.data(
+                model.index(index.row(), ExperimentItemModel.Col_Reference),
+                Qt.UserRole,
+            )[1]
         )
         self.substrateWidget().setSubstrateArgs(
-            model.item(index.row(), ExperimentItemModelColumns.SUBSTRATE).data()[1]
+            model.data(
+                model.index(index.row(), ExperimentItemModel.Col_Substrate),
+                Qt.UserRole,
+            )[1]
         )
         self.coatingLayerWidget().setCoatingLayerArgs(
-            model.item(index.row(), ExperimentItemModelColumns.COATINGLAYER).data()[1]
+            model.data(
+                model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
+                Qt.UserRole,
+            )[1]
         )
 
         self.referenceWorker().clear()
@@ -184,16 +196,28 @@ class AnalysisGUI(QMainWindow):
         self.experimentWorker().clear()
 
         self.referenceWorker().setReferenceWidgetData(
-            model.item(index.row(), ExperimentItemModelColumns.REFERENCE).data()[0]
+            model.data(
+                model.index(index.row(), ExperimentItemModel.Col_Reference),
+                Qt.UserRole,
+            )[0]
         )
         self.substrateWorker().setSubstrateWidgetData(
-            model.item(index.row(), ExperimentItemModelColumns.SUBSTRATE).data()[0]
+            model.data(
+                model.index(index.row(), ExperimentItemModel.Col_Substrate),
+                Qt.UserRole,
+            )[0]
         )
         self.experimentWorker().setCoatingLayerWidgetData(
-            model.item(index.row(), ExperimentItemModelColumns.COATINGLAYER).data()[0]
+            model.data(
+                model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
+                Qt.UserRole,
+            )[0]
         )
         self.experimentWorker().setExperimentWidgetData(
-            model.item(index.row(), ExperimentItemModelColumns.EXPERIMENT).data()[0]
+            model.data(
+                model.index(index.row(), ExperimentItemModel.Col_Experiment),
+                Qt.UserRole,
+            )[0]
         )
 
     @Slot(ExperimentWidgetData, ExperimentArgs)
@@ -204,8 +228,11 @@ class AnalysisGUI(QMainWindow):
         index = self.experimentInventory().experimentListView().currentIndex()
         if index.isValid():
             model = self.experimentInventory().experimentItemModel()
-            item = model.item(index.row(), ExperimentItemModelColumns.EXPERIMENT)
-            item.setData((widgetdata, exptargs))
+            model.setData(
+                model.index(index.row(), ExperimentItemModel.Col_Experiment),
+                (widgetdata, exptargs),
+                Qt.UserRole,  # type: ignore[arg-type]
+            )
 
     @Slot(ReferenceWidgetData, ReferenceArgs)
     def onReferenceWidgetDataChange(
@@ -215,8 +242,11 @@ class AnalysisGUI(QMainWindow):
         index = self.experimentInventory().experimentListView().currentIndex()
         if index.isValid():
             model = self.experimentInventory().experimentItemModel()
-            item = model.item(index.row(), ExperimentItemModelColumns.REFERENCE)
-            item.setData((widgetdata, refargs))
+            model.setData(
+                model.index(index.row(), ExperimentItemModel.Col_Reference),
+                (widgetdata, refargs),
+                Qt.UserRole,  # type: ignore[arg-type]
+            )
 
     @Slot(SubstrateWidgetData, SubstrateArgs)
     def onSubstrateWidgetDataChange(
@@ -226,8 +256,11 @@ class AnalysisGUI(QMainWindow):
         index = self.experimentInventory().experimentListView().currentIndex()
         if index.isValid():
             model = self.experimentInventory().experimentItemModel()
-            item = model.item(index.row(), ExperimentItemModelColumns.SUBSTRATE)
-            item.setData((widgetdata, substargs))
+            model.setData(
+                model.index(index.row(), ExperimentItemModel.Col_Substrate),
+                (widgetdata, substargs),
+                Qt.UserRole,  # type: ignore[arg-type]
+            )
 
     @Slot(CoatingLayerWidgetData, CoatingLayerArgs)
     def onCoatingLayerWidgetDataChange(
@@ -237,12 +270,15 @@ class AnalysisGUI(QMainWindow):
         index = self.experimentInventory().experimentListView().currentIndex()
         if index.isValid():
             model = self.experimentInventory().experimentItemModel()
-            item = model.item(index.row(), ExperimentItemModelColumns.COATINGLAYER)
-            item.setData((widgetdata, layerargs))
+            model.setData(
+                model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
+                (widgetdata, layerargs),
+                Qt.UserRole,  # type: ignore[arg-type]
+            )
 
     @Slot(QStandardItem)
     def onExperimentItemChange(self, item: QStandardItem):
-        model = self.experimentInventory().experimentItemModel()
+        pass
 
     @Slot(QModelIndex, int, int)
     def onExperimentItemRowsChange(self, index: QModelIndex, first: int, last: int):
