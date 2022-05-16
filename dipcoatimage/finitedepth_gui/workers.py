@@ -482,7 +482,7 @@ class ExperimentWorker(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.initArgs()
-        self._visualize_mode = ExperimentVisualizationMode.full
+        self._visualize_mode = ExperimentVisualizationMode.FULL
 
     def initArgs(self):
         self._type = None
