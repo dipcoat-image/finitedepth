@@ -1,5 +1,4 @@
 from dipcoatimage.finitedepth.analysis import (
-    ReferenceArgs,
     SubstrateArgs,
     CoatingLayerArgs,
 )
@@ -10,7 +9,6 @@ from PySide6.QtWidgets import (
     QTabWidget,
     QScrollArea,
     QDockWidget,
-    QDataWidgetMapper,
     QWidget,
 )
 from .controlwidgets import (
@@ -20,7 +18,6 @@ from .controlwidgets import (
     CoatingLayerWidget,
 )
 from .inventory import (
-    StructuredReferenceArgs,
     StructuredSubstrateArgs,
     StructuredCoatingLayerArgs,
     ExperimentItemModel,
@@ -50,7 +47,6 @@ class AnalysisGUI(QMainWindow):
         super().__init__(parent)
 
         self._expt_inv = ExperimentInventory()
-        self._exptdata_mapper = QDataWidgetMapper()
         self._exptitem_tab = QTabWidget()
         self._expt_scroll = QScrollArea()
         self._expt_widget = ExperimentWidget()
@@ -68,20 +64,15 @@ class AnalysisGUI(QMainWindow):
         self.setCentralWidget(QWidget())
 
         # control widget
-        self.experimentDataMapper().setModel(
-            self.experimentInventory().experimentItemModel()
-        )
-        self.experimentDataMapper().addMapping(
-            self.referenceWidget().pathLineEdit(),
-            ExperimentItemModel.Col_ReferencePath,
-        )
         self.referenceWidget().imageChanged.connect(self.referenceWorker().setImage)
-        self.referenceWidget().dataChanged.connect(self.onStructuredReferenceArgsChange)
         self.substrateWidget().dataChanged.connect(self.onStructuredSubstrateArgsChange)
         self.coatingLayerWidget().dataChanged.connect(
             self.onStructuredCoatingLayerArgsChange
         )
         self.experimentWidget().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
+        )
+        self.referenceWidget().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
         )
 
@@ -91,6 +82,9 @@ class AnalysisGUI(QMainWindow):
         )
         self.experimentInventory().experimentListView().activated.connect(
             self.experimentWidget().setCurrentExperimentIndex
+        )
+        self.experimentInventory().experimentListView().activated.connect(
+            self.referenceWidget().setCurrentExperimentIndex
         )
         self.experimentInventory().experimentItemModel().itemChanged.connect(
             self.onExperimentItemChange
@@ -125,9 +119,6 @@ class AnalysisGUI(QMainWindow):
     def experimentInventory(self) -> ExperimentInventory:
         """Widget to display the experiment items.."""
         return self._expt_inv
-
-    def experimentDataMapper(self) -> QDataWidgetMapper:
-        return self._exptdata_mapper
 
     def experimentItemTab(self) -> QTabWidget:
         """Tab widget to display the data of activated experiment item."""
@@ -166,13 +157,6 @@ class AnalysisGUI(QMainWindow):
         """Update the experiment data to widgets."""
         model = self.experimentInventory().experimentItemModel()
 
-        self.experimentDataMapper().setCurrentIndex(index.row())
-        self.referenceWidget().setReferenceArgs(
-            model.data(
-                model.index(index.row(), ExperimentItemModel.Col_Reference),
-                Qt.UserRole,
-            )[1]
-        )
         self.substrateWidget().setSubstrateArgs(
             model.data(
                 model.index(index.row(), ExperimentItemModel.Col_Substrate),
@@ -214,20 +198,6 @@ class AnalysisGUI(QMainWindow):
                 Qt.UserRole,
             )[0]
         )
-
-    @Slot(StructuredReferenceArgs, ReferenceArgs)
-    def onStructuredReferenceArgsChange(
-        self, widgetdata: StructuredReferenceArgs, refargs: ReferenceArgs
-    ):
-        """Update the data from :meth:`referenceWidget` to current model."""
-        index = self.experimentInventory().experimentListView().currentIndex()
-        if index.isValid():
-            model = self.experimentInventory().experimentItemModel()
-            model.setData(
-                model.index(index.row(), ExperimentItemModel.Col_Reference),
-                (widgetdata, refargs),
-                Qt.UserRole,  # type: ignore[arg-type]
-            )
 
     @Slot(StructuredSubstrateArgs, SubstrateArgs)
     def onStructuredSubstrateArgsChange(

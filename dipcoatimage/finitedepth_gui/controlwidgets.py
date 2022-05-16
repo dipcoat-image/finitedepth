@@ -377,9 +377,9 @@ class ExperimentWidget(ControlWidget):
                 parentItem.appendRow(QStandardItem(p))
 
 
-class ReferenceWidget(QWidget):
+class ReferenceWidget(ControlWidget):
     """
-    Widget to control data for substrate reference object.
+    View-like widget to control data for substrate reference object.
 
     .. rubric:: Substrate reference data
 
@@ -387,9 +387,6 @@ class ReferenceWidget(QWidget):
     :class:`.SubstrateReferenceBase`, its image and its parameters.
 
     Image is emitted by :attr:`imageChanged` signal.
-
-    Data are wrapped by :class:`StructuredReferenceArgs`. Whenever the widget
-    values change :attr:`dataChanged` signal emits the data.
 
     .. rubric:: Setting type
 
@@ -432,11 +429,11 @@ class ReferenceWidget(QWidget):
     """
 
     imageChanged = Signal(object)
-    dataChanged = Signal(StructuredReferenceArgs, ReferenceArgs)
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self._refpath_mapper = QDataWidgetMapper()
         self._refpath_lineedit = QLineEdit()
         self._browse_button = QPushButton()
         self._importwidget = ImportWidget()
@@ -447,19 +444,14 @@ class ReferenceWidget(QWidget):
         self._param_widget = StackedDataclassWidget()
         self._drawopt_widget = StackedDataclassWidget()
 
-        self.pathLineEdit().editingFinished.connect(self.onPathEditFinished)
+        self._connectSignals()
         self.browseButton().clicked.connect(self.browseReferenceImage)
-        self.typeWidget().variableChanged.connect(self.onReferenceTypeChange)
-        self.templateROIWidget().roiModel().roiChanged.connect(self.emitData)
         self.templateROIDrawButton().setCheckable(True)
         self.templateROIDrawButton().toggled.connect(self.onTemplateROIDrawButtonToggle)
-        self.substrateROIWidget().roiModel().roiChanged.connect(self.emitData)
         self.substrateROIDrawButton().setCheckable(True)
         self.substrateROIDrawButton().toggled.connect(
             self.onSubstrateROIDrawButtonToggle
         )
-        self.parametersWidget().dataValueChanged.connect(self.emitData)
-        self.drawOptionsWidget().dataValueChanged.connect(self.emitData)
 
         default_paramwdgt = DataclassWidget()  # default empty widget
         default_drawwdgt = DataclassWidget()  # default empty widget
@@ -469,6 +461,30 @@ class ReferenceWidget(QWidget):
         self.drawOptionsWidget().addWidget(default_drawwdgt)
 
         self.initUI()
+
+    def _connectSignals(self):
+        self._pathEditConnection = self.pathLineEdit().editingFinished.connect(
+            self.onPathEditFinished
+        )
+        self.typeWidget().variableChanged.connect(self.onReferenceTypeChange)
+        self.templateROIWidget().roiModel().roiChanged.connect(self.commitToCurrentItem)
+        self.substrateROIWidget().roiModel().roiChanged.connect(
+            self.commitToCurrentItem
+        )
+        self.parametersWidget().dataValueChanged.connect(self.commitToCurrentItem)
+        self.drawOptionsWidget().dataValueChanged.connect(self.commitToCurrentItem)
+
+    def _disconnectSignals(self):
+        self.pathLineEdit().editingFinished.disconnect(self._pathEditConnection)
+        self.typeWidget().variableChanged.disconnect(self.onReferenceTypeChange)
+        self.templateROIWidget().roiModel().roiChanged.disconnect(
+            self.commitToCurrentItem
+        )
+        self.substrateROIWidget().roiModel().roiChanged.disconnect(
+            self.commitToCurrentItem
+        )
+        self.parametersWidget().dataValueChanged.disconnect(self.commitToCurrentItem)
+        self.drawOptionsWidget().dataValueChanged.disconnect(self.commitToCurrentItem)
 
     def initUI(self):
         self.pathLineEdit().setPlaceholderText("Path for the reference image file")
@@ -517,6 +533,13 @@ class ReferenceWidget(QWidget):
         main_layout.addLayout(options_layout)
         self.setLayout(main_layout)
 
+    def pathMapper(self) -> QDataWidgetMapper:
+        """
+        Mapper to update :meth:`pathLineEdit` with reference path of
+        currently activated item from :meth:`experimentItemModel`.
+        """
+        return self._refpath_mapper
+
     def pathLineEdit(self) -> QLineEdit:
         return self._refpath_lineedit
 
@@ -543,6 +566,30 @@ class ReferenceWidget(QWidget):
 
     def drawOptionsWidget(self) -> StackedDataclassWidget:
         return self._drawopt_widget
+
+    def setExperimentItemModel(self, model):
+        """
+        Set :meth:`experimentItemModel` and remap :meth:`pathMapper`.
+        """
+        super().setExperimentItemModel(model)
+        self.pathMapper().setModel(model)
+        self.pathMapper().addMapping(
+            self.pathLineEdit(),
+            ExperimentItemModel.Col_ReferencePath,
+        )
+
+    @Slot(QModelIndex)
+    def setCurrentExperimentIndex(self, index: QModelIndex):
+        super().setCurrentExperimentIndex(index)
+        self.pathMapper().setCurrentIndex(index.row())
+
+        model = self.experimentItemModel()
+        self.setReferenceArgs(
+            model.data(
+                model.index(index.row(), ExperimentItemModel.Col_Reference),
+                Qt.UserRole,
+            )[1]
+        )
 
     def currentParametersWidget(self) -> DataclassWidget:
         widget = self.parametersWidget().currentWidget()
@@ -586,7 +633,7 @@ class ReferenceWidget(QWidget):
         var = self.typeWidget().variable()
         self.setCurrentParametersWidget(var)
         self.setCurrentDrawOptionsWidget(var)
-        self.emitData()
+        self.commitToCurrentItem()
 
     def structuredReferenceArgs(self) -> StructuredReferenceArgs:
         """Return :class:`StructuredReferenceArgs` from current widget values."""
@@ -632,37 +679,49 @@ class ReferenceWidget(QWidget):
 
     @Slot(ReferenceArgs)
     def setReferenceArgs(self, args: ReferenceArgs):
-        with QSignalBlocker(self):
-            self.typeWidget().variableNameLineEdit().setText(args.type.name)
-            self.typeWidget().moduleNameLineEdit().setText(args.type.module)
-            self.typeWidget().onInformationEdit()
+        self._disconnectSignals()
+        self.typeWidget().variableNameLineEdit().setText(args.type.name)
+        self.typeWidget().moduleNameLineEdit().setText(args.type.module)
+        self.typeWidget().onInformationEdit()
 
-            self.templateROIWidget().roiModel().setROI(*args.templateROI)
-            self.substrateROIWidget().roiModel().setROI(*args.substrateROI)
+        self.templateROIWidget().roiModel().setROI(*args.templateROI)
+        self.substrateROIWidget().roiModel().setROI(*args.substrateROI)
 
-            paramWidget = self.currentParametersWidget()
-            try:
-                paramWidget.setDataValue(
-                    data_converter.structure(
-                        args.parameters, paramWidget.dataclassType()
-                    )
-                )
-            except TypeError:
-                pass
+        var = self.typeWidget().variable()
+        self.setCurrentParametersWidget(var)
+        self.setCurrentDrawOptionsWidget(var)
 
-            drawWidget = self.currentDrawOptionsWidget()
-            try:
-                drawWidget.setDataValue(
-                    data_converter.structure(
-                        args.draw_options, drawWidget.dataclassType()
-                    )
-                )
-            except TypeError:
-                pass
+        paramWidget = self.currentParametersWidget()
+        try:
+            paramWidget.setDataValue(
+                data_converter.structure(args.parameters, paramWidget.dataclassType())
+            )
+        except TypeError:
+            pass
+
+        drawWidget = self.currentDrawOptionsWidget()
+        try:
+            drawWidget.setDataValue(
+                data_converter.structure(args.draw_options, drawWidget.dataclassType())
+            )
+        except TypeError:
+            pass
+        self._connectSignals()
 
     @Slot()
-    def emitData(self):
-        self.dataChanged.emit(self.structuredReferenceArgs(), self.referenceArgs())
+    def commitToCurrentItem(self):
+        """
+        Set :meth:`structuredReferenceArgs` and :meth:`referenceArgs` to
+        currently activated item from :meth:`experimentItemModel`.
+        """
+        index = self.currentExperimentIndex()
+        if index.isValid():
+            model = self.experimentItemModel()
+            model.setData(
+                model.index(index.row(), ExperimentItemModel.Col_Reference),
+                (self.structuredReferenceArgs(), self.referenceArgs()),
+                Qt.UserRole,  # type: ignore[arg-type]
+            )
 
     @Slot(str)
     def setReferencePath(self, path: str):
@@ -673,7 +732,7 @@ class ReferenceWidget(QWidget):
     def onPathEditFinished(self):
         self.updateROIMaximum()
         self.emitImage()
-        self.emitData()
+        self.commitToCurrentItem()
 
     def updateROIMaximum(self):
         path = self.pathLineEdit().text()

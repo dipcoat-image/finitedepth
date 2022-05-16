@@ -83,7 +83,6 @@ def test_ReferenceWidget_onReferenceTypeChange(qtbot, refwidget):
     signals = [
         refwidget.parametersWidget().currentChanged,
         refwidget.drawOptionsWidget().currentChanged,
-        refwidget.dataChanged,
     ]
 
     with qtbot.waitSignals(signals):
@@ -158,31 +157,6 @@ def test_ReferenceWidget_setReferenceArgs(qtbot, refwidget):
         ),
         refargs.draw_options,
     )
-
-
-def test_ReferenceWidget_dataChanged_count(qtbot):
-    """
-    Test that refwidget.dataChanged do not trigger signals multiple times.
-    """
-
-    class Counter:
-        def __init__(self):
-            self.i = 0
-
-        def count(self, _):
-            self.i += 1
-
-    widget = ReferenceWidget()
-    counter = Counter()
-    widget.dataChanged.connect(counter.count)
-    widget.onPathEditFinished()
-    assert counter.i == 1
-
-    widget = ReferenceWidget()
-    counter = Counter()
-    widget.dataChanged.connect(counter.count)
-    widget.setReferenceArgs(ReferenceArgs())
-    assert counter.i == 0
 
 
 def test_ReferenceWorker_setStructuredReferenceArgs(qtbot):
