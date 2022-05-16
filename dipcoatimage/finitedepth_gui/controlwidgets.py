@@ -8,7 +8,6 @@ This module provides widgets to control the analysis parameters.
 
 
 import cv2  # type: ignore
-import dataclasses
 from dataclass2PySide6 import DataclassWidget, StackedDataclassWidget
 from dipcoatimage.finitedepth import (
     SubstrateReferenceBase,
@@ -51,6 +50,7 @@ from .roimodel import ROIWidget
 
 
 __all__ = [
+    "ControlWidget",
     "ExperimentWidget",
     "ReferenceWidget",
     "SubstrateWidget",
@@ -58,8 +58,36 @@ __all__ = [
 ]
 
 
-@dataclasses.dataclass
-class ExperimentWidget(QWidget):
+class ControlWidget(QWidget):
+    """Base class for all control widgets."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self._exptitem_model = ExperimentItemModel()
+        self._currentIndex = QModelIndex()
+
+    def experimentItemModel(self) -> ExperimentItemModel:
+        """Model which holds the experiment item data."""
+        return self._exptitem_model
+
+    def currentExperimentIndex(self) -> QModelIndex:
+        """Currently activated index from the model."""
+        return self._currentIndex
+
+    def setExperimentItemModel(self, model: ExperimentItemModel):
+        """Set :meth:`experimentItemModel`."""
+        self._exptitem_model = model
+
+    @Slot(QModelIndex)
+    def setCurrentExperimentIndex(self, index: QModelIndex):
+        """Set currently activated index from :meth:`experimentItemModel`."""
+        if index.parent().isValid():
+            raise TypeError("Only top-level index can be activated.")
+        self._currentIndex = index
+
+
+class ExperimentWidget(ControlWidget):
     """
     View-like widget for data from :meth:`experimentItemModel` which can
     construct experiment object.
@@ -92,15 +120,10 @@ class ExperimentWidget(QWidget):
 
     """
 
-    dataChanged = Signal(StructuredExperimentArgs, ExperimentArgs)
-
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._exptitem_model = ExperimentItemModel()
-        self._currentIndex = QModelIndex()
         self._exptname_mapper = QDataWidgetMapper()
-
         self._exptname_lineedit = QLineEdit()
         self._paths_listview = QListView()
         self._add_button = QPushButton("Add")
@@ -109,19 +132,26 @@ class ExperimentWidget(QWidget):
         self._importinfo_widget = ImportWidget()
         self._param_widget = StackedDataclassWidget()
 
-        self.typeWidget().variableChanged.connect(self.onExperimentTypeChange)
+        self._connectSignals()
         self.pathsView().setSelectionMode(QListView.ExtendedSelection)
         self.pathsView().setEditTriggers(QListView.SelectedClicked)
         self.pathAddButton().clicked.connect(self.onAddButtonClicked)
         self.pathDeleteButton().clicked.connect(self.onDeleteButtonClicked)
         self.pathBrowseButton().clicked.connect(self.onBrowseButtonClicked)
-        self.parametersWidget().dataValueChanged.connect(self.commitToCurrentItem)
 
         default_paramwdgt = DataclassWidget()  # default empty widget
         default_paramwdgt.setDataName("Parameters")
         self.parametersWidget().addWidget(default_paramwdgt)
 
         self.initUI()
+
+    def _connectSignals(self):
+        self.typeWidget().variableChanged.connect(self.onExperimentTypeChange)
+        self.parametersWidget().dataValueChanged.connect(self.commitToCurrentItem)
+
+    def _disconnectSignals(self):
+        self.typeWidget().variableChanged.disconnect(self.onExperimentTypeChange)
+        self.parametersWidget().dataValueChanged.disconnect(self.commitToCurrentItem)
 
     def initUI(self):
         self.typeWidget().variableComboBox().setPlaceholderText(
@@ -150,14 +180,6 @@ class ExperimentWidget(QWidget):
         main_layout.addWidget(path_groupbox)
         main_layout.addWidget(self.parametersWidget())
         self.setLayout(main_layout)
-
-    def experimentItemModel(self) -> ExperimentItemModel:
-        """Model which holds the experiment item data."""
-        return self._exptitem_model
-
-    def currentExperimentIndex(self) -> QModelIndex:
-        """Currently activated index from the model."""
-        return self._currentIndex
 
     def experimentNameMapper(self) -> QDataWidgetMapper:
         """
@@ -194,11 +216,11 @@ class ExperimentWidget(QWidget):
         """Widget to specify the experiment parameters."""
         return self._param_widget
 
-    def setExperimentItemModel(self, model: ExperimentItemModel):
+    def setExperimentItemModel(self, model):
         """
         Set :meth:`experimentItemModel` and remap :meth:`experimentNameMapper`.
         """
-        self._exptitem_model = model
+        super().setExperimentItemModel(model)
         self.experimentNameMapper().setModel(model)
         self.experimentNameMapper().addMapping(
             self.experimentNameLineEdit(),
@@ -208,11 +230,7 @@ class ExperimentWidget(QWidget):
     @Slot(QModelIndex)
     def setCurrentExperimentIndex(self, index: QModelIndex):
         """Set currently activated index from :meth:`experimentItemModel`."""
-        if index.parent().isValid():
-            raise TypeError("Only top-level index can be activated.")
-
-        self._currentIndex = index
-
+        super().setCurrentExperimentIndex(index)
         self.experimentNameMapper().setCurrentIndex(index.row())
 
         model = self.experimentItemModel()
@@ -293,20 +311,22 @@ class ExperimentWidget(QWidget):
         This does not emit :attr:`dataChanged` signal.
         Run :meth:`commitToCurrentItem` manually after running this method.
         """
-        with QSignalBlocker(self):
-            self.typeWidget().variableNameLineEdit().setText(args.type.name)
-            self.typeWidget().moduleNameLineEdit().setText(args.type.module)
-            self.typeWidget().onInformationEdit()
+        self._disconnectSignals()
+        self.typeWidget().variableNameLineEdit().setText(args.type.name)
+        self.typeWidget().moduleNameLineEdit().setText(args.type.module)
+        self.typeWidget().onInformationEdit()
 
-            paramWidget = self.currentParametersWidget()
-            try:
-                paramWidget.setDataValue(
-                    data_converter.structure(
-                        args.parameters, paramWidget.dataclassType()
-                    )
-                )
-            except TypeError:
-                pass
+        var = self.typeWidget().variable()
+        self.setCurrentParametersWidget(var)
+
+        paramWidget = self.currentParametersWidget()
+        try:
+            paramWidget.setDataValue(
+                data_converter.structure(args.parameters, paramWidget.dataclassType())
+            )
+        except TypeError:
+            pass
+        self._connectSignals()
 
     @Slot()
     def commitToCurrentItem(self):
