@@ -125,7 +125,7 @@ def test_ReferenceWidget_setReferenceArgs(qtbot, refwidget):
         draw_options=dict(substrateROI_thickness=2),
     )
     refwidget.setReferencePath(REF_PATH)
-    refwidget.setReferenceArgs(data_converter.unstructure(refargs))
+    refwidget.setReferenceArgs(refargs)
 
     assert refwidget.typeWidget().variableComboBox().currentIndex() == -1
     assert refwidget.typeWidget().variableNameLineEdit().text() == refargs.type.name
@@ -181,8 +181,7 @@ def test_ReferenceWidget_dataChanged_count(qtbot):
     widget = ReferenceWidget()
     counter = Counter()
     widget.dataChanged.connect(counter.count)
-    refargs = data_converter.unstructure(ReferenceArgs())
-    widget.setReferenceArgs(refargs)
+    widget.setReferenceArgs(ReferenceArgs())
     assert counter.i == 0
 
 

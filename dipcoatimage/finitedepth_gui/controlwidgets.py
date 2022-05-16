@@ -339,14 +339,19 @@ class ReferenceWidget(QWidget):
         self._param_widget = StackedDataclassWidget()
         self._drawopt_widget = StackedDataclassWidget()
 
-        self.connectSignals()
+        self.pathLineEdit().editingFinished.connect(self.onPathEditFinished)
         self.browseButton().clicked.connect(self.browseReferenceImage)
+        self.typeWidget().variableChanged.connect(self.onReferenceTypeChange)
+        self.templateROIWidget().roiModel().roiChanged.connect(self.emitData)
         self.templateROIDrawButton().setCheckable(True)
-        self.substrateROIDrawButton().setCheckable(True)
         self.templateROIDrawButton().toggled.connect(self.onTemplateROIDrawButtonToggle)
+        self.substrateROIWidget().roiModel().roiChanged.connect(self.emitData)
+        self.substrateROIDrawButton().setCheckable(True)
         self.substrateROIDrawButton().toggled.connect(
             self.onSubstrateROIDrawButtonToggle
         )
+        self.parametersWidget().dataValueChanged.connect(self.emitData)
+        self.drawOptionsWidget().dataValueChanged.connect(self.emitData)
 
         default_paramwdgt = DataclassWidget()  # default empty widget
         default_drawwdgt = DataclassWidget()  # default empty widget
@@ -356,42 +361,6 @@ class ReferenceWidget(QWidget):
         self.drawOptionsWidget().addWidget(default_drawwdgt)
 
         self.initUI()
-
-    def connectSignals(self):
-        """Connect the signals disconnected by :meth:`disconnectSignals`."""
-        self._typeSelectConnection = self.typeWidget().variableChanged.connect(
-            self.onReferenceTypeChange
-        )
-        self._pathEditConnection = self.pathLineEdit().editingFinished.connect(
-            self.onPathEditFinished
-        )
-        self._tempROIChangeConnection = (
-            self.templateROIWidget().roiModel().roiChanged.connect(self.emitData)
-        )
-        self._substROIChangeConnection = (
-            self.substrateROIWidget().roiModel().roiChanged.connect(self.emitData)
-        )
-        self._paramChangeConnection = self.parametersWidget().dataValueChanged.connect(
-            self.emitData
-        )
-        self._drawoptChangeConnection = (
-            self.drawOptionsWidget().dataValueChanged.connect(self.emitData)
-        )
-
-    def disconnectSignals(self):
-        """Disconnect the signals connected by :meth:`connectSignals`."""
-        self.drawOptionsWidget().dataValueChanged.disconnect(
-            self._drawoptChangeConnection
-        )
-        self.parametersWidget().dataValueChanged.disconnect(self._paramChangeConnection)
-        self.substrateROIWidget().roiModel().roiChanged.disconnect(
-            self._substROIChangeConnection
-        )
-        self.templateROIWidget().roiModel().roiChanged.disconnect(
-            self._tempROIChangeConnection
-        )
-        self.pathLineEdit().editingFinished.disconnect(self._pathEditConnection)
-        self.typeWidget().variableChanged.disconnect(self._typeSelectConnection)
 
     def initUI(self):
         self.pathLineEdit().setPlaceholderText("Path for the reference image file")
@@ -551,6 +520,26 @@ class ReferenceWidget(QWidget):
         args = ReferenceArgs(importArgs, templateROI, substrateROI, param, drawopt)
         return args
 
+    @Slot(ReferenceArgs)
+    def setReferenceArgs(self, args: ReferenceArgs):
+        with QSignalBlocker(self):
+            self.typeWidget().variableNameLineEdit().setText(args.type.name)
+            self.typeWidget().moduleNameLineEdit().setText(args.type.module)
+            self.typeWidget().onInformationEdit()
+
+            self.templateROIWidget().roiModel().setROI(*args.templateROI)
+            self.substrateROIWidget().roiModel().setROI(*args.substrateROI)
+
+            paramWidget = self.currentParametersWidget()
+            paramWidget.setDataValue(
+                data_converter.structure(args.parameters, paramWidget.dataclassType())
+            )
+
+            drawWidget = self.currentDrawOptionsWidget()
+            drawWidget.setDataValue(
+                data_converter.structure(args.draw_options, drawWidget.dataclassType())
+            )
+
     @Slot()
     def emitData(self):
         self.dataChanged.emit(self.referenceWidgetData(), self.referenceArgs())
@@ -562,9 +551,7 @@ class ReferenceWidget(QWidget):
 
     @Slot()
     def onPathEditFinished(self):
-        self.disconnectSignals()
         self.updateROIMaximum()
-        self.connectSignals()
         self.emitImage()
         self.emitData()
 
@@ -577,23 +564,6 @@ class ReferenceWidget(QWidget):
             w, h = (img.shape[1], img.shape[0])
         self.templateROIWidget().setROIMaximum(w, h)
         self.substrateROIWidget().setROIMaximum(w, h)
-
-    def copyWidgetDataToDict(self, data: Dict[str, Any]):
-        data["reference"]["type"]["name"] = (
-            self.typeWidget().variableNameLineEdit().text()
-        )
-        data["reference"]["type"]["module"] = (
-            self.typeWidget().moduleNameLineEdit().text()
-        )
-        data["reference"]["path"] = self.pathLineEdit().text()
-        data["reference"]["templateROI"] = self.templateROIWidget().roiModel().roi()
-        data["reference"]["substrateROI"] = self.substrateROIWidget().roiModel().roi()
-        data["reference"]["parameters"] = data_converter.unstructure(
-            self.currentParametersWidget().dataValue()
-        )
-        data["reference"]["draw_options"] = data_converter.unstructure(
-            self.currentDrawOptionsWidget().dataValue()
-        )
 
     @Slot()
     def emitImage(self):
@@ -619,31 +589,6 @@ class ReferenceWidget(QWidget):
     def onSubstrateROIDrawButtonToggle(self, state: bool):
         if state:
             self.templateROIDrawButton().setChecked(False)
-
-    def setReferenceArgs(self, refargs: Dict[str, Any]):
-        """Update the widgets data with *refargs*."""
-        self.disconnectSignals()
-
-        self.typeWidget().setImportInformation(
-            refargs["type"]["name"], refargs["type"]["module"]
-        )
-        var = self.typeWidget().variable()
-        self.setCurrentParametersWidget(var)
-        self.setCurrentDrawOptionsWidget(var)
-
-        self.templateROIWidget().setROI(*refargs["templateROI"])
-        self.substrateROIWidget().setROI(*refargs["substrateROI"])
-
-        reftype = self.typeWidget().variable()
-        if isinstance(reftype, type) and issubclass(reftype, SubstrateReferenceBase):
-            params = data_converter.structure(refargs["parameters"], reftype.Parameters)
-            self.currentParametersWidget().setDataValue(params)
-            drawopts = data_converter.structure(
-                refargs["draw_options"], reftype.DrawOptions
-            )
-            self.currentDrawOptionsWidget().setDataValue(drawopts)
-
-        self.connectSignals()
 
 
 @dataclasses.dataclass
