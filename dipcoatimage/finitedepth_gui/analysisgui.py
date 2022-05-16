@@ -150,6 +150,7 @@ class AnalysisGUI(QMainWindow):
     def onExperimentActivation(self, index: QModelIndex):
         """Update the experiment data to widgets."""
         model = self.experimentInventory().experimentItemModel()
+
         self.experimentDataMapper().setCurrentIndex(index.row())
         self.experimentWidget().pathsView().setModel(model)
         self.experimentWidget().pathsView().setRootIndex(
@@ -166,6 +167,23 @@ class AnalysisGUI(QMainWindow):
         )
         self.coatingLayerWidget().setCoatingLayerArgs(
             model.item(index.row(), ExperimentItemModelColumns.COATINGLAYER).data()[1]
+        )
+
+        self.referenceWorker().clear()
+        self.substrateWorker().clear()
+        self.experimentWorker().clear()
+
+        self.referenceWorker().setReferenceWidgetData(
+            model.item(index.row(), ExperimentItemModelColumns.REFERENCE).data()[0]
+        )
+        self.substrateWorker().setSubstrateWidgetData(
+            model.item(index.row(), ExperimentItemModelColumns.SUBSTRATE).data()[0]
+        )
+        self.experimentWorker().setCoatingLayerWidgetData(
+            model.item(index.row(), ExperimentItemModelColumns.COATINGLAYER).data()[0]
+        )
+        self.experimentWorker().setExperimentWidgetData(
+            model.item(index.row(), ExperimentItemModelColumns.EXPERIMENT).data()[0]
         )
 
     @Slot(ExperimentWidgetData, ExperimentArgs)
