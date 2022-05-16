@@ -32,7 +32,7 @@ def test_ROIWidget_control(qtbot):
         model.roiChanged,
         check_params_cb=lambda x1, y1, x2, y2: (x1, y1, x2, y2) == newroi,
     ):
-        widget.setROI(*newroi)
+        widget.roiModel().setROI(*newroi)
     assert model.roi() == newroi
 
     x1 = 5

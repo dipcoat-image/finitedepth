@@ -179,7 +179,7 @@ class ROIWidget(QWidget):
     def onX1Change(self, x1: int):
         """Set x1 value from control to model."""
         _, y1, x2, y2 = self.displayedROI()
-        self.setROI(x1, y1, x2, y2)
+        self.roiModel().setROI(x1, y1, x2, y2)
 
     @Slot(int)
     def onY1Change(self, y1: int):
@@ -188,22 +188,18 @@ class ROIWidget(QWidget):
         x1 = self.x1SpinBox().value()
         x2 = self.x2SpinBox().value()
         y2 = self.y2SpinBox().value()
-        self.setROI(x1, y1, x2, y2)
+        self.roiModel().setROI(x1, y1, x2, y2)
 
     @Slot(int)
     def onX2Change(self, x2: int):
         """Set x2 value from control to model."""
         x1, y1, _, y2 = self.displayedROI()
-        self.setROI(x1, y1, x2, y2)
+        self.roiModel().setROI(x1, y1, x2, y2)
 
     @Slot(int)
     def onY2Change(self, y2: int):
         """Set y2 value from control to model."""
         x1, y1, x2, _ = self.displayedROI()
-        self.setROI(x1, y1, x2, y2)
-
-    def setROI(self, x1: int, y1: int, x2: Optional[int], y2: Optional[int]):
-        """Set values to model."""
         self.roiModel().setROI(x1, y1, x2, y2)
 
     @Slot(int, int, object, object)
