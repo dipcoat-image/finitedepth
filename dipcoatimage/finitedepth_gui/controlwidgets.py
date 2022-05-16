@@ -24,10 +24,11 @@ from dipcoatimage.finitedepth.analysis import (
     CoatingLayerArgs,
     ExperimentArgs,
 )
-from PySide6.QtCore import Signal, Slot, QSignalBlocker
+from PySide6.QtCore import QModelIndex, Qt, Signal, Slot, QSignalBlocker
 from PySide6.QtGui import QStandardItem
 from PySide6.QtWidgets import (
     QWidget,
+    QDataWidgetMapper,
     QLineEdit,
     QListView,
     QPushButton,
@@ -40,6 +41,7 @@ from PySide6.QtWidgets import (
 from typing import Any
 from .importwidget import ImportWidget
 from .inventory import (
+    ExperimentItemModel,
     StructuredExperimentArgs,
     StructuredReferenceArgs,
     StructuredSubstrateArgs,
@@ -59,7 +61,20 @@ __all__ = [
 @dataclasses.dataclass
 class ExperimentWidget(QWidget):
     """
-    Widget to control data for experiment object.
+    View-like widget for data from :meth:`experimentItemModel` which can
+    construct experiment object.
+
+    .. rubric:: Experiment data
+
+    Data consists of experiment type which is a concrete subclass of
+    :class:`.ExperimentBase` and its parameters.
+
+    .. rubric:: Setting type
+
+    Experiment type can be specified by :meth:`typeWidget`.
+
+    When current class changes, current index of :meth:`parametersWidget` is
+    changed to show the new dataclass widget.
 
     Examples
     ========
@@ -82,6 +97,10 @@ class ExperimentWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self._exptitem_model = ExperimentItemModel()
+        self._currentIndex = QModelIndex()
+        self._exptname_mapper = QDataWidgetMapper()
+
         self._exptname_lineedit = QLineEdit()
         self._paths_listview = QListView()
         self._add_button = QPushButton("Add")
@@ -96,7 +115,7 @@ class ExperimentWidget(QWidget):
         self.pathAddButton().clicked.connect(self.onAddButtonClicked)
         self.pathDeleteButton().clicked.connect(self.onDeleteButtonClicked)
         self.pathBrowseButton().clicked.connect(self.onBrowseButtonClicked)
-        self.parametersWidget().dataValueChanged.connect(self.emitData)
+        self.parametersWidget().dataValueChanged.connect(self.commitToCurrentItem)
 
         default_paramwdgt = DataclassWidget()  # default empty widget
         default_paramwdgt.setDataName("Parameters")
@@ -132,34 +151,94 @@ class ExperimentWidget(QWidget):
         main_layout.addWidget(self.parametersWidget())
         self.setLayout(main_layout)
 
-    def experimentNameLineEdit(self):
+    def experimentItemModel(self) -> ExperimentItemModel:
+        """Model which holds the experiment item data."""
+        return self._exptitem_model
+
+    def currentExperimentIndex(self) -> QModelIndex:
+        """Currently activated index from the model."""
+        return self._currentIndex
+
+    def experimentNameMapper(self) -> QDataWidgetMapper:
+        """
+        Mapper to update :meth:`experimentNameLineEdit` with experiment name of
+        currently activated item from :meth:`experimentItemModel`.
+        """
+        return self._exptname_mapper
+
+    def experimentNameLineEdit(self) -> QLineEdit:
+        """Line edit to display the experiment name."""
         return self._exptname_lineedit
 
-    def pathsView(self):
+    def pathsView(self) -> QListView:
+        """List view to display the paths to coated substrate files."""
         return self._paths_listview
 
-    def pathAddButton(self):
+    def pathAddButton(self) -> QPushButton:
+        """Push button to add a new item to :meth:`pathsView`."""
         return self._add_button
 
-    def pathDeleteButton(self):
+    def pathDeleteButton(self) -> QPushButton:
+        """Push button to delete items from :meth:`pathsView`."""
         return self._delete_button
 
-    def pathBrowseButton(self):
+    def pathBrowseButton(self) -> QPushButton:
+        """Push button to browse and add a new item to :meth:`pathsView`."""
         return self._browse_button
 
     def typeWidget(self) -> ImportWidget:
+        """Widget to specify the experiment type."""
         return self._importinfo_widget
 
-    def parametersWidget(self):
+    def parametersWidget(self) -> StackedDataclassWidget:
+        """Widget to specify the experiment parameters."""
         return self._param_widget
 
+    def setExperimentItemModel(self, model: ExperimentItemModel):
+        """
+        Set :meth:`experimentItemModel` and remap :meth:`experimentNameMapper`.
+        """
+        self._exptitem_model = model
+        self.experimentNameMapper().setModel(model)
+        self.experimentNameMapper().addMapping(
+            self.experimentNameLineEdit(),
+            ExperimentItemModel.Col_ExperimentName,
+        )
+
+    @Slot(QModelIndex)
+    def setCurrentExperimentIndex(self, index: QModelIndex):
+        """Set currently activated index from :meth:`experimentItemModel`."""
+        if index.parent().isValid():
+            raise TypeError("Only top-level index can be activated.")
+
+        self._currentIndex = index
+
+        self.experimentNameMapper().setCurrentIndex(index.row())
+
+        model = self.experimentItemModel()
+        self.pathsView().setModel(model)
+        self.pathsView().setRootIndex(
+            model.index(index.row(), ExperimentItemModel.Col_CoatPaths)
+        )
+
+        self.setExperimentArgs(
+            model.data(
+                model.index(index.row(), ExperimentItemModel.Col_Experiment),
+                Qt.UserRole,
+            )[1]
+        )
+
     def currentParametersWidget(self) -> DataclassWidget:
+        """Currently displayed parameters widget."""
         widget = self.parametersWidget().currentWidget()
         if not isinstance(widget, DataclassWidget):
             raise TypeError(f"{widget} is not dataclass widget.")
         return widget
 
     def setCurrentParametersWidget(self, expttype: Any):
+        """
+        Update the parameters widget to display the parameters for *expttype*.
+        """
         if isinstance(expttype, type) and issubclass(expttype, ExperimentBase):
             dcls = expttype.Parameters
             index = self.parametersWidget().indexOfDataclass(dcls)
@@ -177,7 +256,7 @@ class ExperimentWidget(QWidget):
         """
         var = self.typeWidget().variable()
         self.setCurrentParametersWidget(var)
-        self.emitData()
+        self.commitToCurrentItem()
 
     def structuredExperimentArgs(self) -> StructuredExperimentArgs:
         """
@@ -211,8 +290,8 @@ class ExperimentWidget(QWidget):
         """
         Update the widgets with *args*.
 
-        This does not emit :attr:`dataChanged` signal. Run :meth:`emitData`
-        manually after running this method.
+        This does not emit :attr:`dataChanged` signal.
+        Run :meth:`commitToCurrentItem` manually after running this method.
         """
         with QSignalBlocker(self):
             self.typeWidget().variableNameLineEdit().setText(args.type.name)
@@ -230,12 +309,24 @@ class ExperimentWidget(QWidget):
                 pass
 
     @Slot()
-    def emitData(self):
-        self.dataChanged.emit(self.structuredExperimentArgs(), self.experimentArgs())
+    def commitToCurrentItem(self):
+        """
+        Set :meth:`structuredExperimentArgs` and :meth:`experimentArgs` to
+        currently activated item from :meth:`experimentItemModel`.
+        """
+        index = self.currentExperimentIndex()
+        if index.isValid():
+            model = self.experimentItemModel()
+            model.setData(
+                model.index(index.row(), ExperimentItemModel.Col_Experiment),
+                (self.structuredExperimentArgs(), self.experimentArgs()),
+                Qt.UserRole,  # type: ignore[arg-type]
+            )
 
     @Slot()
     def onAddButtonClicked(self):
-        model = self.pathsView().model()
+        """Add new item to :meth:`pathsView`."""
+        model = self.experimentItemModel()
         if model is not None:
             parentItem = model.itemFromIndex(self.pathsView().rootIndex())
             item = QStandardItem(f"Path {parentItem.rowCount()}")
@@ -243,7 +334,8 @@ class ExperimentWidget(QWidget):
 
     @Slot()
     def onDeleteButtonClicked(self):
-        model = self.pathsView().model()
+        """Delete selected items from :meth:`pathsView`."""
+        model = self.experimentItemModel()
         if model is not None:
             parentItem = model.itemFromIndex(self.pathsView().rootIndex())
             for items in reversed(sorted(self.pathsView().selectedIndexes())):
@@ -251,7 +343,8 @@ class ExperimentWidget(QWidget):
 
     @Slot()
     def onBrowseButtonClicked(self):
-        model = self.pathsView().model()
+        """Browse file and add their paths to :meth:`pathsView`."""
+        model = self.experimentItemModel()
         if model is not None:
             parentItem = model.itemFromIndex(self.pathsView().rootIndex())
             paths, _ = QFileDialog.getOpenFileNames(

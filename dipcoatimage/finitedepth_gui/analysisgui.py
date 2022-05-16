@@ -2,7 +2,6 @@ from dipcoatimage.finitedepth.analysis import (
     ReferenceArgs,
     SubstrateArgs,
     CoatingLayerArgs,
-    ExperimentArgs,
 )
 from PySide6.QtCore import Qt, Slot, QModelIndex
 from PySide6.QtGui import QStandardItem
@@ -21,7 +20,6 @@ from .controlwidgets import (
     CoatingLayerWidget,
 )
 from .inventory import (
-    StructuredExperimentArgs,
     StructuredReferenceArgs,
     StructuredSubstrateArgs,
     StructuredCoatingLayerArgs,
@@ -66,32 +64,34 @@ class AnalysisGUI(QMainWindow):
         self._subst_worker = SubstrateWorker()
         self._expt_worker = ExperimentWorker()
 
+        # display
         self.setCentralWidget(QWidget())
 
+        # control widget
         self.experimentDataMapper().setModel(
             self.experimentInventory().experimentItemModel()
-        )
-        self.experimentDataMapper().addMapping(
-            self.experimentWidget().experimentNameLineEdit(),
-            ExperimentItemModel.Col_ExperimentName,
         )
         self.experimentDataMapper().addMapping(
             self.referenceWidget().pathLineEdit(),
             ExperimentItemModel.Col_ReferencePath,
         )
-        self.experimentInventory().experimentListView().activated.connect(
-            self.onExperimentActivation
-        )
-        self.experimentWidget().dataChanged.connect(
-            self.onStructuredExperimentArgsChange
-        )
+        self.referenceWidget().imageChanged.connect(self.referenceWorker().setImage)
         self.referenceWidget().dataChanged.connect(self.onStructuredReferenceArgsChange)
         self.substrateWidget().dataChanged.connect(self.onStructuredSubstrateArgsChange)
         self.coatingLayerWidget().dataChanged.connect(
             self.onStructuredCoatingLayerArgsChange
         )
+        self.experimentWidget().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
+        )
 
-        self.referenceWidget().imageChanged.connect(self.referenceWorker().setImage)
+        # inventory
+        self.experimentInventory().experimentListView().activated.connect(
+            self.onExperimentActivation
+        )
+        self.experimentInventory().experimentListView().activated.connect(
+            self.experimentWidget().setCurrentExperimentIndex
+        )
         self.experimentInventory().experimentItemModel().itemChanged.connect(
             self.onExperimentItemChange
         )
@@ -167,16 +167,6 @@ class AnalysisGUI(QMainWindow):
         model = self.experimentInventory().experimentItemModel()
 
         self.experimentDataMapper().setCurrentIndex(index.row())
-        self.experimentWidget().pathsView().setModel(model)
-        self.experimentWidget().pathsView().setRootIndex(
-            model.index(index.row(), ExperimentItemModel.Col_CoatPaths)
-        )
-        self.experimentWidget().setExperimentArgs(
-            model.data(
-                model.index(index.row(), ExperimentItemModel.Col_Experiment),
-                Qt.UserRole,
-            )[1]
-        )
         self.referenceWidget().setReferenceArgs(
             model.data(
                 model.index(index.row(), ExperimentItemModel.Col_Reference),
@@ -224,20 +214,6 @@ class AnalysisGUI(QMainWindow):
                 Qt.UserRole,
             )[0]
         )
-
-    @Slot(StructuredExperimentArgs, ExperimentArgs)
-    def onStructuredExperimentArgsChange(
-        self, widgetdata: StructuredExperimentArgs, exptargs: ExperimentArgs
-    ):
-        """Update the data from :meth:`experimentWidget` to current model."""
-        index = self.experimentInventory().experimentListView().currentIndex()
-        if index.isValid():
-            model = self.experimentInventory().experimentItemModel()
-            model.setData(
-                model.index(index.row(), ExperimentItemModel.Col_Experiment),
-                (widgetdata, exptargs),
-                Qt.UserRole,  # type: ignore[arg-type]
-            )
 
     @Slot(StructuredReferenceArgs, ReferenceArgs)
     def onStructuredReferenceArgsChange(
