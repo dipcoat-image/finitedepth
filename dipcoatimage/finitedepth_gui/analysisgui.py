@@ -1,6 +1,7 @@
 from dipcoatimage.finitedepth.analysis import (
     ReferenceArgs,
     SubstrateArgs,
+    CoatingLayerArgs,
     ExperimentArgs,
 )
 from PySide6.QtCore import Qt, Slot, QModelIndex
@@ -19,6 +20,7 @@ from .controlwidgets import (
     ReferenceWidget,
     SubstrateWidgetData,
     SubstrateWidget,
+    CoatingLayerWidgetData,
     CoatingLayerWidget,
 )
 from .inventory import ExperimentItemModelColumns, ExperimentInventory
@@ -75,6 +77,9 @@ class AnalysisGUI(QMainWindow):
         self.experimentWidget().dataChanged.connect(self.onExperimentWidgetDataChange)
         self.referenceWidget().dataChanged.connect(self.onReferenceWidgetDataChange)
         self.substrateWidget().dataChanged.connect(self.onSubstrateWidgetDataChange)
+        self.coatingLayerWidget().dataChanged.connect(
+            self.onCoatingLayerWidgetDataChange
+        )
 
         expt_inv_dock = QDockWidget("Experiment inventory")
         expt_inv_dock.setWidget(self.experimentInventory())
@@ -141,6 +146,9 @@ class AnalysisGUI(QMainWindow):
         self.substrateWidget().setSubstrateArgs(
             model.item(index.row(), ExperimentItemModelColumns.SUBSTRATE).data()[1]
         )
+        self.coatingLayerWidget().setCoatingLayerArgs(
+            model.item(index.row(), ExperimentItemModelColumns.COATINGLAYER).data()[1]
+        )
 
     @Slot(ExperimentWidgetData, ExperimentArgs)
     def onExperimentWidgetDataChange(
@@ -174,3 +182,14 @@ class AnalysisGUI(QMainWindow):
             model = self.experimentInventory().experimentItemModel()
             item = model.item(index.row(), ExperimentItemModelColumns.SUBSTRATE)
             item.setData((widgetdata, substargs))
+
+    @Slot(CoatingLayerWidgetData, CoatingLayerArgs)
+    def onCoatingLayerWidgetDataChange(
+        self, widgetdata: CoatingLayerWidgetData, layerargs: CoatingLayerArgs
+    ):
+        """Update the data from :meth:`coatingLayerWidget` to current model."""
+        index = self.experimentInventory().experimentListView().currentIndex()
+        if index.isValid():
+            model = self.experimentInventory().experimentItemModel()
+            item = model.item(index.row(), ExperimentItemModelColumns.COATINGLAYER)
+            item.setData((widgetdata, layerargs))

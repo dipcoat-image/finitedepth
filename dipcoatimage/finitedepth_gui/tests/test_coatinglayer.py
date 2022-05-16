@@ -108,7 +108,7 @@ def test_CoatingLayerWidget_setCoatingLayerArgs(qtbot, layerwidget):
         draw_options=dict(remove_substrate=True),
         deco_options=dict(paint_Left=False),
     )
-    layerwidget.setCoatingLayerArgs(data_converter.unstructure(layerargs))
+    layerwidget.setCoatingLayerArgs(layerargs)
 
     assert layerwidget.typeWidget().variableComboBox().currentIndex() == -1
     assert layerwidget.typeWidget().variableNameLineEdit().text() == layerargs.type.name
@@ -152,6 +152,5 @@ def test_CoatingLayerWidget_dataChanged_count(qtbot):
     counter = Counter()
     widget.dataChanged.connect(counter.count)
 
-    layerargs = data_converter.unstructure(CoatingLayerArgs())
-    widget.setCoatingLayerArgs(layerargs)
+    widget.setCoatingLayerArgs(CoatingLayerArgs())
     assert counter.i == 0

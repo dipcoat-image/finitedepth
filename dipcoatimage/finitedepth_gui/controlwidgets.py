@@ -21,6 +21,7 @@ from dipcoatimage.finitedepth.analysis import (
     ImportArgs,
     ReferenceArgs,
     SubstrateArgs,
+    CoatingLayerArgs,
     ExperimentArgs,
 )
 from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
@@ -37,7 +38,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QSizePolicy,
 )
-from typing import Optional, Dict, Any
+from typing import Optional, Any
 from .importwidget import ImportWidget
 from .roimodel import ROIWidget
 
@@ -823,10 +824,10 @@ class SubstrateWidget(QWidget):
 class CoatingLayerWidgetData:
     """Data from coating layer widget to construct coating layer object."""
 
-    type: Any
-    parameters: Optional[DataclassProtocol]
-    draw_options: Optional[DataclassProtocol]
-    deco_options: Optional[DataclassProtocol]
+    type: Any = ImportWidget.INVALID
+    parameters: Optional[DataclassProtocol] = None
+    draw_options: Optional[DataclassProtocol] = None
+    deco_options: Optional[DataclassProtocol] = None
 
 
 class CoatingLayerWidget(QWidget):
@@ -869,7 +870,7 @@ class CoatingLayerWidget(QWidget):
 
     """
 
-    dataChanged = Signal(CoatingLayerWidgetData)
+    dataChanged = Signal(CoatingLayerWidgetData, SubstrateArgs)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -879,7 +880,10 @@ class CoatingLayerWidget(QWidget):
         self._drawopt_widget = StackedDataclassWidget()
         self._decoopt_widget = StackedDataclassWidget()
 
-        self.connectSignals()
+        self.typeWidget().variableChanged.connect(self.onCoatingLayerTypeChange)
+        self.parametersWidget().dataValueChanged.connect(self.emitData)
+        self.drawOptionsWidget().dataValueChanged.connect(self.emitData)
+        self.decoOptionsWidget().dataValueChanged.connect(self.emitData)
 
         default_paramwdgt = DataclassWidget()  # default empty widget
         default_drawwdgt = DataclassWidget()  # default empty widget
@@ -892,32 +896,6 @@ class CoatingLayerWidget(QWidget):
         self.decoOptionsWidget().addWidget(default_decowdgt)
 
         self.initUI()
-
-    def connectSignals(self):
-        """Connect the signals disconnected by :meth:`disconnectSignals`."""
-        self._typeSelectConnection = self.typeWidget().variableChanged.connect(
-            self.onCoatingLayerTypeChange
-        )
-        self._paramChangeConnection = self.parametersWidget().dataValueChanged.connect(
-            self.emitData
-        )
-        self._drawOptChangeConnection = (
-            self.drawOptionsWidget().dataValueChanged.connect(self.emitData)
-        )
-        self._decoOptChangeConnection = (
-            self.decoOptionsWidget().dataValueChanged.connect(self.emitData)
-        )
-
-    def disconnectSignals(self):
-        """Disconnect the signals connected by :meth:`connectSignals`."""
-        self.decoOptionsWidget().dataValueChanged.disconnect(
-            self._decoOptChangeConnection
-        )
-        self.drawOptionsWidget().dataValueChanged.disconnect(
-            self._drawOptChangeConnection
-        )
-        self.parametersWidget().dataValueChanged.disconnect(self._paramChangeConnection)
-        self.typeWidget().variableChanged.disconnect(self._typeSelectConnection)
 
     def initUI(self):
         self.typeWidget().variableComboBox().setPlaceholderText(
@@ -1014,24 +992,8 @@ class CoatingLayerWidget(QWidget):
         self.setCurrentDecoOptionsWidget(var)
         self.emitData()
 
-    def copyWidgetDataToDict(self, data: Dict[str, Any]):
-        data["coatinglayer"]["type"]["name"] = (
-            self.typeWidget().variableNameLineEdit().text()
-        )
-        data["coatinglayer"]["type"]["module"] = (
-            self.typeWidget().moduleNameLineEdit().text()
-        )
-        data["coatinglayer"]["parameters"] = data_converter.unstructure(
-            self.currentParametersWidget().dataValue()
-        )
-        data["coatinglayer"]["draw_options"] = data_converter.unstructure(
-            self.currentDrawOptionsWidget().dataValue()
-        )
-        data["coatinglayer"]["deco_options"] = data_converter.unstructure(
-            self.currentDecoOptionsWidget().dataValue()
-        )
-
     def coatingLayerWidgetData(self) -> CoatingLayerWidgetData:
+        """Return :class:`CoatingLayerWidgetData` from current widget values."""
         layer_type = self.typeWidget().variable()
         try:
             param = self.currentParametersWidget().dataValue()
@@ -1048,35 +1010,70 @@ class CoatingLayerWidget(QWidget):
         data = CoatingLayerWidgetData(layer_type, param, drawopt, decoopt)
         return data
 
+    def coatingLayerArgs(self) -> CoatingLayerArgs:
+        """Return :class:`CoatingLayerArgs` from current widget values."""
+        importArgs = ImportArgs(
+            self.typeWidget().variableNameLineEdit().text(),
+            self.typeWidget().moduleNameLineEdit().text(),
+        )
+        try:
+            param = data_converter.unstructure(
+                self.currentParametersWidget().dataValue()
+            )
+        except (TypeError, ValueError):
+            param = dict()
+        try:
+            drawopt = data_converter.unstructure(
+                self.currentDrawOptionsWidget().dataValue()
+            )
+        except (TypeError, ValueError):
+            drawopt = dict()
+        try:
+            decoopt = data_converter.unstructure(
+                self.currentDecoOptionsWidget().dataValue()
+            )
+        except (TypeError, ValueError):
+            decoopt = dict()
+        args = CoatingLayerArgs(importArgs, param, drawopt, decoopt)
+        return args
+
+    @Slot(CoatingLayerArgs)
+    def setCoatingLayerArgs(self, args: CoatingLayerArgs):
+        with QSignalBlocker(self):
+            self.typeWidget().variableNameLineEdit().setText(args.type.name)
+            self.typeWidget().moduleNameLineEdit().setText(args.type.module)
+            self.typeWidget().onInformationEdit()
+
+            paramWidget = self.currentParametersWidget()
+            try:
+                paramWidget.setDataValue(
+                    data_converter.structure(
+                        args.parameters, paramWidget.dataclassType()
+                    )
+                )
+            except TypeError:
+                pass
+
+            drawWidget = self.currentDrawOptionsWidget()
+            try:
+                drawWidget.setDataValue(
+                    data_converter.structure(
+                        args.draw_options, drawWidget.dataclassType()
+                    )
+                )
+            except TypeError:
+                pass
+
+            decoWidget = self.currentDecoOptionsWidget()
+            try:
+                decoWidget.setDataValue(
+                    data_converter.structure(
+                        args.deco_options, decoWidget.dataclassType()
+                    )
+                )
+            except TypeError:
+                pass
+
     @Slot()
     def emitData(self):
-        self.dataChanged.emit(self.coatingLayerWidgetData())
-
-    def setCoatingLayerArgs(self, layerargs: Dict[str, Any]):
-        """Update the widgets data with *layerargs*."""
-        self.disconnectSignals()
-
-        self.typeWidget().setImportInformation(
-            layerargs["type"]["name"], layerargs["type"]["module"]
-        )
-        var = self.typeWidget().variable()
-        self.setCurrentParametersWidget(var)
-        self.setCurrentDrawOptionsWidget(var)
-        self.setCurrentDecoOptionsWidget(var)
-
-        layertype = self.typeWidget().variable()
-        if isinstance(layertype, type) and issubclass(layertype, CoatingLayerBase):
-            params = data_converter.structure(
-                layerargs["parameters"], layertype.Parameters
-            )
-            self.currentParametersWidget().setDataValue(params)
-            drawopts = data_converter.structure(
-                layerargs["draw_options"], layertype.DrawOptions
-            )
-            self.currentDrawOptionsWidget().setDataValue(drawopts)
-            decoopts = data_converter.structure(
-                layerargs["deco_options"], layertype.DecoOptions
-            )
-            self.currentDecoOptionsWidget().setDataValue(decoopts)
-
-        self.connectSignals()
+        self.dataChanged.emit(self.coatingLayerWidgetData(), self.coatingLayerArgs())

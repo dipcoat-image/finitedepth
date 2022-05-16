@@ -1,6 +1,7 @@
 from dipcoatimage.finitedepth.analysis import (
     ReferenceArgs,
     SubstrateArgs,
+    CoatingLayerArgs,
     ExperimentArgs,
 )
 import enum
@@ -18,6 +19,7 @@ from PySide6.QtWidgets import (
 from .controlwidgets import (
     ReferenceWidgetData,
     SubstrateWidgetData,
+    CoatingLayerWidgetData,
     ExperimentWidgetData,
 )
 
@@ -40,17 +42,20 @@ class ExperimentItemModelColumns(enum.IntEnum):
         stored in children item.
         Corresponds to :attr:`ExperimentData.coat_paths`.
     3. REFERENCE
-        Data to construct reference object. Data are stored in :meth:`data`,
-        which returns (:class:`ReferenceWidgetData`, :class:`ReferenceArgs`).
+        Data to construct reference object. Data are stored in :meth:`data` as
+        tuple (:class:`ReferenceWidgetData`, :class:`ReferenceArgs`).
         Corresponds to :attr:`ExperimentData.reference`.
     4. SUBSTRATE
-        Data to construct substrate object. Data are stored in :meth:`data`,
-        which returns (:class:`SubstrateWidgetData`, :class:`SubstrateArgs`).
+        Data to construct substrate object. Data are stored in :meth:`data` as
+        tuple (:class:`SubstrateWidgetData`, :class:`SubstrateArgs`).
         Corresponds to :attr:`ExperimentData.substrate`.
     5. COATINGLAYER
+        Data to construct coating layer object. Data are stored in :meth:`data`
+        as tuple (:class:`CoatingLayerWidgetData`, :class:`CoatingLayerArgs`).
+        Corresponds to :attr:`ExperimentData.coatinglayer`.
     6. EXPERIMENT
-        Data to construct experiment object. Data are stored in :meth:`data`,
-        which returns (:class:`ExperimentWidgetData`, :class:`ExperimentArgs`).
+        Data to construct experiment object. Data are stored in :meth:`data` as
+        tuple (:class:`ExperimentWidgetData`, :class:`ExperimentArgs`).
         Corresponds to :attr:`ExperimentData.experiment`.
     """
 
@@ -120,6 +125,9 @@ class ExperimentInventory(QWidget):
         )
         items[ExperimentItemModelColumns.SUBSTRATE].setData(
             (SubstrateWidgetData(), SubstrateArgs())
+        )
+        items[ExperimentItemModelColumns.COATINGLAYER].setData(
+            (CoatingLayerWidgetData(), CoatingLayerArgs())
         )
         items[ExperimentItemModelColumns.EXPERIMENT].setData(
             (ExperimentWidgetData(), ExperimentArgs())
