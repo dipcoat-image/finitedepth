@@ -1,4 +1,8 @@
-from dipcoatimage.finitedepth.analysis import ReferenceArgs, ExperimentArgs
+from dipcoatimage.finitedepth.analysis import (
+    ReferenceArgs,
+    SubstrateArgs,
+    ExperimentArgs,
+)
 import enum
 from PySide6.QtCore import Slot
 from PySide6.QtGui import QStandardItemModel, QStandardItem
@@ -11,7 +15,11 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QSizePolicy,
 )
-from .controlwidgets import ReferenceWidgetData, ExperimentWidgetData
+from .controlwidgets import (
+    ReferenceWidgetData,
+    SubstrateWidgetData,
+    ExperimentWidgetData,
+)
 
 
 __all__ = ["ExperimentItemModelColumns", "ExperimentInventory"]
@@ -32,10 +40,13 @@ class ExperimentItemModelColumns(enum.IntEnum):
         stored in children item.
         Corresponds to :attr:`ExperimentData.coat_paths`.
     3. REFERENCE
-        Data to construct experiment object. Data are stored in :meth:`data`,
+        Data to construct reference object. Data are stored in :meth:`data`,
         which returns (:class:`ReferenceWidgetData`, :class:`ReferenceArgs`).
         Corresponds to :attr:`ExperimentData.reference`.
     4. SUBSTRATE
+        Data to construct substrate object. Data are stored in :meth:`data`,
+        which returns (:class:`SubstrateWidgetData`, :class:`SubstrateArgs`).
+        Corresponds to :attr:`ExperimentData.substrate`.
     5. COATINGLAYER
     6. EXPERIMENT
         Data to construct experiment object. Data are stored in :meth:`data`,
@@ -106,6 +117,9 @@ class ExperimentInventory(QWidget):
         )
         items[ExperimentItemModelColumns.REFERENCE].setData(
             (ReferenceWidgetData(), ReferenceArgs())
+        )
+        items[ExperimentItemModelColumns.SUBSTRATE].setData(
+            (SubstrateWidgetData(), SubstrateArgs())
         )
         items[ExperimentItemModelColumns.EXPERIMENT].setData(
             (ExperimentWidgetData(), ExperimentArgs())

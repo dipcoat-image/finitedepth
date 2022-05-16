@@ -17,7 +17,12 @@ from dipcoatimage.finitedepth import (
     ExperimentBase,
     data_converter,
 )
-from dipcoatimage.finitedepth.analysis import ImportArgs, ReferenceArgs, ExperimentArgs
+from dipcoatimage.finitedepth.analysis import (
+    ImportArgs,
+    ReferenceArgs,
+    SubstrateArgs,
+    ExperimentArgs,
+)
 from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
 from PySide6.QtCore import Signal, Slot, QSignalBlocker
 from PySide6.QtGui import QStandardItem
@@ -219,9 +224,14 @@ class ExperimentWidget(QWidget):
             self.typeWidget().onInformationEdit()
 
             paramWidget = self.currentParametersWidget()
-            paramWidget.setDataValue(
-                data_converter.structure(args.parameters, paramWidget.dataclassType())
-            )
+            try:
+                paramWidget.setDataValue(
+                    data_converter.structure(
+                        args.parameters, paramWidget.dataclassType()
+                    )
+                )
+            except TypeError:
+                pass
 
     @Slot()
     def emitData(self):
@@ -531,14 +541,24 @@ class ReferenceWidget(QWidget):
             self.substrateROIWidget().roiModel().setROI(*args.substrateROI)
 
             paramWidget = self.currentParametersWidget()
-            paramWidget.setDataValue(
-                data_converter.structure(args.parameters, paramWidget.dataclassType())
-            )
+            try:
+                paramWidget.setDataValue(
+                    data_converter.structure(
+                        args.parameters, paramWidget.dataclassType()
+                    )
+                )
+            except TypeError:
+                pass
 
             drawWidget = self.currentDrawOptionsWidget()
-            drawWidget.setDataValue(
-                data_converter.structure(args.draw_options, drawWidget.dataclassType())
-            )
+            try:
+                drawWidget.setDataValue(
+                    data_converter.structure(
+                        args.draw_options, drawWidget.dataclassType()
+                    )
+                )
+            except TypeError:
+                pass
 
     @Slot()
     def emitData(self):
@@ -595,9 +615,9 @@ class ReferenceWidget(QWidget):
 class SubstrateWidgetData:
     """Data from substrate widget to construct substrate object."""
 
-    type: Any
-    parameters: Optional[DataclassProtocol]
-    draw_options: Optional[DataclassProtocol]
+    type: Any = ImportWidget.INVALID
+    parameters: Optional[DataclassProtocol] = None
+    draw_options: Optional[DataclassProtocol] = None
 
 
 class SubstrateWidget(QWidget):
@@ -637,7 +657,7 @@ class SubstrateWidget(QWidget):
 
     """
 
-    dataChanged = Signal(SubstrateWidgetData)
+    dataChanged = Signal(SubstrateWidgetData, SubstrateArgs)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -646,7 +666,9 @@ class SubstrateWidget(QWidget):
         self._param_widget = StackedDataclassWidget()
         self._drawopt_widget = StackedDataclassWidget()
 
-        self.connectSignals()
+        self.typeWidget().variableChanged.connect(self.onSubstrateTypeChange)
+        self.parametersWidget().dataValueChanged.connect(self.emitData)
+        self.drawOptionsWidget().dataValueChanged.connect(self.emitData)
 
         default_paramwdgt = DataclassWidget()  # default empty widget
         default_drawwdgt = DataclassWidget()  # default empty widget
@@ -656,26 +678,6 @@ class SubstrateWidget(QWidget):
         self.drawOptionsWidget().addWidget(default_drawwdgt)
 
         self.initUI()
-
-    def connectSignals(self):
-        """Connect the signals disconnected by :meth:`disconnectSignals`."""
-        self._typeSelectConnection = self.typeWidget().variableChanged.connect(
-            self.onSubstrateTypeChange
-        )
-        self._paramChangeConnection = self.parametersWidget().dataValueChanged.connect(
-            self.emitData
-        )
-        self._drawOptChangeConnection = (
-            self.drawOptionsWidget().dataValueChanged.connect(self.emitData)
-        )
-
-    def disconnectSignals(self):
-        """Disconnect the signals connected by :meth:`connectSignals`."""
-        self.drawOptionsWidget().dataValueChanged.disconnect(
-            self._drawOptChangeConnection
-        )
-        self.parametersWidget().dataValueChanged.disconnect(self._paramChangeConnection)
-        self.typeWidget().variableChanged.disconnect(self._typeSelectConnection)
 
     def initUI(self):
         self.typeWidget().variableComboBox().setPlaceholderText(
@@ -750,21 +752,8 @@ class SubstrateWidget(QWidget):
         self.setCurrentDrawOptionsWidget(var)
         self.emitData()
 
-    def copyWidgetDataToDict(self, data: Dict[str, Any]):
-        data["substrate"]["type"]["name"] = (
-            self.typeWidget().variableNameLineEdit().text()
-        )
-        data["substrate"]["type"]["module"] = (
-            self.typeWidget().moduleNameLineEdit().text()
-        )
-        data["substrate"]["parameters"] = data_converter.unstructure(
-            self.currentParametersWidget().dataValue()
-        )
-        data["substrate"]["draw_options"] = data_converter.unstructure(
-            self.currentDrawOptionsWidget().dataValue()
-        )
-
     def substrateWidgetData(self) -> SubstrateWidgetData:
+        """Return :class:`SubstrateWidgetData` from current widget values."""
         subst_type = self.typeWidget().variable()
         try:
             param = self.currentParametersWidget().dataValue()
@@ -777,33 +766,57 @@ class SubstrateWidget(QWidget):
         data = SubstrateWidgetData(subst_type, param, drawopt)
         return data
 
+    def substrateArgs(self) -> SubstrateArgs:
+        """Return :class:`SubstrateArgs` from current widget values."""
+        importArgs = ImportArgs(
+            self.typeWidget().variableNameLineEdit().text(),
+            self.typeWidget().moduleNameLineEdit().text(),
+        )
+        try:
+            param = data_converter.unstructure(
+                self.currentParametersWidget().dataValue()
+            )
+        except (TypeError, ValueError):
+            param = dict()
+        try:
+            drawopt = data_converter.unstructure(
+                self.currentDrawOptionsWidget().dataValue()
+            )
+        except (TypeError, ValueError):
+            drawopt = dict()
+        args = SubstrateArgs(importArgs, param, drawopt)
+        return args
+
+    @Slot(SubstrateArgs)
+    def setSubstrateArgs(self, args: SubstrateArgs):
+        with QSignalBlocker(self):
+            self.typeWidget().variableNameLineEdit().setText(args.type.name)
+            self.typeWidget().moduleNameLineEdit().setText(args.type.module)
+            self.typeWidget().onInformationEdit()
+
+            paramWidget = self.currentParametersWidget()
+            try:
+                paramWidget.setDataValue(
+                    data_converter.structure(
+                        args.parameters, paramWidget.dataclassType()
+                    )
+                )
+            except TypeError:
+                pass
+
+            drawWidget = self.currentDrawOptionsWidget()
+            try:
+                drawWidget.setDataValue(
+                    data_converter.structure(
+                        args.draw_options, drawWidget.dataclassType()
+                    )
+                )
+            except TypeError:
+                pass
+
     @Slot()
     def emitData(self):
-        self.dataChanged.emit(self.substrateWidgetData())
-
-    def setSubstrateArgs(self, substargs: Dict[str, Any]):
-        """Update the widgets data with *substargs*."""
-        self.disconnectSignals()
-
-        self.typeWidget().setImportInformation(
-            substargs["type"]["name"], substargs["type"]["module"]
-        )
-        var = self.typeWidget().variable()
-        self.setCurrentParametersWidget(var)
-        self.setCurrentDrawOptionsWidget(var)
-
-        substtype = self.typeWidget().variable()
-        if isinstance(substtype, type) and issubclass(substtype, SubstrateBase):
-            params = data_converter.structure(
-                substargs["parameters"], substtype.Parameters
-            )
-            self.currentParametersWidget().setDataValue(params)
-            drawopts = data_converter.structure(
-                substargs["draw_options"], substtype.DrawOptions
-            )
-            self.currentDrawOptionsWidget().setDataValue(drawopts)
-
-        self.connectSignals()
+        self.dataChanged.emit(self.substrateWidgetData(), self.substrateArgs())
 
 
 @dataclasses.dataclass

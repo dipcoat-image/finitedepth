@@ -1,4 +1,8 @@
-from dipcoatimage.finitedepth.analysis import ReferenceArgs, ExperimentArgs
+from dipcoatimage.finitedepth.analysis import (
+    ReferenceArgs,
+    SubstrateArgs,
+    ExperimentArgs,
+)
 from PySide6.QtCore import Qt, Slot, QModelIndex
 from PySide6.QtWidgets import (
     QMainWindow,
@@ -13,6 +17,7 @@ from .controlwidgets import (
     ExperimentWidget,
     ReferenceWidgetData,
     ReferenceWidget,
+    SubstrateWidgetData,
     SubstrateWidget,
     CoatingLayerWidget,
 )
@@ -69,6 +74,7 @@ class AnalysisGUI(QMainWindow):
         )
         self.experimentWidget().dataChanged.connect(self.onExperimentWidgetDataChange)
         self.referenceWidget().dataChanged.connect(self.onReferenceWidgetDataChange)
+        self.substrateWidget().dataChanged.connect(self.onSubstrateWidgetDataChange)
 
         expt_inv_dock = QDockWidget("Experiment inventory")
         expt_inv_dock.setWidget(self.experimentInventory())
@@ -132,6 +138,9 @@ class AnalysisGUI(QMainWindow):
         self.referenceWidget().setReferenceArgs(
             model.item(index.row(), ExperimentItemModelColumns.REFERENCE).data()[1]
         )
+        self.substrateWidget().setSubstrateArgs(
+            model.item(index.row(), ExperimentItemModelColumns.SUBSTRATE).data()[1]
+        )
 
     @Slot(ExperimentWidgetData, ExperimentArgs)
     def onExperimentWidgetDataChange(
@@ -154,3 +163,14 @@ class AnalysisGUI(QMainWindow):
             model = self.experimentInventory().experimentItemModel()
             item = model.item(index.row(), ExperimentItemModelColumns.REFERENCE)
             item.setData((widgetdata, refargs))
+
+    @Slot(SubstrateWidgetData, SubstrateArgs)
+    def onSubstrateWidgetDataChange(
+        self, widgetdata: SubstrateWidgetData, substargs: SubstrateArgs
+    ):
+        """Update the data from :meth:`substrateWidget` to current model."""
+        index = self.experimentInventory().experimentListView().currentIndex()
+        if index.isValid():
+            model = self.experimentInventory().experimentItemModel()
+            item = model.item(index.row(), ExperimentItemModelColumns.SUBSTRATE)
+            item.setData((widgetdata, substargs))

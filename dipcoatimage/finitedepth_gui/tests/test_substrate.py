@@ -91,7 +91,7 @@ def test_SubstrateWidget_setSubstrateArgs(qtbot, substwidget):
         ),
         draw_options=dict(draw_lines=False),
     )
-    substwidget.setSubstrateArgs(data_converter.unstructure(substargs))
+    substwidget.setSubstrateArgs(substargs)
 
     assert substwidget.typeWidget().variableComboBox().currentIndex() == -1
     assert substwidget.typeWidget().variableNameLineEdit().text() == substargs.type.name
@@ -128,8 +128,7 @@ def test_SubstrateWidget_dataChanged_count(qtbot):
     counter = Counter()
     widget.dataChanged.connect(counter.count)
 
-    substargs = data_converter.unstructure(SubstrateArgs())
-    widget.setSubstrateArgs(substargs)
+    widget.setSubstrateArgs(SubstrateArgs())
     assert counter.i == 0
 
 
