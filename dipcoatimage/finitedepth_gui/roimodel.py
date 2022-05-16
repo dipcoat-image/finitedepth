@@ -62,13 +62,6 @@ class ROIWidget(QWidget):
     emits :attr:`roiMaximumChanged` if the new value differs from the old value.
 
     Whenever the model data data are changed, they are updated to the spin boxes.
-    Whenever the displayed data are updated, :attr:`roiChanged` emits new data.
-
-    :attr:`roiChanged` signal does not require the change of model data. For
-    example, if the ``x2`` data is :obj:`None` and maximum width is 10, widget
-    displays 0 for ``x2`` value. If maximum width is changed to 20, displayed
-    value changes to 20 and :attr:`roiChanged` is emitted, but ``x2`` data is
-    still :obj:`None`.
 
     .. rubric:: Control
 
@@ -92,7 +85,6 @@ class ROIWidget(QWidget):
 
     """
 
-    roiChanged = Signal(int, int, int, int)
     roiMaximumChanged = Signal(int, int)
 
     def __init__(self, parent=None):
@@ -109,16 +101,13 @@ class ROIWidget(QWidget):
         self.y1SpinBox().setMinimum(0)
         self.x2SpinBox().setMinimum(0)
         self.y2SpinBox().setMinimum(0)
-        self.x1SpinBox().setMaximum(0)
-        self.y1SpinBox().setMaximum(0)
-        self.x2SpinBox().setMaximum(0)
-        self.y2SpinBox().setMaximum(0)
+        self.setROIMaximum(*self.roiMaximum())
         self.x1SpinBox().valueChanged.connect(self.onX1Change)
         self.y1SpinBox().valueChanged.connect(self.onY1Change)
         self.x2SpinBox().valueChanged.connect(self.onX2Change)
         self.y2SpinBox().valueChanged.connect(self.onY2Change)
-        self.roiModel().roiChanged.connect(self.onROIChange)
-        self.onROIChange(*self.roiModel().roi())
+        self.roiModel().roiChanged.connect(self.setValueFromModel)
+        self.setValueFromModel(*self.roiModel().roi())
 
         self.initUI()
 
@@ -157,12 +146,9 @@ class ROIWidget(QWidget):
 
     def setROIModel(self, model: ROIModel):
         """Set new model, connect signal and update view."""
-        self.roiModel().roiChanged.disconnect(self.onROIChange)
+        self.roiModel().roiChanged.disconnect(self.setValueFromModel)
         self._roi_model = model
-        self.roiModel().roiChanged.connect(self.onROIChange)
-        with QSignalBlocker(self):
-            # do not emit signals since model data are not changed
-            self.onROIChange(*self.roiModel().roi())
+        self.roiModel().roiChanged.connect(self.setValueFromModel)
 
     def roiMaximum(self) -> Tuple[int, int]:
         return self._roiMaximum
@@ -171,17 +157,15 @@ class ROIWidget(QWidget):
     def setROIMaximum(self, w: int, h: int):
         """
         If the value differs from old value, set as maximum values of spin boxes
-        and emit to :attr:`roiMaximumChanged`. Also, update the view with new
-        maximum value and emit :attr:`roiChanged`.
+        and emit to :attr:`roiMaximumChanged`.
         """
-        if (w, h) != self.roiMaximum():
-            self._roiMaximum = (w, h)
-            self.x1SpinBox().setMaximum(w)
-            self.y1SpinBox().setMaximum(h)
-            self.x2SpinBox().setMaximum(w)
-            self.y2SpinBox().setMaximum(h)
-            self.roiMaximumChanged.emit(w, h)
-            self.onROIChange(*self.roiModel().roi())
+        self._roiMaximum = (w, h)
+        self.x1SpinBox().setMaximum(w)
+        self.y1SpinBox().setMaximum(h)
+        self.x2SpinBox().setMaximum(w)
+        self.y2SpinBox().setMaximum(h)
+        self.roiMaximumChanged.emit(w, h)
+        self.setValueFromModel(*self.roiModel().roi())
 
     def displayedROI(self) -> IntROI:
         """Return ROI value displayed on spin boxes."""
@@ -195,7 +179,7 @@ class ROIWidget(QWidget):
     def onX1Change(self, x1: int):
         """Set x1 value from control to model."""
         _, y1, x2, y2 = self.displayedROI()
-        self.setROI(x1, y1, x2, y2)
+        self.roiModel().setROI(x1, y1, x2, y2)
 
     @Slot(int)
     def onY1Change(self, y1: int):
@@ -204,29 +188,23 @@ class ROIWidget(QWidget):
         x1 = self.x1SpinBox().value()
         x2 = self.x2SpinBox().value()
         y2 = self.y2SpinBox().value()
-        self.setROI(x1, y1, x2, y2)
+        self.roiModel().setROI(x1, y1, x2, y2)
 
     @Slot(int)
     def onX2Change(self, x2: int):
         """Set x2 value from control to model."""
         x1, y1, _, y2 = self.displayedROI()
-        self.setROI(x1, y1, x2, y2)
+        self.roiModel().setROI(x1, y1, x2, y2)
 
     @Slot(int)
     def onY2Change(self, y2: int):
         """Set y2 value from control to model."""
         x1, y1, x2, _ = self.displayedROI()
-        self.setROI(x1, y1, x2, y2)
-
-    def setROI(self, x1: int, y1: int, x2: Optional[int], y2: Optional[int]):
-        """Set values to model."""
         self.roiModel().setROI(x1, y1, x2, y2)
 
     @Slot(int, int, object, object)
-    def onROIChange(self, x1: int, y1: int, x2: Optional[int], y2: Optional[int]):
-        """
-        Set ROI values from model to view, and emit :attr:`roiChanged`.
-        """
+    def setValueFromModel(self, x1: int, y1: int, x2: Optional[int], y2: Optional[int]):
+        """Set ROI values from model to view."""
         W, H = self.roiMaximum()
         if x2 is None:
             x2 = W
@@ -240,4 +218,3 @@ class ROIWidget(QWidget):
             self.x2SpinBox().setValue(x2)
         with QSignalBlocker(self.y2SpinBox()):
             self.y2SpinBox().setValue(y2)
-        self.roiChanged.emit(x1, y1, x2, y2)

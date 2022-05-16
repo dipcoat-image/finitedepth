@@ -26,11 +26,26 @@ from PySide6.QtWidgets import (
 from typing import Any, Tuple
 
 
-__all__ = ["ImportStatus", "RegistryItemData", "RegistryWidget", "ImportWidget"]
+__all__ = [
+    "ImportStatus",
+    "RegistryItemData",
+    "RegistryModelColumns",
+    "RegistryWidget",
+    "ImportWidget",
+]
 
 
 class ImportStatus(enum.Enum):
-    """Constants for variable import status of :class:`ImportWidget`."""
+    """
+    Constants for variable import status of :class:`ImportWidget`.
+
+    0. VALID
+        Variable is successfully imported.
+    1. NO_MODULE
+        Module is not found.
+    2. NO_VARIABLE
+        Module is found, but variable name is not importable from it.
+    """
 
     VALID = 0
     NO_MODULE = 1
@@ -39,16 +54,45 @@ class ImportStatus(enum.Enum):
 
 @dataclasses.dataclass(frozen=True)
 class RegistryItemData:
-    """Dataclass for registered variable of :class:`ImportWidget`."""
+    """
+    Dataclass for registered variable of :class:`ImportWidget`.
+
+    Parameters
+    ==========
+
+    variables
+        Imported variable. If import failed, it is :attr:`ImportWidget.INVALID`.
+
+    status
+        Status from import attempt.
+
+    """
 
     variable: Any
     status: ImportStatus
 
 
+class RegistryModelColumns(enum.IntEnum):
+    """
+    Columns for :meth:`RegistryWidget.registryModel`.
+
+    0. ITEM_NAME
+        Name of the item displayed in combo box.
+        This column stores :class:`RegistryItemData` instance resulting from
+        import attempt with *VARIABLE_NAME* and *MODULE_NAME*.
+    1. VARIABLE_NAME
+        Name of the variable that imports the object.
+    2. MODULE_NAME
+        Name of the module that imports the object.
+    """
+
+    ITEM_NAME = 0
+    VARIABLE_NAME = 1
+    MODULE_NAME = 2
+
+
 class RegistryWidget(QWidget):
-    """
-    Widget to control the variable registry of :class:`ImportWidget`.
-    """
+    """Widget to control the variable registry of :class:`ImportWidget`."""
 
     rowAdded = Signal(str, str, str)
 
@@ -145,7 +189,7 @@ class ImportWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._registry_model = QStandardItemModel(0, 3)
+        self._registry_model = QStandardItemModel(0, len(RegistryModelColumns))
         self._registry_widget = RegistryWidget()
         self._var_cbox = QComboBox()
         self._hideshow_button = QPushButton()
@@ -172,11 +216,15 @@ class ImportWidget(QWidget):
         self.hideShowButton().toggled.connect(self.toggleHideShow)
         self.hideShowButton().toggle()
         self.variableNameLineEdit().setPlaceholderText(
-            self.registryModel().horizontalHeaderItem(1).text()
+            self.registryModel()
+            .horizontalHeaderItem(RegistryModelColumns.VARIABLE_NAME)
+            .text()
         )
         self.variableNameLineEdit().editingFinished.connect(self.onInformationEdit)
         self.moduleNameLineEdit().setPlaceholderText(
-            self.registryModel().horizontalHeaderItem(2).text()
+            self.registryModel()
+            .horizontalHeaderItem(RegistryModelColumns.MODULE_NAME)
+            .text()
         )
         self.moduleNameLineEdit().editingFinished.connect(self.onInformationEdit)
         self.registryWindowButton().setText("Open registry window")
@@ -197,11 +245,7 @@ class ImportWidget(QWidget):
         """
         Model to store the registered objects.
 
-        The model consists of three columns:
-
-            0. Header (with :class:`RegistryItemData` as data)
-            1. Variable name
-            2. Module name
+        Columns are described in :class:`RegistryModelColumns`.
         """
         return self._registry_model
 
@@ -265,13 +309,23 @@ class ImportWidget(QWidget):
 
     @Slot(QStandardItem)
     def onItemChange(self, item: QStandardItem):
-        if item.column() != 0:
+        if item.column() != RegistryModelColumns.ITEM_NAME:
             index = item.row()
-            varname = self.registryModel().item(index, 1).text()
-            modname = self.registryModel().item(index, 2).text()
+            varname = (
+                self.registryModel()
+                .item(index, RegistryModelColumns.VARIABLE_NAME)
+                .text()
+            )
+            modname = (
+                self.registryModel()
+                .item(index, RegistryModelColumns.MODULE_NAME)
+                .text()
+            )
             var, status = self.importVariable(varname, modname)
             data = RegistryItemData(var, status)
-            self.registryModel().item(index, 0).setData(data)
+            self.registryModel().item(index, RegistryModelColumns.ITEM_NAME).setData(
+                data
+            )
         if item.row() == self.variableComboBox().currentIndex():
             self.onSelectionChange(item.row())
 
@@ -290,9 +344,19 @@ class ImportWidget(QWidget):
     def onSelectionChange(self, index: int):
         """Apply the data from combo box selection."""
         if index != -1:
-            varname = self.registryModel().item(index, 1).text()
-            modname = self.registryModel().item(index, 2).text()
-            data = self.registryModel().item(index, 0).data()
+            varname = (
+                self.registryModel()
+                .item(index, RegistryModelColumns.VARIABLE_NAME)
+                .text()
+            )
+            modname = (
+                self.registryModel()
+                .item(index, RegistryModelColumns.MODULE_NAME)
+                .text()
+            )
+            data = (
+                self.registryModel().item(index, RegistryModelColumns.ITEM_NAME).data()
+            )
             self.variableNameLineEdit().setText(varname)
             self.moduleNameLineEdit().setText(modname)
             self._applyVariable(data.variable, data.status)

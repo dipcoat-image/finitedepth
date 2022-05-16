@@ -17,15 +17,20 @@ from dipcoatimage.finitedepth import (
     ExperimentBase,
     data_converter,
 )
+from dipcoatimage.finitedepth.analysis import (
+    ImportArgs,
+    ReferenceArgs,
+    SubstrateArgs,
+    CoatingLayerArgs,
+    ExperimentArgs,
+)
 from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
-import numpy as np
-import numpy.typing as npt
-from PySide6.QtCore import Signal, Slot, Qt
+from PySide6.QtCore import Signal, Slot, QSignalBlocker
+from PySide6.QtGui import QStandardItem
 from PySide6.QtWidgets import (
     QWidget,
     QLineEdit,
-    QListWidget,
-    QListWidgetItem,
+    QListView,
     QPushButton,
     QHBoxLayout,
     QVBoxLayout,
@@ -33,7 +38,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QSizePolicy,
 )
-from typing import Optional, Dict, Any, List
+from typing import Optional, Any
 from .importwidget import ImportWidget
 from .roimodel import ROIWidget
 
@@ -54,8 +59,8 @@ __all__ = [
 class ExperimentWidgetData:
     """Data from experiment widget to construct experiment object."""
 
-    type: Any
-    parameters: Optional[DataclassProtocol]
+    type: Any = ImportWidget.INVALID
+    parameters: Optional[DataclassProtocol] = None
 
 
 @dataclasses.dataclass
@@ -79,46 +84,32 @@ class ExperimentWidget(QWidget):
 
     """
 
-    pathsChanged = Signal(list)
-    dataChanged = Signal(ExperimentWidgetData)
+    dataChanged = Signal(ExperimentWidgetData, ExperimentArgs)
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
         self._exptname_lineedit = QLineEdit()
-        self._paths_listwidget = QListWidget()
+        self._paths_listview = QListView()
         self._add_button = QPushButton("Add")
         self._delete_button = QPushButton("Delete")
         self._browse_button = QPushButton("Browse")
         self._importinfo_widget = ImportWidget()
         self._param_widget = StackedDataclassWidget()
 
-        self.connectSignals()
-        self.pathsListWidget().setSelectionMode(QListWidget.ExtendedSelection)
-        self.pathsListWidget().setEditTriggers(QListWidget.SelectedClicked)
-        self.pathAddButton().clicked.connect(self.addButtonClicked)
-        self.pathDeleteButton().clicked.connect(self.deletePaths)
-        self.pathBrowseButton().clicked.connect(self.browseFiles)
+        self.typeWidget().variableChanged.connect(self.onExperimentTypeChange)
+        self.pathsView().setSelectionMode(QListView.ExtendedSelection)
+        self.pathsView().setEditTriggers(QListView.SelectedClicked)
+        self.pathAddButton().clicked.connect(self.onAddButtonClicked)
+        self.pathDeleteButton().clicked.connect(self.onDeleteButtonClicked)
+        self.pathBrowseButton().clicked.connect(self.onBrowseButtonClicked)
+        self.parametersWidget().dataValueChanged.connect(self.emitData)
 
         default_paramwdgt = DataclassWidget()  # default empty widget
         default_paramwdgt.setDataName("Parameters")
         self.parametersWidget().addWidget(default_paramwdgt)
 
         self.initUI()
-
-    def connectSignals(self):
-        """Connect the signals disconnected by :meth:`disconnectSignals`."""
-        self._typeSelectConnection = self.typeWidget().variableChanged.connect(
-            self.onExperimentTypeChange
-        )
-        self._paramChangeConnection = self.parametersWidget().dataValueChanged.connect(
-            self.emitData
-        )
-
-    def disconnectSignals(self):
-        """Disconnect the signals connected by :meth:`connectSignals`."""
-        self.parametersWidget().dataValueChanged.disconnect(self._paramChangeConnection)
-        self.typeWidget().variableChanged.disconnect(self._typeSelectConnection)
 
     def initUI(self):
         self.typeWidget().variableComboBox().setPlaceholderText(
@@ -133,7 +124,7 @@ class ExperimentWidget(QWidget):
 
         path_groupbox = QGroupBox("Experiment files path")
         path_layout = QVBoxLayout()
-        path_layout.addWidget(self.pathsListWidget())
+        path_layout.addWidget(self.pathsView())
         buttons_layout = QHBoxLayout()
         buttons_layout.addWidget(self.pathAddButton())
         buttons_layout.addWidget(self.pathDeleteButton())
@@ -151,8 +142,8 @@ class ExperimentWidget(QWidget):
     def experimentNameLineEdit(self):
         return self._exptname_lineedit
 
-    def pathsListWidget(self):
-        return self._paths_listwidget
+    def pathsView(self):
+        return self._paths_listview
 
     def pathAddButton(self):
         return self._add_button
@@ -195,76 +186,98 @@ class ExperimentWidget(QWidget):
         self.setCurrentParametersWidget(var)
         self.emitData()
 
+    def experimentWidgetData(self) -> ExperimentWidgetData:
+        """Return :class:`ExperimentWidgetData` from current widget values."""
+        expt_type = self.typeWidget().variable()
+        try:
+            param = self.currentParametersWidget().dataValue()
+        except (TypeError, ValueError):
+            param = None
+        data = ExperimentWidgetData(expt_type, param)
+        return data
+
+    def experimentArgs(self) -> ExperimentArgs:
+        """Return :class:`ExperimentArgs` from current widget values."""
+        importArgs = ImportArgs(
+            self.typeWidget().variableNameLineEdit().text(),
+            self.typeWidget().moduleNameLineEdit().text(),
+        )
+        try:
+            param = data_converter.unstructure(
+                self.currentParametersWidget().dataValue()
+            )
+        except (TypeError, ValueError):
+            param = dict()
+        args = ExperimentArgs(importArgs, param)
+        return args
+
+    @Slot(ExperimentArgs)
+    def setExperimentArgs(self, args: ExperimentArgs):
+        """
+        Update the widgets with *args*.
+
+        This does not emit :attr:`dataChanged` signal. Run :meth:`emitData`
+        manually after running this method.
+        """
+        with QSignalBlocker(self):
+            self.typeWidget().variableNameLineEdit().setText(args.type.name)
+            self.typeWidget().moduleNameLineEdit().setText(args.type.module)
+            self.typeWidget().onInformationEdit()
+
+            paramWidget = self.currentParametersWidget()
+            try:
+                paramWidget.setDataValue(
+                    data_converter.structure(
+                        args.parameters, paramWidget.dataclassType()
+                    )
+                )
+            except TypeError:
+                pass
+
     @Slot()
     def emitData(self):
-        self.dataChanged.emit(self.experimentWidgetData())
-
-    def paths(self) -> List[str]:
-        ret = []
-        rows = self.pathsListWidget().count()
-        for i in range(rows):
-            item = self.pathsListWidget().item(i)
-            ret.append(item.text())
-        return ret
-
-    @Slot(list)
-    def setPaths(self, paths: List[str]):
-        self.pathsListWidget().clear()
-        for path in paths:
-            item = QListWidgetItem(path)
-            item.setFlags(item.flags() | Qt.ItemIsEditable)  # type: ignore[operator]
-            self.pathsListWidget().addItem(item)
-        self.emitPathsChanged()
+        self.dataChanged.emit(self.experimentWidgetData(), self.experimentArgs())
 
     @Slot()
-    def addButtonClicked(self):
-        self.addPath("New path")
-
-    @Slot(str)
-    def addPath(self, path: str):
-        item = QListWidgetItem(path)
-        item.setFlags(item.flags() | Qt.ItemIsEditable)  # type: ignore[operator]
-        self.pathsListWidget().addItem(item)
-        self.emitPathsChanged()
+    def onAddButtonClicked(self):
+        model = self.pathsView().model()
+        if model is not None:
+            parentItem = model.itemFromIndex(self.pathsView().rootIndex())
+            item = QStandardItem(f"Path {parentItem.rowCount()}")
+            parentItem.appendRow(item)
 
     @Slot()
-    def deletePaths(self):
-        items = self.pathsListWidget().selectedItems()
-        rows = sorted([self.pathsListWidget().row(item) for item in items])
-        for i in reversed(rows):
-            item = self.pathsListWidget().takeItem(i)
-            del item
-        self.emitPathsChanged()
+    def onDeleteButtonClicked(self):
+        model = self.pathsView().model()
+        if model is not None:
+            parentItem = model.itemFromIndex(self.pathsView().rootIndex())
+            for items in reversed(sorted(self.pathsView().selectedIndexes())):
+                parentItem.removeRow(items.row())
 
     @Slot()
-    def browseFiles(self):
-        paths, _ = QFileDialog.getOpenFileNames(
-            self,
-            "Select experiment files",
-            "./",
-            options=QFileDialog.DontUseNativeDialog,
-        )
-        for p in paths:
-            item = QListWidgetItem(p)
-            item.setFlags(item.flags() | Qt.ItemIsEditable)
-            self.pathsListWidget().addItem(item)
-        self.emitPathsChanged()
-
-    def emitPathsChanged(self):
-        paths = self.paths()
-        self.pathsChanged.emit(paths)
+    def onBrowseButtonClicked(self):
+        model = self.pathsView().model()
+        if model is not None:
+            parentItem = model.itemFromIndex(self.pathsView().rootIndex())
+            paths, _ = QFileDialog.getOpenFileNames(
+                self,
+                "Select experiment files",
+                "./",
+                options=QFileDialog.DontUseNativeDialog,
+            )
+            for p in paths:
+                parentItem.appendRow(QStandardItem(p))
 
 
 @dataclasses.dataclass
 class ReferenceWidgetData:
     """Data from reference widget to construct substrate reference object."""
 
-    type: Any
-    image: Optional[npt.NDArray[np.uint8]]
-    templateROI: OptionalROI
-    substrateROI: OptionalROI
-    parameters: Optional[DataclassProtocol]
-    draw_options: Optional[DataclassProtocol]
+    type: Any = ImportWidget.INVALID
+    templateROI: OptionalROI = (0, 0, None, None)
+    substrateROI: OptionalROI = (0, 0, None, None)
+    parameters: Optional[DataclassProtocol] = None
+    draw_options: Optional[DataclassProtocol] = None
 
 
 class ReferenceWidget(QWidget):
@@ -274,7 +287,9 @@ class ReferenceWidget(QWidget):
     .. rubric:: Substrate reference data
 
     Data consists of substrate reference type which is a concrete subclass of
-    :class:`.SubstrateReferenceBase`, and its every parameter.
+    :class:`.SubstrateReferenceBase`, its image and its parameters.
+
+    Image is emitted by :attr:`imageChanged` signal.
 
     Data are wrapped by :class:`ReferenceWidgetData`. Whenever the widget values
     change :attr:`dataChanged` signal emits the data.
@@ -319,7 +334,8 @@ class ReferenceWidget(QWidget):
 
     """
 
-    dataChanged = Signal(ReferenceWidgetData)
+    imageChanged = Signal(object)
+    dataChanged = Signal(ReferenceWidgetData, ReferenceArgs)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -334,14 +350,19 @@ class ReferenceWidget(QWidget):
         self._param_widget = StackedDataclassWidget()
         self._drawopt_widget = StackedDataclassWidget()
 
-        self.connectSignals()
+        self.pathLineEdit().editingFinished.connect(self.onPathEditFinished)
         self.browseButton().clicked.connect(self.browseReferenceImage)
+        self.typeWidget().variableChanged.connect(self.onReferenceTypeChange)
+        self.templateROIWidget().roiModel().roiChanged.connect(self.emitData)
         self.templateROIDrawButton().setCheckable(True)
-        self.substrateROIDrawButton().setCheckable(True)
         self.templateROIDrawButton().toggled.connect(self.onTemplateROIDrawButtonToggle)
+        self.substrateROIWidget().roiModel().roiChanged.connect(self.emitData)
+        self.substrateROIDrawButton().setCheckable(True)
         self.substrateROIDrawButton().toggled.connect(
             self.onSubstrateROIDrawButtonToggle
         )
+        self.parametersWidget().dataValueChanged.connect(self.emitData)
+        self.drawOptionsWidget().dataValueChanged.connect(self.emitData)
 
         default_paramwdgt = DataclassWidget()  # default empty widget
         default_drawwdgt = DataclassWidget()  # default empty widget
@@ -351,38 +372,6 @@ class ReferenceWidget(QWidget):
         self.drawOptionsWidget().addWidget(default_drawwdgt)
 
         self.initUI()
-
-    def connectSignals(self):
-        """Connect the signals disconnected by :meth:`disconnectSignals`."""
-        self._typeSelectConnection = self.typeWidget().variableChanged.connect(
-            self.onReferenceTypeChange
-        )
-        self._pathEditConnection = self.pathLineEdit().editingFinished.connect(
-            self.onPathEditFinished
-        )
-        self._tempROIChangeConnection = self.templateROIWidget().roiChanged.connect(
-            self.emitData
-        )
-        self._substROIChangeConnection = self.substrateROIWidget().roiChanged.connect(
-            self.emitData
-        )
-        self._paramChangeConnection = self.parametersWidget().dataValueChanged.connect(
-            self.emitData
-        )
-        self._drawoptChangeConnection = (
-            self.drawOptionsWidget().dataValueChanged.connect(self.emitData)
-        )
-
-    def disconnectSignals(self):
-        """Disconnect the signals connected by :meth:`connectSignals`."""
-        self.drawOptionsWidget().dataValueChanged.disconnect(
-            self._drawoptChangeConnection
-        )
-        self.parametersWidget().dataValueChanged.disconnect(self._paramChangeConnection)
-        self.substrateROIWidget().roiChanged.disconnect(self._substROIChangeConnection)
-        self.templateROIWidget().roiChanged.disconnect(self._tempROIChangeConnection)
-        self.pathLineEdit().editingFinished.disconnect(self._pathEditConnection)
-        self.typeWidget().variableChanged.disconnect(self._typeSelectConnection)
 
     def initUI(self):
         self.pathLineEdit().setPlaceholderText("Path for the reference image file")
@@ -502,6 +491,80 @@ class ReferenceWidget(QWidget):
         self.setCurrentDrawOptionsWidget(var)
         self.emitData()
 
+    def referenceWidgetData(self) -> ReferenceWidgetData:
+        """Return :class:`ReferenceWidgetData` from current widget values."""
+        ref_type = self.typeWidget().variable()
+        templateROI = self.templateROIWidget().roiModel().roi()
+        substrateROI = self.substrateROIWidget().roiModel().roi()
+        try:
+            param = self.currentParametersWidget().dataValue()
+        except (TypeError, ValueError):
+            param = None
+        try:
+            drawopt = self.currentDrawOptionsWidget().dataValue()
+        except (TypeError, ValueError):
+            drawopt = None
+
+        data = ReferenceWidgetData(ref_type, templateROI, substrateROI, param, drawopt)
+        return data
+
+    def referenceArgs(self) -> ReferenceArgs:
+        """Return :class:`ReferenceArgs` from current widget values."""
+        importArgs = ImportArgs(
+            self.typeWidget().variableNameLineEdit().text(),
+            self.typeWidget().moduleNameLineEdit().text(),
+        )
+        templateROI = self.templateROIWidget().roiModel().roi()
+        substrateROI = self.substrateROIWidget().roiModel().roi()
+        try:
+            param = data_converter.unstructure(
+                self.currentParametersWidget().dataValue()
+            )
+        except (TypeError, ValueError):
+            param = dict()
+        try:
+            drawopt = data_converter.unstructure(
+                self.currentDrawOptionsWidget().dataValue()
+            )
+        except (TypeError, ValueError):
+            drawopt = dict()
+        args = ReferenceArgs(importArgs, templateROI, substrateROI, param, drawopt)
+        return args
+
+    @Slot(ReferenceArgs)
+    def setReferenceArgs(self, args: ReferenceArgs):
+        with QSignalBlocker(self):
+            self.typeWidget().variableNameLineEdit().setText(args.type.name)
+            self.typeWidget().moduleNameLineEdit().setText(args.type.module)
+            self.typeWidget().onInformationEdit()
+
+            self.templateROIWidget().roiModel().setROI(*args.templateROI)
+            self.substrateROIWidget().roiModel().setROI(*args.substrateROI)
+
+            paramWidget = self.currentParametersWidget()
+            try:
+                paramWidget.setDataValue(
+                    data_converter.structure(
+                        args.parameters, paramWidget.dataclassType()
+                    )
+                )
+            except TypeError:
+                pass
+
+            drawWidget = self.currentDrawOptionsWidget()
+            try:
+                drawWidget.setDataValue(
+                    data_converter.structure(
+                        args.draw_options, drawWidget.dataclassType()
+                    )
+                )
+            except TypeError:
+                pass
+
+    @Slot()
+    def emitData(self):
+        self.dataChanged.emit(self.referenceWidgetData(), self.referenceArgs())
+
     @Slot(str)
     def setReferencePath(self, path: str):
         self.pathLineEdit().setText(path)
@@ -509,9 +572,8 @@ class ReferenceWidget(QWidget):
 
     @Slot()
     def onPathEditFinished(self):
-        self.disconnectSignals()
         self.updateROIMaximum()
-        self.connectSignals()
+        self.emitImage()
         self.emitData()
 
     def updateROIMaximum(self):
@@ -524,47 +586,12 @@ class ReferenceWidget(QWidget):
         self.templateROIWidget().setROIMaximum(w, h)
         self.substrateROIWidget().setROIMaximum(w, h)
 
-    def copyWidgetDataToDict(self, data: Dict[str, Any]):
-        data["reference"]["type"]["name"] = (
-            self.typeWidget().variableNameLineEdit().text()
-        )
-        data["reference"]["type"]["module"] = (
-            self.typeWidget().moduleNameLineEdit().text()
-        )
-        data["reference"]["path"] = self.pathLineEdit().text()
-        data["reference"]["templateROI"] = self.templateROIWidget().roiModel().roi()
-        data["reference"]["substrateROI"] = self.substrateROIWidget().roiModel().roi()
-        data["reference"]["parameters"] = data_converter.unstructure(
-            self.currentParametersWidget().dataValue()
-        )
-        data["reference"]["draw_options"] = data_converter.unstructure(
-            self.currentDrawOptionsWidget().dataValue()
-        )
-
-    def referenceWidgetData(self) -> ReferenceWidgetData:
-        ref_type = self.typeWidget().variable()
+    @Slot()
+    def emitImage(self):
         img = cv2.imread(self.pathLineEdit().text())
         if img is not None:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        templateROI = self.templateROIWidget().roiModel().roi()
-        substrateROI = self.substrateROIWidget().roiModel().roi()
-        try:
-            param = self.currentParametersWidget().dataValue()
-        except (TypeError, ValueError):
-            param = None
-        try:
-            drawopt = self.currentDrawOptionsWidget().dataValue()
-        except (TypeError, ValueError):
-            drawopt = None
-
-        data = ReferenceWidgetData(
-            ref_type, img, templateROI, substrateROI, param, drawopt
-        )
-        return data
-
-    @Slot()
-    def emitData(self):
-        self.dataChanged.emit(self.referenceWidgetData())
+        self.imageChanged.emit(img)
 
     def browseReferenceImage(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -584,39 +611,14 @@ class ReferenceWidget(QWidget):
         if state:
             self.templateROIDrawButton().setChecked(False)
 
-    def setReferenceArgs(self, refargs: Dict[str, Any]):
-        """Update the widgets data with *refargs*."""
-        self.disconnectSignals()
-
-        self.typeWidget().setImportInformation(
-            refargs["type"]["name"], refargs["type"]["module"]
-        )
-        var = self.typeWidget().variable()
-        self.setCurrentParametersWidget(var)
-        self.setCurrentDrawOptionsWidget(var)
-
-        self.templateROIWidget().setROI(*refargs["templateROI"])
-        self.substrateROIWidget().setROI(*refargs["substrateROI"])
-
-        reftype = self.typeWidget().variable()
-        if isinstance(reftype, type) and issubclass(reftype, SubstrateReferenceBase):
-            params = data_converter.structure(refargs["parameters"], reftype.Parameters)
-            self.currentParametersWidget().setDataValue(params)
-            drawopts = data_converter.structure(
-                refargs["draw_options"], reftype.DrawOptions
-            )
-            self.currentDrawOptionsWidget().setDataValue(drawopts)
-
-        self.connectSignals()
-
 
 @dataclasses.dataclass
 class SubstrateWidgetData:
     """Data from substrate widget to construct substrate object."""
 
-    type: Any
-    parameters: Optional[DataclassProtocol]
-    draw_options: Optional[DataclassProtocol]
+    type: Any = ImportWidget.INVALID
+    parameters: Optional[DataclassProtocol] = None
+    draw_options: Optional[DataclassProtocol] = None
 
 
 class SubstrateWidget(QWidget):
@@ -656,7 +658,7 @@ class SubstrateWidget(QWidget):
 
     """
 
-    dataChanged = Signal(SubstrateWidgetData)
+    dataChanged = Signal(SubstrateWidgetData, SubstrateArgs)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -665,7 +667,9 @@ class SubstrateWidget(QWidget):
         self._param_widget = StackedDataclassWidget()
         self._drawopt_widget = StackedDataclassWidget()
 
-        self.connectSignals()
+        self.typeWidget().variableChanged.connect(self.onSubstrateTypeChange)
+        self.parametersWidget().dataValueChanged.connect(self.emitData)
+        self.drawOptionsWidget().dataValueChanged.connect(self.emitData)
 
         default_paramwdgt = DataclassWidget()  # default empty widget
         default_drawwdgt = DataclassWidget()  # default empty widget
@@ -675,26 +679,6 @@ class SubstrateWidget(QWidget):
         self.drawOptionsWidget().addWidget(default_drawwdgt)
 
         self.initUI()
-
-    def connectSignals(self):
-        """Connect the signals disconnected by :meth:`disconnectSignals`."""
-        self._typeSelectConnection = self.typeWidget().variableChanged.connect(
-            self.onSubstrateTypeChange
-        )
-        self._paramChangeConnection = self.parametersWidget().dataValueChanged.connect(
-            self.emitData
-        )
-        self._drawOptChangeConnection = (
-            self.drawOptionsWidget().dataValueChanged.connect(self.emitData)
-        )
-
-    def disconnectSignals(self):
-        """Disconnect the signals connected by :meth:`connectSignals`."""
-        self.drawOptionsWidget().dataValueChanged.disconnect(
-            self._drawOptChangeConnection
-        )
-        self.parametersWidget().dataValueChanged.disconnect(self._paramChangeConnection)
-        self.typeWidget().variableChanged.disconnect(self._typeSelectConnection)
 
     def initUI(self):
         self.typeWidget().variableComboBox().setPlaceholderText(
@@ -769,21 +753,8 @@ class SubstrateWidget(QWidget):
         self.setCurrentDrawOptionsWidget(var)
         self.emitData()
 
-    def copyWidgetDataToDict(self, data: Dict[str, Any]):
-        data["substrate"]["type"]["name"] = (
-            self.typeWidget().variableNameLineEdit().text()
-        )
-        data["substrate"]["type"]["module"] = (
-            self.typeWidget().moduleNameLineEdit().text()
-        )
-        data["substrate"]["parameters"] = data_converter.unstructure(
-            self.currentParametersWidget().dataValue()
-        )
-        data["substrate"]["draw_options"] = data_converter.unstructure(
-            self.currentDrawOptionsWidget().dataValue()
-        )
-
     def substrateWidgetData(self) -> SubstrateWidgetData:
+        """Return :class:`SubstrateWidgetData` from current widget values."""
         subst_type = self.typeWidget().variable()
         try:
             param = self.currentParametersWidget().dataValue()
@@ -796,43 +767,67 @@ class SubstrateWidget(QWidget):
         data = SubstrateWidgetData(subst_type, param, drawopt)
         return data
 
+    def substrateArgs(self) -> SubstrateArgs:
+        """Return :class:`SubstrateArgs` from current widget values."""
+        importArgs = ImportArgs(
+            self.typeWidget().variableNameLineEdit().text(),
+            self.typeWidget().moduleNameLineEdit().text(),
+        )
+        try:
+            param = data_converter.unstructure(
+                self.currentParametersWidget().dataValue()
+            )
+        except (TypeError, ValueError):
+            param = dict()
+        try:
+            drawopt = data_converter.unstructure(
+                self.currentDrawOptionsWidget().dataValue()
+            )
+        except (TypeError, ValueError):
+            drawopt = dict()
+        args = SubstrateArgs(importArgs, param, drawopt)
+        return args
+
+    @Slot(SubstrateArgs)
+    def setSubstrateArgs(self, args: SubstrateArgs):
+        with QSignalBlocker(self):
+            self.typeWidget().variableNameLineEdit().setText(args.type.name)
+            self.typeWidget().moduleNameLineEdit().setText(args.type.module)
+            self.typeWidget().onInformationEdit()
+
+            paramWidget = self.currentParametersWidget()
+            try:
+                paramWidget.setDataValue(
+                    data_converter.structure(
+                        args.parameters, paramWidget.dataclassType()
+                    )
+                )
+            except TypeError:
+                pass
+
+            drawWidget = self.currentDrawOptionsWidget()
+            try:
+                drawWidget.setDataValue(
+                    data_converter.structure(
+                        args.draw_options, drawWidget.dataclassType()
+                    )
+                )
+            except TypeError:
+                pass
+
     @Slot()
     def emitData(self):
-        self.dataChanged.emit(self.substrateWidgetData())
-
-    def setSubstrateArgs(self, substargs: Dict[str, Any]):
-        """Update the widgets data with *substargs*."""
-        self.disconnectSignals()
-
-        self.typeWidget().setImportInformation(
-            substargs["type"]["name"], substargs["type"]["module"]
-        )
-        var = self.typeWidget().variable()
-        self.setCurrentParametersWidget(var)
-        self.setCurrentDrawOptionsWidget(var)
-
-        substtype = self.typeWidget().variable()
-        if isinstance(substtype, type) and issubclass(substtype, SubstrateBase):
-            params = data_converter.structure(
-                substargs["parameters"], substtype.Parameters
-            )
-            self.currentParametersWidget().setDataValue(params)
-            drawopts = data_converter.structure(
-                substargs["draw_options"], substtype.DrawOptions
-            )
-            self.currentDrawOptionsWidget().setDataValue(drawopts)
-
-        self.connectSignals()
+        self.dataChanged.emit(self.substrateWidgetData(), self.substrateArgs())
 
 
 @dataclasses.dataclass
 class CoatingLayerWidgetData:
     """Data from coating layer widget to construct coating layer object."""
 
-    type: Any
-    parameters: Optional[DataclassProtocol]
-    draw_options: Optional[DataclassProtocol]
-    deco_options: Optional[DataclassProtocol]
+    type: Any = ImportWidget.INVALID
+    parameters: Optional[DataclassProtocol] = None
+    draw_options: Optional[DataclassProtocol] = None
+    deco_options: Optional[DataclassProtocol] = None
 
 
 class CoatingLayerWidget(QWidget):
@@ -875,7 +870,7 @@ class CoatingLayerWidget(QWidget):
 
     """
 
-    dataChanged = Signal(CoatingLayerWidgetData)
+    dataChanged = Signal(CoatingLayerWidgetData, SubstrateArgs)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -885,7 +880,10 @@ class CoatingLayerWidget(QWidget):
         self._drawopt_widget = StackedDataclassWidget()
         self._decoopt_widget = StackedDataclassWidget()
 
-        self.connectSignals()
+        self.typeWidget().variableChanged.connect(self.onCoatingLayerTypeChange)
+        self.parametersWidget().dataValueChanged.connect(self.emitData)
+        self.drawOptionsWidget().dataValueChanged.connect(self.emitData)
+        self.decoOptionsWidget().dataValueChanged.connect(self.emitData)
 
         default_paramwdgt = DataclassWidget()  # default empty widget
         default_drawwdgt = DataclassWidget()  # default empty widget
@@ -898,32 +896,6 @@ class CoatingLayerWidget(QWidget):
         self.decoOptionsWidget().addWidget(default_decowdgt)
 
         self.initUI()
-
-    def connectSignals(self):
-        """Connect the signals disconnected by :meth:`disconnectSignals`."""
-        self._typeSelectConnection = self.typeWidget().variableChanged.connect(
-            self.onCoatingLayerTypeChange
-        )
-        self._paramChangeConnection = self.parametersWidget().dataValueChanged.connect(
-            self.emitData
-        )
-        self._drawOptChangeConnection = (
-            self.drawOptionsWidget().dataValueChanged.connect(self.emitData)
-        )
-        self._decoOptChangeConnection = (
-            self.decoOptionsWidget().dataValueChanged.connect(self.emitData)
-        )
-
-    def disconnectSignals(self):
-        """Disconnect the signals connected by :meth:`connectSignals`."""
-        self.decoOptionsWidget().dataValueChanged.disconnect(
-            self._decoOptChangeConnection
-        )
-        self.drawOptionsWidget().dataValueChanged.disconnect(
-            self._drawOptChangeConnection
-        )
-        self.parametersWidget().dataValueChanged.disconnect(self._paramChangeConnection)
-        self.typeWidget().variableChanged.disconnect(self._typeSelectConnection)
 
     def initUI(self):
         self.typeWidget().variableComboBox().setPlaceholderText(
@@ -1020,24 +992,8 @@ class CoatingLayerWidget(QWidget):
         self.setCurrentDecoOptionsWidget(var)
         self.emitData()
 
-    def copyWidgetDataToDict(self, data: Dict[str, Any]):
-        data["coatinglayer"]["type"]["name"] = (
-            self.typeWidget().variableNameLineEdit().text()
-        )
-        data["coatinglayer"]["type"]["module"] = (
-            self.typeWidget().moduleNameLineEdit().text()
-        )
-        data["coatinglayer"]["parameters"] = data_converter.unstructure(
-            self.currentParametersWidget().dataValue()
-        )
-        data["coatinglayer"]["draw_options"] = data_converter.unstructure(
-            self.currentDrawOptionsWidget().dataValue()
-        )
-        data["coatinglayer"]["deco_options"] = data_converter.unstructure(
-            self.currentDecoOptionsWidget().dataValue()
-        )
-
     def coatingLayerWidgetData(self) -> CoatingLayerWidgetData:
+        """Return :class:`CoatingLayerWidgetData` from current widget values."""
         layer_type = self.typeWidget().variable()
         try:
             param = self.currentParametersWidget().dataValue()
@@ -1054,35 +1010,70 @@ class CoatingLayerWidget(QWidget):
         data = CoatingLayerWidgetData(layer_type, param, drawopt, decoopt)
         return data
 
+    def coatingLayerArgs(self) -> CoatingLayerArgs:
+        """Return :class:`CoatingLayerArgs` from current widget values."""
+        importArgs = ImportArgs(
+            self.typeWidget().variableNameLineEdit().text(),
+            self.typeWidget().moduleNameLineEdit().text(),
+        )
+        try:
+            param = data_converter.unstructure(
+                self.currentParametersWidget().dataValue()
+            )
+        except (TypeError, ValueError):
+            param = dict()
+        try:
+            drawopt = data_converter.unstructure(
+                self.currentDrawOptionsWidget().dataValue()
+            )
+        except (TypeError, ValueError):
+            drawopt = dict()
+        try:
+            decoopt = data_converter.unstructure(
+                self.currentDecoOptionsWidget().dataValue()
+            )
+        except (TypeError, ValueError):
+            decoopt = dict()
+        args = CoatingLayerArgs(importArgs, param, drawopt, decoopt)
+        return args
+
+    @Slot(CoatingLayerArgs)
+    def setCoatingLayerArgs(self, args: CoatingLayerArgs):
+        with QSignalBlocker(self):
+            self.typeWidget().variableNameLineEdit().setText(args.type.name)
+            self.typeWidget().moduleNameLineEdit().setText(args.type.module)
+            self.typeWidget().onInformationEdit()
+
+            paramWidget = self.currentParametersWidget()
+            try:
+                paramWidget.setDataValue(
+                    data_converter.structure(
+                        args.parameters, paramWidget.dataclassType()
+                    )
+                )
+            except TypeError:
+                pass
+
+            drawWidget = self.currentDrawOptionsWidget()
+            try:
+                drawWidget.setDataValue(
+                    data_converter.structure(
+                        args.draw_options, drawWidget.dataclassType()
+                    )
+                )
+            except TypeError:
+                pass
+
+            decoWidget = self.currentDecoOptionsWidget()
+            try:
+                decoWidget.setDataValue(
+                    data_converter.structure(
+                        args.deco_options, decoWidget.dataclassType()
+                    )
+                )
+            except TypeError:
+                pass
+
     @Slot()
     def emitData(self):
-        self.dataChanged.emit(self.coatingLayerWidgetData())
-
-    def setCoatingLayerArgs(self, layerargs: Dict[str, Any]):
-        """Update the widgets data with *layerargs*."""
-        self.disconnectSignals()
-
-        self.typeWidget().setImportInformation(
-            layerargs["type"]["name"], layerargs["type"]["module"]
-        )
-        var = self.typeWidget().variable()
-        self.setCurrentParametersWidget(var)
-        self.setCurrentDrawOptionsWidget(var)
-        self.setCurrentDecoOptionsWidget(var)
-
-        layertype = self.typeWidget().variable()
-        if isinstance(layertype, type) and issubclass(layertype, CoatingLayerBase):
-            params = data_converter.structure(
-                layerargs["parameters"], layertype.Parameters
-            )
-            self.currentParametersWidget().setDataValue(params)
-            drawopts = data_converter.structure(
-                layerargs["draw_options"], layertype.DrawOptions
-            )
-            self.currentDrawOptionsWidget().setDataValue(drawopts)
-            decoopts = data_converter.structure(
-                layerargs["deco_options"], layertype.DecoOptions
-            )
-            self.currentDecoOptionsWidget().setDataValue(decoopts)
-
-        self.connectSignals()
+        self.dataChanged.emit(self.coatingLayerWidgetData(), self.coatingLayerArgs())
