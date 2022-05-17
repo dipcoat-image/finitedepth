@@ -22,8 +22,10 @@ from dipcoatimage.finitedepth.analysis import (
     SubstrateArgs,
     CoatingLayerArgs,
     ExperimentArgs,
+    AnalysisArgs,
     Analyzer,
 )
+import os
 from PySide6.QtCore import QModelIndex, Qt, Signal, Slot
 from PySide6.QtGui import QStandardItem, QDoubleValidator
 from PySide6.QtWidgets import (
@@ -58,6 +60,7 @@ __all__ = [
     "ReferenceWidget",
     "SubstrateWidget",
     "CoatingLayerWidget",
+    "EmptyDoubleValidator",
     "AnalysisWidget",
 ]
 
@@ -1246,6 +1249,16 @@ class CoatingLayerWidget(ControlWidget):
             )
 
 
+class EmptyDoubleValidator(QDoubleValidator):
+    """Validator which accpets float and empty string"""
+
+    def validate(self, input: str, pos: int) -> QDoubleValidator.State:
+        ret = super().validate(input, pos)
+        if not input:
+            ret = QDoubleValidator.Acceptable
+        return ret  # type: ignore[return-value]
+
+
 class AnalysisWidget(ControlWidget):
     """
     Widget to analyze the experiment.
@@ -1253,6 +1266,8 @@ class AnalysisWidget(ControlWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+
+        self._blockModelUpdate = False
 
         self._datapath_lineedit = QLineEdit()
         self._data_ext_combobox = QComboBox()
@@ -1264,7 +1279,20 @@ class AnalysisWidget(ControlWidget):
         self._analyze_button = QPushButton()
         self._progressbar = QProgressBar()
 
-        self.imageFPSLineEdit().setValidator(QDoubleValidator())
+        self.dataPathLineEdit().editingFinished.connect(self.commitToCurrentItem)
+        self.dataExtensionComboBox().currentTextChanged.connect(
+            self.commitToCurrentItem
+        )
+        self.imagePathLineEdit().editingFinished.connect(self.commitToCurrentItem)
+        self.imageExtensionComboBox().currentTextChanged.connect(
+            self.commitToCurrentItem
+        )
+        self.videoPathLineEdit().editingFinished.connect(self.commitToCurrentItem)
+        self.videoExtensionComboBox().currentTextChanged.connect(
+            self.commitToCurrentItem
+        )
+        self.imageFPSLineEdit().editingFinished.connect(self.commitToCurrentItem)
+        self.imageFPSLineEdit().setValidator(EmptyDoubleValidator())
 
         self.dataPathLineEdit().setPlaceholderText("Data file path")
         self.imagePathLineEdit().setPlaceholderText("Image file path")
@@ -1344,3 +1372,58 @@ class AnalysisWidget(ControlWidget):
     def progressBar(self) -> QProgressBar:
         """Progress bar to display analysis progress."""
         return self._progressbar
+
+    @Slot(QModelIndex)
+    def setCurrentExperimentIndex(self, index: QModelIndex):
+        super().setCurrentExperimentIndex(index)
+
+        self._blockModelUpdate = True
+        model = self.experimentItemModel()
+        args = model.data(
+            model.index(index.row(), ExperimentItemModel.Col_Analysis), Qt.UserRole
+        )
+        data_path, data_ext = os.path.splitext(args.data_path)
+        self.dataPathLineEdit().setText(data_path)
+        self.dataExtensionComboBox().setCurrentText(data_ext)
+        image_path, image_ext = os.path.splitext(args.image_path)
+        self.imagePathLineEdit().setText(image_path)
+        self.imageExtensionComboBox().setCurrentText(image_ext)
+        video_path, video_ext = os.path.splitext(args.video_path)
+        self.videoPathLineEdit().setText(video_path)
+        self.videoExtensionComboBox().setCurrentText(video_ext)
+        fps = str() if args.fps is None else str(args.fps)
+        self.imageFPSLineEdit().setText(fps)
+        self._blockModelUpdate = False
+
+    def analysisArgs(self) -> AnalysisArgs:
+        """Return :class:`analysisArgs` from current widget values."""
+        data_path = (
+            self.dataPathLineEdit().text() + self.dataExtensionComboBox().currentText()
+        )
+        image_path = (
+            self.imagePathLineEdit().text()
+            + self.imageExtensionComboBox().currentText()
+        )
+        video_path = (
+            self.videoPathLineEdit().text()
+            + self.videoExtensionComboBox().currentText()
+        )
+        fps_text = self.imageFPSLineEdit().text()
+        fps = None if not fps_text else float(fps_text)
+        args = AnalysisArgs(data_path, image_path, video_path, fps)
+        return args
+
+    @Slot()
+    def commitToCurrentItem(self):
+        """
+        Set :meth:`analysisArgs` to currently activated item from
+        :meth:`experimentItemModel`.
+        """
+        index = self.currentExperimentIndex()
+        if not self._blockModelUpdate and index.isValid():
+            model = self.experimentItemModel()
+            model.setData(
+                model.index(index.row(), ExperimentItemModel.Col_Analysis),
+                self.analysisArgs(),
+                Qt.UserRole,  # type: ignore[arg-type]
+            )
