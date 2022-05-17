@@ -10,8 +10,6 @@ from dipcoatimage.finitedepth import (
     RectLayerArea,
     data_converter,
 )
-from dipcoatimage.finitedepth.analysis import CoatingLayerArgs, ImportArgs
-from dipcoatimage.finitedepth.util import dict_includes
 from dipcoatimage.finitedepth_gui.controlwidgets import (
     CoatingLayerWidget,
 )
@@ -56,7 +54,6 @@ def test_CoatingLayerWidget_onCoatingLayerTypeChange(qtbot, layerwidget):
         layerwidget.parametersWidget().currentChanged,
         layerwidget.drawOptionsWidget().currentChanged,
         layerwidget.decoOptionsWidget().currentChanged,
-        layerwidget.dataChanged,
     ]
 
     with qtbot.waitSignals(signals):
@@ -77,7 +74,6 @@ def test_CoatingLayerWidget_onCoatingLayerTypeChange(qtbot, layerwidget):
     with qtbot.waitSignals(
         [
             layerwidget.decoOptionsWidget().currentChanged,
-            layerwidget.dataChanged,
         ]
     ):
         layerwidget.typeWidget().variableComboBox().setCurrentIndex(1)
@@ -99,58 +95,3 @@ def test_CoatingLayerWidget_onCoatingLayerTypeChange(qtbot, layerwidget):
     assert layerwidget.parametersWidget().currentIndex() == 0
     assert layerwidget.drawOptionsWidget().currentIndex() == 0
     assert layerwidget.decoOptionsWidget().currentIndex() == 0
-
-
-def test_CoatingLayerWidget_setCoatingLayerArgs(qtbot, layerwidget):
-    layerargs = CoatingLayerArgs(
-        type=ImportArgs(name="RectLayerArea"),
-        parameters=dict(),
-        draw_options=dict(remove_substrate=True),
-        deco_options=dict(paint_Left=False),
-    )
-    layerwidget.setCoatingLayerArgs(layerargs)
-
-    assert layerwidget.typeWidget().variableComboBox().currentIndex() == -1
-    assert layerwidget.typeWidget().variableNameLineEdit().text() == layerargs.type.name
-    assert layerwidget.typeWidget().moduleNameLineEdit().text() == layerargs.type.module
-
-    assert dict_includes(
-        data_converter.unstructure(
-            layerwidget.parametersWidget().currentWidget().dataValue()
-        ),
-        layerargs.parameters,
-    )
-
-    assert dict_includes(
-        data_converter.unstructure(
-            layerwidget.drawOptionsWidget().currentWidget().dataValue()
-        ),
-        layerargs.draw_options,
-    )
-
-    assert dict_includes(
-        data_converter.unstructure(
-            layerwidget.decoOptionsWidget().currentWidget().dataValue()
-        ),
-        layerargs.deco_options,
-    )
-
-
-def test_CoatingLayerWidget_dataChanged_count(qtbot):
-    """
-    Test that dataChanged do not trigger signals multiple times.
-    """
-    widget = CoatingLayerWidget()
-
-    class Counter:
-        def __init__(self):
-            self.i = 0
-
-        def count(self, _):
-            self.i += 1
-
-    counter = Counter()
-    widget.dataChanged.connect(counter.count)
-
-    widget.setCoatingLayerArgs(CoatingLayerArgs())
-    assert counter.i == 0

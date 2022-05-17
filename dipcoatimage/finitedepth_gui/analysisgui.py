@@ -62,16 +62,13 @@ class AnalysisGUI(QMainWindow):
 
         self.setCentralWidget(QWidget())
 
-        self.referenceWidget().imageChanged.connect(self.referenceWorker().setImage)
-        self.coatingLayerWidget().dataChanged.connect(
-            self.onStructuredCoatingLayerArgsChange
-        )
         self.experimentWidget().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
         )
         self.experimentInventory().experimentListView().activated.connect(
             self.experimentWidget().setCurrentExperimentIndex
         )
+        self.referenceWidget().imageChanged.connect(self.referenceWorker().setImage)
         self.referenceWidget().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
         )
@@ -83,6 +80,12 @@ class AnalysisGUI(QMainWindow):
         )
         self.experimentInventory().experimentListView().activated.connect(
             self.substrateWidget().setCurrentExperimentIndex
+        )
+        self.coatingLayerWidget().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
+        )
+        self.experimentInventory().experimentListView().activated.connect(
+            self.coatingLayerWidget().setCurrentExperimentIndex
         )
 
         self.experimentInventory().experimentListView().activated.connect(
@@ -156,20 +159,12 @@ class AnalysisGUI(QMainWindow):
 
     @Slot(QModelIndex)
     def onExperimentActivation(self, index: QModelIndex):
-        """Update the experiment data to widgets."""
-        model = self.experimentInventory().experimentItemModel()
-
-        self.coatingLayerWidget().setCoatingLayerArgs(
-            model.data(
-                model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
-                Qt.UserRole,
-            )[1]
-        )
-
+        """Update the experiment data to workers."""
         self.referenceWorker().clear()
         self.substrateWorker().clear()
         self.experimentWorker().clear()
 
+        model = self.experimentInventory().experimentItemModel()
         self.referenceWorker().setStructuredReferenceArgs(
             model.data(
                 model.index(index.row(), ExperimentItemModel.Col_Reference),

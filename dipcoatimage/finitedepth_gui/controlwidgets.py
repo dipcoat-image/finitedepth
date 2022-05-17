@@ -23,7 +23,7 @@ from dipcoatimage.finitedepth.analysis import (
     CoatingLayerArgs,
     ExperimentArgs,
 )
-from PySide6.QtCore import QModelIndex, Qt, Signal, Slot, QSignalBlocker
+from PySide6.QtCore import QModelIndex, Qt, Signal, Slot
 from PySide6.QtGui import QStandardItem
 from PySide6.QtWidgets import (
     QWidget,
@@ -845,13 +845,6 @@ class SubstrateWidget(ControlWidget):
         """Widget to specify the substrate drawing options."""
         return self._drawopt_widget
 
-    def currentParametersWidget(self) -> DataclassWidget:
-        """Currently displayed parameters widget."""
-        widget = self.parametersWidget().currentWidget()
-        if not isinstance(widget, DataclassWidget):
-            raise TypeError(f"{widget} is not dataclass widget.")
-        return widget
-
     @Slot(QModelIndex)
     def setCurrentExperimentIndex(self, index: QModelIndex):
         super().setCurrentExperimentIndex(index)
@@ -880,6 +873,13 @@ class SubstrateWidget(ControlWidget):
         except TypeError:
             pass
         self._blockModelUpdate = False
+
+    def currentParametersWidget(self) -> DataclassWidget:
+        """Currently displayed parameters widget."""
+        widget = self.parametersWidget().currentWidget()
+        if not isinstance(widget, DataclassWidget):
+            raise TypeError(f"{widget} is not dataclass widget.")
+        return widget
 
     def setCurrentParametersWidget(self, substtype: Any):
         """
@@ -978,9 +978,9 @@ class SubstrateWidget(ControlWidget):
             )
 
 
-class CoatingLayerWidget(QWidget):
+class CoatingLayerWidget(ControlWidget):
     """
-    Widget to control data for coating layer object.
+    View-like widget to control data for coating layer object.
 
     .. rubric:: Coating layer data
 
@@ -988,9 +988,6 @@ class CoatingLayerWidget(QWidget):
     :class:`.CoatingLayerBase`, its *parameters*, *draw_options* and
     *deco_options*. Note that coated substrate image is not specified by this
     widget, but by :class:`ExperimentWidget`.
-
-    Data are wrapped by :class:`StructuredCoatingLayerArgs`. Whenever the widget
-    values change :attr:`dataChanged` signal emits the data.
 
     .. rubric:: Setting type
 
@@ -1018,10 +1015,10 @@ class CoatingLayerWidget(QWidget):
 
     """
 
-    dataChanged = Signal(StructuredCoatingLayerArgs, SubstrateArgs)
-
     def __init__(self, parent=None):
         super().__init__(parent)
+
+        self._blockModelUpdate = False
 
         self._importwidget = ImportWidget()
         self._param_widget = StackedDataclassWidget()
@@ -1029,9 +1026,9 @@ class CoatingLayerWidget(QWidget):
         self._decoopt_widget = StackedDataclassWidget()
 
         self.typeWidget().variableChanged.connect(self.onCoatingLayerTypeChange)
-        self.parametersWidget().dataValueChanged.connect(self.emitData)
-        self.drawOptionsWidget().dataValueChanged.connect(self.emitData)
-        self.decoOptionsWidget().dataValueChanged.connect(self.emitData)
+        self.parametersWidget().dataValueChanged.connect(self.commitToCurrentItem)
+        self.drawOptionsWidget().dataValueChanged.connect(self.commitToCurrentItem)
+        self.decoOptionsWidget().dataValueChanged.connect(self.commitToCurrentItem)
 
         default_paramwdgt = DataclassWidget()  # default empty widget
         default_drawwdgt = DataclassWidget()  # default empty widget
@@ -1067,24 +1064,68 @@ class CoatingLayerWidget(QWidget):
         self.setLayout(main_layout)
 
     def typeWidget(self) -> ImportWidget:
+        """Widget to specify the coating layer type."""
         return self._importwidget
 
     def parametersWidget(self) -> StackedDataclassWidget:
+        """Widget to specify the coating layer parameters."""
         return self._param_widget
 
     def drawOptionsWidget(self) -> StackedDataclassWidget:
+        """Widget to specify the coating layer drawing options."""
         return self._drawopt_widget
 
     def decoOptionsWidget(self) -> StackedDataclassWidget:
+        """Widget to specify the coating layer decorating options."""
         return self._decoopt_widget
 
     def currentParametersWidget(self) -> DataclassWidget:
+        """Currently displayed parameters widget."""
         widget = self.parametersWidget().currentWidget()
         if not isinstance(widget, DataclassWidget):
             raise TypeError(f"{widget} is not dataclass widget.")
         return widget
 
+    @Slot(QModelIndex)
+    def setCurrentExperimentIndex(self, index: QModelIndex):
+        super().setCurrentExperimentIndex(index)
+
+        self._blockModelUpdate = True
+        model = self.experimentItemModel()
+        args = model.data(
+            model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
+            Qt.UserRole,
+        )[1]
+        self.typeWidget().variableNameLineEdit().setText(args.type.name)
+        self.typeWidget().moduleNameLineEdit().setText(args.type.module)
+        self.typeWidget().onInformationEdit()
+        paramWidget = self.currentParametersWidget()
+        try:
+            paramWidget.setDataValue(
+                data_converter.structure(args.parameters, paramWidget.dataclassType())
+            )
+        except TypeError:
+            pass
+        drawWidget = self.currentDrawOptionsWidget()
+        try:
+            drawWidget.setDataValue(
+                data_converter.structure(args.draw_options, drawWidget.dataclassType())
+            )
+        except TypeError:
+            pass
+        decoWidget = self.currentDecoOptionsWidget()
+        try:
+            decoWidget.setDataValue(
+                data_converter.structure(args.deco_options, decoWidget.dataclassType())
+            )
+        except TypeError:
+            pass
+        self._blockModelUpdate = False
+
     def setCurrentParametersWidget(self, layertype: Any):
+        """
+        Update the parameters widget to display the parameters for *layertype*.
+        """
         if isinstance(layertype, type) and issubclass(layertype, CoatingLayerBase):
             dcls = layertype.Parameters
             index = self.parametersWidget().indexOfDataclass(dcls)
@@ -1096,12 +1137,17 @@ class CoatingLayerWidget(QWidget):
         self.parametersWidget().setCurrentIndex(index)
 
     def currentDrawOptionsWidget(self) -> DataclassWidget:
+        """Currently displayed drawing options widget."""
         widget = self.drawOptionsWidget().currentWidget()
         if not isinstance(widget, DataclassWidget):
             raise TypeError(f"{widget} is not dataclass widget.")
         return widget
 
     def setCurrentDrawOptionsWidget(self, layertype: Any):
+        """
+        Update the drawing options widget to display the drawing options for
+        *layertype*.
+        """
         if isinstance(layertype, type) and issubclass(layertype, CoatingLayerBase):
             dcls = layertype.DrawOptions
             index = self.drawOptionsWidget().indexOfDataclass(dcls)
@@ -1113,12 +1159,17 @@ class CoatingLayerWidget(QWidget):
         self.drawOptionsWidget().setCurrentIndex(index)
 
     def currentDecoOptionsWidget(self) -> DataclassWidget:
+        """Currently displayed decorating options widget."""
         widget = self.decoOptionsWidget().currentWidget()
         if not isinstance(widget, DataclassWidget):
             raise TypeError(f"{widget} is not dataclass widget.")
         return widget
 
     def setCurrentDecoOptionsWidget(self, layertype: Any):
+        """
+        Update the decorating options widget to display the decorating options
+        for *layertype*.
+        """
         if isinstance(layertype, type) and issubclass(layertype, CoatingLayerBase):
             dcls = layertype.DecoOptions
             index = self.decoOptionsWidget().indexOfDataclass(dcls)
@@ -1138,7 +1189,7 @@ class CoatingLayerWidget(QWidget):
         self.setCurrentParametersWidget(var)
         self.setCurrentDrawOptionsWidget(var)
         self.setCurrentDecoOptionsWidget(var)
-        self.emitData()
+        self.commitToCurrentItem()
 
     def structuredCoatingLayerArgs(self) -> StructuredCoatingLayerArgs:
         """
@@ -1187,45 +1238,17 @@ class CoatingLayerWidget(QWidget):
         args = CoatingLayerArgs(importArgs, param, drawopt, decoopt)
         return args
 
-    @Slot(CoatingLayerArgs)
-    def setCoatingLayerArgs(self, args: CoatingLayerArgs):
-        with QSignalBlocker(self):
-            self.typeWidget().variableNameLineEdit().setText(args.type.name)
-            self.typeWidget().moduleNameLineEdit().setText(args.type.module)
-            self.typeWidget().onInformationEdit()
-
-            paramWidget = self.currentParametersWidget()
-            try:
-                paramWidget.setDataValue(
-                    data_converter.structure(
-                        args.parameters, paramWidget.dataclassType()
-                    )
-                )
-            except TypeError:
-                pass
-
-            drawWidget = self.currentDrawOptionsWidget()
-            try:
-                drawWidget.setDataValue(
-                    data_converter.structure(
-                        args.draw_options, drawWidget.dataclassType()
-                    )
-                )
-            except TypeError:
-                pass
-
-            decoWidget = self.currentDecoOptionsWidget()
-            try:
-                decoWidget.setDataValue(
-                    data_converter.structure(
-                        args.deco_options, decoWidget.dataclassType()
-                    )
-                )
-            except TypeError:
-                pass
-
     @Slot()
-    def emitData(self):
-        self.dataChanged.emit(
-            self.structuredCoatingLayerArgs(), self.coatingLayerArgs()
-        )
+    def commitToCurrentItem(self):
+        """
+        Set :meth:`structuredCoatingLayerArgs` and :meth:`coatingLayerArgs` to
+        currently activated item from :meth:`experimentItemModel`.
+        """
+        index = self.currentExperimentIndex()
+        if not self._blockModelUpdate and index.isValid():
+            model = self.experimentItemModel()
+            model.setData(
+                model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
+                (self.structuredCoatingLayerArgs(), self.coatingLayerArgs()),
+                Qt.UserRole,  # type: ignore[arg-type]
+            )
