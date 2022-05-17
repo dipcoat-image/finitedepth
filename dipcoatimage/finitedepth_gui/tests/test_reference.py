@@ -4,14 +4,11 @@ import cv2  # type: ignore
 from dipcoatimage.finitedepth import (
     get_samples_path,
     SubstrateReference,
-    data_converter,
 )
-from dipcoatimage.finitedepth.analysis import ReferenceArgs
 from dipcoatimage.finitedepth_gui.controlwidgets import (
     ReferenceWidget,
-    ReferenceWidgetData,
 )
-from dipcoatimage.finitedepth.util import dict_includes
+from dipcoatimage.finitedepth_gui.inventory import StructuredReferenceArgs
 from dipcoatimage.finitedepth_gui.workers import ReferenceWorker
 from PySide6.QtCore import Qt
 import pytest
@@ -83,7 +80,6 @@ def test_ReferenceWidget_onReferenceTypeChange(qtbot, refwidget):
     signals = [
         refwidget.parametersWidget().currentChanged,
         refwidget.drawOptionsWidget().currentChanged,
-        refwidget.dataChanged,
     ]
 
     with qtbot.waitSignals(signals):
@@ -118,108 +114,41 @@ def test_ReferenceWidget_exclusiveButtons(qtbot):
     assert not refwidget.templateROIDrawButton().isChecked()
 
 
-def test_ReferenceWidget_setReferenceArgs(qtbot, refwidget):
-    refargs = ReferenceArgs(
-        templateROI=(50, 50, 100, 100),
-        substrateROI=(100, 100, 200, 200),
-        draw_options=dict(substrateROI_thickness=2),
-    )
-    refwidget.setReferencePath(REF_PATH)
-    refwidget.setReferenceArgs(refargs)
-
-    assert refwidget.typeWidget().variableComboBox().currentIndex() == -1
-    assert refwidget.typeWidget().variableNameLineEdit().text() == refargs.type.name
-    assert refwidget.typeWidget().moduleNameLineEdit().text() == refargs.type.module
-
-    assert refwidget.templateROIWidget().roiMaximum() == (1407, 1125)
-    assert refwidget.templateROIWidget().roiModel().roi() == refargs.templateROI
-    assert refwidget.templateROIWidget().x1SpinBox().value() == refargs.templateROI[0]
-    assert refwidget.templateROIWidget().y1SpinBox().value() == refargs.templateROI[1]
-    assert refwidget.templateROIWidget().x2SpinBox().value() == refargs.templateROI[2]
-    assert refwidget.templateROIWidget().y2SpinBox().value() == refargs.templateROI[3]
-
-    assert refwidget.substrateROIWidget().roiMaximum() == (1407, 1125)
-    assert refwidget.substrateROIWidget().roiModel().roi() == refargs.substrateROI
-    assert refwidget.substrateROIWidget().x1SpinBox().value() == refargs.substrateROI[0]
-    assert refwidget.substrateROIWidget().y1SpinBox().value() == refargs.substrateROI[1]
-    assert refwidget.substrateROIWidget().x2SpinBox().value() == refargs.substrateROI[2]
-    assert refwidget.substrateROIWidget().y2SpinBox().value() == refargs.substrateROI[3]
-
-    assert dict_includes(
-        data_converter.unstructure(
-            refwidget.parametersWidget().currentWidget().dataValue()
-        ),
-        refargs.parameters,
-    )
-
-    assert dict_includes(
-        data_converter.unstructure(
-            refwidget.drawOptionsWidget().currentWidget().dataValue()
-        ),
-        refargs.draw_options,
-    )
-
-
-def test_ReferenceWidget_dataChanged_count(qtbot):
-    """
-    Test that refwidget.dataChanged do not trigger signals multiple times.
-    """
-
-    class Counter:
-        def __init__(self):
-            self.i = 0
-
-        def count(self, _):
-            self.i += 1
-
-    widget = ReferenceWidget()
-    counter = Counter()
-    widget.dataChanged.connect(counter.count)
-    widget.onPathEditFinished()
-    assert counter.i == 1
-
-    widget = ReferenceWidget()
-    counter = Counter()
-    widget.dataChanged.connect(counter.count)
-    widget.setReferenceArgs(ReferenceArgs())
-    assert counter.i == 0
-
-
-def test_ReferenceWorker_setReferenceWidgetData(qtbot):
+def test_ReferenceWorker_setStructuredReferenceArgs(qtbot):
     worker = ReferenceWorker()
     assert worker.referenceType() is None
     assert worker.image().size == 0
     assert worker.parameters() is None
     assert worker.drawOptions() is None
 
-    valid_data1 = ReferenceWidgetData(
+    valid_data1 = StructuredReferenceArgs(
         SubstrateReference, (0, 0, None, None), (0, 0, None, None), None, None
     )
-    worker.setReferenceWidgetData(valid_data1)
+    worker.setStructuredReferenceArgs(valid_data1)
     assert worker.referenceType() == valid_data1.type
     assert worker.parameters() == worker.referenceType().Parameters()
     assert worker.drawOptions() == worker.referenceType().DrawOptions()
 
-    valid_data2 = ReferenceWidgetData(
+    valid_data2 = StructuredReferenceArgs(
         SubstrateReference,
         (0, 0, None, None),
         (0, 0, None, None),
         SubstrateReference.Parameters(),
         SubstrateReference.DrawOptions(),
     )
-    worker.setReferenceWidgetData(valid_data2)
+    worker.setStructuredReferenceArgs(valid_data2)
     assert worker.referenceType() == valid_data2.type
     assert worker.parameters() == valid_data2.parameters
     assert worker.drawOptions() == valid_data2.draw_options
 
-    type_invalid_data = ReferenceWidgetData(
+    type_invalid_data = StructuredReferenceArgs(
         type,
         (0, 0, None, None),
         (0, 0, None, None),
         SubstrateReference.Parameters(),
         SubstrateReference.DrawOptions(),
     )
-    worker.setReferenceWidgetData(type_invalid_data)
+    worker.setStructuredReferenceArgs(type_invalid_data)
     assert worker.referenceType() is None
     assert worker.parameters() is None
     assert worker.drawOptions() is None

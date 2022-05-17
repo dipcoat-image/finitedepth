@@ -1,29 +1,21 @@
-from dipcoatimage.finitedepth.analysis import (
-    ReferenceArgs,
-    SubstrateArgs,
-    CoatingLayerArgs,
-    ExperimentArgs,
-)
-from PySide6.QtCore import Qt, Slot, QModelIndex
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QMainWindow,
     QTabWidget,
     QScrollArea,
     QDockWidget,
-    QDataWidgetMapper,
     QWidget,
 )
 from .controlwidgets import (
-    ExperimentWidgetData,
     ExperimentWidget,
-    ReferenceWidgetData,
     ReferenceWidget,
-    SubstrateWidgetData,
     SubstrateWidget,
-    CoatingLayerWidgetData,
     CoatingLayerWidget,
 )
-from .inventory import ExperimentItemModelColumns, ExperimentInventory
+from .inventory import (
+    ExperimentInventory,
+)
+from .workers import ReferenceWorker, SubstrateWorker, ExperimentWorker
 
 
 __all__ = ["AnalysisGUI"]
@@ -47,7 +39,6 @@ class AnalysisGUI(QMainWindow):
         super().__init__(parent)
 
         self._expt_inv = ExperimentInventory()
-        self._exptdata_mapper = QDataWidgetMapper()
         self._exptitem_tab = QTabWidget()
         self._expt_scroll = QScrollArea()
         self._expt_widget = ExperimentWidget()
@@ -57,28 +48,55 @@ class AnalysisGUI(QMainWindow):
         self._subst_widget = SubstrateWidget()
         self._layer_scroll = QScrollArea()
         self._layer_widget = CoatingLayerWidget()
+        self._ref_worker = ReferenceWorker()
+        self._subst_worker = SubstrateWorker()
+        self._expt_worker = ExperimentWorker()
 
         self.setCentralWidget(QWidget())
 
-        self.experimentDataMapper().setModel(
+        self.experimentWidget().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
         )
-        self.experimentDataMapper().addMapping(
-            self.experimentWidget().experimentNameLineEdit(),
-            ExperimentItemModelColumns.EXPERIMENT_NAME,
+        self.experimentInventory().experimentListView().activated.connect(
+            self.experimentWidget().setCurrentExperimentIndex
         )
-        self.experimentDataMapper().addMapping(
-            self.referenceWidget().pathLineEdit(),
-            ExperimentItemModelColumns.REFERENCE_PATH,
+        self.referenceWidget().imageChanged.connect(self.referenceWorker().setImage)
+        self.referenceWidget().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
         )
         self.experimentInventory().experimentListView().activated.connect(
-            self.onExperimentActivation
+            self.referenceWidget().setCurrentExperimentIndex
         )
-        self.experimentWidget().dataChanged.connect(self.onExperimentWidgetDataChange)
-        self.referenceWidget().dataChanged.connect(self.onReferenceWidgetDataChange)
-        self.substrateWidget().dataChanged.connect(self.onSubstrateWidgetDataChange)
-        self.coatingLayerWidget().dataChanged.connect(
-            self.onCoatingLayerWidgetDataChange
+        self.substrateWidget().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
+        )
+        self.experimentInventory().experimentListView().activated.connect(
+            self.substrateWidget().setCurrentExperimentIndex
+        )
+        self.coatingLayerWidget().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
+        )
+        self.experimentInventory().experimentListView().activated.connect(
+            self.coatingLayerWidget().setCurrentExperimentIndex
+        )
+
+        self.referenceWorker().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
+        )
+        self.experimentInventory().experimentListView().activated.connect(
+            self.referenceWorker().setCurrentExperimentIndex
+        )
+        self.substrateWorker().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
+        )
+        self.experimentInventory().experimentListView().activated.connect(
+            self.substrateWorker().setCurrentExperimentIndex
+        )
+        self.experimentWorker().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
+        )
+        self.experimentInventory().experimentListView().activated.connect(
+            self.experimentWorker().setCurrentExperimentIndex
         )
 
         expt_inv_dock = QDockWidget("Experiment inventory")
@@ -105,9 +123,6 @@ class AnalysisGUI(QMainWindow):
         """Widget to display the experiment items.."""
         return self._expt_inv
 
-    def experimentDataMapper(self) -> QDataWidgetMapper:
-        return self._exptdata_mapper
-
     def experimentItemTab(self) -> QTabWidget:
         """Tab widget to display the data of activated experiment item."""
         return self._exptitem_tab
@@ -128,68 +143,14 @@ class AnalysisGUI(QMainWindow):
         """Widget to manage data for coating layer class."""
         return self._layer_widget
 
-    @Slot(QModelIndex)
-    def onExperimentActivation(self, index: QModelIndex):
-        """Update the experiment data to widgets."""
-        model = self.experimentInventory().experimentItemModel()
-        self.experimentDataMapper().setCurrentIndex(index.row())
-        self.experimentWidget().pathsView().setModel(model)
-        self.experimentWidget().pathsView().setRootIndex(
-            model.index(index.row(), ExperimentItemModelColumns.COAT_PATHS)
-        )
-        self.experimentWidget().setExperimentArgs(
-            model.item(index.row(), ExperimentItemModelColumns.EXPERIMENT).data()[1]
-        )
-        self.referenceWidget().setReferenceArgs(
-            model.item(index.row(), ExperimentItemModelColumns.REFERENCE).data()[1]
-        )
-        self.substrateWidget().setSubstrateArgs(
-            model.item(index.row(), ExperimentItemModelColumns.SUBSTRATE).data()[1]
-        )
-        self.coatingLayerWidget().setCoatingLayerArgs(
-            model.item(index.row(), ExperimentItemModelColumns.COATINGLAYER).data()[1]
-        )
+    def referenceWorker(self) -> ReferenceWorker:
+        """Worker for API with :class:`SubstrateReferenceBase`."""
+        return self._ref_worker
 
-    @Slot(ExperimentWidgetData, ExperimentArgs)
-    def onExperimentWidgetDataChange(
-        self, widgetdata: ExperimentWidgetData, exptargs: ExperimentArgs
-    ):
-        """Update the data from :meth:`experimentWidget` to current model."""
-        index = self.experimentInventory().experimentListView().currentIndex()
-        if index.isValid():
-            model = self.experimentInventory().experimentItemModel()
-            item = model.item(index.row(), ExperimentItemModelColumns.EXPERIMENT)
-            item.setData((widgetdata, exptargs))
+    def substrateWorker(self) -> SubstrateWorker:
+        """Worker for API with :class:`SubstrateBase`."""
+        return self._subst_worker
 
-    @Slot(ReferenceWidgetData, ReferenceArgs)
-    def onReferenceWidgetDataChange(
-        self, widgetdata: ReferenceWidgetData, refargs: ReferenceArgs
-    ):
-        """Update the data from :meth:`referenceWidget` to current model."""
-        index = self.experimentInventory().experimentListView().currentIndex()
-        if index.isValid():
-            model = self.experimentInventory().experimentItemModel()
-            item = model.item(index.row(), ExperimentItemModelColumns.REFERENCE)
-            item.setData((widgetdata, refargs))
-
-    @Slot(SubstrateWidgetData, SubstrateArgs)
-    def onSubstrateWidgetDataChange(
-        self, widgetdata: SubstrateWidgetData, substargs: SubstrateArgs
-    ):
-        """Update the data from :meth:`substrateWidget` to current model."""
-        index = self.experimentInventory().experimentListView().currentIndex()
-        if index.isValid():
-            model = self.experimentInventory().experimentItemModel()
-            item = model.item(index.row(), ExperimentItemModelColumns.SUBSTRATE)
-            item.setData((widgetdata, substargs))
-
-    @Slot(CoatingLayerWidgetData, CoatingLayerArgs)
-    def onCoatingLayerWidgetDataChange(
-        self, widgetdata: CoatingLayerWidgetData, layerargs: CoatingLayerArgs
-    ):
-        """Update the data from :meth:`coatingLayerWidget` to current model."""
-        index = self.experimentInventory().experimentListView().currentIndex()
-        if index.isValid():
-            model = self.experimentInventory().experimentItemModel()
-            item = model.item(index.row(), ExperimentItemModelColumns.COATINGLAYER)
-            item.setData((widgetdata, layerargs))
+    def experimentWorker(self) -> ExperimentWorker:
+        """Worker for API with :class:`ExperimentBase`."""
+        return self._expt_worker

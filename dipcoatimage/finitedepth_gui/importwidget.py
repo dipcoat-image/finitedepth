@@ -310,22 +310,13 @@ class ImportWidget(QWidget):
     @Slot(QStandardItem)
     def onItemChange(self, item: QStandardItem):
         if item.column() != RegistryModelColumns.ITEM_NAME:
+            model = self.registryModel()
             index = item.row()
-            varname = (
-                self.registryModel()
-                .item(index, RegistryModelColumns.VARIABLE_NAME)
-                .text()
-            )
-            modname = (
-                self.registryModel()
-                .item(index, RegistryModelColumns.MODULE_NAME)
-                .text()
-            )
+            varname = model.item(index, RegistryModelColumns.VARIABLE_NAME).text()
+            modname = model.item(index, RegistryModelColumns.MODULE_NAME).text()
             var, status = self.importVariable(varname, modname)
             data = RegistryItemData(var, status)
-            self.registryModel().item(index, RegistryModelColumns.ITEM_NAME).setData(
-                data
-            )
+            model.item(index, RegistryModelColumns.ITEM_NAME).setData(data)
         if item.row() == self.variableComboBox().currentIndex():
             self.onSelectionChange(item.row())
 
