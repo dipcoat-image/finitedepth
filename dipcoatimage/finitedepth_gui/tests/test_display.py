@@ -1,4 +1,4 @@
-import cv2
+import cv2  # type: ignore[import]
 from PySide6.QtCore import Qt, QSize, QPoint
 from dipcoatimage.finitedepth import get_samples_path
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel

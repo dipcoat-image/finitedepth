@@ -5,7 +5,7 @@ Displaying widgets
 This module provides the widgets to display the visualized results.
 
 """
-import cv2
+import cv2  # type: ignore[import]
 from cv2PySide6 import (
     NDArrayVideoPlayer,
     ArrayProcessor,
@@ -289,7 +289,7 @@ class NDArrayROILabel(NDArrayLabel):
         """Convert ROI on the label to ROI on the original image."""
         # convert to roi of scaled pixmap
         x1, y1, x2, y2 = roi
-        pixmap_size = self.pixmap()
+        pixmap_size = self.pixmap().size()
         px1, py1 = coords_label2pixmap(
             (x1, y1), self.size(), pixmap_size, self.alignment()
         )
@@ -311,12 +311,12 @@ class NDArrayROILabel(NDArrayLabel):
         return ret
 
     def originalROI2LabelROI(
-        self, roi: Tuple[float, float, float, float]
+        self, roi: Tuple[int, int, int, int]
     ) -> Tuple[float, float, float, float]:
         """Convert ROI on the original image to ROI on the label."""
         # convert to roi of scaled pixmap
         x1, y1, x2, y2 = roi
-        pixmap_size = self.pixmap()
+        pixmap_size = self.pixmap().size()
         w, h = pixmap_size.width(), pixmap_size.height()
         original_size = self._original_pixmap.size()
         W, H = original_size.width(), original_size.height()
@@ -380,16 +380,18 @@ class NDArrayROILabel(NDArrayLabel):
                     x2 = W
                 if y2 is None:
                     y2 = H
-                x1, y1, x2, y2 = self.originalROI2LabelROI((x1, y1, x2, y2))
+                x1, y1, x2, y2 = [
+                    int(i) for i in self.originalROI2LabelROI((x1, y1, x2, y2))
+                ]
                 br = QBrush(QColor(255, 0, 0, 50))
                 qp.setBrush(br)
-                qp.drawRect(QRect(QPoint(int(x1), int(y1)), QPoint(int(x2), int(y2))))
+                qp.drawRect(QRect(QPoint(x1, y1), QPoint(x2, y2)))
         else:
-            x1, y1, x2, y2 = self.originalROI2LabelROI(self._temp_roi)
+            x1, y1, x2, y2 = [int(i) for i in self.originalROI2LabelROI(self._temp_roi)]
             for model in self.roiModels():
                 br = QBrush(QColor(255, 0, 0, 50))
                 qp.setBrush(br)
-                qp.drawRect(QRect(QPoint(int(x1), int(y1)), QPoint(int(x2), int(y2))))
+                qp.drawRect(QRect(QPoint(x1, y1), QPoint(x2, y2)))
 
     def mousePressEvent(self, event: QMouseEvent):
         """Start the drawing mode."""
@@ -436,7 +438,7 @@ class NDArrayROILabel(NDArrayLabel):
 
 
 def coords_label2pixmap(
-    p: Tuple[float, float], lsize: QSize, psize: QSize, alignment: Qt.AlignmentFlag
+    p: Tuple[float, float], lsize: QSize, psize: QSize, alignment: Qt.Alignment
 ) -> Tuple[float, float]:
     """
     Convert the coordinates in ``QLabel`` to the coordinates in
@@ -471,12 +473,12 @@ def coords_label2pixmap(
 
     """
     for hflag in [Qt.AlignLeft, Qt.AlignRight, Qt.AlignHCenter]:
-        if int(alignment & hflag) != 0:
+        if int(alignment & hflag) != 0:  # type: ignore[operator]
             break
     else:
         raise NotImplementedError("Unsupported horizontal alignment")
     for vflag in [Qt.AlignTop, Qt.AlignBottom, Qt.AlignVCenter]:
-        if int(alignment & vflag) != 0:
+        if int(alignment & vflag) != 0:  # type: ignore[operator]
             break
     else:
         raise NotImplementedError("Unsupported vertical alignment")
@@ -486,16 +488,16 @@ def coords_label2pixmap(
     x, y = p
 
     if hflag == Qt.AlignLeft:
-        dx = 0
+        dx = 0.0
     elif hflag == Qt.AlignRight:
-        dx = W - w
+        dx = float(W - w)
     elif hflag == Qt.AlignHCenter:
         dx = (W - w) / 2
 
     if vflag == Qt.AlignTop:
-        dy = 0
+        dy = 0.0
     elif vflag == Qt.AlignBottom:
-        dy = H - h
+        dy = float(H - h)
     elif vflag == Qt.AlignVCenter:
         dy = (H - h) / 2
 
@@ -503,7 +505,7 @@ def coords_label2pixmap(
 
 
 def coords_pixmap2label(
-    p: Tuple[int, int], psize: QSize, lsize: QSize, alignment: Qt.AlignmentFlag
+    p: Tuple[int, int], psize: QSize, lsize: QSize, alignment: Qt.Alignment
 ) -> Tuple[float, float]:
     """
     Convert the coordinates in ``QPixmap`` to the coordinates in
@@ -538,12 +540,12 @@ def coords_pixmap2label(
 
     """
     for hflag in [Qt.AlignLeft, Qt.AlignRight, Qt.AlignHCenter]:
-        if int(alignment & hflag) != 0:
+        if int(alignment & hflag) != 0:  # type: ignore[operator]
             break
     else:
         raise NotImplementedError("Unsupported horizontal alignment")
     for vflag in [Qt.AlignTop, Qt.AlignBottom, Qt.AlignVCenter]:
-        if int(alignment & vflag) != 0:
+        if int(alignment & vflag) != 0:  # type: ignore[operator]
             break
     else:
         raise NotImplementedError("Unsupported vertical alignment")
@@ -553,16 +555,16 @@ def coords_pixmap2label(
     x, y = p
 
     if hflag == Qt.AlignLeft:
-        dx = 0
+        dx = 0.0
     elif hflag == Qt.AlignRight:
-        dx = W - w
+        dx = float(W - w)
     elif hflag == Qt.AlignHCenter:
         dx = (W - w) / 2
 
     if vflag == Qt.AlignTop:
-        dy = 0
+        dy = 0.0
     elif vflag == Qt.AlignBottom:
-        dy = H - h
+        dy = float(H - h)
     elif vflag == Qt.AlignVCenter:
         dy = (H - h) / 2
 
@@ -666,6 +668,7 @@ class MainDisplayWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self._display_widget = QStackedWidget()
         self._img_display = NDArrayROILabel()
         self._vid_display = ROIVideoWidget()
         self._camera_display = ROICameraWidget()
@@ -677,10 +680,13 @@ class MainDisplayWindow(QMainWindow):
         self.initUI()
 
     def initUI(self):
-        self.setCentralWidget(QStackedWidget())
+        self.setCentralWidget(self.displayStackWidget())
         self.centralWidget().addWidget(self.imageDisplayWidget())
         self.centralWidget().addWidget(self.videoDisplayWidget())
         self.centralWidget().addWidget(self.cameraDisplayWidget())
+
+    def displayStackWidget(self) -> QStackedWidget:
+        return self._display_widget
 
     def imageDisplayWidget(self) -> NDArrayROILabel:
         """Widget to display single frame image."""
@@ -711,11 +717,11 @@ class MainDisplayWindow(QMainWindow):
 
     def exposedDisplayWidget(self) -> QWidget:
         """Return the display widget exposed to central area."""
-        return self.centralWidget().currentWidget()
+        return self.displayStackWidget().currentWidget()
 
     def exposeDisplayWidget(self, widget: QWidget):
         """Expose the display widget to central area."""
-        self.centralWidget().setCurrentWidget(widget)
+        self.displayStackWidget().setCurrentWidget(widget)
 
     def currentDisplayingLabel(self):
         """Return the displaying label in current widget."""
