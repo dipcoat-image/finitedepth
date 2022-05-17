@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, Slot, QModelIndex
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QMainWindow,
     QTabWidget,
@@ -13,7 +13,6 @@ from .controlwidgets import (
     CoatingLayerWidget,
 )
 from .inventory import (
-    ExperimentItemModel,
     ExperimentInventory,
 )
 from .workers import ReferenceWorker, SubstrateWorker, ExperimentWorker
@@ -93,8 +92,11 @@ class AnalysisGUI(QMainWindow):
         self.experimentInventory().experimentListView().activated.connect(
             self.substrateWorker().setCurrentExperimentIndex
         )
+        self.experimentWorker().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
+        )
         self.experimentInventory().experimentListView().activated.connect(
-            self.onExperimentActivation
+            self.experimentWorker().setCurrentExperimentIndex
         )
 
         expt_inv_dock = QDockWidget("Experiment inventory")
@@ -152,22 +154,3 @@ class AnalysisGUI(QMainWindow):
     def experimentWorker(self) -> ExperimentWorker:
         """Worker for API with :class:`ExperimentBase`."""
         return self._expt_worker
-
-    @Slot(QModelIndex)
-    def onExperimentActivation(self, index: QModelIndex):
-        """Update the experiment data to workers."""
-        self.experimentWorker().clear()
-
-        model = self.experimentInventory().experimentItemModel()
-        self.experimentWorker().setStructuredCoatingLayerArgs(
-            model.data(
-                model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
-                Qt.UserRole,
-            )[0]
-        )
-        self.experimentWorker().setStructuredExperimentArgs(
-            model.data(
-                model.index(index.row(), ExperimentItemModel.Col_Experiment),
-                Qt.UserRole,
-            )[0]
-        )

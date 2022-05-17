@@ -195,11 +195,12 @@ class ReferenceWorker(WorkerBase):
     def setCurrentExperimentIndex(self, index: QModelIndex):
         super().setCurrentExperimentIndex(index)
         model = self.experimentItemModel()
-        data = model.data(
-            model.index(index.row(), ExperimentItemModel.Col_Reference),
-            Qt.UserRole,
-        )[0]
-        self.setStructuredReferenceArgs(data)
+        self.setStructuredReferenceArgs(
+            model.data(
+                model.index(index.row(), ExperimentItemModel.Col_Reference),
+                Qt.UserRole,
+            )[0]
+        )
 
     def setStructuredReferenceArgs(self, data: StructuredReferenceArgs):
         """
@@ -391,11 +392,12 @@ class SubstrateWorker(WorkerBase):
     def setCurrentExperimentIndex(self, index: QModelIndex):
         super().setCurrentExperimentIndex(index)
         model = self.experimentItemModel()
-        data = model.data(
-            model.index(index.row(), ExperimentItemModel.Col_Substrate),
-            Qt.UserRole,
-        )[0]
-        self.setStructuredSubstrateArgs(data)
+        self.setStructuredSubstrateArgs(
+            model.data(
+                model.index(index.row(), ExperimentItemModel.Col_Substrate),
+                Qt.UserRole,
+            )[0]
+        )
 
     def setStructuredSubstrateArgs(self, data: StructuredSubstrateArgs):
         """
@@ -532,7 +534,7 @@ class ExperimentVisualizationMode(enum.IntEnum):
     FAST = 2
 
 
-class ExperimentWorker(QObject):
+class ExperimentWorker(WorkerBase):
     """
     Worker to build the concreate instance of :class:`ExperimentBase` and to
     visualize it.
@@ -547,9 +549,8 @@ class ExperimentWorker(QObject):
     6. :meth:`coatingLayerDecoOptions`
     7. :meth:`parameters`
 
-    1st and 7th data are updated by :meth:`setStructuredExperimentArgs`. 2nd datum is
-    updated by :meth:`setSubstrate`. 3rd, 4th, 5th and 6th data are updated by
-    :meth:`setStructuredCoatingLayerArgs`.
+    :meth:`substrate` is updated by :meth:`setSubstrate`, and other data are
+    updated by :meth:`experimentItemModel`.
 
     :meth:`updateExperiment` constructs the experiment object with data.
     Resulting object can be acquired by :meth:`experiment`, or calling
@@ -633,33 +634,37 @@ class ExperimentWorker(QObject):
         """
         return self._params
 
-    def setStructuredExperimentArgs(self, data: StructuredExperimentArgs):
-        """
-        Update following values with *data*.
-
-        1. :meth:`experimentType`
-        2. :meth:`experimentParameters`
-        """
-        expttype = data.type
-        if not (isinstance(expttype, type) and issubclass(expttype, ExperimentBase)):
-            expttype = None
-        self._type = expttype
-
-        params = data.parameters
-        if expttype is None:
-            params = None
-        elif isinstance(params, expttype.Parameters):
-            pass
-        else:
-            try:
-                params = expttype.Parameters()
-            except TypeError:
-                params = None
-        self._params = params
-
     def setSubstrate(self, subst: Optional[SubstrateBase]):
         """Update :meth:`substrate` with *subst*."""
         self._subst = subst
+
+    @Slot(QStandardItem)
+    def onExperimentItemChange(self, item: QStandardItem):
+        super().onExperimentItemChange(item)
+        if item.model() == self.experimentItemModel() and item.parent() is None:
+            if item.column() == ExperimentItemModel.Col_CoatingLayer:
+                data = self.experimentItemModel().data(item.index(), Qt.UserRole)[0]
+                self.setStructuredCoatingLayerArgs(data)
+            elif item.column() == ExperimentItemModel.Col_Experiment:
+                data = self.experimentItemModel().data(item.index(), Qt.UserRole)[0]
+                self.setStructuredExperimentArgs(data)
+
+    @Slot(QModelIndex)
+    def setCurrentExperimentIndex(self, index: QModelIndex):
+        super().setCurrentExperimentIndex(index)
+        model = self.experimentItemModel()
+        self.setStructuredCoatingLayerArgs(
+            model.data(
+                model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
+                Qt.UserRole,
+            )[0]
+        )
+        self.setStructuredExperimentArgs(
+            model.data(
+                model.index(index.row(), ExperimentItemModel.Col_Experiment),
+                Qt.UserRole,
+            )[0]
+        )
 
     def setStructuredCoatingLayerArgs(self, data: StructuredCoatingLayerArgs):
         """
@@ -699,6 +704,30 @@ class ExperimentWorker(QObject):
             except TypeError:
                 coat_drawopts = None
         self._layer_drawopts = coat_drawopts
+
+    def setStructuredExperimentArgs(self, data: StructuredExperimentArgs):
+        """
+        Update following values with *data*.
+
+        1. :meth:`experimentType`
+        2. :meth:`experimentParameters`
+        """
+        expttype = data.type
+        if not (isinstance(expttype, type) and issubclass(expttype, ExperimentBase)):
+            expttype = None
+        self._type = expttype
+
+        params = data.parameters
+        if expttype is None:
+            params = None
+        elif isinstance(params, expttype.Parameters):
+            pass
+        else:
+            try:
+                params = expttype.Parameters()
+            except TypeError:
+                params = None
+        self._params = params
 
     def updateExperiment(self):
         """Update :meth:`experiment` and :meth:`layerGenerator`."""
@@ -861,10 +890,3 @@ class ExperimentWorker(QObject):
         directly emit :meth:`image`.
         """
         self.visualizedImageChanged.emit(self.visualizedImage())
-
-    def clear(self):
-        """
-        Initialize experiment object data, :meth:`experiment`,
-        :meth:`image` and :meth:`paths`.
-        """
-        self.initArgs()
