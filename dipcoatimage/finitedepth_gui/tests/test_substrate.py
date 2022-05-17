@@ -8,8 +8,6 @@ from dipcoatimage.finitedepth import (
     RectSubstrate,
     data_converter,
 )
-from dipcoatimage.finitedepth.analysis import SubstrateArgs, ImportArgs
-from dipcoatimage.finitedepth.util import dict_includes
 from dipcoatimage.finitedepth_gui.controlwidgets import (
     SubstrateWidget,
 )
@@ -51,7 +49,6 @@ def test_SubstrateWidget_onSubstrateTypeChange(qtbot, substwidget):
     signals = [
         substwidget.parametersWidget().currentChanged,
         substwidget.drawOptionsWidget().currentChanged,
-        substwidget.dataChanged,
     ]
 
     with qtbot.waitSignals(signals):
@@ -80,56 +77,6 @@ def test_SubstrateWidget_onSubstrateTypeChange(qtbot, substwidget):
         substwidget.typeWidget().setImportInformation("foo", "bar")
     assert substwidget.parametersWidget().currentIndex() == 0
     assert substwidget.drawOptionsWidget().currentIndex() == 0
-
-
-def test_SubstrateWidget_setSubstrateArgs(qtbot, substwidget):
-    substargs = SubstrateArgs(
-        type=ImportArgs(name="RectSubstrate"),
-        parameters=dict(
-            Canny=dict(threshold1=50.0, threshold2=150.0),
-            HoughLines=dict(rho=1.0, theta=0.01, threshold=100),
-        ),
-        draw_options=dict(draw_lines=False),
-    )
-    substwidget.setSubstrateArgs(substargs)
-
-    assert substwidget.typeWidget().variableComboBox().currentIndex() == -1
-    assert substwidget.typeWidget().variableNameLineEdit().text() == substargs.type.name
-    assert substwidget.typeWidget().moduleNameLineEdit().text() == substargs.type.module
-
-    assert dict_includes(
-        data_converter.unstructure(
-            substwidget.parametersWidget().currentWidget().dataValue()
-        ),
-        substargs.parameters,
-    )
-
-    assert dict_includes(
-        data_converter.unstructure(
-            substwidget.drawOptionsWidget().currentWidget().dataValue()
-        ),
-        substargs.draw_options,
-    )
-
-
-def test_SubstrateWidget_dataChanged_count(qtbot):
-    """
-    Test that substwidget.dataChanged do not trigger signals multiple times.
-    """
-    widget = SubstrateWidget()
-
-    class Counter:
-        def __init__(self):
-            self.i = 0
-
-        def count(self, _):
-            self.i += 1
-
-    counter = Counter()
-    widget.dataChanged.connect(counter.count)
-
-    widget.setSubstrateArgs(SubstrateArgs())
-    assert counter.i == 0
 
 
 def test_SubstrateWorker_setStructuredSubstrateArgs(qtbot):

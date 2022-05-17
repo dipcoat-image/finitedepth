@@ -60,31 +60,33 @@ class AnalysisGUI(QMainWindow):
         self._subst_worker = SubstrateWorker()
         self._expt_worker = ExperimentWorker()
 
-        # display
         self.setCentralWidget(QWidget())
 
-        # control widget
         self.referenceWidget().imageChanged.connect(self.referenceWorker().setImage)
-        self.substrateWidget().dataChanged.connect(self.onStructuredSubstrateArgsChange)
         self.coatingLayerWidget().dataChanged.connect(
             self.onStructuredCoatingLayerArgsChange
         )
         self.experimentWidget().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
         )
-        self.referenceWidget().setExperimentItemModel(
-            self.experimentInventory().experimentItemModel()
-        )
-
-        # inventory
-        self.experimentInventory().experimentListView().activated.connect(
-            self.onExperimentActivation
-        )
         self.experimentInventory().experimentListView().activated.connect(
             self.experimentWidget().setCurrentExperimentIndex
         )
+        self.referenceWidget().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
+        )
         self.experimentInventory().experimentListView().activated.connect(
             self.referenceWidget().setCurrentExperimentIndex
+        )
+        self.substrateWidget().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
+        )
+        self.experimentInventory().experimentListView().activated.connect(
+            self.substrateWidget().setCurrentExperimentIndex
+        )
+
+        self.experimentInventory().experimentListView().activated.connect(
+            self.onExperimentActivation
         )
         self.experimentInventory().experimentItemModel().itemChanged.connect(
             self.onExperimentItemChange
@@ -157,12 +159,6 @@ class AnalysisGUI(QMainWindow):
         """Update the experiment data to widgets."""
         model = self.experimentInventory().experimentItemModel()
 
-        self.substrateWidget().setSubstrateArgs(
-            model.data(
-                model.index(index.row(), ExperimentItemModel.Col_Substrate),
-                Qt.UserRole,
-            )[1]
-        )
         self.coatingLayerWidget().setCoatingLayerArgs(
             model.data(
                 model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
