@@ -184,7 +184,7 @@ class ExperimentWidget(ControlWidget):
         return self._exptname_mapper
 
     def experimentNameLineEdit(self) -> QLineEdit:
-        """Line edit to display the experiment name."""
+        """Line edit for the experiment name."""
         return self._exptname_lineedit
 
     def pathsView(self) -> QListView:
@@ -200,7 +200,7 @@ class ExperimentWidget(ControlWidget):
         return self._delete_button
 
     def pathBrowseButton(self) -> QPushButton:
-        """Push button to browse and add a new item to :meth:`pathsView`."""
+        """Button to browse and add a new item to :meth:`pathsView`."""
         return self._browse_button
 
     def typeWidget(self) -> ImportWidget:
@@ -224,22 +224,32 @@ class ExperimentWidget(ControlWidget):
 
     @Slot(QModelIndex)
     def setCurrentExperimentIndex(self, index: QModelIndex):
-        """Set currently activated index from :meth:`experimentItemModel`."""
         super().setCurrentExperimentIndex(index)
+        # update experiment name and paths
         self.experimentNameMapper().setCurrentIndex(index.row())
-
         model = self.experimentItemModel()
         self.pathsView().setModel(model)
         self.pathsView().setRootIndex(
             model.index(index.row(), ExperimentItemModel.Col_CoatPaths)
         )
 
-        self.setExperimentArgs(
-            model.data(
-                model.index(index.row(), ExperimentItemModel.Col_Experiment),
-                Qt.UserRole,
-            )[1]
-        )
+        # update experiment args
+        self._blockModelUpdate = True
+        args = model.data(
+            model.index(index.row(), ExperimentItemModel.Col_Experiment),
+            Qt.UserRole,
+        )[1]
+        self.typeWidget().variableNameLineEdit().setText(args.type.name)
+        self.typeWidget().moduleNameLineEdit().setText(args.type.module)
+        self.typeWidget().onInformationEdit()
+        paramWidget = self.currentParametersWidget()
+        try:
+            paramWidget.setDataValue(
+                data_converter.structure(args.parameters, paramWidget.dataclassType())
+            )
+        except TypeError:
+            pass
+        self._blockModelUpdate = False
 
     def currentParametersWidget(self) -> DataclassWidget:
         """Currently displayed parameters widget."""
@@ -262,7 +272,7 @@ class ExperimentWidget(ControlWidget):
             index = 0
         self.parametersWidget().setCurrentIndex(index)
 
-    @Slot(object)
+    @Slot()
     def onExperimentTypeChange(self):
         """
         Apply current variable from import widget to other widgets and emit data.
@@ -297,30 +307,6 @@ class ExperimentWidget(ControlWidget):
             param = dict()
         args = ExperimentArgs(importArgs, param)
         return args
-
-    @Slot(ExperimentArgs)
-    def setExperimentArgs(self, args: ExperimentArgs):
-        """
-        Update the widgets with *args*.
-
-        This does not emit :attr:`dataChanged` signal.
-        Run :meth:`commitToCurrentItem` manually after running this method.
-        """
-        self._blockModelUpdate = True
-
-        self.typeWidget().variableNameLineEdit().setText(args.type.name)
-        self.typeWidget().moduleNameLineEdit().setText(args.type.module)
-        self.typeWidget().onInformationEdit()
-
-        paramWidget = self.currentParametersWidget()
-        try:
-            paramWidget.setDataValue(
-                data_converter.structure(args.parameters, paramWidget.dataclassType())
-            )
-        except TypeError:
-            pass
-
-        self._blockModelUpdate = False
 
     @Slot()
     def commitToCurrentItem(self):
@@ -514,42 +500,49 @@ class ReferenceWidget(ControlWidget):
 
     def pathMapper(self) -> QDataWidgetMapper:
         """
-        Mapper to update :meth:`pathLineEdit` with reference path of
-        currently activated item from :meth:`experimentItemModel`.
+        Mapper to update :meth:`pathLineEdit` with reference path of currently
+        activated item from :meth:`experimentItemModel`.
         """
         return self._refpath_mapper
 
     def pathLineEdit(self) -> QLineEdit:
+        """Line edit for the path to reference file."""
         return self._refpath_lineedit
 
     def browseButton(self) -> QPushButton:
+        """Button to browse reference file and set to :math:`pathLineEdit`."""
         return self._browse_button
 
     def typeWidget(self) -> ImportWidget:
+        """Widget to specify the reference type."""
         return self._importwidget
 
     def templateROIWidget(self) -> ROIWidget:
+        """Widget to specify the template ROI."""
         return self._temproi_widget
 
     def templateROIDrawButton(self) -> QPushButton:
+        """Button to signal the external API to draw the template ROI."""
         return self._temproi_draw_button
 
     def substrateROIWidget(self) -> ROIWidget:
+        """Widget to specify the substrate ROI."""
         return self._substroi_widget
 
     def substrateROIDrawButton(self) -> QPushButton:
+        """Button to signal the external API to draw the substrate ROI."""
         return self._substroi_draw_button
 
     def parametersWidget(self) -> StackedDataclassWidget:
+        """Widget to specify the reference parameters."""
         return self._param_widget
 
     def drawOptionsWidget(self) -> StackedDataclassWidget:
+        """Widget to specify the reference drawing options."""
         return self._drawopt_widget
 
     def setExperimentItemModel(self, model):
-        """
-        Set :meth:`experimentItemModel` and remap :meth:`pathMapper`.
-        """
+        """Set :meth:`experimentItemModel` and remap :meth:`pathMapper`."""
         super().setExperimentItemModel(model)
         self.pathMapper().setModel(model)
         self.pathMapper().addMapping(
@@ -560,23 +553,49 @@ class ReferenceWidget(ControlWidget):
     @Slot(QModelIndex)
     def setCurrentExperimentIndex(self, index: QModelIndex):
         super().setCurrentExperimentIndex(index)
+        # update reference path
         self.pathMapper().setCurrentIndex(index.row())
 
+        # update reference args
+        self._blockModelUpdate = True
         model = self.experimentItemModel()
-        self.setReferenceArgs(
-            model.data(
-                model.index(index.row(), ExperimentItemModel.Col_Reference),
-                Qt.UserRole,
-            )[1]
-        )
+        args = model.data(
+            model.index(index.row(), ExperimentItemModel.Col_Reference),
+            Qt.UserRole,
+        )[1]
+        self.typeWidget().variableNameLineEdit().setText(args.type.name)
+        self.typeWidget().moduleNameLineEdit().setText(args.type.module)
+        self.typeWidget().onInformationEdit()
+        self.templateROIWidget().roiModel().setROI(*args.templateROI)
+        self.substrateROIWidget().roiModel().setROI(*args.substrateROI)
+        paramWidget = self.currentParametersWidget()
+        try:
+            paramWidget.setDataValue(
+                data_converter.structure(args.parameters, paramWidget.dataclassType())
+            )
+        except TypeError:
+            pass
+
+        drawWidget = self.currentDrawOptionsWidget()
+        try:
+            drawWidget.setDataValue(
+                data_converter.structure(args.draw_options, drawWidget.dataclassType())
+            )
+        except TypeError:
+            pass
+        self._blockModelUpdate = False
 
     def currentParametersWidget(self) -> DataclassWidget:
+        """Currently displayed parameters widget."""
         widget = self.parametersWidget().currentWidget()
         if not isinstance(widget, DataclassWidget):
             raise TypeError(f"{widget} is not dataclass widget.")
         return widget
 
     def setCurrentParametersWidget(self, reftype: Any):
+        """
+        Update the parameters widget to display the parameters for *reftype*.
+        """
         if isinstance(reftype, type) and issubclass(reftype, SubstrateReferenceBase):
             dcls = reftype.Parameters
             index = self.parametersWidget().indexOfDataclass(dcls)
@@ -588,12 +607,17 @@ class ReferenceWidget(ControlWidget):
         self.parametersWidget().setCurrentIndex(index)
 
     def currentDrawOptionsWidget(self) -> DataclassWidget:
+        """Currently displayed drawing options widget."""
         widget = self.drawOptionsWidget().currentWidget()
         if not isinstance(widget, DataclassWidget):
             raise TypeError(f"{widget} is not dataclass widget.")
         return widget
 
     def setCurrentDrawOptionsWidget(self, reftype: Any):
+        """
+        Update the drawing options widget to display the drawing option for
+        *reftype*.
+        """
         if isinstance(reftype, type) and issubclass(reftype, SubstrateReferenceBase):
             dcls = reftype.DrawOptions
             index = self.drawOptionsWidget().indexOfDataclass(dcls)
@@ -604,7 +628,7 @@ class ReferenceWidget(ControlWidget):
             index = 0
         self.drawOptionsWidget().setCurrentIndex(index)
 
-    @Slot(object)
+    @Slot()
     def onReferenceTypeChange(self):
         """
         Apply current variable from import widget to other widgets and emit data.
@@ -656,35 +680,6 @@ class ReferenceWidget(ControlWidget):
         args = ReferenceArgs(importArgs, templateROI, substrateROI, param, drawopt)
         return args
 
-    @Slot(ReferenceArgs)
-    def setReferenceArgs(self, args: ReferenceArgs):
-        self._blockModelUpdate = True
-
-        self.typeWidget().variableNameLineEdit().setText(args.type.name)
-        self.typeWidget().moduleNameLineEdit().setText(args.type.module)
-        self.typeWidget().onInformationEdit()
-
-        self.templateROIWidget().roiModel().setROI(*args.templateROI)
-        self.substrateROIWidget().roiModel().setROI(*args.substrateROI)
-
-        paramWidget = self.currentParametersWidget()
-        try:
-            paramWidget.setDataValue(
-                data_converter.structure(args.parameters, paramWidget.dataclassType())
-            )
-        except TypeError:
-            pass
-
-        drawWidget = self.currentDrawOptionsWidget()
-        try:
-            drawWidget.setDataValue(
-                data_converter.structure(args.draw_options, drawWidget.dataclassType())
-            )
-        except TypeError:
-            pass
-
-        self._blockModelUpdate = False
-
     @Slot()
     def commitToCurrentItem(self):
         """
@@ -702,16 +697,22 @@ class ReferenceWidget(ControlWidget):
 
     @Slot(str)
     def setReferencePath(self, path: str):
+        """Update :meth:`pathLineEdit` with *path*."""
         self.pathLineEdit().setText(path)
         self.onPathEditFinished()
 
     @Slot()
     def onPathEditFinished(self):
+        """Update ROI widget, emit :attr:`imageChanged` and commit to model."""
         self.updateROIMaximum()
         self.emitImage()
         self.commitToCurrentItem()
 
     def updateROIMaximum(self):
+        """
+        Update maximum of :meth:`templateROIWidget` and
+        :meth:`substrateROIWidget` with image from :meth:`pathLineEdit`.
+        """
         path = self.pathLineEdit().text()
         img = cv2.imread(path)
         if img is None:
@@ -723,12 +724,17 @@ class ReferenceWidget(ControlWidget):
 
     @Slot()
     def emitImage(self):
+        """
+        Emit the RGB image from :meth:`pathLineEdit` to :attr:`imageChanged.`
+        """
         img = cv2.imread(self.pathLineEdit().text())
         if img is not None:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.imageChanged.emit(img)
 
+    @Slot()
     def browseReferenceImage(self):
+        """Browse the reference file and set to :math:`pathLineEdit`"""
         path, _ = QFileDialog.getOpenFileName(
             self,
             "Select reference image file",
@@ -738,11 +744,15 @@ class ReferenceWidget(ControlWidget):
         if path:
             self.setReferencePath(path)
 
+    @Slot()
     def onTemplateROIDrawButtonToggle(self, state: bool):
+        """Untoggle :meth:`substrateROIDrawButton`."""
         if state:
             self.substrateROIDrawButton().setChecked(False)
 
+    @Slot()
     def onSubstrateROIDrawButtonToggle(self, state: bool):
+        """Untoggle :meth:`templateROIDrawButton`."""
         if state:
             self.templateROIDrawButton().setChecked(False)
 

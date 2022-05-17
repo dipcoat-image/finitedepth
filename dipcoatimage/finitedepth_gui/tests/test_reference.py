@@ -4,10 +4,7 @@ import cv2  # type: ignore
 from dipcoatimage.finitedepth import (
     get_samples_path,
     SubstrateReference,
-    data_converter,
 )
-from dipcoatimage.finitedepth.analysis import ReferenceArgs
-from dipcoatimage.finitedepth.util import dict_includes
 from dipcoatimage.finitedepth_gui.controlwidgets import (
     ReferenceWidget,
 )
@@ -115,48 +112,6 @@ def test_ReferenceWidget_exclusiveButtons(qtbot):
     qtbot.mouseClick(refwidget.substrateROIDrawButton(), Qt.LeftButton)
     assert refwidget.substrateROIDrawButton().isChecked()
     assert not refwidget.templateROIDrawButton().isChecked()
-
-
-def test_ReferenceWidget_setReferenceArgs(qtbot, refwidget):
-    refargs = ReferenceArgs(
-        templateROI=(50, 50, 100, 100),
-        substrateROI=(100, 100, 200, 200),
-        draw_options=dict(substrateROI_thickness=2),
-    )
-    refwidget.setReferencePath(REF_PATH)
-    refwidget.setReferenceArgs(refargs)
-
-    assert refwidget.typeWidget().variableComboBox().currentIndex() == -1
-    assert refwidget.typeWidget().variableNameLineEdit().text() == refargs.type.name
-    assert refwidget.typeWidget().moduleNameLineEdit().text() == refargs.type.module
-
-    assert refwidget.templateROIWidget().roiMaximum() == (1407, 1125)
-    assert refwidget.templateROIWidget().roiModel().roi() == refargs.templateROI
-    assert refwidget.templateROIWidget().x1SpinBox().value() == refargs.templateROI[0]
-    assert refwidget.templateROIWidget().y1SpinBox().value() == refargs.templateROI[1]
-    assert refwidget.templateROIWidget().x2SpinBox().value() == refargs.templateROI[2]
-    assert refwidget.templateROIWidget().y2SpinBox().value() == refargs.templateROI[3]
-
-    assert refwidget.substrateROIWidget().roiMaximum() == (1407, 1125)
-    assert refwidget.substrateROIWidget().roiModel().roi() == refargs.substrateROI
-    assert refwidget.substrateROIWidget().x1SpinBox().value() == refargs.substrateROI[0]
-    assert refwidget.substrateROIWidget().y1SpinBox().value() == refargs.substrateROI[1]
-    assert refwidget.substrateROIWidget().x2SpinBox().value() == refargs.substrateROI[2]
-    assert refwidget.substrateROIWidget().y2SpinBox().value() == refargs.substrateROI[3]
-
-    assert dict_includes(
-        data_converter.unstructure(
-            refwidget.parametersWidget().currentWidget().dataValue()
-        ),
-        refargs.parameters,
-    )
-
-    assert dict_includes(
-        data_converter.unstructure(
-            refwidget.drawOptionsWidget().currentWidget().dataValue()
-        ),
-        refargs.draw_options,
-    )
 
 
 def test_ReferenceWorker_setStructuredReferenceArgs(qtbot):
