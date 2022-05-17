@@ -22,9 +22,10 @@ from dipcoatimage.finitedepth.analysis import (
     SubstrateArgs,
     CoatingLayerArgs,
     ExperimentArgs,
+    Analyzer,
 )
 from PySide6.QtCore import QModelIndex, Qt, Signal, Slot
-from PySide6.QtGui import QStandardItem
+from PySide6.QtGui import QStandardItem, QDoubleValidator
 from PySide6.QtWidgets import (
     QWidget,
     QDataWidgetMapper,
@@ -36,6 +37,8 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QGroupBox,
     QSizePolicy,
+    QComboBox,
+    QProgressBar,
 )
 from typing import Any
 from .importwidget import ImportWidget
@@ -55,6 +58,7 @@ __all__ = [
     "ReferenceWidget",
     "SubstrateWidget",
     "CoatingLayerWidget",
+    "AnalysisWidget",
 ]
 
 
@@ -146,9 +150,6 @@ class ExperimentWidget(ControlWidget):
         default_paramwdgt.setDataName("Parameters")
         self.parametersWidget().addWidget(default_paramwdgt)
 
-        self.initUI()
-
-    def initUI(self):
         self.typeWidget().variableComboBox().setPlaceholderText(
             "Select experiment type or specify import information"
         )
@@ -449,9 +450,6 @@ class ReferenceWidget(ControlWidget):
         self.parametersWidget().addWidget(default_paramwdgt)
         self.drawOptionsWidget().addWidget(default_drawwdgt)
 
-        self.initUI()
-
-    def initUI(self):
         self.pathLineEdit().setPlaceholderText("Path for the reference image file")
         self.browseButton().setText("Browse")
         self.typeWidget().variableComboBox().setPlaceholderText(
@@ -811,9 +809,6 @@ class SubstrateWidget(ControlWidget):
         self.parametersWidget().addWidget(default_paramwdgt)
         self.drawOptionsWidget().addWidget(default_drawwdgt)
 
-        self.initUI()
-
-    def initUI(self):
         self.typeWidget().variableComboBox().setPlaceholderText(
             "Select substrate type or specify import information"
         )
@@ -1040,9 +1035,6 @@ class CoatingLayerWidget(ControlWidget):
         self.drawOptionsWidget().addWidget(default_drawwdgt)
         self.decoOptionsWidget().addWidget(default_decowdgt)
 
-        self.initUI()
-
-    def initUI(self):
         self.typeWidget().variableComboBox().setPlaceholderText(
             "Select coating layer type or specify import information"
         )
@@ -1252,3 +1244,103 @@ class CoatingLayerWidget(ControlWidget):
                 (self.structuredCoatingLayerArgs(), self.coatingLayerArgs()),
                 Qt.UserRole,  # type: ignore[arg-type]
             )
+
+
+class AnalysisWidget(ControlWidget):
+    """
+    Widget to analyze the experiment.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self._datapath_lineedit = QLineEdit()
+        self._data_ext_combobox = QComboBox()
+        self._imgpath_lineedit = QLineEdit()
+        self._img_ext_combobox = QComboBox()
+        self._vidpath_lineedit = QLineEdit()
+        self._vid_ext_combobox = QComboBox()
+        self._imgexpt_fps_lineedit = QLineEdit()
+        self._analyze_button = QPushButton()
+        self._progressbar = QProgressBar()
+
+        self.imageFPSLineEdit().setValidator(QDoubleValidator())
+
+        self.dataPathLineEdit().setPlaceholderText("Data file path")
+        self.imagePathLineEdit().setPlaceholderText("Image file path")
+        self.imagePathLineEdit().setToolTip(
+            "Pass paths with format (e.g. img_%02d.jpg) to save " "multiple images."
+        )
+        self.videoPathLineEdit().setPlaceholderText("Video file path")
+        self.imageFPSLineEdit().setPlaceholderText(
+            "(Optional) fps for image experiment"
+        )
+        self.imageFPSLineEdit().setToolTip(
+            "Set FPS value for analysis data and video of image experiment."
+        )
+        self.analyzeButton().setText("Analyze")
+
+        for ext in Analyzer.data_writers.keys():
+            self.dataExtensionComboBox().addItem(f".{ext}")
+        for ext in ["png", "jpg"]:
+            self.imageExtensionComboBox().addItem(f".{ext}")
+        for ext in Analyzer.video_codecs.keys():
+            self.videoExtensionComboBox().addItem(f".{ext}")
+
+        datapath_layout = QHBoxLayout()
+        datapath_layout.addWidget(self.dataPathLineEdit())
+        datapath_layout.addWidget(self.dataExtensionComboBox())
+        imgpath_layout = QHBoxLayout()
+        imgpath_layout.addWidget(self.imagePathLineEdit())
+        imgpath_layout.addWidget(self.imageExtensionComboBox())
+        vidpath_layout = QHBoxLayout()
+        vidpath_layout.addWidget(self.videoPathLineEdit())
+        vidpath_layout.addWidget(self.videoExtensionComboBox())
+        anal_opt_layout = QVBoxLayout()
+        anal_opt_layout.addLayout(datapath_layout)
+        anal_opt_layout.addLayout(imgpath_layout)
+        anal_opt_layout.addLayout(vidpath_layout)
+        anal_opt_layout.addWidget(self.imageFPSLineEdit())
+        anal_path_groupbox = QGroupBox("Analysis options")
+        anal_path_groupbox.setLayout(anal_opt_layout)
+        main_layout = QVBoxLayout()
+        main_layout.addWidget(anal_path_groupbox)
+        main_layout.addWidget(self.analyzeButton())
+        main_layout.addWidget(self.progressBar())
+        self.setLayout(main_layout)
+
+    def dataPathLineEdit(self) -> QLineEdit:
+        """Line edit for data file path (without extesion)."""
+        return self._datapath_lineedit
+
+    def dataExtensionComboBox(self) -> QComboBox:
+        """Combo box for data file extension."""
+        return self._data_ext_combobox
+
+    def imagePathLineEdit(self) -> QLineEdit:
+        """Line edit for image file path (without extension)."""
+        return self._imgpath_lineedit
+
+    def imageExtensionComboBox(self) -> QComboBox:
+        """Combo box for image file extension."""
+        return self._img_ext_combobox
+
+    def videoPathLineEdit(self) -> QLineEdit:
+        """Line edit for video file path (without extension)."""
+        return self._vidpath_lineedit
+
+    def videoExtensionComboBox(self) -> QComboBox:
+        """Combo box for video file extension."""
+        return self._vid_ext_combobox
+
+    def imageFPSLineEdit(self) -> QLineEdit:
+        """Line edit for FPS of multi-image experiment."""
+        return self._imgexpt_fps_lineedit
+
+    def analyzeButton(self) -> QPushButton:
+        """Button to trigger analysis."""
+        return self._analyze_button
+
+    def progressBar(self) -> QProgressBar:
+        """Progress bar to display analysis progress."""
+        return self._progressbar
