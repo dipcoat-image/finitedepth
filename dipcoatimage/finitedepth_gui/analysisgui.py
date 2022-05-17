@@ -113,6 +113,9 @@ class AnalysisGUI(QMainWindow):
         self.experimentInventory().experimentListView().activated.connect(
             self.coatingLayerWidget().setCurrentExperimentIndex
         )
+        self.analysisWidget().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
+        )
 
         self.referenceWorker().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()

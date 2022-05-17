@@ -4,6 +4,7 @@ from dipcoatimage.finitedepth.analysis import (
     SubstrateArgs,
     CoatingLayerArgs,
     ExperimentArgs,
+    AnalysisArgs,
 )
 from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
 import enum
@@ -87,6 +88,7 @@ class ExperimentItemModelColumns(enum.IntEnum):
     4. SUBSTRATE
     5. COATINGLAYER
     6. EXPERIMENT
+    7. ANALYSIS
     """
 
     EXPERIMENT_NAME = 0
@@ -96,39 +98,44 @@ class ExperimentItemModelColumns(enum.IntEnum):
     SUBSTRATE = 4
     COATINGLAYER = 5
     EXPERIMENT = 6
+    ANALYSIS = 7
 
 
 class ExperimentItemModel(QStandardItemModel):
     """
     Model to store the data which makes up :class:`ExperimentData`.
 
-    .. rubric:: ColumnNames
+    .. rubric:: Column names
 
-    :attr:`ColumnNames` is an integer enum which holds the column names.
+    Following attributes are integer enums for colum names.
 
-    0. EXPERIMENT_NAME
+    0. Col_ExperimentName
         Name of the experiment.
-    1. REFERENCE_PATH
+    1. Col_ReferencePath
         Path to reference file. Corresponds to :attr:`ExperimentData.ref_path`.
-    2. COAT_PATHS
+    2. Col_CoatPaths
         Paths to coated substrate files. Each path is stored in children rows.
         Corresponds to :attr:`ExperimentData.coat_paths`.
-    3. REFERENCE
+    3. Col_Reference
         Data to construct reference object. Data are stored in :meth:`data` as
         tuple (:class:`StructuredReferenceArgs`, :class:`ReferenceArgs`) with
         ``Qt.UserRole``. Corresponds to :attr:`ExperimentData.reference`.
-    4. SUBSTRATE
+    4. Col_Substrate
         Data to construct substrate object. Data are stored in :meth:`data` as
         tuple (:class:`StructuredSubstrateArgs`, :class:`SubstrateArgs`) with
         ``Qt.UserRole``. Corresponds to :attr:`ExperimentData.substrate`.
-    5. COATINGLAYER
+    5. Col_CoatingLayer
         Data to construct coating layer object. Data are stored in :meth:`data`
         as tuple (:class:`StructuredCoatingLayerArgs`, :class:`CoatingLayerArgs`)
         with ``Qt.UserRole``. Corresponds to :attr:`ExperimentData.coatinglayer`.
-    6. EXPERIMENT
+    6. Col_Experiment
         Data to construct experiment object. Data are stored in :meth:`data` as
         tuple (:class:`StructuredExperimentArgs`, :class:`ExperimentArgs`) with
         ``Qt.UserRole``. Corresponds to :attr:`ExperimentData.experiment`.
+    7. Col_Analysis
+        Data to analyze experiment. Data is stored in :meth:`data` as
+        :attr:`AnalysisArgs` with ``Qt.UserRole``. Corresponds to
+        :attr:`ExperimentData.analysis`.
     """
 
     ColumnNames: TypeAlias = ExperimentItemModelColumns
@@ -139,6 +146,7 @@ class ExperimentItemModel(QStandardItemModel):
     Col_Substrate = ExperimentItemModelColumns.SUBSTRATE
     Col_CoatingLayer = ExperimentItemModelColumns.COATINGLAYER
     Col_Experiment = ExperimentItemModelColumns.EXPERIMENT
+    Col_Analysis = ExperimentItemModelColumns.ANALYSIS
 
     def __init__(self, rows: int = 0, columns: int = len(ColumnNames), parent=None):
         super().__init__(rows, columns, parent)
@@ -154,6 +162,8 @@ class ExperimentItemModel(QStandardItemModel):
                 ret = (StructuredCoatingLayerArgs(), CoatingLayerArgs())
             elif index.column() == self.Col_Experiment:
                 ret = (StructuredExperimentArgs(), ExperimentArgs())
+            elif index.column() == self.Col_Analysis:
+                ret = AnalysisArgs()
         return ret
 
 
