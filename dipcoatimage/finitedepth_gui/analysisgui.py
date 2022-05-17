@@ -87,6 +87,12 @@ class AnalysisGUI(QMainWindow):
         self.experimentInventory().experimentListView().activated.connect(
             self.referenceWorker().setCurrentExperimentIndex
         )
+        self.substrateWorker().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
+        )
+        self.experimentInventory().experimentListView().activated.connect(
+            self.substrateWorker().setCurrentExperimentIndex
+        )
         self.experimentInventory().experimentListView().activated.connect(
             self.onExperimentActivation
         )
@@ -150,16 +156,9 @@ class AnalysisGUI(QMainWindow):
     @Slot(QModelIndex)
     def onExperimentActivation(self, index: QModelIndex):
         """Update the experiment data to workers."""
-        self.substrateWorker().clear()
         self.experimentWorker().clear()
 
         model = self.experimentInventory().experimentItemModel()
-        self.substrateWorker().setStructuredSubstrateArgs(
-            model.data(
-                model.index(index.row(), ExperimentItemModel.Col_Substrate),
-                Qt.UserRole,
-            )[0]
-        )
         self.experimentWorker().setStructuredCoatingLayerArgs(
             model.data(
                 model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),

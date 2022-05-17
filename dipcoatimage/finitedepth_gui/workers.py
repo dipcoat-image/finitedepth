@@ -108,7 +108,7 @@ class ReferenceWorker(WorkerBase):
     5. :meth:`paramters`
     6. :meth:`drawOptions`
 
-    :meth:`image` is updated by :meth:`setImage`. Other data are updated by the
+    :meth:`image` is updated by :meth:`setImage`. Other data are updated by
     :meth:`experimentItemModel`.
 
     :meth:`updateReference` constructs the reference object with current data.
@@ -310,12 +310,8 @@ class ReferenceWorker(WorkerBase):
         """
         self.visualizedImageChanged.emit(self.visualizedImage())
 
-    def clear(self):
-        """Initialize reference object data and :meth:`reference`."""
-        self.initArgs()
 
-
-class SubstrateWorker(QObject):
+class SubstrateWorker(WorkerBase):
     """
     Worker to build the concreate instance of :class:`SubstrateBase` and to
     visualize it.
@@ -327,8 +323,8 @@ class SubstrateWorker(QObject):
     3. :meth:`paramters`
     4. :meth:`drawOptions`
 
-    All data, except :meth:`reference` which is updated by :meth:`setReference`,
-    are updated by :meth:`setStructuredSubstrateArgs`.
+    :meth:`reference` is updated by :meth:`setReference`, and other data are
+    updated by :meth:`experimentItemModel`.
 
     :meth:`updateSubstrate` constructs the substrate object with current data.
     Resulting object can be acquired from :meth:`substrate`, or calling
@@ -382,6 +378,24 @@ class SubstrateWorker(QObject):
         ``None`` indicates invalid value.
         """
         return self._draw_opts
+
+    @Slot(QStandardItem)
+    def onExperimentItemChange(self, item: QStandardItem):
+        super().onExperimentItemChange(item)
+        if item.model() == self.experimentItemModel() and item.parent() is None:
+            if item.column() == ExperimentItemModel.Col_Substrate:
+                data = self.experimentItemModel().data(item.index(), Qt.UserRole)[0]
+                self.setStructuredSubstrateArgs(data)
+
+    @Slot(QModelIndex)
+    def setCurrentExperimentIndex(self, index: QModelIndex):
+        super().setCurrentExperimentIndex(index)
+        model = self.experimentItemModel()
+        data = model.data(
+            model.index(index.row(), ExperimentItemModel.Col_Substrate),
+            Qt.UserRole,
+        )[0]
+        self.setStructuredSubstrateArgs(data)
 
     def setStructuredSubstrateArgs(self, data: StructuredSubstrateArgs):
         """
@@ -492,10 +506,6 @@ class SubstrateWorker(QObject):
         If visualization raises error, directly emit :meth:`image`.
         """
         self.visualizedImageChanged.emit(self.visualizedImage())
-
-    def clear(self):
-        """Initialize substrate object data and :meth:`substrate`."""
-        self.initArgs()
 
 
 class ExperimentVisualizationMode(enum.IntEnum):
