@@ -1,7 +1,3 @@
-from dipcoatimage.finitedepth.analysis import (
-    SubstrateArgs,
-    CoatingLayerArgs,
-)
 from PySide6.QtCore import Qt, Slot, QModelIndex
 from PySide6.QtGui import QStandardItem
 from PySide6.QtWidgets import (
@@ -18,8 +14,6 @@ from .controlwidgets import (
     CoatingLayerWidget,
 )
 from .inventory import (
-    StructuredSubstrateArgs,
-    StructuredCoatingLayerArgs,
     ExperimentItemModel,
     ExperimentInventory,
 )
@@ -189,34 +183,6 @@ class AnalysisGUI(QMainWindow):
                 Qt.UserRole,
             )[0]
         )
-
-    @Slot(StructuredSubstrateArgs, SubstrateArgs)
-    def onStructuredSubstrateArgsChange(
-        self, widgetdata: StructuredSubstrateArgs, substargs: SubstrateArgs
-    ):
-        """Update the data from :meth:`substrateWidget` to current model."""
-        index = self.experimentInventory().experimentListView().currentIndex()
-        if index.isValid():
-            model = self.experimentInventory().experimentItemModel()
-            model.setData(
-                model.index(index.row(), ExperimentItemModel.Col_Substrate),
-                (widgetdata, substargs),
-                Qt.UserRole,  # type: ignore[arg-type]
-            )
-
-    @Slot(StructuredCoatingLayerArgs, CoatingLayerArgs)
-    def onStructuredCoatingLayerArgsChange(
-        self, widgetdata: StructuredCoatingLayerArgs, layerargs: CoatingLayerArgs
-    ):
-        """Update the data from :meth:`coatingLayerWidget` to current model."""
-        index = self.experimentInventory().experimentListView().currentIndex()
-        if index.isValid():
-            model = self.experimentInventory().experimentItemModel()
-            model.setData(
-                model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
-                (widgetdata, layerargs),
-                Qt.UserRole,  # type: ignore[arg-type]
-            )
 
     @Slot(QStandardItem)
     def onExperimentItemChange(self, item: QStandardItem):
