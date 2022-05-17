@@ -18,9 +18,10 @@ from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
 import enum
 import numpy as np
 import numpy.typing as npt
-from PySide6.QtCore import QObject, Slot, Signal
+from PySide6.QtCore import QObject, QModelIndex, Slot, Signal
 from typing import Optional, Type, Generator
 from .inventory import (
+    ExperimentItemModel,
     StructuredReferenceArgs,
     StructuredSubstrateArgs,
     StructuredCoatingLayerArgs,
@@ -29,11 +30,41 @@ from .inventory import (
 
 
 __all__ = [
+    "WorkerBase",
     "ReferenceWorker",
     "SubstrateWorker",
     "ExperimentVisualizationMode",
     "ExperimentWorker",
 ]
+
+
+class WorkerBase(QObject):
+    """Base class for all worker objects."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self._exptitem_model = ExperimentItemModel()
+        self._currentIndex = QModelIndex()
+
+    def experimentItemModel(self) -> ExperimentItemModel:
+        """Model which holds the experiment item data."""
+        return self._exptitem_model
+
+    def currentExperimentIndex(self) -> QModelIndex:
+        """Currently activated index from the model."""
+        return self._currentIndex
+
+    def setExperimentItemModel(self, model: ExperimentItemModel):
+        """Set :meth:`experimentItemModel`."""
+        self._exptitem_model = model
+
+    @Slot(QModelIndex)
+    def setCurrentExperimentIndex(self, index: QModelIndex):
+        """Set currently activated index from :meth:`experimentItemModel`."""
+        if index.parent().isValid():
+            raise TypeError("Only top-level index can be activated.")
+        self._currentIndex = index
 
 
 class ReferenceWorker(QObject):
