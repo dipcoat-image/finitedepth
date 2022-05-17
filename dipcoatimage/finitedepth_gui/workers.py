@@ -18,7 +18,8 @@ from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
 import enum
 import numpy as np
 import numpy.typing as npt
-from PySide6.QtCore import QObject, QModelIndex, Slot, Signal
+from PySide6.QtCore import QObject, QModelIndex, Slot, Signal, Qt
+from PySide6.QtGui import QStandardItem
 from typing import Optional, Type, Generator
 from .inventory import (
     ExperimentItemModel,
@@ -47,6 +48,8 @@ class WorkerBase(QObject):
         self._exptitem_model = ExperimentItemModel()
         self._currentIndex = QModelIndex()
 
+        self.connectModelSignals()
+
     def experimentItemModel(self) -> ExperimentItemModel:
         """Model which holds the experiment item data."""
         return self._exptitem_model
@@ -57,7 +60,31 @@ class WorkerBase(QObject):
 
     def setExperimentItemModel(self, model: ExperimentItemModel):
         """Set :meth:`experimentItemModel`."""
+        self.disconnectModelSignals()
         self._exptitem_model = model
+        self.connectModelSignals()
+
+    def connectModelSignals(self):
+        self.experimentItemModel().itemChanged.connect(self.onExperimentItemChange)
+        self.experimentItemModel().rowsInserted.connect(self.onExperimentItemRowsChange)
+        self.experimentItemModel().rowsRemoved.connect(self.onExperimentItemRowsChange)
+
+    def disconnectModelSignals(self):
+        self.experimentItemModel().itemChanged.disconnect(self.onExperimentItemChange)
+        self.experimentItemModel().rowsInserted.disconnect(
+            self.onExperimentItemRowsChange
+        )
+        self.experimentItemModel().rowsRemoved.disconnect(
+            self.onExperimentItemRowsChange
+        )
+
+    @Slot(QStandardItem)
+    def onExperimentItemChange(self, item: QStandardItem):
+        pass
+
+    @Slot(QModelIndex, int, int)
+    def onExperimentItemRowsChange(self, index: QModelIndex, first: int, last: int):
+        pass
 
     @Slot(QModelIndex)
     def setCurrentExperimentIndex(self, index: QModelIndex):
@@ -67,7 +94,7 @@ class WorkerBase(QObject):
         self._currentIndex = index
 
 
-class ReferenceWorker(QObject):
+class ReferenceWorker(WorkerBase):
     """
     Worker to build the concreate instance of :class:`SubstrateReferenceBase`
     and to visualize it.
@@ -81,8 +108,8 @@ class ReferenceWorker(QObject):
     5. :meth:`paramters`
     6. :meth:`drawOptions`
 
-    :meth:`image` is updated by :meth:`setImage`. Other data are updated by
-    :meth:`setStructuredReferenceArgs`.
+    :meth:`image` is updated by :meth:`setImage`. Other data are updated by the
+    :meth:`experimentItemModel`.
 
     :meth:`updateReference` constructs the reference object with current data.
     Resulting object can be acquired from :meth:`reference`, or calling
@@ -155,6 +182,24 @@ class ReferenceWorker(QObject):
         ``None`` indicates invalid value.
         """
         return self._draw_opts
+
+    @Slot(QStandardItem)
+    def onExperimentItemChange(self, item: QStandardItem):
+        super().onExperimentItemChange(item)
+        if item.model() == self.experimentItemModel() and item.parent() is None:
+            if item.column() == ExperimentItemModel.Col_Reference:
+                data = self.experimentItemModel().data(item.index(), Qt.UserRole)[0]
+                self.setStructuredReferenceArgs(data)
+
+    @Slot(QModelIndex)
+    def setCurrentExperimentIndex(self, index: QModelIndex):
+        super().setCurrentExperimentIndex(index)
+        model = self.experimentItemModel()
+        data = model.data(
+            model.index(index.row(), ExperimentItemModel.Col_Reference),
+            Qt.UserRole,
+        )[0]
+        self.setStructuredReferenceArgs(data)
 
     def setStructuredReferenceArgs(self, data: StructuredReferenceArgs):
         """

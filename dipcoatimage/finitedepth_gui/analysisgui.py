@@ -1,5 +1,4 @@
 from PySide6.QtCore import Qt, Slot, QModelIndex
-from PySide6.QtGui import QStandardItem
 from PySide6.QtWidgets import (
     QMainWindow,
     QTabWidget,
@@ -82,17 +81,14 @@ class AnalysisGUI(QMainWindow):
             self.coatingLayerWidget().setCurrentExperimentIndex
         )
 
+        self.referenceWorker().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
+        )
+        self.experimentInventory().experimentListView().activated.connect(
+            self.referenceWorker().setCurrentExperimentIndex
+        )
         self.experimentInventory().experimentListView().activated.connect(
             self.onExperimentActivation
-        )
-        self.experimentInventory().experimentItemModel().itemChanged.connect(
-            self.onExperimentItemChange
-        )
-        self.experimentInventory().experimentItemModel().rowsInserted.connect(
-            self.onExperimentItemRowsChange
-        )
-        self.experimentInventory().experimentItemModel().rowsRemoved.connect(
-            self.onExperimentItemRowsChange
         )
 
         expt_inv_dock = QDockWidget("Experiment inventory")
@@ -154,17 +150,10 @@ class AnalysisGUI(QMainWindow):
     @Slot(QModelIndex)
     def onExperimentActivation(self, index: QModelIndex):
         """Update the experiment data to workers."""
-        self.referenceWorker().clear()
         self.substrateWorker().clear()
         self.experimentWorker().clear()
 
         model = self.experimentInventory().experimentItemModel()
-        self.referenceWorker().setStructuredReferenceArgs(
-            model.data(
-                model.index(index.row(), ExperimentItemModel.Col_Reference),
-                Qt.UserRole,
-            )[0]
-        )
         self.substrateWorker().setStructuredSubstrateArgs(
             model.data(
                 model.index(index.row(), ExperimentItemModel.Col_Substrate),
@@ -183,12 +172,3 @@ class AnalysisGUI(QMainWindow):
                 Qt.UserRole,
             )[0]
         )
-
-    @Slot(QStandardItem)
-    def onExperimentItemChange(self, item: QStandardItem):
-        pass
-
-    @Slot(QModelIndex, int, int)
-    def onExperimentItemRowsChange(self, index: QModelIndex, first: int, last: int):
-        """Apply the change of experiment file paths to experiment worker."""
-        pass
