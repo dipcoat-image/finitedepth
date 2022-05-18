@@ -76,6 +76,7 @@ class ImportStatus(enum.Enum):
 
 class Importer:
     """Class to try import the variable from variable name and module name."""
+
     __slots__ = ("varname", "modname")
 
     INVALID = object()

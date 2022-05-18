@@ -123,16 +123,20 @@ class ExperimentItemModel(QStandardItemModel):
         ret = super().data(index, role)
         if role == Qt.UserRole and ret is None and not index.parent().isValid():
             if index.column() == self.Col_Reference:
-                ret = (ReferenceArgs(), StructuredReferenceArgs())
+                args = ReferenceArgs()
+                ret = (args, StructuredReferenceArgs.from_ReferenceArgs(args))
                 self.setData(index, ret, role)
             elif index.column() == self.Col_Substrate:
-                ret = (SubstrateArgs(), StructuredSubstrateArgs())
+                args = SubstrateArgs()
+                ret = (args, StructuredSubstrateArgs.from_SubstrateArgs(args))
                 self.setData(index, ret, role)
             elif index.column() == self.Col_CoatingLayer:
-                ret = (CoatingLayerArgs(), StructuredCoatingLayerArgs())
+                args = CoatingLayerArgs()
+                ret = (args, StructuredCoatingLayerArgs.from_CoatingLayerArgs(args))
                 self.setData(index, ret, role)
             elif index.column() == self.Col_Experiment:
-                ret = (ExperimentArgs(), StructuredExperimentArgs())
+                args = ExperimentArgs()
+                ret = (args, StructuredExperimentArgs.from_ExperimentArgs(args))
                 self.setData(index, ret, role)
             elif index.column() == self.Col_Analysis:
                 ret = AnalysisArgs()
