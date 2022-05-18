@@ -61,8 +61,6 @@ class AnalysisGUI(QMainWindow):
         self._master_worker = MasterWorker()
         self._cwd_button = QPushButton()
 
-        self.setCentralWidget(self.mainDisplayWindow())
-
         self.experimentItemTab().currentChanged.connect(self.onCurrentTabChange)
         self.experimentWidget().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
@@ -95,6 +93,13 @@ class AnalysisGUI(QMainWindow):
             self.analysisWidget().setCurrentExperimentIndex
         )
 
+        self.referenceWidget().templateROIDrawButton().toggled.connect(
+            self.onTemplateROIDrawButtonToggle
+        )
+        self.referenceWidget().substrateROIDrawButton().toggled.connect(
+            self.onSubstrateROIDrawButtonToggle
+        )
+
         self.referenceWidget().imageChanged.connect(
             self.masterWorker().setReferenceImage
         )
@@ -111,6 +116,7 @@ class AnalysisGUI(QMainWindow):
         self.cwdButton().clicked.connect(self.browseCWD)
 
         self.setWindowTitle("Coating layer analysis")
+        self.setCentralWidget(self.mainDisplayWindow())
 
         expt_inv_dock = QDockWidget("Experiment inventory")
         expt_inv_dock.setWidget(self.experimentInventory())
@@ -183,6 +189,30 @@ class AnalysisGUI(QMainWindow):
     def cwdButton(self) -> QPushButton:
         """Button to open file dialog to change current directory."""
         return self._cwd_button
+
+    @Slot(bool)
+    def onTemplateROIDrawButtonToggle(self, state: bool):
+        label = self.mainDisplayWindow().currentDisplayingLabel()
+        if state:
+            label.addROIModel(
+                self.referenceWidget().templateROIWidget().roiModel()
+            )
+        else:
+            label.removeROIModel(
+                self.referenceWidget().templateROIWidget().roiModel()
+            )
+
+    @Slot(bool)
+    def onSubstrateROIDrawButtonToggle(self, state: bool):
+        label = self.mainDisplayWindow().currentDisplayingLabel()
+        if state:
+            label.addROIModel(
+                self.referenceWidget().substrateROIWidget().roiModel()
+            )
+        else:
+            label.removeROIModel(
+                self.referenceWidget().substrateROIWidget().roiModel()
+            )
 
     def determineDisplay(self, widget: QWidget) -> QWidget:
         return self.mainDisplayWindow().imageDisplayWidget()
