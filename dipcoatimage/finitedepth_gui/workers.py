@@ -14,6 +14,7 @@ from dipcoatimage.finitedepth import (
     CoatingLayerBase,
     ExperimentBase,
 )
+from dipcoatimage.finitedepth.analysis import AnalysisArgs
 from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
 import enum
 import numpy as np
@@ -125,10 +126,6 @@ class ReferenceWorker(WorkerBase):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.initArgs()
-        self._visualize_mode = True
-
-    def initArgs(self):
         self._type = None
         self._img = None
         self._temproi = (0, 0, None, None)
@@ -137,6 +134,7 @@ class ReferenceWorker(WorkerBase):
         self._draw_opts = None
 
         self._reference = None
+        self._visualize_mode = True
 
     def referenceType(self) -> Optional[Type[SubstrateReferenceBase]]:
         """
@@ -341,16 +339,13 @@ class SubstrateWorker(WorkerBase):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.initArgs()
-        self._visualize_mode = True
-
-    def initArgs(self):
         self._type = None
         self._ref = None
         self._params = None
         self._draw_opts = None
 
         self._substrate = None
+        self._visualize_mode = True
 
     def substrateType(self) -> Optional[Type[SubstrateBase]]:
         """
@@ -568,10 +563,6 @@ class ExperimentWorker(WorkerBase):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.initArgs()
-        self._visualize_mode = ExperimentVisualizationMode.FULL
-
-    def initArgs(self):
         self._type = None
         self._subst = None
         self._layer_type = None
@@ -584,6 +575,7 @@ class ExperimentWorker(WorkerBase):
         self._layer_generator = None
 
         self._img = None
+        self._visualize_mode = ExperimentVisualizationMode.FULL
 
     def experimentType(self) -> Optional[Type[ExperimentBase]]:
         """
@@ -890,3 +882,31 @@ class ExperimentWorker(WorkerBase):
         directly emit :meth:`image`.
         """
         self.visualizedImageChanged.emit(self.visualizedImage())
+
+
+class AnalysisWorker(WorkerBase):
+    """
+    Worker to analyze the coated substrate files.
+
+    Data for analysis are:
+
+    1. :meth:`experiment`
+    2. :meth:`paths`
+    3. :meth:`analysisArgs`
+
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._experiment = None
+        self._paths = ()
+        self._analysisArgs = AnalysisArgs()
+
+    def experiment(self) -> Optional[ExperimentBase]:
+        return self._experiment
+
+    def paths(self) -> Tuple[str, ...]:
+        return self._paths
+
+    def analysisArgs(self) -> AnalysisArgs:
+        return self._analysisArgs
