@@ -17,6 +17,7 @@ from .controlwidgets import (
     ReferenceWidget,
     SubstrateWidget,
     CoatingLayerWidget,
+    AnalysisWidget,
 )
 from .display import (
     PreviewableNDArrayVideoPlayer,
@@ -62,14 +63,11 @@ class AnalysisGUI(QMainWindow):
         self._expt_inv = ExperimentInventory()
         self._exptitem_tab = QTabWidget()
         self._prev_tab = None
-        self._expt_scroll = QScrollArea()
         self._expt_widget = ExperimentWidget()
-        self._ref_scroll = QScrollArea()
         self._ref_widget = ReferenceWidget()
-        self._subst_scroll = QScrollArea()
         self._subst_widget = SubstrateWidget()
-        self._layer_scroll = QScrollArea()
         self._layer_widget = CoatingLayerWidget()
+        self._anal_widget = AnalysisWidget()
         self._ref_worker = ReferenceWorker()
         self._subst_worker = SubstrateWorker()
         self._expt_worker = ExperimentWorker()
@@ -115,6 +113,12 @@ class AnalysisGUI(QMainWindow):
         self.experimentInventory().experimentListView().activated.connect(
             self.coatingLayerWidget().setCurrentExperimentIndex
         )
+        self.analysisWidget().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
+        )
+        self.experimentInventory().experimentListView().activated.connect(
+            self.analysisWidget().setCurrentExperimentIndex
+        )
 
         self.referenceWorker().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
@@ -144,18 +148,26 @@ class AnalysisGUI(QMainWindow):
         self.addDockWidget(Qt.LeftDockWidgetArea, expt_inv_dock)
 
         exptitem_dock = QDockWidget("Experiment item")
-        self._expt_scroll.setWidgetResizable(True)
-        self._expt_scroll.setWidget(self.experimentWidget())
-        self.experimentItemTab().addTab(self._expt_scroll, "Experiment")
-        self._ref_scroll.setWidgetResizable(True)
-        self._ref_scroll.setWidget(self.referenceWidget())
-        self.experimentItemTab().addTab(self._ref_scroll, "Reference")
-        self._subst_scroll.setWidgetResizable(True)
-        self._subst_scroll.setWidget(self.substrateWidget())
-        self.experimentItemTab().addTab(self._subst_scroll, "Substrate")
-        self._layer_scroll.setWidgetResizable(True)
-        self._layer_scroll.setWidget(self.coatingLayerWidget())
-        self.experimentItemTab().addTab(self._layer_scroll, "Coating Layer")
+        expt_scroll = QScrollArea()
+        expt_scroll.setWidgetResizable(True)
+        expt_scroll.setWidget(self.experimentWidget())
+        self.experimentItemTab().addTab(expt_scroll, "Experiment")
+        ref_scroll = QScrollArea()
+        ref_scroll.setWidgetResizable(True)
+        ref_scroll.setWidget(self.referenceWidget())
+        self.experimentItemTab().addTab(ref_scroll, "Reference")
+        subst_scroll = QScrollArea()
+        subst_scroll.setWidgetResizable(True)
+        subst_scroll.setWidget(self.substrateWidget())
+        self.experimentItemTab().addTab(subst_scroll, "Substrate")
+        layer_scroll = QScrollArea()
+        layer_scroll.setWidgetResizable(True)
+        layer_scroll.setWidget(self.coatingLayerWidget())
+        self.experimentItemTab().addTab(layer_scroll, "Coating Layer")
+        analyze_scroll = QScrollArea()
+        analyze_scroll.setWidgetResizable(True)
+        analyze_scroll.setWidget(self.analysisWidget())
+        self.experimentItemTab().addTab(analyze_scroll, "Analyze")
         exptitem_dock.setWidget(self.experimentItemTab())
         self.addDockWidget(Qt.BottomDockWidgetArea, exptitem_dock)
 
@@ -196,6 +208,10 @@ class AnalysisGUI(QMainWindow):
     def coatingLayerWidget(self) -> CoatingLayerWidget:
         """Widget to manage data for coating layer class."""
         return self._layer_widget
+
+    def analysisWidget(self) -> AnalysisWidget:
+        """Widget to manage analysis."""
+        return self._anal_widget
 
     def referenceWorker(self) -> ReferenceWorker:
         """Worker for API with :class:`SubstrateReferenceBase`."""
