@@ -242,7 +242,7 @@ class ExperimentWidget(ControlWidget):
         args = model.data(
             model.index(index.row(), ExperimentItemModel.Col_Experiment),
             Qt.UserRole,
-        )[1]
+        )[0]
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
         self.typeWidget().onInformationEdit()
@@ -563,7 +563,7 @@ class ReferenceWidget(ControlWidget):
         args = model.data(
             model.index(index.row(), ExperimentItemModel.Col_Reference),
             Qt.UserRole,
-        )[1]
+        )[0]
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
         self.typeWidget().onInformationEdit()
@@ -835,7 +835,7 @@ class SubstrateWidget(ControlWidget):
         args = model.data(
             model.index(index.row(), ExperimentItemModel.Col_Substrate),
             Qt.UserRole,
-        )[1]
+        )[0]
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
         self.typeWidget().onInformationEdit()
@@ -1073,7 +1073,7 @@ class CoatingLayerWidget(ControlWidget):
         args = model.data(
             model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
             Qt.UserRole,
-        )[1]
+        )[0]
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
         self.typeWidget().onInformationEdit()
