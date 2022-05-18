@@ -12,7 +12,6 @@ import importlib
 
 __all__ = [
     "import_variable",
-    "get_importinfo",
 ]
 
 
@@ -52,24 +51,3 @@ def import_variable(name: str, module_name: str = "") -> object:
         ret = eval(name)
 
     return ret
-
-
-def get_importinfo(var: object) -> str:
-    """
-    Get information to import the variable.
-
-    Parameters
-    ==========
-
-    var
-        Any object
-
-    Returns
-    =======
-
-    modname
-        Name of the module where *var* can be imported.
-
-    """
-    modname = getattr(var, "__module__", type(var).__module__)
-    return modname
