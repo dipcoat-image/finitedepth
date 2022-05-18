@@ -33,6 +33,7 @@ from .workers import (
     SubstrateWorker,
     ExperimentVisualizationMode,
     ExperimentWorker,
+    AnalysisWorker,
 )
 
 
@@ -71,6 +72,7 @@ class AnalysisGUI(QMainWindow):
         self._ref_worker = ReferenceWorker()
         self._subst_worker = SubstrateWorker()
         self._expt_worker = ExperimentWorker()
+        self._anal_worker = AnalysisWorker()
         self._cwd_button = QPushButton()
 
         self.setCentralWidget(self.mainDisplayWindow())
@@ -137,6 +139,12 @@ class AnalysisGUI(QMainWindow):
         )
         self.experimentInventory().experimentListView().activated.connect(
             self.experimentWorker().setCurrentExperimentIndex
+        )
+        self.analysisWorker().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
+        )
+        self.experimentInventory().experimentListView().activated.connect(
+            self.analysisWorker().setCurrentExperimentIndex
         )
 
         self.cwdButton().clicked.connect(self.browseCWD)
@@ -224,6 +232,10 @@ class AnalysisGUI(QMainWindow):
     def experimentWorker(self) -> ExperimentWorker:
         """Worker for API with :class:`ExperimentBase`."""
         return self._expt_worker
+
+    def analysisWorker(self) -> AnalysisWorker:
+        """Worker to analyze the object."""
+        return self._anal_worker
 
     def cwdButton(self) -> QPushButton:
         """Button to open file dialog to change current directory."""
