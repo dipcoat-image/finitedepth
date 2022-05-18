@@ -19,6 +19,7 @@ from dipcoatimage.finitedepth.analysis import (
     CoatingLayerArgs,
 )
 from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol, Importer
+import enum
 from typing import Any, Optional, TypeVar, Type
 
 
@@ -27,6 +28,7 @@ __all__ = [
     "StructuredReferenceArgs",
     "StructuredSubstrateArgs",
     "StructuredCoatingLayerArgs",
+    "ClassSelection",
 ]
 
 
@@ -146,3 +148,15 @@ class StructuredCoatingLayerArgs:
             drawopt = None
             decoopt = None
         return cls(layertype, param, drawopt, decoopt)
+
+
+class ClassSelection(enum.Enum):
+    """
+    Enum to indicate class-specific selections, e.g. which tab widget or worker
+    to choose.
+    """
+    UNKNOWN = 0
+    REFERENCE = 1
+    SUBSTRATE = 2
+    COATINGLAYER = 3
+    EXPERIMENT = 4
