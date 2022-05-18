@@ -701,6 +701,7 @@ class ReferenceWidget(ControlWidget):
         """Update :meth:`pathLineEdit` with *path*."""
         self.pathLineEdit().setText(path)
         self.onPathEditFinished()
+        self.pathMapper().submit()
 
     @Slot()
     def onPathEditFinished(self):

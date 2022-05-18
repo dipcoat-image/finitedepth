@@ -951,6 +951,7 @@ class MasterWorker(QObject):
         self._subst_worker = SubstrateWorker()
         self._expt_worker = ExperimentWorker()
         self._anal_worker = AnalysisWorker()
+        self._visualizing_worker = ExperimentWorker()
 
         self.connectModelSignals()
         self.referenceWorker().referenceChanged.connect(
@@ -978,6 +979,9 @@ class MasterWorker(QObject):
 
     def analysisWorker(self) -> AnalysisWorker:
         return self._anal_worker
+
+    def visualizingWorker(self) -> WorkerBase:
+        return self._visualizing_worker
 
     def setExperimentItemModel(self, model: ExperimentItemModel):
         """Set :meth:`experimentItemModel`."""
@@ -1018,6 +1022,7 @@ class MasterWorker(QObject):
                 data = self.experimentItemModel().data(item.index(), Qt.UserRole)[0]
                 self.experimentWorker().setStructuredExperimentArgs(data)
                 self.experimentWorker().updateExperiment()
+        self.emitImage()
 
     @Slot(QModelIndex, int, int)
     def onExperimentItemRowsChange(self, index: QModelIndex, first: int, last: int):
@@ -1029,6 +1034,13 @@ class MasterWorker(QObject):
         if index.parent().isValid():
             raise TypeError("Only top-level index can be activated.")
         model = self.experimentItemModel()
+        refpath = model.data(
+            model.index(index.row(), ExperimentItemModel.Col_ReferencePath)
+        )
+        img = cv2.imread(refpath)
+        if img is not None:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        self.referenceWorker().setImage(img)
         refargs = model.data(
             model.index(index.row(), ExperimentItemModel.Col_Reference),
             Qt.UserRole,
@@ -1053,6 +1065,7 @@ class MasterWorker(QObject):
         self.referenceWorker().updateReference()
         self.substrateWorker().updateSubstrate()
         self.experimentWorker().updateExperiment()
+        self.emitImage()
 
     @Slot(object)
     def setReferenceImage(self, img: Optional[npt.NDArray[np.uint8]]):
@@ -1060,3 +1073,11 @@ class MasterWorker(QObject):
         self.referenceWorker().updateReference()
         self.substrateWorker().updateSubstrate()
         self.experimentWorker().updateExperiment()
+        self.emitImage()
+
+    def setVisualizingWorker(self, worker: WorkerBase):
+        self._visualizing_worker = worker
+
+    def emitImage(self):
+        img = self.visualizingWorker().visualizedImage()
+        self.visualizedImageChanged.emit(img)

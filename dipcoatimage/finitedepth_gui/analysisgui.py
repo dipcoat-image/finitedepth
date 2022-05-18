@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QDockWidget,
     QPushButton,
+    QWidget,
     QFileDialog,
 )
 from .controlwidgets import (
@@ -22,6 +23,7 @@ from .inventory import (
     ExperimentInventory,
 )
 from .workers import (
+    WorkerBase,
     MasterWorker,
 )
 
@@ -182,9 +184,32 @@ class AnalysisGUI(QMainWindow):
         """Button to open file dialog to change current directory."""
         return self._cwd_button
 
+    def determineDisplay(self, widget: QWidget) -> QWidget:
+        return self.mainDisplayWindow().imageDisplayWidget()
+
+    def determineWorker(self, widget: QWidget) -> WorkerBase:
+        if not isinstance(widget, QScrollArea):
+            ret: WorkerBase = self.masterWorker().experimentWorker()
+        else:
+            if widget.widget() == self.referenceWidget():
+                ret = self.masterWorker().referenceWorker()
+            elif widget.widget() == self.substrateWidget():
+                ret = self.masterWorker().substrateWorker()
+            else:
+                ret = self.masterWorker().experimentWorker()
+        return ret
+
     @Slot(int)
     def onCurrentTabChange(self, index: int):
-        pass
+        self.referenceWidget().templateROIDrawButton().setChecked(False)
+        self.referenceWidget().substrateROIDrawButton().setChecked(False)
+        self.mainDisplayWindow().videoDisplayWidget().videoPlayer().pause()
+
+        widget = self.experimentItemTab().widget(index)
+        self.mainDisplayWindow().exposeDisplayWidget(self.determineDisplay(widget))
+        self.masterWorker().setVisualizingWorker(self.determineWorker(widget))
+
+        self.masterWorker().emitImage()
 
     def browseCWD(self):
         path = QFileDialog.getExistingDirectory(
