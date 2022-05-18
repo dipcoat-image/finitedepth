@@ -705,32 +705,14 @@ class ReferenceWidget(ControlWidget):
     @Slot()
     def onPathEditFinished(self):
         """Update ROI widget, emit :attr:`imageChanged` and commit to model."""
-        self.updateROIMaximum()
-        self.emitImage()
-        self.commitToCurrentItem()
-
-    def updateROIMaximum(self):
-        """
-        Update maximum of :meth:`templateROIWidget` and
-        :meth:`substrateROIWidget` with image from :meth:`pathLineEdit`.
-        """
-        path = self.pathLineEdit().text()
-        img = cv2.imread(path)
+        img = cv2.imread(self.pathLineEdit().text())
         if img is None:
             w, h = (0, 0)
         else:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             w, h = (img.shape[1], img.shape[0])
         self.templateROIWidget().setROIMaximum(w, h)
         self.substrateROIWidget().setROIMaximum(w, h)
-
-    @Slot()
-    def emitImage(self):
-        """
-        Emit the RGB image from :meth:`pathLineEdit` to :attr:`imageChanged.`
-        """
-        img = cv2.imread(self.pathLineEdit().text())
-        if img is not None:
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.imageChanged.emit(img)
 
     @Slot()
