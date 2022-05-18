@@ -34,6 +34,7 @@ from .core import (
     StructuredCoatingLayerArgs,
     StructuredExperimentArgs,
 )
+from .core import ClassSelection
 from .inventory import (
     ExperimentItemModel,
 )
@@ -1083,3 +1084,12 @@ class MasterWorker(QObject):
     def emitImage(self):
         img = self.visualizingWorker().visualizedImage()
         self.visualizedImageChanged.emit(img)
+
+    def determineVisualizingWorker(self, selection: ClassSelection) -> WorkerBase:
+        if selection == ClassSelection.REFERENCE:
+            ret = self.referenceWorker()
+        elif selection == ClassSelection.SUBSTRATE:
+            ret = self.substrateWorker()
+        else:
+            ret = self.experimentWorker()
+        return ret

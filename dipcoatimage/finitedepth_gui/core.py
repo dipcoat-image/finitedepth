@@ -155,6 +155,7 @@ class ClassSelection(enum.Enum):
     Enum to indicate class-specific selections, e.g. which tab widget or worker
     to choose.
     """
+
     UNKNOWN = 0
     REFERENCE = 1
     SUBSTRATE = 2
