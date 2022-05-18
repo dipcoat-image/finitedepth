@@ -16,8 +16,6 @@ from .controlwidgets import (
     AnalysisWidget,
 )
 from .display import (
-    PreviewableNDArrayVideoPlayer,
-    ExperimentArrayProcessor,
     MainDisplayWindow,
 )
 from .inventory import (
@@ -50,11 +48,9 @@ class AnalysisGUI(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._exptvid_arrayprocessor = ExperimentArrayProcessor()
         self._main_display = MainDisplayWindow()
         self._expt_inv = ExperimentInventory()
         self._exptitem_tab = QTabWidget()
-        self._prev_tab = None
         self._expt_widget = ExperimentWidget()
         self._ref_widget = ReferenceWidget()
         self._subst_widget = SubstrateWidget()
@@ -64,10 +60,6 @@ class AnalysisGUI(QMainWindow):
         self._cwd_button = QPushButton()
 
         self.setCentralWidget(self.mainDisplayWindow())
-        self.mainDisplayWindow().visualizeAction().setChecked(True)
-        videoDisplayWidget = self.mainDisplayWindow().videoDisplayWidget()
-        videoDisplayWidget.setVideoPlayer(PreviewableNDArrayVideoPlayer(self))
-        videoDisplayWidget.setArrayProcessor(self.experimentVideoArrayProcessor())
 
         self.experimentWidget().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
@@ -143,12 +135,6 @@ class AnalysisGUI(QMainWindow):
         self.cwdButton().setText("Browse")
         self.statusBar().addPermanentWidget(self.cwdButton())
         self.statusBar().showMessage(os.getcwd())
-
-    def experimentVideoArrayProcessor(self) -> ExperimentArrayProcessor:
-        """
-        Array processor to visualize experiment video stream from local file.
-        """
-        return self._exptvid_arrayprocessor
 
     def mainDisplayWindow(self) -> MainDisplayWindow:
         """Main window which includes all display widgets."""

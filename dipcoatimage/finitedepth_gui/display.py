@@ -675,6 +675,8 @@ class MainDisplayWindow(QMainWindow):
         self._display_toolbar = DisplayWidgetToolBar()
 
         self.imageDisplayWidget().setAlignment(Qt.AlignCenter)
+        self.videoDisplayWidget().setVideoPlayer(PreviewableNDArrayVideoPlayer(self))
+        self.videoDisplayWidget().setArrayProcessor(ExperimentArrayProcessor())
         self.addToolBar(self.displayToolBar())
 
         self.initUI()
