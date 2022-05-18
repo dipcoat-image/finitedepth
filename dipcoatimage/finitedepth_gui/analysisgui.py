@@ -267,17 +267,6 @@ class AnalysisGUI(QMainWindow):
         if player.playbackState() != QMediaPlayer.PlayingState:
             self.experimentWorker().updateLayerShapeGenerator()
 
-    @Slot()
-    def browseCWD(self):
-        path = QFileDialog.getExistingDirectory(
-            self,
-            "Select current working directory",
-            "./",
-            options=QFileDialog.ShowDirsOnly | QFileDialog.DontUseNativeDialog,
-        )
-        if path:
-            self.setCWD(path)
-
     def determineDisplayWidget(
         self, tab: QScrollArea, exptkind: ExperimentKind
     ) -> QWidget:
@@ -302,17 +291,16 @@ class AnalysisGUI(QMainWindow):
                 ret = self.mainDisplayWindow().imageDisplayWidget()
         return ret
 
-    def determineWorker(self, tab: QScrollArea) -> WorkerBase:
-        """
-        Return a worker corresponding to *tab* in :meth:`experimentItemTab`.
-        """
-        if tab.widget() == self.referenceWidget():
-            ret: WorkerBase = self.referenceWorker()
-        elif tab.widget() == self.substrateWidget():
-            ret = self.substrateWorker()
-        else:
-            ret = self.experimentWorker()
-        return ret
+    @Slot()
+    def browseCWD(self):
+        path = QFileDialog.getExistingDirectory(
+            self,
+            "Select current working directory",
+            "./",
+            options=QFileDialog.ShowDirsOnly | QFileDialog.DontUseNativeDialog,
+        )
+        if path:
+            self.setCWD(path)
 
     def setCWD(self, path: str):
         os.chdir(path)

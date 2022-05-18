@@ -27,7 +27,7 @@ import numpy.typing as npt
 import os
 from PySide6.QtCore import QObject, QModelIndex, Slot, Signal, Qt
 from PySide6.QtGui import QStandardItem
-from typing import Optional, Type, Generator, Tuple
+from typing import Optional, Type, Generator, List
 from .inventory import (
     ExperimentItemModel,
     StructuredReferenceArgs,
@@ -908,17 +908,26 @@ class AnalysisWorker(WorkerBase):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._experiment = None
-        self._paths = ()
+        self._paths = []
         self._analysisArgs = AnalysisArgs()
 
     def experiment(self) -> Optional[ExperimentBase]:
         return self._experiment
 
-    def paths(self) -> Tuple[str, ...]:
+    def paths(self) -> List[str]:
         return self._paths
 
     def analysisArgs(self) -> AnalysisArgs:
         return self._analysisArgs
+
+    def setExperiment(self, expt: Optional[ExperimentBase]):
+        self._experiment = expt
+
+    def setPaths(self, paths: List[str]):
+        self._paths = paths
+
+    def setAnalysisArgs(self, args: AnalysisArgs):
+        self._analysisArgs = args
 
     def analyze(self):
         if self.experiment is None:
