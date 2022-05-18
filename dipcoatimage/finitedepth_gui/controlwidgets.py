@@ -41,6 +41,8 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QComboBox,
     QProgressBar,
+    QTabWidget,
+    QScrollArea,
 )
 from typing import Any
 from .importwidget import ImportWidget
@@ -51,7 +53,7 @@ from .inventory import (
     StructuredSubstrateArgs,
     StructuredCoatingLayerArgs,
 )
-from .roimodel import ROIWidget
+from .roimodel import ROIModel, ROIWidget
 
 
 __all__ = [
@@ -62,6 +64,7 @@ __all__ = [
     "CoatingLayerWidget",
     "EmptyDoubleValidator",
     "AnalysisWidget",
+    "MasterControlWidget",
 ]
 
 
@@ -86,11 +89,8 @@ class ControlWidget(QWidget):
         """Set :meth:`experimentItemModel`."""
         self._exptitem_model = model
 
-    @Slot(QModelIndex)
     def setCurrentExperimentIndex(self, index: QModelIndex):
         """Set currently activated index from :meth:`experimentItemModel`."""
-        if index.parent().isValid():
-            raise TypeError("Only top-level index can be activated.")
         self._currentIndex = index
 
 
@@ -226,7 +226,6 @@ class ExperimentWidget(ControlWidget):
             ExperimentItemModel.Col_ExperimentName,
         )
 
-    @Slot(QModelIndex)
     def setCurrentExperimentIndex(self, index: QModelIndex):
         super().setCurrentExperimentIndex(index)
         # update experiment name and paths
@@ -242,7 +241,7 @@ class ExperimentWidget(ControlWidget):
         args = model.data(
             model.index(index.row(), ExperimentItemModel.Col_Experiment),
             Qt.UserRole,
-        )[1]
+        )[0]
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
         self.typeWidget().onInformationEdit()
@@ -551,7 +550,6 @@ class ReferenceWidget(ControlWidget):
             ExperimentItemModel.Col_ReferencePath,
         )
 
-    @Slot(QModelIndex)
     def setCurrentExperimentIndex(self, index: QModelIndex):
         super().setCurrentExperimentIndex(index)
         # update reference path
@@ -563,7 +561,7 @@ class ReferenceWidget(ControlWidget):
         args = model.data(
             model.index(index.row(), ExperimentItemModel.Col_Reference),
             Qt.UserRole,
-        )[1]
+        )[0]
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
         self.typeWidget().onInformationEdit()
@@ -701,6 +699,7 @@ class ReferenceWidget(ControlWidget):
         """Update :meth:`pathLineEdit` with *path*."""
         self.pathLineEdit().setText(path)
         self.onPathEditFinished()
+        self.pathMapper().submit()
 
     @Slot()
     def onPathEditFinished(self):
@@ -825,7 +824,6 @@ class SubstrateWidget(ControlWidget):
         """Widget to specify the substrate drawing options."""
         return self._drawopt_widget
 
-    @Slot(QModelIndex)
     def setCurrentExperimentIndex(self, index: QModelIndex):
         super().setCurrentExperimentIndex(index)
 
@@ -834,7 +832,7 @@ class SubstrateWidget(ControlWidget):
         args = model.data(
             model.index(index.row(), ExperimentItemModel.Col_Substrate),
             Qt.UserRole,
-        )[1]
+        )[0]
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
         self.typeWidget().onInformationEdit()
@@ -1063,7 +1061,6 @@ class CoatingLayerWidget(ControlWidget):
             raise TypeError(f"{widget} is not dataclass widget.")
         return widget
 
-    @Slot(QModelIndex)
     def setCurrentExperimentIndex(self, index: QModelIndex):
         super().setCurrentExperimentIndex(index)
 
@@ -1072,7 +1069,7 @@ class CoatingLayerWidget(ControlWidget):
         args = model.data(
             model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
             Qt.UserRole,
-        )[1]
+        )[0]
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
         self.typeWidget().onInformationEdit()
@@ -1355,7 +1352,6 @@ class AnalysisWidget(ControlWidget):
         """Progress bar to display analysis progress."""
         return self._progressbar
 
-    @Slot(QModelIndex)
     def setCurrentExperimentIndex(self, index: QModelIndex):
         super().setCurrentExperimentIndex(index)
 
@@ -1409,3 +1405,96 @@ class AnalysisWidget(ControlWidget):
                 self.analysisArgs(),
                 Qt.UserRole,  # type: ignore[arg-type]
             )
+
+
+class MasterControlWidget(QTabWidget):
+    """Widget which contains control widgets."""
+
+    imageChanged = Signal(object)
+    drawROIToggled = Signal(ROIModel, bool)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self._expt_widget = ExperimentWidget()
+        self._ref_widget = ReferenceWidget()
+        self._subst_widget = SubstrateWidget()
+        self._layer_widget = CoatingLayerWidget()
+        self._anal_widget = AnalysisWidget()
+
+        self.referenceWidget().imageChanged.connect(self.imageChanged)
+        self.referenceWidget().templateROIDrawButton().toggled.connect(
+            self.onTemplateROIDrawButtonToggle
+        )
+        self.referenceWidget().substrateROIDrawButton().toggled.connect(
+            self.onSubstrateROIDrawButtonToggle
+        )
+
+        expt_scroll = QScrollArea()
+        expt_scroll.setWidgetResizable(True)
+        expt_scroll.setWidget(self.experimentWidget())
+        self.addTab(expt_scroll, "Experiment")
+        ref_scroll = QScrollArea()
+        ref_scroll.setWidgetResizable(True)
+        ref_scroll.setWidget(self.referenceWidget())
+        self.addTab(ref_scroll, "Reference")
+        subst_scroll = QScrollArea()
+        subst_scroll.setWidgetResizable(True)
+        subst_scroll.setWidget(self.substrateWidget())
+        self.addTab(subst_scroll, "Substrate")
+        layer_scroll = QScrollArea()
+        layer_scroll.setWidgetResizable(True)
+        layer_scroll.setWidget(self.coatingLayerWidget())
+        self.addTab(layer_scroll, "Coating Layer")
+        analyze_scroll = QScrollArea()
+        analyze_scroll.setWidgetResizable(True)
+        analyze_scroll.setWidget(self.analysisWidget())
+        self.addTab(analyze_scroll, "Analyze")
+
+    def experimentWidget(self) -> ExperimentWidget:
+        return self._expt_widget
+
+    def referenceWidget(self) -> ReferenceWidget:
+        return self._ref_widget
+
+    def substrateWidget(self) -> SubstrateWidget:
+        return self._subst_widget
+
+    def coatingLayerWidget(self) -> CoatingLayerWidget:
+        return self._layer_widget
+
+    def analysisWidget(self) -> AnalysisWidget:
+        return self._anal_widget
+
+    def setExperimentItemModel(self, model: ExperimentItemModel):
+        """Set :meth:`experimentItemModel`."""
+        self.experimentWidget().setExperimentItemModel(model)
+        self.referenceWidget().setExperimentItemModel(model)
+        self.substrateWidget().setExperimentItemModel(model)
+        self.coatingLayerWidget().setExperimentItemModel(model)
+        self.analysisWidget().setExperimentItemModel(model)
+
+    @Slot(QModelIndex)
+    def setCurrentExperimentIndex(self, index: QModelIndex):
+        """Set currently activated index from :meth:`experimentItemModel`."""
+        if index.parent().isValid():
+            raise TypeError("Only top-level index can be activated.")
+        self.experimentWidget().setCurrentExperimentIndex(index)
+        self.referenceWidget().setCurrentExperimentIndex(index)
+        self.substrateWidget().setCurrentExperimentIndex(index)
+        self.coatingLayerWidget().setCurrentExperimentIndex(index)
+        self.analysisWidget().setCurrentExperimentIndex(index)
+
+    @Slot(bool)
+    def onTemplateROIDrawButtonToggle(self, state: bool):
+        self.drawROIToggled.emit(
+            self.referenceWidget().templateROIWidget().roiModel(),
+            state,
+        )
+
+    @Slot(bool)
+    def onSubstrateROIDrawButtonToggle(self, state: bool):
+        self.drawROIToggled.emit(
+            self.referenceWidget().substrateROIWidget().roiModel(),
+            state,
+        )

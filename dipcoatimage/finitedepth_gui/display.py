@@ -675,6 +675,8 @@ class MainDisplayWindow(QMainWindow):
         self._display_toolbar = DisplayWidgetToolBar()
 
         self.imageDisplayWidget().setAlignment(Qt.AlignCenter)
+        self.videoDisplayWidget().setVideoPlayer(PreviewableNDArrayVideoPlayer(self))
+        self.videoDisplayWidget().setArrayProcessor(ExperimentArrayProcessor())
         self.addToolBar(self.displayToolBar())
 
         self.initUI()
@@ -744,3 +746,11 @@ class MainDisplayWindow(QMainWindow):
             label.setPixmap(QPixmap())
         else:
             label.setArray(img)
+
+    @Slot(ROIModel, bool)
+    def toggleROIDraw(self, model: ROIModel, state: bool):
+        label = self.currentDisplayingLabel()
+        if state:
+            label.addROIModel(model)
+        else:
+            label.removeROIModel(model)

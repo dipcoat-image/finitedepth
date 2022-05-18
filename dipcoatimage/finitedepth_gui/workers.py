@@ -44,7 +44,7 @@ __all__ = [
     "SubstrateWorker",
     "ExperimentWorker",
     "AnalysisWorker",
-    "MainWorker",
+    "MasterWorker",
 ]
 
 
@@ -108,13 +108,11 @@ class ReferenceWorker(WorkerBase):
     Resulting object can be acquired from :meth:`reference`, or calling
     :meth:`emitReference` and listening to :attr:`referenceChanged` signal.
 
-    Visualization result can be directly acquired from :meth:`visualizedImage`,
-    or calling :meth:`emitImage` and listening to :attr:`visualizedImageChanged`.
+    Visualization result can be directly acquired from :meth:`visualizedImage`.
 
     """
 
     referenceChanged = Signal(object)
-    visualizedImageChanged = Signal(np.ndarray)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -272,15 +270,6 @@ class ReferenceWorker(WorkerBase):
             image = self.image()
         return image
 
-    def emitImage(self):
-        """
-        Emit the result of :meth:`visualizedImage` to
-        :attr:`visualizedImageChanged` signal.
-
-        If visualization raises error, directly emit :meth:`image`.
-        """
-        self.visualizedImageChanged.emit(self.visualizedImage())
-
 
 class SubstrateWorker(WorkerBase):
     """
@@ -301,13 +290,11 @@ class SubstrateWorker(WorkerBase):
     Resulting object can be acquired from :meth:`substrate`, or calling
     :meth:`emitSubstrate` and listening to :attr:`substrateChanged` signal.
 
-    Visualization result can be directly acquired from :meth:`visualizedImage`,
-    or calling :meth:`emitImage` and listening to :attr:`visualizedImageChanged`.
+    Visualization result can be directly acquired from :meth:`visualizedImage`.
 
     """
 
     substrateChanged = Signal(object)
-    visualizedImageChanged = Signal(np.ndarray)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -449,15 +436,6 @@ class SubstrateWorker(WorkerBase):
             image = np.empty((0, 0, 0), dtype=np.uint8)
         return image
 
-    def emitImage(self):
-        """
-        Emit the result of :meth:`visualizedImage` to
-        :attr:`visualizedImageChanged` signal.
-
-        If visualization raises error, directly emit :meth:`image`.
-        """
-        self.visualizedImageChanged.emit(self.visualizedImage())
-
 
 class ExperimentWorker(WorkerBase):
     """
@@ -482,15 +460,12 @@ class ExperimentWorker(WorkerBase):
     Resulting object can be acquired by :meth:`experiment`, or calling
     :meth:`emitExperiment` and listening to :attr:`experimentChanged` signal.
 
-    To visualize the layer shape image, pass it to :meth:`setImage`
-    first. Visualization result can be directly acquired from
-    :meth:`visualizedImage`, or calling :meth:`emitImage` and listening
-    to :attr:`visualizedImageChanged` signal.
+    To visualize the layer shape image, pass it to :meth:`setImage` first.
+    Visualization result can be directly acquired from:meth:`visualizedImage`.
 
     """
 
     experimentChanged = Signal(object)
-    visualizedImageChanged = Signal(np.ndarray)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -793,14 +768,6 @@ class ExperimentWorker(WorkerBase):
         bin_img[max(y0, 0) : min(y1, img_h), max(x0, 0) : min(x1, img_w)] = nxor
         return cv2.cvtColor(bin_img, cv2.COLOR_GRAY2RGB)
 
-    def emitImage(self):
-        """
-        Emit the result of :meth:`visualizedImage` to
-        :attr:`visualizedImageChanged` signal. If visualization raises error,
-        directly emit :meth:`image`.
-        """
-        self.visualizedImageChanged.emit(self.visualizedImage())
-
 
 class AnalysisWorker(WorkerBase):
     """
@@ -968,10 +935,12 @@ class AnalysisWorker(WorkerBase):
                 videowriter.release()
 
 
-class MainWorker(QObject):
+class MasterWorker(QObject):
     """
     Object which contains subworkers.
     """
+
+    visualizedImageChanged = Signal(np.ndarray)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -982,6 +951,7 @@ class MainWorker(QObject):
         self._subst_worker = SubstrateWorker()
         self._expt_worker = ExperimentWorker()
         self._anal_worker = AnalysisWorker()
+        self._visualizing_worker = ExperimentWorker()
 
         self.connectModelSignals()
         self.referenceWorker().referenceChanged.connect(
@@ -1010,6 +980,9 @@ class MainWorker(QObject):
     def analysisWorker(self) -> AnalysisWorker:
         return self._anal_worker
 
+    def visualizingWorker(self) -> WorkerBase:
+        return self._visualizing_worker
+
     def setExperimentItemModel(self, model: ExperimentItemModel):
         """Set :meth:`experimentItemModel`."""
         self.disconnectModelSignals()
@@ -1034,21 +1007,22 @@ class MainWorker(QObject):
     def onExperimentItemChange(self, item: QStandardItem):
         if item.model() == self.experimentItemModel() and item.parent() is None:
             if item.column() == ExperimentItemModel.Col_Reference:
-                data = self.experimentItemModel().data(item.index(), Qt.UserRole)[0]
+                data = self.experimentItemModel().data(item.index(), Qt.UserRole)[1]
                 self.referenceWorker().setStructuredReferenceArgs(data)
                 self.referenceWorker().updateReference()
             elif item.column() == ExperimentItemModel.Col_Substrate:
-                data = self.experimentItemModel().data(item.index(), Qt.UserRole)[0]
+                data = self.experimentItemModel().data(item.index(), Qt.UserRole)[1]
                 self.substrateWorker().setStructuredSubstrateArgs(data)
                 self.substrateWorker().updateSubstrate()
             elif item.column() == ExperimentItemModel.Col_CoatingLayer:
-                data = self.experimentItemModel().data(item.index(), Qt.UserRole)[0]
+                data = self.experimentItemModel().data(item.index(), Qt.UserRole)[1]
                 self.experimentWorker().setStructuredCoatingLayerArgs(data)
                 self.experimentWorker().updateExperiment()
             elif item.column() == ExperimentItemModel.Col_Experiment:
-                data = self.experimentItemModel().data(item.index(), Qt.UserRole)[0]
+                data = self.experimentItemModel().data(item.index(), Qt.UserRole)[1]
                 self.experimentWorker().setStructuredExperimentArgs(data)
                 self.experimentWorker().updateExperiment()
+        self.emitImage()
 
     @Slot(QModelIndex, int, int)
     def onExperimentItemRowsChange(self, index: QModelIndex, first: int, last: int):
@@ -1060,30 +1034,38 @@ class MainWorker(QObject):
         if index.parent().isValid():
             raise TypeError("Only top-level index can be activated.")
         model = self.experimentItemModel()
+        refpath = model.data(
+            model.index(index.row(), ExperimentItemModel.Col_ReferencePath)
+        )
+        img = cv2.imread(refpath)
+        if img is not None:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        self.referenceWorker().setImage(img)
         refargs = model.data(
             model.index(index.row(), ExperimentItemModel.Col_Reference),
             Qt.UserRole,
-        )[0]
+        )[1]
         self.referenceWorker().setStructuredReferenceArgs(refargs)
         substargs = model.data(
             model.index(index.row(), ExperimentItemModel.Col_Substrate),
             Qt.UserRole,
-        )[0]
+        )[1]
         self.substrateWorker().setStructuredSubstrateArgs(substargs)
         layerargs = model.data(
             model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
             Qt.UserRole,
-        )[0]
+        )[1]
         self.experimentWorker().setStructuredCoatingLayerArgs(layerargs)
         exptargs = model.data(
             model.index(index.row(), ExperimentItemModel.Col_Experiment),
             Qt.UserRole,
-        )[0]
+        )[1]
         self.experimentWorker().setStructuredExperimentArgs(exptargs)
 
         self.referenceWorker().updateReference()
         self.substrateWorker().updateSubstrate()
         self.experimentWorker().updateExperiment()
+        self.emitImage()
 
     @Slot(object)
     def setReferenceImage(self, img: Optional[npt.NDArray[np.uint8]]):
@@ -1091,3 +1073,11 @@ class MainWorker(QObject):
         self.referenceWorker().updateReference()
         self.substrateWorker().updateSubstrate()
         self.experimentWorker().updateExperiment()
+        self.emitImage()
+
+    def setVisualizingWorker(self, worker: WorkerBase):
+        self._visualizing_worker = worker
+
+    def emitImage(self):
+        img = self.visualizingWorker().visualizedImage()
+        self.visualizedImageChanged.emit(img)

@@ -1,4 +1,10 @@
 import dataclasses
+from dipcoatimage.finitedepth import (
+    SubstrateReference,
+    Substrate,
+    LayerArea,
+    Experiment,
+)
 from dipcoatimage.finitedepth.analysis import (
     ReferenceArgs,
     SubstrateArgs,
@@ -42,7 +48,7 @@ __all__ = [
 class StructuredExperimentArgs:
     """Structured data to construct experiment object."""
 
-    type: Any = object()
+    type: Any = Experiment
     parameters: Optional[DataclassProtocol] = None
 
 
@@ -50,7 +56,7 @@ class StructuredExperimentArgs:
 class StructuredReferenceArgs:
     """Structured data to construct reference object."""
 
-    type: Any = object()
+    type: Any = SubstrateReference
     templateROI: OptionalROI = (0, 0, None, None)
     substrateROI: OptionalROI = (0, 0, None, None)
     parameters: Optional[DataclassProtocol] = None
@@ -61,7 +67,7 @@ class StructuredReferenceArgs:
 class StructuredSubstrateArgs:
     """Structured data to construct substrate object."""
 
-    type: Any = object()
+    type: Any = Substrate
     parameters: Optional[DataclassProtocol] = None
     draw_options: Optional[DataclassProtocol] = None
 
@@ -70,7 +76,7 @@ class StructuredSubstrateArgs:
 class StructuredCoatingLayerArgs:
     """Structured data to construct coating layer object."""
 
-    type: Any = object()
+    type: Any = LayerArea
     parameters: Optional[DataclassProtocol] = None
     draw_options: Optional[DataclassProtocol] = None
     deco_options: Optional[DataclassProtocol] = None
@@ -118,19 +124,19 @@ class ExperimentItemModel(QStandardItemModel):
         Corresponds to :attr:`ExperimentData.coat_paths`.
     3. Col_Reference
         Data to construct reference object. Data are stored in :meth:`data` as
-        tuple (:class:`StructuredReferenceArgs`, :class:`ReferenceArgs`) with
+        tuple (:class:`ReferenceArgs`, :class:`StructuredReferenceArgs`) with
         ``Qt.UserRole``. Corresponds to :attr:`ExperimentData.reference`.
     4. Col_Substrate
         Data to construct substrate object. Data are stored in :meth:`data` as
-        tuple (:class:`StructuredSubstrateArgs`, :class:`SubstrateArgs`) with
+        tuple (:class:`SubstrateArgs`, :class:`StructuredSubstrateArgs`) with
         ``Qt.UserRole``. Corresponds to :attr:`ExperimentData.substrate`.
     5. Col_CoatingLayer
         Data to construct coating layer object. Data are stored in :meth:`data`
-        as tuple (:class:`StructuredCoatingLayerArgs`, :class:`CoatingLayerArgs`)
+        as tuple (:class:`CoatingLayerArgs`, :class:`StructuredCoatingLayerArgs`)
         with ``Qt.UserRole``. Corresponds to :attr:`ExperimentData.coatinglayer`.
     6. Col_Experiment
         Data to construct experiment object. Data are stored in :meth:`data` as
-        tuple (:class:`StructuredExperimentArgs`, :class:`ExperimentArgs`) with
+        tuple (:class:`ExperimentArgs`, :class:`StructuredExperimentArgs`) with
         ``Qt.UserRole``. Corresponds to :attr:`ExperimentData.experiment`.
     7. Col_Analysis
         Data to analyze experiment. Data is stored in :meth:`data` as
@@ -155,13 +161,13 @@ class ExperimentItemModel(QStandardItemModel):
         ret = super().data(index, role)
         if role == Qt.UserRole and ret is None and not index.parent().isValid():
             if index.column() == self.Col_Reference:
-                ret = (StructuredReferenceArgs(), ReferenceArgs())
+                ret = (ReferenceArgs(), StructuredReferenceArgs())
             elif index.column() == self.Col_Substrate:
-                ret = (StructuredSubstrateArgs(), SubstrateArgs())
+                ret = (SubstrateArgs(), StructuredSubstrateArgs())
             elif index.column() == self.Col_CoatingLayer:
-                ret = (StructuredCoatingLayerArgs(), CoatingLayerArgs())
+                ret = (CoatingLayerArgs(), StructuredCoatingLayerArgs())
             elif index.column() == self.Col_Experiment:
-                ret = (StructuredExperimentArgs(), ExperimentArgs())
+                ret = (ExperimentArgs(), StructuredExperimentArgs())
             elif index.column() == self.Col_Analysis:
                 ret = AnalysisArgs()
         return ret
