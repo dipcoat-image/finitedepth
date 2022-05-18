@@ -28,7 +28,6 @@ from .inventory import (
     ExperimentInventory,
 )
 from .workers import (
-    WorkerBase,
     ReferenceWorker,
     SubstrateWorker,
     ExperimentVisualizationMode,
