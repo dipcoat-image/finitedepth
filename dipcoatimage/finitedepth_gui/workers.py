@@ -44,7 +44,7 @@ __all__ = [
     "SubstrateWorker",
     "ExperimentWorker",
     "AnalysisWorker",
-    "MainWorker",
+    "MasterWorker",
 ]
 
 
@@ -935,7 +935,7 @@ class AnalysisWorker(WorkerBase):
                 videowriter.release()
 
 
-class MainWorker(QObject):
+class MasterWorker(QObject):
     """
     Object which contains subworkers.
     """

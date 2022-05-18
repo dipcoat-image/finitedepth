@@ -6,11 +6,9 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QDockWidget,
     QPushButton,
-    QWidget,
     QFileDialog,
 )
 from .controlwidgets import (
-    ControlWidget,
     ExperimentWidget,
     ReferenceWidget,
     SubstrateWidget,
@@ -24,8 +22,7 @@ from .inventory import (
     ExperimentInventory,
 )
 from .workers import (
-    WorkerBase,
-    MainWorker,
+    MasterWorker,
 )
 
 
@@ -59,7 +56,7 @@ class AnalysisGUI(QMainWindow):
         self._subst_widget = SubstrateWidget()
         self._layer_widget = CoatingLayerWidget()
         self._anal_widget = AnalysisWidget()
-        self._main_worker = MainWorker()
+        self._master_worker = MasterWorker()
         self._cwd_button = QPushButton()
 
         self.setCentralWidget(self.mainDisplayWindow())
@@ -96,14 +93,16 @@ class AnalysisGUI(QMainWindow):
             self.analysisWidget().setCurrentExperimentIndex
         )
 
-        self.referenceWidget().imageChanged.connect(self.mainWorker().setReferenceImage)
-        self.mainWorker().setExperimentItemModel(
+        self.referenceWidget().imageChanged.connect(
+            self.masterWorker().setReferenceImage
+        )
+        self.masterWorker().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
         )
         self.experimentInventory().experimentListView().activated.connect(
-            self.mainWorker().setCurrentExperimentIndex
+            self.masterWorker().setCurrentExperimentIndex
         )
-        self.mainWorker().visualizedImageChanged.connect(
+        self.masterWorker().visualizedImageChanged.connect(
             self.mainDisplayWindow().displayImage
         )
 
@@ -175,9 +174,9 @@ class AnalysisGUI(QMainWindow):
         """Widget to manage analysis."""
         return self._anal_widget
 
-    def mainWorker(self) -> MainWorker:
+    def masterWorker(self) -> MasterWorker:
         """Object which contains workers for the experiment."""
-        return self._main_worker
+        return self._master_worker
 
     def cwdButton(self) -> QPushButton:
         """Button to open file dialog to change current directory."""
