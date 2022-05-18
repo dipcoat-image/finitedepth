@@ -53,7 +53,7 @@ from .inventory import (
     StructuredSubstrateArgs,
     StructuredCoatingLayerArgs,
 )
-from .roimodel import ROIWidget
+from .roimodel import ROIModel, ROIWidget
 
 
 __all__ = [
@@ -1411,6 +1411,7 @@ class MasterControlWidget(QTabWidget):
     """Widget which contains control widgets."""
 
     imageChanged = Signal(object)
+    drawROIToggled = Signal(ROIModel, bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1422,6 +1423,12 @@ class MasterControlWidget(QTabWidget):
         self._anal_widget = AnalysisWidget()
 
         self.referenceWidget().imageChanged.connect(self.imageChanged)
+        self.referenceWidget().templateROIDrawButton().toggled.connect(
+            self.onTemplateROIDrawButtonToggle
+        )
+        self.referenceWidget().substrateROIDrawButton().toggled.connect(
+            self.onSubstrateROIDrawButtonToggle
+        )
 
         expt_scroll = QScrollArea()
         expt_scroll.setWidgetResizable(True)
@@ -1477,3 +1484,17 @@ class MasterControlWidget(QTabWidget):
         self.substrateWidget().setCurrentExperimentIndex(index)
         self.coatingLayerWidget().setCurrentExperimentIndex(index)
         self.analysisWidget().setCurrentExperimentIndex(index)
+
+    @Slot(bool)
+    def onTemplateROIDrawButtonToggle(self, state: bool):
+        self.drawROIToggled.emit(
+            self.referenceWidget().templateROIWidget().roiModel(),
+            state,
+        )
+
+    @Slot(bool)
+    def onSubstrateROIDrawButtonToggle(self, state: bool):
+        self.drawROIToggled.emit(
+            self.referenceWidget().substrateROIWidget().roiModel(),
+            state,
+        )

@@ -64,11 +64,8 @@ class AnalysisGUI(QMainWindow):
             self.masterControlWidget().setCurrentExperimentIndex
         )
 
-        self.referenceWidget().templateROIDrawButton().toggled.connect(
-            self.onTemplateROIDrawButtonToggle
-        )
-        self.referenceWidget().substrateROIDrawButton().toggled.connect(
-            self.onSubstrateROIDrawButtonToggle
+        self.masterControlWidget().drawROIToggled.connect(
+            self.mainDisplayWindow().toggleROIDraw
         )
 
         self.masterControlWidget().imageChanged.connect(
@@ -143,22 +140,6 @@ class AnalysisGUI(QMainWindow):
     def cwdButton(self) -> QPushButton:
         """Button to open file dialog to change current directory."""
         return self._cwd_button
-
-    @Slot(bool)
-    def onTemplateROIDrawButtonToggle(self, state: bool):
-        label = self.mainDisplayWindow().currentDisplayingLabel()
-        if state:
-            label.addROIModel(self.referenceWidget().templateROIWidget().roiModel())
-        else:
-            label.removeROIModel(self.referenceWidget().templateROIWidget().roiModel())
-
-    @Slot(bool)
-    def onSubstrateROIDrawButtonToggle(self, state: bool):
-        label = self.mainDisplayWindow().currentDisplayingLabel()
-        if state:
-            label.addROIModel(self.referenceWidget().substrateROIWidget().roiModel())
-        else:
-            label.removeROIModel(self.referenceWidget().substrateROIWidget().roiModel())
 
     def determineDisplay(self, widget: QWidget) -> QWidget:
         return self.mainDisplayWindow().imageDisplayWidget()

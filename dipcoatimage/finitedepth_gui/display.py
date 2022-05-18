@@ -746,3 +746,11 @@ class MainDisplayWindow(QMainWindow):
             label.setPixmap(QPixmap())
         else:
             label.setArray(img)
+
+    @Slot(ROIModel, bool)
+    def toggleROIDraw(self, model: ROIModel, state: bool):
+        label = self.currentDisplayingLabel()
+        if state:
+            label.addROIModel(model)
+        else:
+            label.removeROIModel(model)
