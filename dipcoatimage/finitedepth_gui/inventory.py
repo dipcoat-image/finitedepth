@@ -1,3 +1,10 @@
+"""
+Experiment inventory
+====================
+
+Experiment item model and widget to view it.
+
+"""
 import dataclasses
 from dipcoatimage.finitedepth import (
     SubstrateReference,
