@@ -1,14 +1,16 @@
 import os
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtWidgets import (
     QMainWindow,
     QTabWidget,
     QScrollArea,
     QDockWidget,
     QPushButton,
+    QWidget,
     QFileDialog,
 )
 from .controlwidgets import (
+    ControlWidget,
     ExperimentWidget,
     ReferenceWidget,
     SubstrateWidget,
@@ -22,6 +24,7 @@ from .inventory import (
     ExperimentInventory,
 )
 from .workers import (
+    WorkerBase,
     MainWorker,
 )
 
@@ -61,6 +64,7 @@ class AnalysisGUI(QMainWindow):
 
         self.setCentralWidget(self.mainDisplayWindow())
 
+        self.experimentItemTab().currentChanged.connect(self.onCurrentTabChange)
         self.experimentWidget().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
         )
@@ -98,6 +102,9 @@ class AnalysisGUI(QMainWindow):
         )
         self.experimentInventory().experimentListView().activated.connect(
             self.mainWorker().setCurrentExperimentIndex
+        )
+        self.mainWorker().visualizedImageChanged.connect(
+            self.mainDisplayWindow().displayImage
         )
 
         self.cwdButton().clicked.connect(self.browseCWD)
@@ -175,6 +182,10 @@ class AnalysisGUI(QMainWindow):
     def cwdButton(self) -> QPushButton:
         """Button to open file dialog to change current directory."""
         return self._cwd_button
+
+    @Slot(int)
+    def onCurrentTabChange(self, index: int):
+        pass
 
     def browseCWD(self):
         path = QFileDialog.getExistingDirectory(

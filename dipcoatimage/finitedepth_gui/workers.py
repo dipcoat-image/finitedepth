@@ -108,13 +108,11 @@ class ReferenceWorker(WorkerBase):
     Resulting object can be acquired from :meth:`reference`, or calling
     :meth:`emitReference` and listening to :attr:`referenceChanged` signal.
 
-    Visualization result can be directly acquired from :meth:`visualizedImage`,
-    or calling :meth:`emitImage` and listening to :attr:`visualizedImageChanged`.
+    Visualization result can be directly acquired from :meth:`visualizedImage`.
 
     """
 
     referenceChanged = Signal(object)
-    visualizedImageChanged = Signal(np.ndarray)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -272,15 +270,6 @@ class ReferenceWorker(WorkerBase):
             image = self.image()
         return image
 
-    def emitImage(self):
-        """
-        Emit the result of :meth:`visualizedImage` to
-        :attr:`visualizedImageChanged` signal.
-
-        If visualization raises error, directly emit :meth:`image`.
-        """
-        self.visualizedImageChanged.emit(self.visualizedImage())
-
 
 class SubstrateWorker(WorkerBase):
     """
@@ -301,13 +290,11 @@ class SubstrateWorker(WorkerBase):
     Resulting object can be acquired from :meth:`substrate`, or calling
     :meth:`emitSubstrate` and listening to :attr:`substrateChanged` signal.
 
-    Visualization result can be directly acquired from :meth:`visualizedImage`,
-    or calling :meth:`emitImage` and listening to :attr:`visualizedImageChanged`.
+    Visualization result can be directly acquired from :meth:`visualizedImage`.
 
     """
 
     substrateChanged = Signal(object)
-    visualizedImageChanged = Signal(np.ndarray)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -449,15 +436,6 @@ class SubstrateWorker(WorkerBase):
             image = np.empty((0, 0, 0), dtype=np.uint8)
         return image
 
-    def emitImage(self):
-        """
-        Emit the result of :meth:`visualizedImage` to
-        :attr:`visualizedImageChanged` signal.
-
-        If visualization raises error, directly emit :meth:`image`.
-        """
-        self.visualizedImageChanged.emit(self.visualizedImage())
-
 
 class ExperimentWorker(WorkerBase):
     """
@@ -482,15 +460,12 @@ class ExperimentWorker(WorkerBase):
     Resulting object can be acquired by :meth:`experiment`, or calling
     :meth:`emitExperiment` and listening to :attr:`experimentChanged` signal.
 
-    To visualize the layer shape image, pass it to :meth:`setImage`
-    first. Visualization result can be directly acquired from
-    :meth:`visualizedImage`, or calling :meth:`emitImage` and listening
-    to :attr:`visualizedImageChanged` signal.
+    To visualize the layer shape image, pass it to :meth:`setImage` first.
+    Visualization result can be directly acquired from:meth:`visualizedImage`.
 
     """
 
     experimentChanged = Signal(object)
-    visualizedImageChanged = Signal(np.ndarray)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -793,14 +768,6 @@ class ExperimentWorker(WorkerBase):
         bin_img[max(y0, 0) : min(y1, img_h), max(x0, 0) : min(x1, img_w)] = nxor
         return cv2.cvtColor(bin_img, cv2.COLOR_GRAY2RGB)
 
-    def emitImage(self):
-        """
-        Emit the result of :meth:`visualizedImage` to
-        :attr:`visualizedImageChanged` signal. If visualization raises error,
-        directly emit :meth:`image`.
-        """
-        self.visualizedImageChanged.emit(self.visualizedImage())
-
 
 class AnalysisWorker(WorkerBase):
     """
@@ -972,6 +939,8 @@ class MainWorker(QObject):
     """
     Object which contains subworkers.
     """
+
+    visualizedImageChanged = Signal(np.ndarray)
 
     def __init__(self, parent=None):
         super().__init__(parent)
