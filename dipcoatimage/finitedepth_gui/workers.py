@@ -28,12 +28,14 @@ import os
 from PySide6.QtCore import QObject, QModelIndex, Slot, Signal, Qt
 from PySide6.QtGui import QStandardItem
 from typing import Optional, Type, Generator, List
-from .inventory import (
-    ExperimentItemModel,
+from .core import (
     StructuredReferenceArgs,
     StructuredSubstrateArgs,
     StructuredCoatingLayerArgs,
     StructuredExperimentArgs,
+)
+from .inventory import (
+    ExperimentItemModel,
 )
 
 

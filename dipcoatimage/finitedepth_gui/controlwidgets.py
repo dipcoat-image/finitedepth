@@ -46,12 +46,14 @@ from PySide6.QtWidgets import (
 )
 from typing import Any
 from .importwidget import ImportWidget
-from .inventory import (
-    ExperimentItemModel,
+from .core import (
     StructuredExperimentArgs,
     StructuredReferenceArgs,
     StructuredSubstrateArgs,
     StructuredCoatingLayerArgs,
+)
+from .inventory import (
+    ExperimentItemModel,
 )
 from .roimodel import ROIModel, ROIWidget
 
