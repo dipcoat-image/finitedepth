@@ -28,11 +28,11 @@ from .inventory import (
     ExperimentInventory,
 )
 from .workers import (
-    WorkerBase,
     ReferenceWorker,
     SubstrateWorker,
     ExperimentVisualizationMode,
     ExperimentWorker,
+    AnalysisWorker,
 )
 
 
@@ -71,6 +71,7 @@ class AnalysisGUI(QMainWindow):
         self._ref_worker = ReferenceWorker()
         self._subst_worker = SubstrateWorker()
         self._expt_worker = ExperimentWorker()
+        self._anal_worker = AnalysisWorker()
         self._cwd_button = QPushButton()
 
         self.setCentralWidget(self.mainDisplayWindow())
@@ -137,6 +138,12 @@ class AnalysisGUI(QMainWindow):
         )
         self.experimentInventory().experimentListView().activated.connect(
             self.experimentWorker().setCurrentExperimentIndex
+        )
+        self.analysisWorker().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
+        )
+        self.experimentInventory().experimentListView().activated.connect(
+            self.analysisWorker().setCurrentExperimentIndex
         )
 
         self.cwdButton().clicked.connect(self.browseCWD)
@@ -225,6 +232,10 @@ class AnalysisGUI(QMainWindow):
         """Worker for API with :class:`ExperimentBase`."""
         return self._expt_worker
 
+    def analysisWorker(self) -> AnalysisWorker:
+        """Worker to analyze the object."""
+        return self._anal_worker
+
     def cwdButton(self) -> QPushButton:
         """Button to open file dialog to change current directory."""
         return self._cwd_button
@@ -255,17 +266,6 @@ class AnalysisGUI(QMainWindow):
         if player.playbackState() != QMediaPlayer.PlayingState:
             self.experimentWorker().updateLayerShapeGenerator()
 
-    @Slot()
-    def browseCWD(self):
-        path = QFileDialog.getExistingDirectory(
-            self,
-            "Select current working directory",
-            "./",
-            options=QFileDialog.ShowDirsOnly | QFileDialog.DontUseNativeDialog,
-        )
-        if path:
-            self.setCWD(path)
-
     def determineDisplayWidget(
         self, tab: QScrollArea, exptkind: ExperimentKind
     ) -> QWidget:
@@ -290,17 +290,16 @@ class AnalysisGUI(QMainWindow):
                 ret = self.mainDisplayWindow().imageDisplayWidget()
         return ret
 
-    def determineWorker(self, tab: QScrollArea) -> WorkerBase:
-        """
-        Return a worker corresponding to *tab* in :meth:`experimentItemTab`.
-        """
-        if tab.widget() == self.referenceWidget():
-            ret: WorkerBase = self.referenceWorker()
-        elif tab.widget() == self.substrateWidget():
-            ret = self.substrateWorker()
-        else:
-            ret = self.experimentWorker()
-        return ret
+    @Slot()
+    def browseCWD(self):
+        path = QFileDialog.getExistingDirectory(
+            self,
+            "Select current working directory",
+            "./",
+            options=QFileDialog.ShowDirsOnly | QFileDialog.DontUseNativeDialog,
+        )
+        if path:
+            self.setCWD(path)
 
     def setCWD(self, path: str):
         os.chdir(path)
