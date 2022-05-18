@@ -1411,7 +1411,6 @@ class MasterControlWidget(QTabWidget):
     """Widget which contains control widgets."""
 
     imageChanged = Signal(object)
-    
 
     def __init__(self, parent=None):
         super().__init__(parent)

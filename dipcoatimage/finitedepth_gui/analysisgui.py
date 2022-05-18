@@ -56,7 +56,7 @@ class AnalysisGUI(QMainWindow):
         self._master_worker = MasterWorker()
         self._cwd_button = QPushButton()
 
-        self.experimentItemTab().currentChanged.connect(self.onCurrentTabChange)
+        self.masterControlWidget().currentChanged.connect(self.onCurrentTabChange)
         self.masterControlWidget().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
         )
@@ -115,10 +115,6 @@ class AnalysisGUI(QMainWindow):
         experiment item.
         """
         return self._master_controlwidget
-
-    def experimentItemTab(self) -> MasterControlWidget:
-        """Tab widget to display the data of activated experiment item."""
-        return self.masterControlWidget()
 
     def experimentWidget(self) -> ExperimentWidget:
         """Widget to manage data for experiment class."""
@@ -185,7 +181,7 @@ class AnalysisGUI(QMainWindow):
         self.referenceWidget().substrateROIDrawButton().setChecked(False)
         self.mainDisplayWindow().videoDisplayWidget().videoPlayer().pause()
 
-        widget = self.experimentItemTab().widget(index)
+        widget = self.masterControlWidget().widget(index)
         self.mainDisplayWindow().exposeDisplayWidget(self.determineDisplay(widget))
         self.masterWorker().setVisualizingWorker(self.determineWorker(widget))
 
