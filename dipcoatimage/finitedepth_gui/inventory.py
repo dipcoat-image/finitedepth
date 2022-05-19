@@ -151,7 +151,7 @@ class ExperimentInventory(QWidget):
         self.experimentListView().setSelectionMode(QListView.ExtendedSelection)
         self.experimentListView().setEditTriggers(QListView.SelectedClicked)
         self.experimentListView().setModel(self.experimentItemModel())
-        self.addButton().clicked.connect(self.onAddButtonClicked)
+        self.addButton().clicked.connect(self.addNewExperiment)
 
         layout = QVBoxLayout()
         layout.addWidget(self.experimentListView())
@@ -178,7 +178,7 @@ class ExperimentInventory(QWidget):
         return self._delete_button
 
     @Slot()
-    def onAddButtonClicked(self):
+    def addNewExperiment(self):
         """Add new row to :meth:`experimentItemModel`."""
         items = [
             QStandardItem() for _ in range(self.experimentItemModel().columnCount())
@@ -187,3 +187,11 @@ class ExperimentInventory(QWidget):
             f"Experiment {self.experimentItemModel().rowCount()}"
         )
         self.experimentItemModel().appendRow(items)
+
+    def activateExperiment(self, index: int):
+        self.experimentListView().setCurrentIndex(
+            self.experimentListView().model().index(index, 0)
+        )
+        self.experimentListView().activated.emit(
+            self.experimentListView().currentIndex()
+        )
