@@ -13,7 +13,7 @@ from dipcoatimage.finitedepth.analysis import (
     AnalysisArgs,
 )
 import enum
-from PySide6.QtCore import Slot, Qt
+from PySide6.QtCore import Slot, Signal, Qt, QModelIndex
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from PySide6.QtWidgets import (
     QWidget,
@@ -143,6 +143,9 @@ class ExperimentItemModel(QStandardItemModel):
 
 
 class ExperimentInventory(QWidget):
+
+    experimentRowActivated = Signal(int)
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -154,6 +157,7 @@ class ExperimentInventory(QWidget):
         self.experimentListView().setSelectionMode(QListView.ExtendedSelection)
         self.experimentListView().setEditTriggers(QListView.SelectedClicked)
         self.experimentListView().setModel(self.experimentItemModel())
+        self.experimentListView().activated.connect(self.onViewIndexActivated)
         self.addButton().clicked.connect(self.addNewExperiment)
 
         layout = QVBoxLayout()
@@ -198,3 +202,8 @@ class ExperimentInventory(QWidget):
         self.experimentListView().activated.emit(  # type: ignore[attr-defined]
             self.experimentListView().currentIndex()
         )
+
+    @Slot(QModelIndex)
+    def onViewIndexActivated(self, index: QModelIndex):
+        if not index.parent().isValid():
+            self.experimentRowActivated.emit(index.row())

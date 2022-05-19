@@ -51,8 +51,8 @@ class AnalysisGUI(QMainWindow):
         self.masterControlWidget().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
         )
-        self.experimentInventory().experimentListView().activated.connect(
-            self.masterControlWidget().setCurrentExperimentIndex
+        self.experimentInventory().experimentRowActivated.connect(
+            self.masterControlWidget().setCurrentExperimentRow
         )
         self.masterControlWidget().drawROIToggled.connect(
             self.mainDisplayWindow().toggleROIDraw
