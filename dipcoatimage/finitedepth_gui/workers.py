@@ -928,8 +928,10 @@ class MasterWorker(QObject):
         self._expt_worker = ExperimentWorker()
         self._anal_worker = AnalysisWorker()
         self._visualizing_worker = ExperimentWorker()
+        self._visualize_mode = VisualizationMode.FULL
 
         self.connectModelSignals()
+        self.setVisualizationMode(self.visualizationMode())
 
     def experimentItemModel(self) -> ExperimentItemModel:
         """Model which holds the experiment item data."""
@@ -949,6 +951,9 @@ class MasterWorker(QObject):
 
     def visualizingWorker(self) -> WorkerBase:
         return self._visualizing_worker
+
+    def visualizationMode(self) -> VisualizationMode:
+        return self._visualize_mode
 
     def setExperimentItemModel(self, model: ExperimentItemModel):
         """Set :meth:`experimentItemModel`."""
@@ -1069,6 +1074,14 @@ class MasterWorker(QObject):
         else:
             worker = self.experimentWorker()
         self._visualizing_worker = worker
+        self.emitImage()
+
+    @Slot(VisualizationMode)
+    def setVisualizationMode(self, mode: VisualizationMode):
+        self._visualize_mode = mode
+        self.referenceWorker().setVisualizationMode(mode)
+        self.substrateWorker().setVisualizationMode(mode)
+        self.experimentWorker().setVisualizationMode(mode)
         self.emitImage()
 
     def emitImage(self):
