@@ -46,12 +46,15 @@ from PySide6.QtWidgets import (
 )
 from typing import Any
 from .importwidget import ImportWidget
-from .inventory import (
-    ExperimentItemModel,
+from .core import (
     StructuredExperimentArgs,
     StructuredReferenceArgs,
     StructuredSubstrateArgs,
     StructuredCoatingLayerArgs,
+    ClassSelection,
+)
+from .inventory import (
+    ExperimentItemModel,
 )
 from .roimodel import ROIModel, ROIWidget
 
@@ -1412,6 +1415,7 @@ class MasterControlWidget(QTabWidget):
 
     imageChanged = Signal(object)
     drawROIToggled = Signal(ROIModel, bool)
+    selectedClassChanged = Signal(ClassSelection)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1429,6 +1433,7 @@ class MasterControlWidget(QTabWidget):
         self.referenceWidget().substrateROIDrawButton().toggled.connect(
             self.onSubstrateROIDrawButtonToggle
         )
+        self.currentChanged.connect(self.onCurrentTabChange)
 
         expt_scroll = QScrollArea()
         expt_scroll.setWidgetResizable(True)
@@ -1498,3 +1503,23 @@ class MasterControlWidget(QTabWidget):
             self.referenceWidget().substrateROIWidget().roiModel(),
             state,
         )
+
+    @Slot(int)
+    def onCurrentTabChange(self, index: int):
+        self.referenceWidget().templateROIDrawButton().setChecked(False)
+        self.referenceWidget().substrateROIDrawButton().setChecked(False)
+
+        widget = self.widget(index)
+        if not isinstance(widget, QScrollArea):
+            select = ClassSelection.UNKNOWN
+        elif widget.widget() == self.referenceWidget():
+            select = ClassSelection.REFERENCE
+        elif widget.widget() == self.substrateWidget():
+            select = ClassSelection.SUBSTRATE
+        elif widget.widget() == self.coatingLayerWidget():
+            select = ClassSelection.COATINGLAYER
+        elif widget.widget() == self.experimentWidget():
+            select = ClassSelection.EXPERIMENT
+        else:
+            select = ClassSelection.UNKNOWN
+        self.selectedClassChanged.emit(select)

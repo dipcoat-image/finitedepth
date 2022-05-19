@@ -1,10 +1,10 @@
-import dataclasses
-from dipcoatimage.finitedepth import (
-    SubstrateReference,
-    Substrate,
-    LayerArea,
-    Experiment,
-)
+"""
+Experiment inventory
+====================
+
+Experiment item model and widget to view it.
+
+"""
 from dipcoatimage.finitedepth.analysis import (
     ReferenceArgs,
     SubstrateArgs,
@@ -12,7 +12,6 @@ from dipcoatimage.finitedepth.analysis import (
     ExperimentArgs,
     AnalysisArgs,
 )
-from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
 import enum
 from PySide6.QtCore import Slot, Qt
 from PySide6.QtGui import QStandardItemModel, QStandardItem
@@ -25,7 +24,12 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QSizePolicy,
 )
-from typing import Any, Optional
+from .core import (
+    StructuredExperimentArgs,
+    StructuredReferenceArgs,
+    StructuredSubstrateArgs,
+    StructuredCoatingLayerArgs,
+)
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -34,52 +38,10 @@ except ImportError:
 
 
 __all__ = [
-    "StructuredExperimentArgs",
-    "StructuredReferenceArgs",
-    "StructuredSubstrateArgs",
-    "StructuredCoatingLayerArgs",
     "ExperimentItemModelColumns",
     "ExperimentItemModel",
     "ExperimentInventory",
 ]
-
-
-@dataclasses.dataclass
-class StructuredExperimentArgs:
-    """Structured data to construct experiment object."""
-
-    type: Any = Experiment
-    parameters: Optional[DataclassProtocol] = None
-
-
-@dataclasses.dataclass
-class StructuredReferenceArgs:
-    """Structured data to construct reference object."""
-
-    type: Any = SubstrateReference
-    templateROI: OptionalROI = (0, 0, None, None)
-    substrateROI: OptionalROI = (0, 0, None, None)
-    parameters: Optional[DataclassProtocol] = None
-    draw_options: Optional[DataclassProtocol] = None
-
-
-@dataclasses.dataclass
-class StructuredSubstrateArgs:
-    """Structured data to construct substrate object."""
-
-    type: Any = Substrate
-    parameters: Optional[DataclassProtocol] = None
-    draw_options: Optional[DataclassProtocol] = None
-
-
-@dataclasses.dataclass
-class StructuredCoatingLayerArgs:
-    """Structured data to construct coating layer object."""
-
-    type: Any = LayerArea
-    parameters: Optional[DataclassProtocol] = None
-    draw_options: Optional[DataclassProtocol] = None
-    deco_options: Optional[DataclassProtocol] = None
 
 
 class ExperimentItemModelColumns(enum.IntEnum):
@@ -161,13 +123,17 @@ class ExperimentItemModel(QStandardItemModel):
         ret = super().data(index, role)
         if role == Qt.UserRole and ret is None and not index.parent().isValid():
             if index.column() == self.Col_Reference:
-                ret = (ReferenceArgs(), StructuredReferenceArgs())
+                args = ReferenceArgs()
+                ret = (args, StructuredReferenceArgs.from_ReferenceArgs(args))
             elif index.column() == self.Col_Substrate:
-                ret = (SubstrateArgs(), StructuredSubstrateArgs())
+                args = SubstrateArgs()
+                ret = (args, StructuredSubstrateArgs.from_SubstrateArgs(args))
             elif index.column() == self.Col_CoatingLayer:
-                ret = (CoatingLayerArgs(), StructuredCoatingLayerArgs())
+                args = CoatingLayerArgs()
+                ret = (args, StructuredCoatingLayerArgs.from_CoatingLayerArgs(args))
             elif index.column() == self.Col_Experiment:
-                ret = (ExperimentArgs(), StructuredExperimentArgs())
+                args = ExperimentArgs()
+                ret = (args, StructuredExperimentArgs.from_ExperimentArgs(args))
             elif index.column() == self.Col_Analysis:
                 ret = AnalysisArgs()
         return ret

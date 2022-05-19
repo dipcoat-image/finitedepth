@@ -7,7 +7,7 @@ This module provides widget to import the variable.
 """
 
 import dataclasses
-from dipcoatimage.finitedepth.util import import_variable
+from dipcoatimage.finitedepth.util import ImportStatus, Importer
 import enum
 from PySide6.QtCore import Signal, Slot
 from PySide6.QtGui import QStandardItemModel, QStandardItem
@@ -23,33 +23,15 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QSizePolicy,
 )
-from typing import Any, Tuple
+from typing import Any
 
 
 __all__ = [
-    "ImportStatus",
     "RegistryItemData",
     "RegistryModelColumns",
     "RegistryWidget",
     "ImportWidget",
 ]
-
-
-class ImportStatus(enum.Enum):
-    """
-    Constants for variable import status of :class:`ImportWidget`.
-
-    0. VALID
-        Variable is successfully imported.
-    1. NO_MODULE
-        Module is not found.
-    2. NO_VARIABLE
-        Module is found, but variable name is not importable from it.
-    """
-
-    VALID = 0
-    NO_MODULE = 1
-    NO_VARIABLE = 2
 
 
 @dataclasses.dataclass(frozen=True)
@@ -183,7 +165,7 @@ class ImportWidget(QWidget):
 
     """
 
-    INVALID = object()
+    INVALID = Importer.INVALID
     variableChanged = Signal()
 
     def __init__(self, parent=None):
@@ -293,20 +275,6 @@ class ImportWidget(QWidget):
         """Return if current variable is valid."""
         return self.variable() is not self.INVALID
 
-    @classmethod
-    def importVariable(cls, varName: str, modName: str) -> Tuple[Any, ImportStatus]:
-        """Try import the object with variable name and module name."""
-        try:
-            var = import_variable(varName, modName)
-            status = ImportStatus.VALID
-        except ModuleNotFoundError:
-            var = cls.INVALID
-            status = ImportStatus.NO_MODULE
-        except (ImportError, NameError, ValueError):
-            var = cls.INVALID
-            status = ImportStatus.NO_VARIABLE
-        return (var, status)
-
     @Slot(QStandardItem)
     def onItemChange(self, item: QStandardItem):
         if item.column() != RegistryModelColumns.ITEM_NAME:
@@ -314,7 +282,7 @@ class ImportWidget(QWidget):
             index = item.row()
             varname = model.item(index, RegistryModelColumns.VARIABLE_NAME).text()
             modname = model.item(index, RegistryModelColumns.MODULE_NAME).text()
-            var, status = self.importVariable(varname, modname)
+            var, status = Importer(varname, modname).try_import()
             data = RegistryItemData(var, status)
             model.item(index, RegistryModelColumns.ITEM_NAME).setData(data)
         if item.row() == self.variableComboBox().currentIndex():
@@ -323,7 +291,7 @@ class ImportWidget(QWidget):
     @Slot(str, str, str)
     def registerVariable(self, itemText: str, varName: str, modName: str):
         """Register the information and variable to combo box."""
-        var, status = self.importVariable(varName, modName)
+        var, status = Importer(varName, modName).try_import()
         data = RegistryItemData(var, status)
         item0 = QStandardItem(itemText)
         item0.setData(data)
@@ -358,7 +326,7 @@ class ImportWidget(QWidget):
         self.variableComboBox().setCurrentIndex(-1)
         varname = self.variableNameLineEdit().text()
         modname = self.moduleNameLineEdit().text()
-        var, status = self.importVariable(varname, modname)
+        var, status = Importer(varname, modname).try_import()
         self._applyVariable(var, status)
 
     def setImportInformation(self, varName: str, modName: str):
@@ -366,7 +334,7 @@ class ImportWidget(QWidget):
         self.variableComboBox().setCurrentIndex(-1)
         self.variableNameLineEdit().setText(varName)
         self.moduleNameLineEdit().setText(modName)
-        var, status = self.importVariable(varName, modName)
+        var, status = Importer(varName, modName).try_import()
         self._applyVariable(var, status)
 
     def _applyVariable(self, var: Any, status: ImportStatus):

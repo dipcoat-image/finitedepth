@@ -29,7 +29,7 @@ Utilities
 
 from .dataclass import data_converter
 from .geometry import get_extended_line, intrsct_pt_polar
-from .importing import import_variable, get_importinfo
+from .importing import import_variable, ImportStatus, Importer
 from .path import get_samples_path, cwd
 from .typing import DataclassProtocol, OptionalROI, IntROI
 from .parameters import (
@@ -44,7 +44,8 @@ __all__ = [
     "get_extended_line",
     "intrsct_pt_polar",
     "import_variable",
-    "get_importinfo",
+    "ImportStatus",
+    "Importer",
     "get_samples_path",
     "cwd",
     "DataclassProtocol",

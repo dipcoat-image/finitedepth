@@ -28,12 +28,15 @@ import os
 from PySide6.QtCore import QObject, QModelIndex, Slot, Signal, Qt
 from PySide6.QtGui import QStandardItem
 from typing import Optional, Type, Generator, List
-from .inventory import (
-    ExperimentItemModel,
+from .core import (
     StructuredReferenceArgs,
     StructuredSubstrateArgs,
     StructuredCoatingLayerArgs,
     StructuredExperimentArgs,
+)
+from .core import ClassSelection
+from .inventory import (
+    ExperimentItemModel,
 )
 
 
@@ -1075,8 +1078,16 @@ class MasterWorker(QObject):
         self.experimentWorker().updateExperiment()
         self.emitImage()
 
-    def setVisualizingWorker(self, worker: WorkerBase):
+    @Slot(ClassSelection)
+    def setVisualizingWorker(self, selection: ClassSelection):
+        if selection == ClassSelection.REFERENCE:
+            worker: WorkerBase = self.referenceWorker()
+        elif selection == ClassSelection.SUBSTRATE:
+            worker = self.substrateWorker()
+        else:
+            worker = self.experimentWorker()
         self._visualizing_worker = worker
+        self.emitImage()
 
     def emitImage(self):
         img = self.visualizingWorker().visualizedImage()
