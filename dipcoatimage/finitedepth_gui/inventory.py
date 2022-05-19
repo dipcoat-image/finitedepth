@@ -125,22 +125,17 @@ class ExperimentItemModel(QStandardItemModel):
             if index.column() == self.Col_Reference:
                 args = ReferenceArgs()
                 ret = (args, StructuredReferenceArgs.from_ReferenceArgs(args))
-                self.setData(index, ret, role)
             elif index.column() == self.Col_Substrate:
                 args = SubstrateArgs()
                 ret = (args, StructuredSubstrateArgs.from_SubstrateArgs(args))
-                self.setData(index, ret, role)
             elif index.column() == self.Col_CoatingLayer:
                 args = CoatingLayerArgs()
                 ret = (args, StructuredCoatingLayerArgs.from_CoatingLayerArgs(args))
-                self.setData(index, ret, role)
             elif index.column() == self.Col_Experiment:
                 args = ExperimentArgs()
                 ret = (args, StructuredExperimentArgs.from_ExperimentArgs(args))
-                self.setData(index, ret, role)
             elif index.column() == self.Col_Analysis:
                 ret = AnalysisArgs()
-                self.setData(index, ret, role)
         return ret
 
 

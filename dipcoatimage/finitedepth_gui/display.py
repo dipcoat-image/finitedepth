@@ -31,6 +31,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QToolBar, QMainWindow, QStackedWidget, QWidget, QLabel
 from typing import Tuple, List
+from .core import ClassSelection
 from .roimodel import ROIModel
 from .workers import ReferenceWorker, SubstrateWorker, ExperimentWorker
 
@@ -721,8 +722,11 @@ class MainDisplayWindow(QMainWindow):
         """Return the display widget exposed to central area."""
         return self.displayStackWidget().currentWidget()
 
-    def exposeDisplayWidget(self, widget: QWidget):
-        """Expose the display widget to central area."""
+    @Slot(ClassSelection)
+    def exposeDisplayWidget(self, select: ClassSelection):
+        """Determine the widget for *select* and expose to central area."""
+        self.videoDisplayWidget().videoPlayer().pause()
+        widget = self.imageDisplayWidget()
         self.displayStackWidget().setCurrentWidget(widget)
 
     def currentDisplayingLabel(self):

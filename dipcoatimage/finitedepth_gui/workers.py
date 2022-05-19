@@ -1078,18 +1078,17 @@ class MasterWorker(QObject):
         self.experimentWorker().updateExperiment()
         self.emitImage()
 
-    def setVisualizingWorker(self, worker: WorkerBase):
+    @Slot(ClassSelection)
+    def setVisualizingWorker(self, selection: ClassSelection):
+        if selection == ClassSelection.REFERENCE:
+            worker: WorkerBase = self.referenceWorker()
+        elif selection == ClassSelection.SUBSTRATE:
+            worker = self.substrateWorker()
+        else:
+            worker = self.experimentWorker()
         self._visualizing_worker = worker
+        self.emitImage()
 
     def emitImage(self):
         img = self.visualizingWorker().visualizedImage()
         self.visualizedImageChanged.emit(img)
-
-    def determineVisualizingWorker(self, selection: ClassSelection) -> WorkerBase:
-        if selection == ClassSelection.REFERENCE:
-            ret = self.referenceWorker()
-        elif selection == ClassSelection.SUBSTRATE:
-            ret = self.substrateWorker()
-        else:
-            ret = self.experimentWorker()
-        return ret
