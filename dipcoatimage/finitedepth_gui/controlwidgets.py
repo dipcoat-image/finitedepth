@@ -325,7 +325,7 @@ class ExperimentWidget(ControlWidget):
             model = self.experimentItemModel()
             model.setData(
                 model.index(index.row(), ExperimentItemModel.Col_Experiment),
-                (self.structuredExperimentArgs(), self.experimentArgs()),
+                (self.experimentArgs(), self.structuredExperimentArgs()),
                 Qt.UserRole,  # type: ignore[arg-type]
             )
 
@@ -693,7 +693,7 @@ class ReferenceWidget(ControlWidget):
             model = self.experimentItemModel()
             model.setData(
                 model.index(index.row(), ExperimentItemModel.Col_Reference),
-                (self.structuredReferenceArgs(), self.referenceArgs()),
+                (self.referenceArgs(), self.structuredReferenceArgs()),
                 Qt.UserRole,  # type: ignore[arg-type]
             )
 
@@ -954,7 +954,7 @@ class SubstrateWidget(ControlWidget):
             model = self.experimentItemModel()
             model.setData(
                 model.index(index.row(), ExperimentItemModel.Col_Substrate),
-                (self.structuredSubstrateArgs(), self.substrateArgs()),
+                (self.substrateArgs(), self.structuredSubstrateArgs()),
                 Qt.UserRole,  # type: ignore[arg-type]
             )
 
@@ -1226,7 +1226,7 @@ class CoatingLayerWidget(ControlWidget):
             model = self.experimentItemModel()
             model.setData(
                 model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
-                (self.structuredCoatingLayerArgs(), self.coatingLayerArgs()),
+                (self.coatingLayerArgs(), self.structuredCoatingLayerArgs()),
                 Qt.UserRole,  # type: ignore[arg-type]
             )
 
