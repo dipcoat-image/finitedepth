@@ -192,6 +192,6 @@ class ExperimentInventory(QWidget):
         self.experimentListView().setCurrentIndex(
             self.experimentListView().model().index(index, 0)
         )
-        self.experimentListView().activated.emit(
+        self.experimentListView().activated.emit(  # type: ignore[attr-defined]
             self.experimentListView().currentIndex()
         )

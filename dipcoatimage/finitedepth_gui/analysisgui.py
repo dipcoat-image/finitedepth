@@ -95,7 +95,6 @@ class AnalysisGUI(QMainWindow):
         self.experimentInventory().addNewExperiment()
         self.experimentInventory().activateExperiment(0)
 
-
     def mainDisplayWindow(self) -> MainDisplayWindow:
         """Main window which includes all display widgets."""
         return self._main_display
