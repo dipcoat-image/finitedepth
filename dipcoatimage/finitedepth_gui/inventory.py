@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QSizePolicy,
 )
+from typing import List
 from .core import (
     StructuredExperimentArgs,
     StructuredReferenceArgs,
@@ -119,8 +120,16 @@ class ExperimentItemModel(QStandardItemModel):
 
     Role_Args = Qt.UserRole
 
+    coatPathsChanged = Signal(int, list)
+
     def __init__(self, rows: int = 0, columns: int = len(ColumnNames), parent=None):
         super().__init__(rows, columns, parent)
+        self._block_coatPathsChanged = False
+
+        self.dataChanged.connect(self.onDataChange)
+        self.rowsInserted.connect(self.onRowsChange)
+        self.rowsMoved.connect(self.onRowsChange)
+        self.rowsRemoved.connect(self.onRowsChange)
 
     def data(self, index, role=Qt.DisplayRole):
         ret = super().data(index, role)
@@ -140,6 +149,59 @@ class ExperimentItemModel(QStandardItemModel):
             elif index.column() == self.Col_Analysis:
                 ret = AnalysisArgs()
         return ret
+
+    @Slot(QModelIndex, QModelIndex, list)
+    def onDataChange(self, topLeft: QModelIndex, bottomRight: QModelIndex, roles: list):
+        parent = topLeft.parent()
+        if (
+            parent.isValid()
+            and not parent.parent().isValid()
+            and parent.column() == self.Col_CoatPaths
+        ):  # coat path change
+            if not self._block_coatPathsChanged:
+                paths = []
+                for i in range(self.rowCount(parent)):
+                    index = self.index(i, 0, parent)
+                    paths.append(self.data(index))
+                self.coatPathsChanged.emit(parent.row(), paths)
+
+    @Slot(QModelIndex, int, int)
+    def onRowsChange(self, parent: QModelIndex, start: int, end: int):
+        if (
+            parent.isValid()
+            and not parent.parent().isValid()
+            and parent.column() == self.Col_CoatPaths
+        ):
+            if not self._block_coatPathsChanged:
+                paths = []
+                for i in range(self.rowCount(parent)):
+                    index = self.index(i, 0, parent)
+                    paths.append(self.data(index))
+                self.coatPathsChanged.emit(parent.row(), paths)
+
+    def coatPaths(self, exptRow: int) -> List[str]:
+        parent = self.index(exptRow, self.Col_CoatPaths)
+        paths = []
+        for i in range(self.rowCount(parent)):
+            index = self.index(i, 0, parent)
+            paths.append(self.data(index))
+        return paths
+
+    def setCoatPaths(self, exptRow: int, paths: List[str]):
+        """
+        Set the paths to coated substrate files of *exptRow*-th experiment to
+        *paths*.
+
+        This method signals *coatPathsChanged* only once.
+        """
+        self._block_coatPathsChanged = True
+        parent = self.index(exptRow, self.Col_CoatPaths)
+        self.removeRows(0, self.rowCount(parent), parent)
+        for i, path in enumerate(paths):
+            self.insertRow(i, parent)
+            self.setData(self.index(i, 0, parent), path)
+        self._block_coatPathsChanged = False
+        self.coatPathsChanged.emit(parent.row(), paths)
 
 
 class ExperimentInventory(QWidget):

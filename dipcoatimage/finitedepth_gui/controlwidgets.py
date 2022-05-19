@@ -332,34 +332,34 @@ class ExperimentWidget(ControlWidget):
     def onAddButtonClicked(self):
         """Add new item to :meth:`pathsView`."""
         model = self.experimentItemModel()
-        if model is not None:
-            parentItem = model.itemFromIndex(self.pathsView().rootIndex())
-            item = QStandardItem(f"Path {parentItem.rowCount()}")
-            parentItem.appendRow(item)
+        parentItem = model.itemFromIndex(self.pathsView().rootIndex())
+        item = QStandardItem(f"Path {parentItem.rowCount()}")
+        parentItem.appendRow(item)
 
     @Slot()
     def onDeleteButtonClicked(self):
         """Delete selected items from :meth:`pathsView`."""
         model = self.experimentItemModel()
-        if model is not None:
-            parentItem = model.itemFromIndex(self.pathsView().rootIndex())
-            for items in reversed(sorted(self.pathsView().selectedIndexes())):
-                parentItem.removeRow(items.row())
+        exptRow = self.pathsView().rootIndex().row()
+        paths = model.coatPaths(exptRow)
+        selectedRows = [idx.row() for idx in self.pathsView().selectedIndexes()]
+        for i in reversed(sorted(selectedRows)):
+            paths.pop(i)
+            model.setCoatPaths(exptRow, paths)
 
     @Slot()
     def onBrowseButtonClicked(self):
         """Browse file and add their paths to :meth:`pathsView`."""
         model = self.experimentItemModel()
-        if model is not None:
-            parentItem = model.itemFromIndex(self.pathsView().rootIndex())
-            paths, _ = QFileDialog.getOpenFileNames(
-                self,
-                "Select experiment files",
-                "./",
-                options=QFileDialog.DontUseNativeDialog,
-            )
-            for p in paths:
-                parentItem.appendRow(QStandardItem(p))
+        parentItem = model.itemFromIndex(self.pathsView().rootIndex())
+        paths, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Select experiment files",
+            "./",
+            options=QFileDialog.DontUseNativeDialog,
+        )
+        for p in paths:
+            parentItem.appendRow(QStandardItem(p))
 
 
 class ReferenceWidget(ControlWidget):
