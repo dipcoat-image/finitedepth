@@ -322,10 +322,9 @@ class ExperimentWidget(ControlWidget):
             row = self.currentExperimentRow()
             index = model.index(row, model.Col_Experiment)
             if index.isValid():
+                model.setData(index, self.experimentArgs(), model.Role_Args)
                 model.setData(
-                    index,
-                    (self.experimentArgs(), self.structuredExperimentArgs()),
-                    model.Role_Args,  # type: ignore[arg-type]
+                    index, self.structuredExperimentArgs(), model.Role_StructuredArgs
                 )
 
     @Slot()
