@@ -13,6 +13,7 @@ from cv2PySide6 import (
     NDArrayVideoPlayerWidget,
     NDArrayCameraWidget,
 )
+from dipcoatimage.finitedepth.analysis import experiment_kind, ExperimentKind
 import dipcoatimage.finitedepth_gui
 import numpy as np
 import numpy.typing as npt
@@ -29,7 +30,7 @@ from PySide6.QtGui import (
     QIcon,
     QPixmap,
 )
-from PySide6.QtWidgets import QToolBar, QMainWindow, QStackedWidget, QWidget, QLabel
+from PySide6.QtWidgets import QToolBar, QMainWindow, QStackedWidget, QWidget
 from typing import Union, Tuple, List
 from .core import ClassSelection
 from .roimodel import ROIModel
@@ -39,6 +40,7 @@ from .workers import (
     ExperimentWorker,
     VisualizationMode,
 )
+from .inventory import ExperimentItemModel
 
 
 __all__ = [
@@ -674,7 +676,7 @@ class ROIVideoWidget(NDArrayVideoPlayerWidget):
         self._roiVideoLabel = NDArrayROILabel()
         super().__init__(parent)
 
-    def videoLabel(self):
+    def videoLabel(self) -> NDArrayROILabel:
         return self._roiVideoLabel
 
 
@@ -683,7 +685,7 @@ class ROICameraWidget(NDArrayCameraWidget):
         self._roiVideoLabel = NDArrayROILabel()
         super().__init__(parent)
 
-    def videoLabel(self):
+    def videoLabel(self) -> NDArrayROILabel:
         return self._roiVideoLabel
 
 
@@ -695,6 +697,10 @@ class MainDisplayWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self._exptitem_model = ExperimentItemModel()
+        self._currentExperimentRow = -1
+        self._selection = ClassSelection.EXPERIMENT
+        self._expt_kind = ExperimentKind.VideoExperiment
         self._display_widget = QStackedWidget()
         self._img_display = NDArrayROILabel()
         self._vid_display = ROIVideoWidget()
@@ -709,14 +715,24 @@ class MainDisplayWindow(QMainWindow):
         self.videoDisplayWidget().setVideoPlayer(PreviewableNDArrayVideoPlayer(self))
         self.videoDisplayWidget().setArrayProcessor(ExperimentArrayProcessor())
         self.addToolBar(self.displayToolBar())
-
-        self.initUI()
-
-    def initUI(self):
         self.setCentralWidget(self.displayStackWidget())
         self.centralWidget().addWidget(self.imageDisplayWidget())
         self.centralWidget().addWidget(self.videoDisplayWidget())
         self.centralWidget().addWidget(self.cameraDisplayWidget())
+
+    def experimentItemModel(self) -> ExperimentItemModel:
+        """Model which holds the experiment item data."""
+        return self._exptitem_model
+
+    def currentExperimentRow(self) -> int:
+        """Currently activated row from :meth:`experimentItemModel`."""
+        return self._currentExperimentRow
+
+    def classSelection(self) -> ClassSelection:
+        return self._selection
+
+    def experimentKind(self) -> ExperimentKind:
+        return self._expt_kind
 
     def displayStackWidget(self) -> QStackedWidget:
         return self._display_widget
@@ -737,26 +753,63 @@ class MainDisplayWindow(QMainWindow):
         """Toolbar to control display options."""
         return self._display_toolbar
 
+    def setExperimentItemModel(self, model: ExperimentItemModel):
+        """Set :meth:`experimentItemModel`."""
+        self.disconnectModelSignals()
+        self._exptitem_model = model
+        self.connectModelSignals()
+
+    def connectModelSignals(self):
+        self.experimentItemModel().coatPathsChanged.connect(self.onCoatPathsChange)
+
+    def disconnectModelSignals(self):
+        self.experimentItemModel().coatPathsChanged.disconnect(self.onCoatPathsChange)
+
+    @Slot(int)
+    def setCurrentExperimentRow(self, row: int):
+        self._currentExperimentRow = row
+
+    @Slot(int, list)
+    def onCoatPathsChange(self, row: int, paths: List[str]):
+        if row == self.currentExperimentRow():
+            kind = experiment_kind(paths)
+            self._expt_kind = kind
+            self.exposeDisplayWidget(self.experimentKind(), self.classSelection())
+
+            if kind == ExperimentKind.VideoExperiment:
+                (path,) = paths
+                self.videoDisplayWidget().videoPlayer().setSource(
+                    QUrl.fromLocalFile(path)
+                )
+
+    @Slot(ClassSelection)
+    def setClassSelection(self, select: ClassSelection):
+        self._selection = select
+        self.exposeDisplayWidget(self.experimentKind(), self.classSelection())
+
+    def exposeDisplayWidget(self, kind: ExperimentKind, selection: ClassSelection):
+        """Determine the widget for *select* and expose to central area."""
+        self.videoDisplayWidget().videoPlayer().pause()
+        if (
+            selection == ClassSelection.EXPERIMENT
+            and kind == ExperimentKind.VideoExperiment
+        ):
+            widget = self.videoDisplayWidget()
+        else:
+            widget = self.imageDisplayWidget()
+        self.displayStackWidget().setCurrentWidget(widget)
+
     def exposedDisplayWidget(self) -> QWidget:
         """Return the display widget exposed to central area."""
         return self.displayStackWidget().currentWidget()
 
-    @Slot(ClassSelection)
-    def exposeDisplayWidget(self, select: ClassSelection):
-        """Determine the widget for *select* and expose to central area."""
-        self.videoDisplayWidget().videoPlayer().pause()
-        widget = self.imageDisplayWidget()
-        self.displayStackWidget().setCurrentWidget(widget)
-
-    def currentDisplayingLabel(self):
+    def currentDisplayingLabel(self) -> NDArrayROILabel:
         """Return the displaying label in current widget."""
         widget = self.exposedDisplayWidget()
-        if isinstance(widget, NDArrayVideoPlayerWidget):
+        if isinstance(widget, ROIVideoWidget):
             label = widget.videoLabel()
-        elif isinstance(widget, NDArrayCameraWidget):
+        elif isinstance(widget, ROICameraWidget):
             label = widget.videoLabel()
-        elif isinstance(widget, QLabel):
-            label = widget
         else:
             raise TypeError("Unknown widget.")
         return label

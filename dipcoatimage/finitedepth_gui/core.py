@@ -159,5 +159,4 @@ class ClassSelection(enum.Enum):
     UNKNOWN = 0
     REFERENCE = 1
     SUBSTRATE = 2
-    COATINGLAYER = 3
-    EXPERIMENT = 4
+    EXPERIMENT = 3

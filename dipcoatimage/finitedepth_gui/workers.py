@@ -970,9 +970,7 @@ class MasterWorker(QObject):
         self.connectModelSignals()
 
     def connectModelSignals(self):
-        self.experimentItemModel().coatPathsChanged.connect(
-            self.onCoatPathsChange
-        )
+        self.experimentItemModel().coatPathsChanged.connect(self.onCoatPathsChange)
         self.experimentItemModel().referenceDataChanged.connect(
             self.onReferenceDataChange
         )
@@ -990,9 +988,7 @@ class MasterWorker(QObject):
         )
 
     def disconnectModelSignals(self):
-        self.experimentItemModel().coatPathsChanged.disconnect(
-            self.onCoatPathsChange
-        )
+        self.experimentItemModel().coatPathsChanged.disconnect(self.onCoatPathsChange)
         self.experimentItemModel().referenceDataChanged.disconnect(
             self.onReferenceDataChange
         )

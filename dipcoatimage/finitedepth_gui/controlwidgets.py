@@ -1516,8 +1516,10 @@ class MasterControlWidget(QTabWidget):
         elif widget.widget() == self.substrateWidget():
             select = ClassSelection.SUBSTRATE
         elif widget.widget() == self.coatingLayerWidget():
-            select = ClassSelection.COATINGLAYER
+            select = ClassSelection.EXPERIMENT
         elif widget.widget() == self.experimentWidget():
+            select = ClassSelection.EXPERIMENT
+        elif widget.widget() == self.analysisWidget():
             select = ClassSelection.EXPERIMENT
         else:
             select = ClassSelection.UNKNOWN
