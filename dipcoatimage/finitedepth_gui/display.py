@@ -30,7 +30,7 @@ from PySide6.QtGui import (
     QPixmap,
 )
 from PySide6.QtWidgets import QToolBar, QMainWindow, QStackedWidget, QWidget, QLabel
-from typing import Tuple, List
+from typing import Union, Tuple, List
 from .core import ClassSelection
 from .roimodel import ROIModel
 from .workers import ReferenceWorker, SubstrateWorker, ExperimentWorker
@@ -230,6 +230,9 @@ class ExperimentArrayProcessor(ArrayProcessor):
         return ret
 
 
+Number = Union[int, float]
+
+
 class NDArrayROILabel(NDArrayLabel):
     """
     ``cv2PySide6.NDArrayLabel`` which multiple ROIs can be set.
@@ -285,8 +288,8 @@ class NDArrayROILabel(NDArrayLabel):
         self._temp_roi = (0, 0, 0, 0)  # displayed roi of original image
 
     def labelROI2OriginalROI(
-        self, roi: Tuple[float, float, float, float]
-    ) -> Tuple[float, float, float, float]:
+        self, roi: Tuple[Number, Number, Number, Number]
+    ) -> Tuple[Number, Number, Number, Number]:
         """Convert ROI on the label to ROI on the original image."""
         # convert to roi of scaled pixmap
         x1, y1, x2, y2 = roi
@@ -302,18 +305,18 @@ class NDArrayROILabel(NDArrayLabel):
         original_size = self._original_pixmap.size()
         W, H = original_size.width(), original_size.height()
         if W == 0 or H == 0:
-            ret = (0.0, 0.0, 0.0, 0.0)
+            ret = (0, 0, 0, 0)
         else:
-            x1 = max(px1 / w * W, 0.0)
-            y1 = max(py1 / h * H, 0.0)
-            x2 = min(px2 / w * W, float(W))
-            y2 = min(py2 / h * H, float(H))
-            ret = (x1, y1, x2, y2)
+            x1 = max(px1 / w * W, 0)
+            y1 = max(py1 / h * H, 0)
+            x2 = min(px2 / w * W, W)
+            y2 = min(py2 / h * H, H)
+            ret = (x1, y1, x2, y2)  # type: ignore[assignment]
         return ret
 
     def originalROI2LabelROI(
-        self, roi: Tuple[int, int, int, int]
-    ) -> Tuple[float, float, float, float]:
+        self, roi: Tuple[Number, Number, Number, Number]
+    ) -> Tuple[Number, Number, Number, Number]:
         """Convert ROI on the original image to ROI on the label."""
         # convert to roi of scaled pixmap
         x1, y1, x2, y2 = roi
@@ -324,12 +327,7 @@ class NDArrayROILabel(NDArrayLabel):
         if w == 0 or h == 0:
             px1, py1, px2, py2 = (0, 0, 0, 0)
         else:
-            px1, py1, px2, py2 = (
-                int(x1 / W * w),
-                int(y1 / H * h),
-                int(x2 / W * w),
-                int(y2 / H * h),
-            )
+            px1, py1, px2, py2 = (x1 / W * w, y1 / H * h, x2 / W * w, y2 / H * h)
         # convert to roi of label
         lx1, ly1 = coords_pixmap2label(
             (px1, py1), pixmap_size, self.size(), self.alignment()
@@ -381,14 +379,12 @@ class NDArrayROILabel(NDArrayLabel):
                     x2 = W
                 if y2 is None:
                     y2 = H
-                x1, y1, x2, y2 = [
-                    int(i) for i in self.originalROI2LabelROI((x1, y1, x2, y2))
-                ]
+                x1, y1, x2, y2 = map(int, self.originalROI2LabelROI((x1, y1, x2, y2)))
                 br = QBrush(QColor(255, 0, 0, 50))
                 qp.setBrush(br)
                 qp.drawRect(QRect(QPoint(x1, y1), QPoint(x2, y2)))
         else:
-            x1, y1, x2, y2 = [int(i) for i in self.originalROI2LabelROI(self._temp_roi)]
+            x1, y1, x2, y2 = map(int, self.originalROI2LabelROI(self._temp_roi))
             for model in self.roiModels():
                 br = QBrush(QColor(255, 0, 0, 50))
                 qp.setBrush(br)
@@ -399,9 +395,9 @@ class NDArrayROILabel(NDArrayLabel):
         super().mousePressEvent(event)
         self._drawing = True
         pos = event.position()
-        x, y = int(pos.x()), int(pos.y())
+        x, y = pos.x(), pos.y()
         roi = self.labelROI2OriginalROI((x, y, x, y))
-        self._temp_roi = tuple(map(int, roi))
+        self._temp_roi = roi
         self.update()
 
     def mouseMoveEvent(self, event: QMouseEvent):
@@ -410,9 +406,9 @@ class NDArrayROILabel(NDArrayLabel):
         if self._drawing:
             x1, y1, _, _ = self.originalROI2LabelROI(self._temp_roi)
             pos = event.position()
-            x2, y2 = int(pos.x()), int(pos.y())
+            x2, y2 = pos.x(), pos.y()
             roi = self.labelROI2OriginalROI((x1, y1, x2, y2))
-            self._temp_roi = tuple(map(int, roi))
+            self._temp_roi = roi
             self.update()
 
     def mouseReleaseEvent(self, event: QMouseEvent):
@@ -424,23 +420,23 @@ class NDArrayROILabel(NDArrayLabel):
         super().mouseReleaseEvent(event)
         x1, y1, _, _ = self.originalROI2LabelROI(self._temp_roi)
         pos = event.position()
-        x2, y2 = int(pos.x()), int(pos.y())
+        x2, y2 = pos.x(), pos.y()
         if x1 > x2:
             x1, x2 = x2, x1
         if y1 > y2:
             y1, y2 = y2, y1
         roi = self.labelROI2OriginalROI((x1, y1, x2, y2))
-        self._temp_roi = tuple(map(int, roi))
+        self._temp_roi = roi
 
         for model in self.roiModels():
-            model.setROI(*self._temp_roi)
+            model.setROI(*map(int, self._temp_roi))
         self._drawing = False
         self.update()
 
 
 def coords_label2pixmap(
-    p: Tuple[float, float], lsize: QSize, psize: QSize, alignment: Qt.Alignment
-) -> Tuple[float, float]:
+    p: Tuple[Number, Number], lsize: QSize, psize: QSize, alignment: Qt.Alignment
+) -> Tuple[Number, Number]:
     """
     Convert the coordinates in ``QLabel`` to the coordinates in
     ``QPixmap``, which is in the label.
@@ -489,16 +485,16 @@ def coords_label2pixmap(
     x, y = p
 
     if hflag == Qt.AlignLeft:
-        dx = 0.0
+        dx: Number = 0
     elif hflag == Qt.AlignRight:
-        dx = float(W - w)
+        dx = W - w
     elif hflag == Qt.AlignHCenter:
         dx = (W - w) / 2
 
     if vflag == Qt.AlignTop:
-        dy = 0.0
+        dy: Number = 0
     elif vflag == Qt.AlignBottom:
-        dy = float(H - h)
+        dy = H - h
     elif vflag == Qt.AlignVCenter:
         dy = (H - h) / 2
 
@@ -506,8 +502,8 @@ def coords_label2pixmap(
 
 
 def coords_pixmap2label(
-    p: Tuple[int, int], psize: QSize, lsize: QSize, alignment: Qt.Alignment
-) -> Tuple[float, float]:
+    p: Tuple[Number, Number], psize: QSize, lsize: QSize, alignment: Qt.Alignment
+) -> Tuple[Number, Number]:
     """
     Convert the coordinates in ``QPixmap`` to the coordinates in
     ``QLabel``, which contains the pixmap.
@@ -556,16 +552,16 @@ def coords_pixmap2label(
     x, y = p
 
     if hflag == Qt.AlignLeft:
-        dx = 0.0
+        dx: Number = 0
     elif hflag == Qt.AlignRight:
-        dx = float(W - w)
+        dx = W - w
     elif hflag == Qt.AlignHCenter:
         dx = (W - w) / 2
 
     if vflag == Qt.AlignTop:
-        dy = 0.0
+        dy: Number = 0
     elif vflag == Qt.AlignBottom:
-        dy = float(H - h)
+        dy = H - h
     elif vflag == Qt.AlignVCenter:
         dy = (H - h) / 2
 
