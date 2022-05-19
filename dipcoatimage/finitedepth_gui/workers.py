@@ -25,7 +25,7 @@ import enum
 import numpy as np
 import numpy.typing as npt
 import os
-from PySide6.QtCore import QObject, QModelIndex, Slot, Signal, Qt
+from PySide6.QtCore import QObject, QModelIndex, Slot, Signal
 from PySide6.QtGui import QStandardItem
 from typing import Optional, Type, Generator, List
 from .core import (
@@ -977,10 +977,11 @@ class MasterWorker(QObject):
 
     @Slot(QStandardItem)
     def onExperimentItemChange(self, item: QStandardItem):
-        if not item.model() == self.experimentItemModel() and item.parent() is None:
+        model = self.experimentItemModel()
+        if not item.model() == model and item.parent() is None:
             return
         if item.column() == ExperimentItemModel.Col_Reference:
-            data = self.experimentItemModel().data(item.index(), Qt.UserRole)[1]
+            data = model.data(item.index(), model.Role_Args)[1]
             self.referenceWorker().setStructuredReferenceArgs(data)
             self.referenceWorker().updateReference()
             self.substrateWorker().setReference(self.referenceWorker().reference())
@@ -989,19 +990,19 @@ class MasterWorker(QObject):
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
         elif item.column() == ExperimentItemModel.Col_Substrate:
-            data = self.experimentItemModel().data(item.index(), Qt.UserRole)[1]
+            data = model.data(item.index(), model.Role_Args)[1]
             self.substrateWorker().setStructuredSubstrateArgs(data)
             self.substrateWorker().updateSubstrate()
             self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
         elif item.column() == ExperimentItemModel.Col_CoatingLayer:
-            data = self.experimentItemModel().data(item.index(), Qt.UserRole)[1]
+            data = model.data(item.index(), model.Role_Args)[1]
             self.experimentWorker().setStructuredCoatingLayerArgs(data)
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
         elif item.column() == ExperimentItemModel.Col_Experiment:
-            data = self.experimentItemModel().data(item.index(), Qt.UserRole)[1]
+            data = model.data(item.index(), model.Role_Args)[1]
             self.experimentWorker().setStructuredExperimentArgs(data)
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
@@ -1028,22 +1029,22 @@ class MasterWorker(QObject):
         self.referenceWorker().setImage(img)
         refargs = model.data(
             model.index(index.row(), ExperimentItemModel.Col_Reference),
-            Qt.UserRole,
+            model.Role_Args,
         )[1]
         self.referenceWorker().setStructuredReferenceArgs(refargs)
         substargs = model.data(
             model.index(index.row(), ExperimentItemModel.Col_Substrate),
-            Qt.UserRole,
+            model.Role_Args,
         )[1]
         self.substrateWorker().setStructuredSubstrateArgs(substargs)
         layerargs = model.data(
             model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
-            Qt.UserRole,
+            model.Role_Args,
         )[1]
         self.experimentWorker().setStructuredCoatingLayerArgs(layerargs)
         exptargs = model.data(
             model.index(index.row(), ExperimentItemModel.Col_Experiment),
-            Qt.UserRole,
+            model.Role_Args,
         )[1]
         self.experimentWorker().setStructuredExperimentArgs(exptargs)
 

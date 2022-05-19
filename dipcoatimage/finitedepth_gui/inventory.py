@@ -87,22 +87,23 @@ class ExperimentItemModel(QStandardItemModel):
     3. Col_Reference
         Data to construct reference object. Data are stored in :meth:`data` as
         tuple (:class:`ReferenceArgs`, :class:`StructuredReferenceArgs`) with
-        ``Qt.UserRole``. Corresponds to :attr:`ExperimentData.reference`.
+        :attr:`Role_Args`. Corresponds to :attr:`ExperimentData.reference`.
     4. Col_Substrate
         Data to construct substrate object. Data are stored in :meth:`data` as
         tuple (:class:`SubstrateArgs`, :class:`StructuredSubstrateArgs`) with
-        ``Qt.UserRole``. Corresponds to :attr:`ExperimentData.substrate`.
+        :attr:`Role_Args`. Corresponds to :attr:`ExperimentData.substrate`.
     5. Col_CoatingLayer
         Data to construct coating layer object. Data are stored in :meth:`data`
         as tuple (:class:`CoatingLayerArgs`, :class:`StructuredCoatingLayerArgs`)
-        with ``Qt.UserRole``. Corresponds to :attr:`ExperimentData.coatinglayer`.
+        with :attr:`Role_Args`. Corresponds to
+        :attr:`ExperimentData.coatinglayer`.
     6. Col_Experiment
         Data to construct experiment object. Data are stored in :meth:`data` as
         tuple (:class:`ExperimentArgs`, :class:`StructuredExperimentArgs`) with
-        ``Qt.UserRole``. Corresponds to :attr:`ExperimentData.experiment`.
+        :attr:`Role_Args`. Corresponds to :attr:`ExperimentData.experiment`.
     7. Col_Analysis
         Data to analyze experiment. Data is stored in :meth:`data` as
-        :attr:`AnalysisArgs` with ``Qt.UserRole``. Corresponds to
+        :attr:`AnalysisArgs` with :attr:`Role_Args`. Corresponds to
         :attr:`ExperimentData.analysis`.
     """
 
@@ -116,12 +117,14 @@ class ExperimentItemModel(QStandardItemModel):
     Col_Experiment = ExperimentItemModelColumns.EXPERIMENT
     Col_Analysis = ExperimentItemModelColumns.ANALYSIS
 
+    Role_Args = Qt.UserRole
+
     def __init__(self, rows: int = 0, columns: int = len(ColumnNames), parent=None):
         super().__init__(rows, columns, parent)
 
     def data(self, index, role=Qt.DisplayRole):
         ret = super().data(index, role)
-        if role == Qt.UserRole and ret is None and not index.parent().isValid():
+        if role == self.Role_Args and ret is None and not index.parent().isValid():
             if index.column() == self.Col_Reference:
                 args = ReferenceArgs()
                 ret = (args, StructuredReferenceArgs.from_ReferenceArgs(args))

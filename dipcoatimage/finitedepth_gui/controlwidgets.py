@@ -26,7 +26,7 @@ from dipcoatimage.finitedepth.analysis import (
     Analyzer,
 )
 import os
-from PySide6.QtCore import QModelIndex, Qt, Signal, Slot
+from PySide6.QtCore import QModelIndex, Signal, Slot
 from PySide6.QtGui import QStandardItem, QDoubleValidator
 from PySide6.QtWidgets import (
     QWidget,
@@ -243,7 +243,7 @@ class ExperimentWidget(ControlWidget):
         self._blockModelUpdate = True
         args = model.data(
             model.index(index.row(), ExperimentItemModel.Col_Experiment),
-            Qt.UserRole,
+            model.Role_Args,
         )[0]
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
@@ -326,7 +326,7 @@ class ExperimentWidget(ControlWidget):
             model.setData(
                 model.index(index.row(), ExperimentItemModel.Col_Experiment),
                 (self.experimentArgs(), self.structuredExperimentArgs()),
-                Qt.UserRole,  # type: ignore[arg-type]
+                model.Role_Args,  # type: ignore[arg-type]
             )
 
     @Slot()
@@ -563,7 +563,7 @@ class ReferenceWidget(ControlWidget):
         model = self.experimentItemModel()
         args = model.data(
             model.index(index.row(), ExperimentItemModel.Col_Reference),
-            Qt.UserRole,
+            model.Role_Args,
         )[0]
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
@@ -694,7 +694,7 @@ class ReferenceWidget(ControlWidget):
             model.setData(
                 model.index(index.row(), ExperimentItemModel.Col_Reference),
                 (self.referenceArgs(), self.structuredReferenceArgs()),
-                Qt.UserRole,  # type: ignore[arg-type]
+                model.Role_Args,  # type: ignore[arg-type]
             )
 
     @Slot(str)
@@ -834,7 +834,7 @@ class SubstrateWidget(ControlWidget):
         model = self.experimentItemModel()
         args = model.data(
             model.index(index.row(), ExperimentItemModel.Col_Substrate),
-            Qt.UserRole,
+            model.Role_Args,
         )[0]
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
@@ -955,7 +955,7 @@ class SubstrateWidget(ControlWidget):
             model.setData(
                 model.index(index.row(), ExperimentItemModel.Col_Substrate),
                 (self.substrateArgs(), self.structuredSubstrateArgs()),
-                Qt.UserRole,  # type: ignore[arg-type]
+                model.Role_Args,  # type: ignore[arg-type]
             )
 
 
@@ -1071,7 +1071,7 @@ class CoatingLayerWidget(ControlWidget):
         model = self.experimentItemModel()
         args = model.data(
             model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
-            Qt.UserRole,
+            model.Role_Args,
         )[0]
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
@@ -1227,7 +1227,7 @@ class CoatingLayerWidget(ControlWidget):
             model.setData(
                 model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
                 (self.coatingLayerArgs(), self.structuredCoatingLayerArgs()),
-                Qt.UserRole,  # type: ignore[arg-type]
+                model.Role_Args,  # type: ignore[arg-type]
             )
 
 
@@ -1361,7 +1361,7 @@ class AnalysisWidget(ControlWidget):
         self._blockModelUpdate = True
         model = self.experimentItemModel()
         args = model.data(
-            model.index(index.row(), ExperimentItemModel.Col_Analysis), Qt.UserRole
+            model.index(index.row(), ExperimentItemModel.Col_Analysis), model.Role_Args
         )
         data_path, data_ext = os.path.splitext(args.data_path)
         self.dataPathLineEdit().setText(data_path)
@@ -1406,7 +1406,7 @@ class AnalysisWidget(ControlWidget):
             model.setData(
                 model.index(index.row(), ExperimentItemModel.Col_Analysis),
                 self.analysisArgs(),
-                Qt.UserRole,  # type: ignore[arg-type]
+                model.Role_Args,  # type: ignore[arg-type]
             )
 
 
