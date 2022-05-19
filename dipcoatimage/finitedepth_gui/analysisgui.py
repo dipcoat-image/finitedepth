@@ -1,5 +1,5 @@
 import os
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import (
     QMainWindow,
     QDockWidget,
@@ -36,8 +36,6 @@ class AnalysisGUI(QMainWindow):
     >>> runGUI() # doctest: +SKIP
     """
 
-    refreshImage = Signal()
-
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -47,13 +45,15 @@ class AnalysisGUI(QMainWindow):
         self._master_worker = MasterWorker()
         self._cwd_button = QPushButton()
 
+        self.mainDisplayWindow().visualizationModeChanged.connect(
+            self.masterWorker().setVisualizationMode
+        )
         self.masterControlWidget().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
         )
         self.experimentInventory().experimentListView().activated.connect(
             self.masterControlWidget().setCurrentExperimentIndex
         )
-
         self.masterControlWidget().drawROIToggled.connect(
             self.mainDisplayWindow().toggleROIDraw
         )
@@ -63,7 +63,6 @@ class AnalysisGUI(QMainWindow):
         self.masterControlWidget().selectedClassChanged.connect(
             self.masterWorker().setVisualizingWorker
         )
-
         self.masterControlWidget().imageChanged.connect(
             self.masterWorker().setReferenceImage
         )
@@ -78,21 +77,23 @@ class AnalysisGUI(QMainWindow):
         )
 
         self.cwdButton().clicked.connect(self.browseCWD)
-
         self.setWindowTitle("Coating layer analysis")
         self.setCentralWidget(self.mainDisplayWindow())
-
         expt_inv_dock = QDockWidget("Experiment inventory")
         expt_inv_dock.setWidget(self.experimentInventory())
         self.addDockWidget(Qt.LeftDockWidgetArea, expt_inv_dock)
-
         exptitem_dock = QDockWidget("Experiment item")
         exptitem_dock.setWidget(self.masterControlWidget())
         self.addDockWidget(Qt.BottomDockWidgetArea, exptitem_dock)
-
         self.cwdButton().setText("Browse")
         self.statusBar().addPermanentWidget(self.cwdButton())
         self.statusBar().showMessage(os.getcwd())
+
+        self.mainDisplayWindow().setVisualizeActionToggleState(
+            self.masterWorker().visualizationMode()
+        )
+        self.experimentInventory().addNewExperiment()
+        self.experimentInventory().activateExperiment(0)
 
     def mainDisplayWindow(self) -> MainDisplayWindow:
         """Main window which includes all display widgets."""

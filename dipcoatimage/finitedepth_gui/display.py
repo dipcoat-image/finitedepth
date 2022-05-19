@@ -33,7 +33,12 @@ from PySide6.QtWidgets import QToolBar, QMainWindow, QStackedWidget, QWidget, QL
 from typing import Union, Tuple, List
 from .core import ClassSelection
 from .roimodel import ROIModel
-from .workers import ReferenceWorker, SubstrateWorker, ExperimentWorker
+from .workers import (
+    ReferenceWorker,
+    SubstrateWorker,
+    ExperimentWorker,
+    VisualizationMode,
+)
 
 
 __all__ = [
@@ -571,6 +576,8 @@ def coords_pixmap2label(
 class DisplayWidgetToolBar(QToolBar):
     """Toolbar to controll the overall display."""
 
+    visualizationModeChanged = Signal(VisualizationMode)
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -578,16 +585,16 @@ class DisplayWidgetToolBar(QToolBar):
         self._visualizeAction = QAction("Toggle visualization")
         self._fastVisualizeAction = QAction("Toggle fast visualization")
 
+        self.visualizeActionGroup().triggered.connect(self.onVisualizeActionTrigger)
         self.visualizeActionGroup().setExclusionPolicy(
             QActionGroup.ExclusionPolicy.ExclusiveOptional
         )
         self.visualizeActionGroup().addAction(self.visualizeAction())
         self.visualizeActionGroup().addAction(self.fastVisualizeAction())
+
         self.visualizeAction().setCheckable(True)
-        self.visualizeAction().setChecked(True)
         self.addAction(self.visualizeAction())
         self.fastVisualizeAction().setCheckable(True)
-        self.fastVisualizeAction().setChecked(False)
         self.addAction(self.fastVisualizeAction())
 
         self.initUI()
@@ -611,6 +618,27 @@ class DisplayWidgetToolBar(QToolBar):
     def fastVisualizeAction(self) -> QAction:
         """Action to toggle fast visualization mode."""
         return self._fastVisualizeAction
+
+    @Slot(QAction)
+    def onVisualizeActionTrigger(self, action: QAction):
+        if action.isChecked() and action == self.visualizeAction():
+            mode = VisualizationMode.FULL
+        elif action.isChecked() and action == self.fastVisualizeAction():
+            mode = VisualizationMode.FAST
+        else:
+            mode = VisualizationMode.OFF
+        self.visualizationModeChanged.emit(mode)
+
+    def setVisualizeActionToggleState(self, mode: VisualizationMode):
+        if mode == VisualizationMode.OFF:
+            self.visualizeAction().setChecked(False)
+            self.fastVisualizeAction().setChecked(False)
+        elif mode == VisualizationMode.FAST:
+            self.visualizeAction().setChecked(False)
+            self.fastVisualizeAction().setChecked(True)
+        elif mode == VisualizationMode.FULL:
+            self.fastVisualizeAction().setChecked(False)
+            self.visualizeAction().setChecked(True)
 
 
 def get_icons_path(*paths: str) -> str:
@@ -662,6 +690,8 @@ class ROICameraWidget(NDArrayCameraWidget):
 class MainDisplayWindow(QMainWindow):
     """Main window which includes various display widgets."""
 
+    visualizationModeChanged = Signal(VisualizationMode)
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -670,6 +700,10 @@ class MainDisplayWindow(QMainWindow):
         self._vid_display = ROIVideoWidget()
         self._camera_display = ROICameraWidget()
         self._display_toolbar = DisplayWidgetToolBar()
+
+        self.displayToolBar().visualizationModeChanged.connect(
+            self.visualizationModeChanged
+        )
 
         self.imageDisplayWidget().setAlignment(Qt.AlignCenter)
         self.videoDisplayWidget().setVideoPlayer(PreviewableNDArrayVideoPlayer(self))
@@ -702,17 +736,6 @@ class MainDisplayWindow(QMainWindow):
     def displayToolBar(self) -> DisplayWidgetToolBar:
         """Toolbar to control display options."""
         return self._display_toolbar
-
-    def visualizeActionGroup(self) -> QActionGroup:
-        return self.displayToolBar().visualizeActionGroup()
-
-    def visualizeAction(self) -> QAction:
-        """Action to toggle visualization mode."""
-        return self.displayToolBar().visualizeAction()
-
-    def fastVisualizeAction(self) -> QAction:
-        """Action to toggle fast visualization mode."""
-        return self.displayToolBar().fastVisualizeAction()
 
     def exposedDisplayWidget(self) -> QWidget:
         """Return the display widget exposed to central area."""
@@ -754,3 +777,6 @@ class MainDisplayWindow(QMainWindow):
             label.addROIModel(model)
         else:
             label.removeROIModel(model)
+
+    def setVisualizeActionToggleState(self, mode: VisualizationMode):
+        self.displayToolBar().setVisualizeActionToggleState(mode)
