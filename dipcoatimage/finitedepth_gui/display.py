@@ -8,7 +8,6 @@ This module provides the widgets to display the visualized results.
 import cv2  # type: ignore[import]
 from cv2PySide6 import (
     NDArrayVideoPlayer,
-    ArrayProcessor,
     NDArrayLabel,
     NDArrayVideoPlayerWidget,
     NDArrayCameraWidget,
@@ -35,9 +34,6 @@ from typing import Union, Tuple, List
 from .core import ClassSelection
 from .roimodel import ROIModel
 from .workers import (
-    ReferenceWorker,
-    SubstrateWorker,
-    ExperimentWorker,
     VisualizationMode,
 )
 from .inventory import ExperimentItemModel
@@ -45,9 +41,6 @@ from .inventory import ExperimentItemModel
 
 __all__ = [
     "PreviewableNDArrayVideoPlayer",
-    "ReferenceArrayProcessor",
-    "SubstrateArrayProcessor",
-    "ExperimentArrayProcessor",
     "NDArrayROILabel",
     "coords_label2pixmap",
     "coords_pixmap2label",
@@ -83,158 +76,6 @@ class PreviewableNDArrayVideoPlayer(NDArrayVideoPlayer):
         if not ok:
             img = np.empty((0, 0, 0))
         return img
-
-
-class ReferenceArrayProcessor(ArrayProcessor):
-    """
-    Video pipeline component to convert bare substrate frame into
-    visualized reference image.
-
-    """
-
-    imageSizeChanged = Signal(int, int)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._visualize_mode = True
-        self._ref_worker = ReferenceWorker()
-        self._imageSize = (0, 0)
-
-    def visualizationMode(self) -> bool:
-        """If False, frame is not passed to worker."""
-        return self._visualize_mode
-
-    def setVisualizationMode(self, mode: bool):
-        """Update :meth:`visualizationMode` with *mode*."""
-        self._visualize_mode = mode
-
-    def referenceWorker(self) -> ReferenceWorker:
-        return self._ref_worker
-
-    def setReferenceWorker(self, worker: ReferenceWorker):
-        self._ref_worker = worker
-
-    def imageSize(self) -> Tuple[int, int]:
-        return self._imageSize
-
-    def processArray(self, array: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
-        h, w = array.shape[:2]
-        newsize = (w, h)
-        if newsize != self.imageSize():
-            self._imageSize = newsize
-            self.imageSizeChanged.emit(w, h)
-
-        if self.visualizationMode():
-            if array.size == 0:
-                gray = None
-            elif len(array.shape) == 2 or array.shape[2] == 1:
-                gray = array
-            elif array.shape[2] == 3:
-                gray = cv2.cvtColor(array, cv2.COLOR_RGB2GRAY)
-            else:
-                gray = cv2.cvtColor(array, cv2.COLOR_RGBA2GRAY)
-            self.referenceWorker().setImage(gray)
-            self.referenceWorker().updateReference()
-            ret = self.referenceWorker().visualizedImage()
-        else:
-            ret = array
-        return ret
-
-
-class SubstrateArrayProcessor(ArrayProcessor):
-    """
-    Video pipeline component to convert bare substrate frame into
-    visualized substrate image.
-
-    """
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._visualize_mode = True
-        self._ref_worker = ReferenceWorker()
-        self._subst_worker = SubstrateWorker()
-
-    def visualizationMode(self) -> bool:
-        """If False, frame is not passed to worker."""
-        return self._visualize_mode
-
-    def setVisualizationMode(self, mode: bool):
-        """Update :meth:`visualizationMode` with *mode*."""
-        self._visualize_mode = mode
-
-    def referenceWorker(self) -> ReferenceWorker:
-        return self._ref_worker
-
-    def setReferenceWorker(self, worker: ReferenceWorker):
-        self._ref_worker = worker
-
-    def substrateWorker(self) -> SubstrateWorker:
-        return self._subst_worker
-
-    def setSubstrateWorker(self, worker: SubstrateWorker):
-        self._subst_worker = worker
-
-    def processArray(self, array: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
-        if self.visualizationMode():
-            if array.size == 0:
-                gray = None
-            elif len(array.shape) == 2 or array.shape[2] == 1:
-                gray = array
-            elif array.shape[2] == 3:
-                gray = cv2.cvtColor(array, cv2.COLOR_RGB2GRAY)
-            else:
-                gray = cv2.cvtColor(array, cv2.COLOR_RGBA2GRAY)
-            self.referenceWorker().setImage(gray)
-            self.referenceWorker().updateReference()
-            self.substrateWorker().setReference(self.referenceWorker().reference())
-            self.substrateWorker().updateSubstrate()
-            ret = self.substrateWorker().visualizedImage()
-        else:
-            ret = array
-        return ret
-
-
-class ExperimentArrayProcessor(ArrayProcessor):
-    """
-    Video pipeline component to convert coated substrate frame into
-    visualized layer shape image.
-
-    """
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._visualize_mode = True
-        self._expt_worker = ExperimentWorker()
-
-    def visualizationMode(self) -> bool:
-        """If False, frame is not passed to worker."""
-        return self._visualize_mode
-
-    def setVisualizationMode(self, mode: bool):
-        """Update :meth:`visualizationMode` with *mode*."""
-        self._visualize_mode = mode
-
-    def experimentWorker(self) -> ExperimentWorker:
-        return self._expt_worker
-
-    def setExperimentWorker(self, worker: ExperimentWorker):
-        self._expt_worker = worker
-
-    def processArray(self, array: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
-        if self.visualizationMode():
-            if array.size == 0:
-                gray = None
-            elif len(array.shape) == 2 or array.shape[2] == 1:
-                gray = array
-            elif array.shape[2] == 3:
-                gray = cv2.cvtColor(array, cv2.COLOR_RGB2GRAY)
-            else:
-                gray = cv2.cvtColor(array, cv2.COLOR_RGBA2GRAY)
-            self.experimentWorker().setImage(gray)
-            ret = self.experimentWorker().visualizedImage()
-        else:
-            ret = array
-        return ret
 
 
 Number = Union[int, float]
@@ -697,8 +538,6 @@ class MainDisplayWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._exptitem_model = ExperimentItemModel()
-        self._currentExperimentRow = -1
         self._selection = ClassSelection.EXPERIMENT
         self._expt_kind = ExperimentKind.VideoExperiment
         self._display_widget = QStackedWidget()
@@ -713,20 +552,11 @@ class MainDisplayWindow(QMainWindow):
 
         self.imageDisplayWidget().setAlignment(Qt.AlignCenter)
         self.videoDisplayWidget().setVideoPlayer(PreviewableNDArrayVideoPlayer(self))
-        self.videoDisplayWidget().setArrayProcessor(ExperimentArrayProcessor())
         self.addToolBar(self.displayToolBar())
         self.setCentralWidget(self.displayStackWidget())
         self.centralWidget().addWidget(self.imageDisplayWidget())
         self.centralWidget().addWidget(self.videoDisplayWidget())
         self.centralWidget().addWidget(self.cameraDisplayWidget())
-
-    def experimentItemModel(self) -> ExperimentItemModel:
-        """Model which holds the experiment item data."""
-        return self._exptitem_model
-
-    def currentExperimentRow(self) -> int:
-        """Currently activated row from :meth:`experimentItemModel`."""
-        return self._currentExperimentRow
 
     def classSelection(self) -> ClassSelection:
         return self._selection

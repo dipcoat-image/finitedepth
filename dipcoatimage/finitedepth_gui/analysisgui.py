@@ -45,12 +45,6 @@ class AnalysisGUI(QMainWindow):
         self._master_worker = MasterWorker()
         self._cwd_button = QPushButton()
 
-        self.mainDisplayWindow().setExperimentItemModel(
-            self.experimentInventory().experimentItemModel()
-        )
-        self.experimentInventory().experimentRowActivated.connect(
-            self.mainDisplayWindow().setCurrentExperimentRow
-        )
         self.mainDisplayWindow().visualizationModeChanged.connect(
             self.masterWorker().setVisualizationMode
         )
@@ -64,9 +58,6 @@ class AnalysisGUI(QMainWindow):
             self.mainDisplayWindow().toggleROIDraw
         )
         self.masterControlWidget().selectedClassChanged.connect(
-            self.mainDisplayWindow().setClassSelection
-        )
-        self.masterControlWidget().selectedClassChanged.connect(
             self.masterWorker().setVisualizingWorker
         )
         self.masterControlWidget().imageChanged.connect(
@@ -77,9 +68,6 @@ class AnalysisGUI(QMainWindow):
         )
         self.experimentInventory().experimentRowActivated.connect(
             self.masterWorker().setCurrentExperimentRow
-        )
-        self.masterWorker().visualizedImageChanged.connect(
-            self.mainDisplayWindow().displayImage
         )
 
         self.cwdButton().clicked.connect(self.browseCWD)

@@ -30,14 +30,13 @@ import numpy as np
 import numpy.typing as npt
 import os
 from PySide6.QtCore import QObject, Slot, Signal
-from typing import Optional, Type, Generator, List
+from typing import Optional, Type, List
 from .core import (
     StructuredReferenceArgs,
     StructuredSubstrateArgs,
     StructuredCoatingLayerArgs,
     StructuredExperimentArgs,
 )
-from .core import ClassSelection
 from .inventory import (
     ExperimentItemModel,
 )
@@ -663,7 +662,7 @@ class ExperimentWorker(WorkerBase):
                 layer = expt.construct_coatinglayer(img)
                 img = layer.draw()
             elif vismode == VisualizationMode.FAST:
-                img = self.fastVisualize()
+                img = self.fastVisualize(img)
             else:
                 pass
         return img
@@ -689,9 +688,7 @@ class ExperimentWorker(WorkerBase):
         img_h, img_w = img.shape[:2]
         x1, y1 = (x0 + subst_w, y0 + subst_h)
 
-        _, bin_img = cv2.threshold(
-            img, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
-        )
+        _, bin_img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
         bin_img_cropped = bin_img[
             max(y0, 0) : min(y1, img_h), max(x0, 0) : min(x1, img_w)
         ]
@@ -881,8 +878,6 @@ class MasterWorker(QObject):
     display to be updated, and signals.
     """
 
-    visualizedImageChanged = Signal(np.ndarray)
-
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -984,7 +979,6 @@ class MasterWorker(QObject):
             self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
-            self.emitImage()
 
     @Slot(int, SubstrateArgs, StructuredSubstrateArgs)
     def onSubstrateDataChange(
@@ -999,7 +993,6 @@ class MasterWorker(QObject):
             self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
-            self.emitImage()
 
     @Slot(int, CoatingLayerArgs, StructuredCoatingLayerArgs)
     def onCoatingLayerDataChange(
@@ -1012,7 +1005,6 @@ class MasterWorker(QObject):
             self.experimentWorker().setStructuredCoatingLayerArgs(structlayerargs)
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
-            self.emitImage()
 
     @Slot(int, ExperimentArgs, StructuredExperimentArgs)
     def onExperimentDataChange(
@@ -1025,7 +1017,6 @@ class MasterWorker(QObject):
             self.experimentWorker().setStructuredExperimentArgs(structexptargs)
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
-            self.emitImage()
 
     @Slot(int, AnalysisArgs)
     def onAnalysisDataChange(self, row: int, analargs: AnalysisArgs):
@@ -1072,7 +1063,6 @@ class MasterWorker(QObject):
         self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
         self.experimentWorker().updateExperiment()
         self.analysisWorker().setExperiment(self.experimentWorker().experiment())
-        self.emitImage()
 
     @Slot(object)
     def setReferenceImage(self, img: Optional[npt.NDArray[np.uint8]]):
@@ -1082,18 +1072,6 @@ class MasterWorker(QObject):
         self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
         self.experimentWorker().updateExperiment()
         self.analysisWorker().setExperiment(self.experimentWorker().experiment())
-        self.emitImage()
-
-    @Slot(ClassSelection)
-    def setVisualizingWorker(self, selection: ClassSelection):
-        if selection == ClassSelection.REFERENCE:
-            worker: WorkerBase = self.referenceWorker()
-        elif selection == ClassSelection.SUBSTRATE:
-            worker = self.substrateWorker()
-        else:
-            worker = self.experimentWorker()
-        self._visualizing_worker = worker
-        self.emitImage()
 
     @Slot(VisualizationMode)
     def setVisualizationMode(self, mode: VisualizationMode):
@@ -1101,8 +1079,3 @@ class MasterWorker(QObject):
         self.referenceWorker().setVisualizationMode(mode)
         self.substrateWorker().setVisualizationMode(mode)
         self.experimentWorker().setVisualizationMode(mode)
-        self.emitImage()
-
-    def emitImage(self):
-        img = self.visualizingWorker().visualizedImage()
-        self.visualizedImageChanged.emit(img)
