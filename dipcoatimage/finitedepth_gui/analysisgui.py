@@ -69,8 +69,8 @@ class AnalysisGUI(QMainWindow):
         self.masterWorker().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
         )
-        self.experimentInventory().experimentListView().activated.connect(
-            self.masterWorker().setCurrentExperimentIndex
+        self.experimentInventory().experimentRowActivated.connect(
+            self.masterWorker().setCurrentExperimentRow
         )
         self.masterWorker().visualizedImageChanged.connect(
             self.mainDisplayWindow().displayImage

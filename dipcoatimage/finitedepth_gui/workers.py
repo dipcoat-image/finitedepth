@@ -980,7 +980,7 @@ class MasterWorker(QObject):
         model = self.experimentItemModel()
         if not item.model() == model and item.parent() is None:
             return
-        if item.column() == ExperimentItemModel.Col_Reference:
+        if item.column() == model.Col_Reference:
             data = model.data(item.index(), model.Role_Args)[1]
             self.referenceWorker().setStructuredReferenceArgs(data)
             self.referenceWorker().updateReference()
@@ -989,19 +989,19 @@ class MasterWorker(QObject):
             self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
-        elif item.column() == ExperimentItemModel.Col_Substrate:
+        elif item.column() == model.Col_Substrate:
             data = model.data(item.index(), model.Role_Args)[1]
             self.substrateWorker().setStructuredSubstrateArgs(data)
             self.substrateWorker().updateSubstrate()
             self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
-        elif item.column() == ExperimentItemModel.Col_CoatingLayer:
+        elif item.column() == model.Col_CoatingLayer:
             data = model.data(item.index(), model.Role_Args)[1]
             self.experimentWorker().setStructuredCoatingLayerArgs(data)
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
-        elif item.column() == ExperimentItemModel.Col_Experiment:
+        elif item.column() == model.Col_Experiment:
             data = model.data(item.index(), model.Role_Args)[1]
             self.experimentWorker().setStructuredExperimentArgs(data)
             self.experimentWorker().updateExperiment()
@@ -1014,36 +1014,31 @@ class MasterWorker(QObject):
     def onExperimentItemRowsChange(self, index: QModelIndex, first: int, last: int):
         pass
 
-    @Slot(QModelIndex)
-    def setCurrentExperimentIndex(self, index: QModelIndex):
-        """Set currently activated index from :meth:`experimentItemModel`."""
-        if index.parent().isValid():
-            raise TypeError("Only top-level index can be activated.")
+    @Slot(int)
+    def setCurrentExperimentRow(self, row: int):
         model = self.experimentItemModel()
-        refpath = model.data(
-            model.index(index.row(), ExperimentItemModel.Col_ReferencePath)
-        )
+        refpath = model.data(model.index(row, model.Col_ReferencePath))
         img = cv2.imread(refpath)
         if img is not None:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.referenceWorker().setImage(img)
         refargs = model.data(
-            model.index(index.row(), ExperimentItemModel.Col_Reference),
+            model.index(row, model.Col_Reference),
             model.Role_Args,
         )[1]
         self.referenceWorker().setStructuredReferenceArgs(refargs)
         substargs = model.data(
-            model.index(index.row(), ExperimentItemModel.Col_Substrate),
+            model.index(row, model.Col_Substrate),
             model.Role_Args,
         )[1]
         self.substrateWorker().setStructuredSubstrateArgs(substargs)
         layerargs = model.data(
-            model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
+            model.index(row, model.Col_CoatingLayer),
             model.Role_Args,
         )[1]
         self.experimentWorker().setStructuredCoatingLayerArgs(layerargs)
         exptargs = model.data(
-            model.index(index.row(), ExperimentItemModel.Col_Experiment),
+            model.index(row, model.Col_Experiment),
             model.Role_Args,
         )[1]
         self.experimentWorker().setStructuredExperimentArgs(exptargs)
