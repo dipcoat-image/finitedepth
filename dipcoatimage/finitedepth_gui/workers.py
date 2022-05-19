@@ -449,9 +449,6 @@ class ExperimentWorker(WorkerBase):
     :meth:`updateExperiment` constructs the experiment object with data.
     Resulting object can be acquired by :meth:`experiment`.
 
-    To visualize the layer shape image, pass it to :meth:`setImage` first.
-    Visualization result can be directly acquired from:meth:`visualizedImage`.
-
     """
 
     def __init__(self, parent=None):
@@ -598,7 +595,7 @@ class ExperimentWorker(WorkerBase):
         self._params = params
 
     def updateExperiment(self):
-        """Update :meth:`experiment` and :meth:`layerGenerator`."""
+        """Update :meth:`experiment`."""
         expt = None
 
         default_invalid_args = [
@@ -622,7 +619,6 @@ class ExperimentWorker(WorkerBase):
             if not expt.valid():
                 expt = None
         self._expt = expt
-        self.updateLayerGenerator()
 
     def experiment(self) -> Optional[ExperimentBase]:
         """
@@ -633,26 +629,6 @@ class ExperimentWorker(WorkerBase):
         """
         return self._expt
 
-    @Slot()
-    def updateLayerGenerator(self):
-        expt = self.experiment()
-        if expt is not None:
-            self._layer_generator = expt.layer_generator()
-            next(self.layerGenerator())
-        else:
-            self._layer_generator = None
-
-    def layerGenerator(
-        self,
-    ) -> Generator[CoatingLayerBase, npt.NDArray[np.uint8], None]:
-        """
-        :meth:`Experiment.layer_generator` from :meth:`experiment`.
-        ``None`` indicates invalid value.
-
-        Run :meth:`updateLayerGenerator` to update this value.
-        """
-        return self._layer_generator
-
     def setVisualizationMode(self, mode):
         """
         Update :meth:`visualizationMode` with *mode*.
@@ -662,20 +638,9 @@ class ExperimentWorker(WorkerBase):
         if mode:
             self.updateLayerGenerator()
 
-    def image(self) -> npt.NDArray[np.uint8]:
-        """Layer shape image to be visualized."""
-        img = self._img
-        if img is None:
-            img = np.empty((0, 0, 0))
-        return img
-
-    def setImage(self, img: Optional[npt.NDArray[np.uint8]]):
-        """Update :meth:`image` with *img*."""
-        self._img = img
-
-    def visualizedImage(self) -> npt.NDArray[np.uint8]:
+    def visualizedImage(self, img: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
         """
-        Return visualization result of :meth:`image` analyzed by
+        Return visualization result of *img* analyzed by
         :meth:`experiment`.
 
         If possible, :meth:`ExperimentBase.layer_generator` is used to construct
@@ -688,48 +653,44 @@ class ExperimentWorker(WorkerBase):
         :meth:`fastVisualize`.
 
         If parameters are invalid or :meth:`visualizationMode` is ``OFF``,
-        directly return :meth:`image`.
+        directly return *img*.
 
         """
-        ls_gen = self.layerGenerator()
+        expt = self.experiment()
         vismode = self.visualizationMode()
-        image = self.image()
-        if ls_gen is not None and image.size > 0:
+        if expt is not None and img.size > 0:
             if vismode == VisualizationMode.FULL:
-                ls = ls_gen.send(image)
-                while ls is None:  # previous construction not finished
-                    ls = ls_gen.send(image)
-                image = ls.draw()
+                layer = expt.construct_coatinglayer(img)
+                img = layer.draw()
             elif vismode == VisualizationMode.FAST:
-                image = self.fastVisualize()
+                img = self.fastVisualize()
             else:
                 pass
-        return image
+        return img
 
-    def fastVisualize(self) -> npt.NDArray[np.uint8]:
+    def fastVisualize(self, img: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
         """
-        Remove substrate from :meth:`image` without constructing analysis
-        objects.
+        Remove substrate from *img* without constructing analysis objects.
 
         This visualization lacks the versatility of full visualization, but it is
         considerably faster for quick overview.
         """
         substrate = self.substrate()
         if substrate is None:
-            return self.image()
+            return img
 
         x0, y0, x1, y1 = substrate.reference.templateROI
         template = substrate.reference.image[y0:y1, x0:x1]
-        res = cv2.matchTemplate(self.image(), template, cv2.TM_CCOEFF)
+        res = cv2.matchTemplate(img, template, cv2.TM_CCOEFF)
         _, _, _, (tx, ty) = cv2.minMaxLoc(res)
         dx, dy = substrate.reference.temp2subst()
         x0, y0 = (tx + dx, ty + dy)
         subst_h, subst_w = substrate.image().shape[:2]
-        img_h, img_w = self.image().shape[:2]
+        img_h, img_w = img.shape[:2]
         x1, y1 = (x0 + subst_w, y0 + subst_h)
 
         _, bin_img = cv2.threshold(
-            self.image(), 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
+            img, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
         )
         bin_img_cropped = bin_img[
             max(y0, 0) : min(y1, img_h), max(x0, 0) : min(x1, img_w)
@@ -916,7 +877,8 @@ class AnalysisWorker(WorkerBase):
 
 class MasterWorker(QObject):
     """
-    Object which contains subworkers.
+    Object which contains subworkers. Detects every change which requires the
+    display to be updated, and signals.
     """
 
     visualizedImageChanged = Signal(np.ndarray)

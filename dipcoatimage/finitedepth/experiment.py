@@ -219,7 +219,7 @@ class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
         return ret
 
     def layer_generator(
-        self,
+        self, i: int = 0, prev: Optional[CoatingLayerBase] = None
     ) -> Generator[CoatingLayerBase, npt.NDArray[np.uint8], None]:
         """
         Generator which receives coated substrate image to yield instance of
@@ -229,9 +229,20 @@ class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
         :meth:`construct_coatinglayer` with the number of images passed so far
         and previous coating layer instance.
 
+        Starting number to count the image and "previous" coating layer to
+        construct the first coating layer instance can be specified.
+
+        Parameters
+        ==========
+
+        i
+            Starting number to count passed image.
+
+        prev
+            Coating layer instance treated to be previous one to construct the
+            first coating layer instance.
+
         """
-        i = 0
-        prev = None
         while True:
             img = yield  # type: ignore
             layer = self.construct_coatinglayer(img, i, prev)
