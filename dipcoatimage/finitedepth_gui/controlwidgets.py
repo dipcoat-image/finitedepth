@@ -317,7 +317,7 @@ class ExperimentWidget(ControlWidget):
     @Slot()
     def commitToCurrentItem(self):
         """
-        Set :meth:`structuredExperimentArgs` and :meth:`experimentArgs` to
+        Set :meth:`experimentArgs` and :meth:`structuredExperimentArgs` to
         currently activated item from :meth:`experimentItemModel`.
         """
         index = self.currentExperimentIndex()
@@ -685,7 +685,7 @@ class ReferenceWidget(ControlWidget):
     @Slot()
     def commitToCurrentItem(self):
         """
-        Set :meth:`structuredReferenceArgs` and :meth:`referenceArgs` to
+        Set :meth:`referenceArgs` and :meth:`structuredReferenceArgs`to
         currently activated item from :meth:`experimentItemModel`.
         """
         index = self.currentExperimentIndex()
@@ -946,7 +946,7 @@ class SubstrateWidget(ControlWidget):
     @Slot()
     def commitToCurrentItem(self):
         """
-        Set :meth:`structuredSubstrateArgs` and :meth:`substrateArgs` to
+        Set :meth:`substrateArgs` and :meth:`structuredSubstrateArgs` to
         currently activated item from :meth:`experimentItemModel`.
         """
         index = self.currentExperimentIndex()
@@ -1218,7 +1218,7 @@ class CoatingLayerWidget(ControlWidget):
     @Slot()
     def commitToCurrentItem(self):
         """
-        Set :meth:`structuredCoatingLayerArgs` and :meth:`coatingLayerArgs` to
+        Set :meth:`coatingLayerArgs` and :meth:`structuredCoatingLayerArgs` to
         currently activated item from :meth:`experimentItemModel`.
         """
         index = self.currentExperimentIndex()
