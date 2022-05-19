@@ -973,7 +973,7 @@ class MasterWorker(QObject):
         if not item.model() == model and item.parent() is None:
             return
         if item.column() == model.Col_Reference:
-            data = model.data(item.index(), model.Role_Args)[1]
+            data = model.data(item.index(), model.Role_StructuredArgs)
             self.referenceWorker().setStructuredReferenceArgs(data)
             self.referenceWorker().updateReference()
             self.substrateWorker().setReference(self.referenceWorker().reference())
@@ -982,19 +982,19 @@ class MasterWorker(QObject):
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
         elif item.column() == model.Col_Substrate:
-            data = model.data(item.index(), model.Role_Args)[1]
+            data = model.data(item.index(), model.Role_StructuredArgs)
             self.substrateWorker().setStructuredSubstrateArgs(data)
             self.substrateWorker().updateSubstrate()
             self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
         elif item.column() == model.Col_CoatingLayer:
-            data = model.data(item.index(), model.Role_Args)[1]
+            data = model.data(item.index(), model.Role_StructuredArgs)
             self.experimentWorker().setStructuredCoatingLayerArgs(data)
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
         elif item.column() == model.Col_Experiment:
-            data = model.data(item.index(), model.Role_Args)[1]
+            data = model.data(item.index(), model.Role_StructuredArgs)
             self.experimentWorker().setStructuredExperimentArgs(data)
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
@@ -1012,23 +1012,23 @@ class MasterWorker(QObject):
         self.referenceWorker().setImage(img)
         refargs = model.data(
             model.index(row, model.Col_Reference),
-            model.Role_Args,
-        )[1]
+            model.Role_StructuredArgs,
+        )
         self.referenceWorker().setStructuredReferenceArgs(refargs)
         substargs = model.data(
             model.index(row, model.Col_Substrate),
-            model.Role_Args,
-        )[1]
+            model.Role_StructuredArgs,
+        )
         self.substrateWorker().setStructuredSubstrateArgs(substargs)
         layerargs = model.data(
             model.index(row, model.Col_CoatingLayer),
-            model.Role_Args,
-        )[1]
+            model.Role_StructuredArgs,
+        )
         self.experimentWorker().setStructuredCoatingLayerArgs(layerargs)
         exptargs = model.data(
             model.index(row, model.Col_Experiment),
-            model.Role_Args,
-        )[1]
+            model.Role_StructuredArgs,
+        )
         self.experimentWorker().setStructuredExperimentArgs(exptargs)
 
         self.referenceWorker().updateReference()

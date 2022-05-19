@@ -241,7 +241,7 @@ class ExperimentWidget(ControlWidget):
         args = model.data(
             model.index(row, model.Col_Experiment),
             model.Role_Args,
-        )[0]
+        )
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
         self.typeWidget().onInformationEdit()
@@ -563,7 +563,7 @@ class ReferenceWidget(ControlWidget):
         args = model.data(
             model.index(row, model.Col_Reference),
             model.Role_Args,
-        )[0]
+        )
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
         self.typeWidget().onInformationEdit()
@@ -692,10 +692,9 @@ class ReferenceWidget(ControlWidget):
             row = self.currentExperimentRow()
             index = model.index(row, model.Col_Reference)
             if index.isValid():
+                model.setData(index, self.referenceArgs(), model.Role_Args)
                 model.setData(
-                    index,
-                    (self.referenceArgs(), self.structuredReferenceArgs()),
-                    model.Role_Args,  # type: ignore[arg-type]
+                    index, self.structuredReferenceArgs(), model.Role_StructuredArgs
                 )
 
     @Slot(str)
@@ -836,7 +835,7 @@ class SubstrateWidget(ControlWidget):
         args = model.data(
             model.index(row, model.Col_Substrate),
             model.Role_Args,
-        )[0]
+        )
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
         self.typeWidget().onInformationEdit()
@@ -955,10 +954,9 @@ class SubstrateWidget(ControlWidget):
             row = self.currentExperimentRow()
             index = model.index(row, model.Col_Substrate)
             if index.isValid():
+                model.setData(index, self.substrateArgs(), model.Role_Args)
                 model.setData(
-                    index,
-                    (self.substrateArgs(), self.structuredSubstrateArgs()),
-                    model.Role_Args,  # type: ignore[arg-type]
+                    index, self.structuredSubstrateArgs(), model.Role_StructuredArgs
                 )
 
 
@@ -1075,7 +1073,7 @@ class CoatingLayerWidget(ControlWidget):
         args = model.data(
             model.index(row, model.Col_CoatingLayer),
             model.Role_Args,
-        )[0]
+        )
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
         self.typeWidget().onInformationEdit()
@@ -1229,10 +1227,9 @@ class CoatingLayerWidget(ControlWidget):
             row = self.currentExperimentRow()
             index = model.index(row, model.Col_CoatingLayer)
             if index.isValid():
+                model.setData(index, self.coatingLayerArgs(), model.Role_Args)
                 model.setData(
-                    index,
-                    (self.coatingLayerArgs(), self.structuredCoatingLayerArgs()),
-                    model.Role_Args,  # type: ignore[arg-type]
+                    index, self.structuredCoatingLayerArgs(), model.Role_StructuredArgs
                 )
 
 
