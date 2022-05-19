@@ -16,6 +16,10 @@ from dipcoatimage.finitedepth import (
 )
 import dataclasses
 from dipcoatimage.finitedepth.analysis import (
+    ReferenceArgs,
+    SubstrateArgs,
+    CoatingLayerArgs,
+    ExperimentArgs,
     AnalysisArgs,
     experiment_kind,
     ExperimentKind,
@@ -26,7 +30,6 @@ import numpy as np
 import numpy.typing as npt
 import os
 from PySide6.QtCore import QObject, Slot, Signal
-from PySide6.QtGui import QStandardItem
 from typing import Optional, Type, Generator, List
 from .core import (
     StructuredReferenceArgs,
@@ -967,45 +970,87 @@ class MasterWorker(QObject):
         self.connectModelSignals()
 
     def connectModelSignals(self):
-        self.experimentItemModel().itemChanged.connect(self.onExperimentItemChange)
+        self.experimentItemModel().referenceDataChanged.connect(
+            self.onReferenceDataChange
+        )
+        self.experimentItemModel().substrateDataChanged.connect(
+            self.onSubstrateDataChange
+        )
+        self.experimentItemModel().coatingLayerDataChanged.connect(
+            self.onCoatingLayerDataChange
+        )
+        self.experimentItemModel().experimentDataChanged.connect(
+            self.onExperimentDataChange
+        )
 
     def disconnectModelSignals(self):
-        self.experimentItemModel().itemChanged.disconnect(self.onExperimentItemChange)
+        self.experimentItemModel().referenceDataChanged.disconnect(
+            self.onReferenceDataChange
+        )
+        self.experimentItemModel().substrateDataChanged.disconnect(
+            self.onSubstrateDataChange
+        )
+        self.experimentItemModel().coatingLayerDataChanged.disconnect(
+            self.onCoatingLayerDataChange
+        )
+        self.experimentItemModel().experimentDataChanged.disconnect(
+            self.onExperimentDataChange
+        )
 
-    @Slot(QStandardItem)
-    def onExperimentItemChange(self, item: QStandardItem):
-        model = self.experimentItemModel()
-        if not item.model() == model and item.parent() is None:
-            return
-        if item.column() == model.Col_Reference:
-            data = model.data(item.index(), model.Role_StructuredArgs)
-            self.referenceWorker().setStructuredReferenceArgs(data)
+    @Slot(int, ReferenceArgs, StructuredReferenceArgs)
+    def onReferenceDataChange(
+        self, row: int, refarg: ReferenceArgs, structrefargs: StructuredReferenceArgs
+    ):
+        if row == self.currentExperimentRow():
+            self.referenceWorker().setStructuredReferenceArgs(structrefargs)
             self.referenceWorker().updateReference()
             self.substrateWorker().setReference(self.referenceWorker().reference())
             self.substrateWorker().updateSubstrate()
             self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
-        elif item.column() == model.Col_Substrate:
-            data = model.data(item.index(), model.Role_StructuredArgs)
-            self.substrateWorker().setStructuredSubstrateArgs(data)
+            self.emitImage()
+
+    @Slot(int, SubstrateArgs, StructuredSubstrateArgs)
+    def onSubstrateDataChange(
+        self,
+        row: int,
+        substarg: SubstrateArgs,
+        structsubstargs: StructuredSubstrateArgs,
+    ):
+        if row == self.currentExperimentRow():
+            self.substrateWorker().setStructuredSubstrateArgs(structsubstargs)
             self.substrateWorker().updateSubstrate()
             self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
-        elif item.column() == model.Col_CoatingLayer:
-            data = model.data(item.index(), model.Role_StructuredArgs)
-            self.experimentWorker().setStructuredCoatingLayerArgs(data)
+            self.emitImage()
+
+    @Slot(int, CoatingLayerArgs, StructuredCoatingLayerArgs)
+    def onCoatingLayerDataChange(
+        self,
+        row: int,
+        layerarg: CoatingLayerArgs,
+        structlayerargs: StructuredCoatingLayerArgs,
+    ):
+        if row == self.currentExperimentRow():
+            self.experimentWorker().setStructuredCoatingLayerArgs(structlayerargs)
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
-        elif item.column() == model.Col_Experiment:
-            data = model.data(item.index(), model.Role_StructuredArgs)
-            self.experimentWorker().setStructuredExperimentArgs(data)
+            self.emitImage()
+
+    @Slot(int, ExperimentArgs, StructuredExperimentArgs)
+    def onExperimentDataChange(
+        self,
+        row: int,
+        exptarg: ExperimentArgs,
+        structexptargs: StructuredExperimentArgs,
+    ):
+        if row == self.currentExperimentRow():
+            self.experimentWorker().setStructuredExperimentArgs(structexptargs)
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
-        else:
-            return
-        self.emitImage()
+            self.emitImage()
 
     @Slot(int)
     def setCurrentExperimentRow(self, row: int):

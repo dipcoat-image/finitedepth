@@ -125,12 +125,16 @@ class ExperimentItemModel(QStandardItemModel):
     Role_StructuredArgs = Qt.UserRole + 1  # type: ignore[operator]
 
     coatPathsChanged = Signal(int, list)
+    referenceDataChanged = Signal(int, ReferenceArgs, StructuredReferenceArgs)
+    substrateDataChanged = Signal(int, SubstrateArgs, StructuredSubstrateArgs)
+    coatingLayerDataChanged = Signal(int, CoatingLayerArgs, StructuredCoatingLayerArgs)
+    experimentDataChanged = Signal(int, ExperimentArgs, StructuredExperimentArgs)
 
     def __init__(self, rows: int = 0, columns: int = len(ColumnNames), parent=None):
         super().__init__(rows, columns, parent)
         self._block_coatPathsChanged = False
 
-        self.dataChanged.connect(self.onDataChange)  # type: ignore[attr-defined]
+        self.itemChanged.connect(self.onItemChange)  # type: ignore[attr-defined]
         self.rowsInserted.connect(self.onRowsChange)  # type: ignore[attr-defined]
         self.rowsMoved.connect(self.onRowsChange)  # type: ignore[attr-defined]
         self.rowsRemoved.connect(self.onRowsChange)  # type: ignore[attr-defined]
@@ -165,20 +169,44 @@ class ExperimentItemModel(QStandardItemModel):
                     ret = AnalysisArgs()
         return ret
 
-    @Slot(QModelIndex, QModelIndex, list)
-    def onDataChange(self, topLeft: QModelIndex, bottomRight: QModelIndex, roles: list):
-        parent = topLeft.parent()
+    @Slot(QStandardItem)
+    def onItemChange(self, item: QStandardItem):
+        parent = item.parent()
         if (
-            parent.isValid()
-            and not parent.parent().isValid()
+            parent is not None
+            and parent.parent() is None
             and parent.column() == self.Col_CoatPaths
         ):  # coat path change
             if not self._block_coatPathsChanged:
                 paths = []
-                for i in range(self.rowCount(parent)):
-                    index = self.index(i, 0, parent)
+                for i in range(self.rowCount(parent.index())):
+                    index = self.index(i, 0, parent.index())
                     paths.append(self.data(index))
                 self.coatPathsChanged.emit(parent.row(), paths)
+        elif parent is None and item.column() == self.Col_Reference:  # ref change
+            self.referenceDataChanged.emit(
+                item.row(),
+                self.data(item.index(), self.Role_Args),
+                self.data(item.index(), self.Role_StructuredArgs),
+            )
+        elif parent is None and item.column() == self.Col_Substrate:  # subst change
+            self.substrateDataChanged.emit(
+                item.row(),
+                self.data(item.index(), self.Role_Args),
+                self.data(item.index(), self.Role_StructuredArgs),
+            )
+        elif parent is None and item.column() == self.Col_CoatingLayer:  # layer change
+            self.coatingLayerDataChanged.emit(
+                item.row(),
+                self.data(item.index(), self.Role_Args),
+                self.data(item.index(), self.Role_StructuredArgs),
+            )
+        elif parent is None and item.column() == self.Col_Experiment:  # expt change
+            self.experimentDataChanged.emit(
+                item.row(),
+                self.data(item.index(), self.Role_Args),
+                self.data(item.index(), self.Role_StructuredArgs),
+            )
 
     @Slot(QModelIndex, int, int)
     def onRowsChange(self, parent: QModelIndex, start: int, end: int):
