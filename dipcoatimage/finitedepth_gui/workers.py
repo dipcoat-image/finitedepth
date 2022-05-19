@@ -922,6 +922,7 @@ class MasterWorker(QObject):
         super().__init__(parent)
 
         self._exptitem_model = ExperimentItemModel()
+        self._currentExperimentRow = -1
 
         self._ref_worker = ReferenceWorker()
         self._subst_worker = SubstrateWorker()
@@ -936,6 +937,10 @@ class MasterWorker(QObject):
     def experimentItemModel(self) -> ExperimentItemModel:
         """Model which holds the experiment item data."""
         return self._exptitem_model
+
+    def currentExperimentRow(self) -> int:
+        """Currently activated row from :meth:`experimentItemModel`."""
+        return self._currentExperimentRow
 
     def referenceWorker(self) -> ReferenceWorker:
         return self._ref_worker
@@ -1004,6 +1009,7 @@ class MasterWorker(QObject):
 
     @Slot(int)
     def setCurrentExperimentRow(self, row: int):
+        self._currentExperimentRow = row
         model = self.experimentItemModel()
         refpath = model.data(model.index(row, model.Col_ReferencePath))
         img = cv2.imread(refpath)

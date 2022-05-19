@@ -85,7 +85,7 @@ class ControlWidget(QWidget):
         return self._exptitem_model
 
     def currentExperimentRow(self) -> int:
-        """Currently activated index from :meth:`experimentItemModel`."""
+        """Currently activated row from :meth:`experimentItemModel`."""
         return self._currentExperimentRow
 
     def setExperimentItemModel(self, model: ExperimentItemModel):
