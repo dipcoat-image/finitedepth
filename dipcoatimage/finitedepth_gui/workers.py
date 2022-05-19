@@ -970,6 +970,9 @@ class MasterWorker(QObject):
         self.connectModelSignals()
 
     def connectModelSignals(self):
+        self.experimentItemModel().coatPathsChanged.connect(
+            self.onCoatPathsChange
+        )
         self.experimentItemModel().referenceDataChanged.connect(
             self.onReferenceDataChange
         )
@@ -982,8 +985,14 @@ class MasterWorker(QObject):
         self.experimentItemModel().experimentDataChanged.connect(
             self.onExperimentDataChange
         )
+        self.experimentItemModel().analysisDataChanged.connect(
+            self.onAnalysisDataChange
+        )
 
     def disconnectModelSignals(self):
+        self.experimentItemModel().coatPathsChanged.disconnect(
+            self.onCoatPathsChange
+        )
         self.experimentItemModel().referenceDataChanged.disconnect(
             self.onReferenceDataChange
         )
@@ -996,10 +1005,18 @@ class MasterWorker(QObject):
         self.experimentItemModel().experimentDataChanged.disconnect(
             self.onExperimentDataChange
         )
+        self.experimentItemModel().analysisDataChanged.disconnect(
+            self.onAnalysisDataChange
+        )
+
+    @Slot(int, list)
+    def onCoatPathsChange(self, row: int, paths: List[str]):
+        if row == self.currentExperimentRow():
+            self.analysisWorker().setPaths(paths)
 
     @Slot(int, ReferenceArgs, StructuredReferenceArgs)
     def onReferenceDataChange(
-        self, row: int, refarg: ReferenceArgs, structrefargs: StructuredReferenceArgs
+        self, row: int, refargs: ReferenceArgs, structrefargs: StructuredReferenceArgs
     ):
         if row == self.currentExperimentRow():
             self.referenceWorker().setStructuredReferenceArgs(structrefargs)
@@ -1015,7 +1032,7 @@ class MasterWorker(QObject):
     def onSubstrateDataChange(
         self,
         row: int,
-        substarg: SubstrateArgs,
+        substargs: SubstrateArgs,
         structsubstargs: StructuredSubstrateArgs,
     ):
         if row == self.currentExperimentRow():
@@ -1030,7 +1047,7 @@ class MasterWorker(QObject):
     def onCoatingLayerDataChange(
         self,
         row: int,
-        layerarg: CoatingLayerArgs,
+        layerargs: CoatingLayerArgs,
         structlayerargs: StructuredCoatingLayerArgs,
     ):
         if row == self.currentExperimentRow():
@@ -1043,7 +1060,7 @@ class MasterWorker(QObject):
     def onExperimentDataChange(
         self,
         row: int,
-        exptarg: ExperimentArgs,
+        exptargs: ExperimentArgs,
         structexptargs: StructuredExperimentArgs,
     ):
         if row == self.currentExperimentRow():
@@ -1051,6 +1068,11 @@ class MasterWorker(QObject):
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
             self.emitImage()
+
+    @Slot(int, AnalysisArgs)
+    def onAnalysisDataChange(self, row: int, analargs: AnalysisArgs):
+        if row == self.currentExperimentRow():
+            self.analysisWorker().setAnalysisArgs(analargs)
 
     @Slot(int)
     def setCurrentExperimentRow(self, row: int):
@@ -1061,6 +1083,10 @@ class MasterWorker(QObject):
         if img is not None:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.referenceWorker().setImage(img)
+
+        coatpaths = model.coatPaths(row)
+        self.analysisWorker().setPaths(coatpaths)
+
         refargs = model.data(
             model.index(row, model.Col_Reference),
             model.Role_StructuredArgs,

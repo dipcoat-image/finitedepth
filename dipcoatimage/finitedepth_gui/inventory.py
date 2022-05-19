@@ -129,6 +129,7 @@ class ExperimentItemModel(QStandardItemModel):
     substrateDataChanged = Signal(int, SubstrateArgs, StructuredSubstrateArgs)
     coatingLayerDataChanged = Signal(int, CoatingLayerArgs, StructuredCoatingLayerArgs)
     experimentDataChanged = Signal(int, ExperimentArgs, StructuredExperimentArgs)
+    analysisDataChanged = Signal(int, AnalysisArgs)
 
     def __init__(self, rows: int = 0, columns: int = len(ColumnNames), parent=None):
         super().__init__(rows, columns, parent)
@@ -206,6 +207,11 @@ class ExperimentItemModel(QStandardItemModel):
                 item.row(),
                 self.data(item.index(), self.Role_Args),
                 self.data(item.index(), self.Role_StructuredArgs),
+            )
+        elif parent is None and item.column() == self.Col_Analysis:  # analysis change
+            self.analysisDataChanged.emit(
+                item.row(),
+                self.data(item.index(), self.Role_Args),
             )
 
     @Slot(QModelIndex, int, int)
