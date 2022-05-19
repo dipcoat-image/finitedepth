@@ -57,9 +57,6 @@ class AnalysisGUI(QMainWindow):
         self.masterControlWidget().drawROIToggled.connect(
             self.mainDisplayWindow().toggleROIDraw
         )
-        self.masterControlWidget().selectedClassChanged.connect(
-            self.masterWorker().setVisualizingWorker
-        )
         self.masterControlWidget().imageChanged.connect(
             self.masterWorker().setReferenceImage
         )

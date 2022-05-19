@@ -628,15 +628,6 @@ class ExperimentWorker(WorkerBase):
         """
         return self._expt
 
-    def setVisualizationMode(self, mode):
-        """
-        Update :meth:`visualizationMode` with *mode*.
-        Also, update :meth:`layerGenerator` if *mode* is True.
-        """
-        super().setVisualizationMode(mode)
-        if mode:
-            self.updateLayerGenerator()
-
     def visualizedImage(self, img: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
         """
         Return visualization result of *img* analyzed by

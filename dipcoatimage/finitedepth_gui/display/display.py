@@ -31,9 +31,9 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QToolBar, QMainWindow, QStackedWidget, QWidget
 from typing import Union, Tuple, List
-from .core import ClassSelection
-from .roimodel import ROIModel
-from .workers import (
+from dipcoatimage.finitedepth_gui.core import ClassSelection
+from dipcoatimage.finitedepth_gui.roimodel import ROIModel
+from dipcoatimage.finitedepth_gui.workers import (
     VisualizationMode,
 )
 
