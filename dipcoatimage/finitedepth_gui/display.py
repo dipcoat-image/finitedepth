@@ -12,7 +12,7 @@ from cv2PySide6 import (
     NDArrayVideoPlayerWidget,
     NDArrayCameraWidget,
 )
-from dipcoatimage.finitedepth.analysis import experiment_kind, ExperimentKind
+from dipcoatimage.finitedepth.analysis import ExperimentKind
 import dipcoatimage.finitedepth_gui
 import numpy as np
 import numpy.typing as npt
@@ -36,7 +36,6 @@ from .roimodel import ROIModel
 from .workers import (
     VisualizationMode,
 )
-from .inventory import ExperimentItemModel
 
 
 __all__ = [
@@ -583,35 +582,6 @@ class MainDisplayWindow(QMainWindow):
         """Toolbar to control display options."""
         return self._display_toolbar
 
-    def setExperimentItemModel(self, model: ExperimentItemModel):
-        """Set :meth:`experimentItemModel`."""
-        self.disconnectModelSignals()
-        self._exptitem_model = model
-        self.connectModelSignals()
-
-    def connectModelSignals(self):
-        self.experimentItemModel().coatPathsChanged.connect(self.onCoatPathsChange)
-
-    def disconnectModelSignals(self):
-        self.experimentItemModel().coatPathsChanged.disconnect(self.onCoatPathsChange)
-
-    @Slot(int)
-    def setCurrentExperimentRow(self, row: int):
-        self._currentExperimentRow = row
-
-    @Slot(int, list)
-    def onCoatPathsChange(self, row: int, paths: List[str]):
-        if row == self.currentExperimentRow():
-            kind = experiment_kind(paths)
-            self._expt_kind = kind
-            self.exposeDisplayWidget(self.experimentKind(), self.classSelection())
-
-            if kind == ExperimentKind.VideoExperiment:
-                (path,) = paths
-                self.videoDisplayWidget().videoPlayer().setSource(
-                    QUrl.fromLocalFile(path)
-                )
-
     @Slot(ClassSelection)
     def setClassSelection(self, select: ClassSelection):
         self._selection = select
@@ -624,7 +594,7 @@ class MainDisplayWindow(QMainWindow):
             selection == ClassSelection.EXPERIMENT
             and kind == ExperimentKind.VideoExperiment
         ):
-            widget = self.videoDisplayWidget()
+            widget: QWidget = self.videoDisplayWidget()
         else:
             widget = self.imageDisplayWidget()
         self.displayStackWidget().setCurrentWidget(widget)
