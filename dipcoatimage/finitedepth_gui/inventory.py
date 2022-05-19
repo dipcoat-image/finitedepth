@@ -126,10 +126,10 @@ class ExperimentItemModel(QStandardItemModel):
         super().__init__(rows, columns, parent)
         self._block_coatPathsChanged = False
 
-        self.dataChanged.connect(self.onDataChange)
-        self.rowsInserted.connect(self.onRowsChange)
-        self.rowsMoved.connect(self.onRowsChange)
-        self.rowsRemoved.connect(self.onRowsChange)
+        self.dataChanged.connect(self.onDataChange)  # type: ignore[attr-defined]
+        self.rowsInserted.connect(self.onRowsChange)  # type: ignore[attr-defined]
+        self.rowsMoved.connect(self.onRowsChange)  # type: ignore[attr-defined]
+        self.rowsRemoved.connect(self.onRowsChange)  # type: ignore[attr-defined]
 
     def data(self, index, role=Qt.DisplayRole):
         ret = super().data(index, role)

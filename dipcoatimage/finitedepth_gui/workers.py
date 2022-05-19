@@ -25,7 +25,7 @@ import enum
 import numpy as np
 import numpy.typing as npt
 import os
-from PySide6.QtCore import QObject, QModelIndex, Slot, Signal
+from PySide6.QtCore import QObject, Slot, Signal
 from PySide6.QtGui import QStandardItem
 from typing import Optional, Type, Generator, List
 from .core import (
@@ -963,17 +963,9 @@ class MasterWorker(QObject):
 
     def connectModelSignals(self):
         self.experimentItemModel().itemChanged.connect(self.onExperimentItemChange)
-        self.experimentItemModel().rowsInserted.connect(self.onExperimentItemRowsChange)
-        self.experimentItemModel().rowsRemoved.connect(self.onExperimentItemRowsChange)
 
     def disconnectModelSignals(self):
         self.experimentItemModel().itemChanged.disconnect(self.onExperimentItemChange)
-        self.experimentItemModel().rowsInserted.disconnect(
-            self.onExperimentItemRowsChange
-        )
-        self.experimentItemModel().rowsRemoved.disconnect(
-            self.onExperimentItemRowsChange
-        )
 
     @Slot(QStandardItem)
     def onExperimentItemChange(self, item: QStandardItem):
@@ -1009,10 +1001,6 @@ class MasterWorker(QObject):
         else:
             return
         self.emitImage()
-
-    @Slot(QModelIndex, int, int)
-    def onExperimentItemRowsChange(self, index: QModelIndex, first: int, last: int):
-        pass
 
     @Slot(int)
     def setCurrentExperimentRow(self, row: int):
