@@ -931,6 +931,11 @@ class MasterWorker(QObject):
     def onCoatPathsChange(self, row: int, paths: List[str], kind: ExperimentKind):
         if row == self.currentExperimentRow():
             self.analysisWorker().setPaths(paths, kind)
+            self.workersUpdated.emit(
+                [
+                    ClassSelection.ANALYSIS,
+                ]
+            )
 
     @Slot(int, ReferenceArgs, StructuredReferenceArgs)
     def onReferenceDataChange(
@@ -944,6 +949,14 @@ class MasterWorker(QObject):
             self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
+            self.workersUpdated.emit(
+                [
+                    ClassSelection.REFERENCE,
+                    ClassSelection.SUBSTRATE,
+                    ClassSelection.EXPERIMENT,
+                    ClassSelection.ANALYSIS,
+                ]
+            )
 
     @Slot(int, SubstrateArgs, StructuredSubstrateArgs)
     def onSubstrateDataChange(
@@ -958,6 +971,13 @@ class MasterWorker(QObject):
             self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
+            self.workersUpdated.emit(
+                [
+                    ClassSelection.SUBSTRATE,
+                    ClassSelection.EXPERIMENT,
+                    ClassSelection.ANALYSIS,
+                ]
+            )
 
     @Slot(int, CoatingLayerArgs, StructuredCoatingLayerArgs)
     def onCoatingLayerDataChange(
@@ -970,6 +990,12 @@ class MasterWorker(QObject):
             self.experimentWorker().setStructuredCoatingLayerArgs(structlayerargs)
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
+            self.workersUpdated.emit(
+                [
+                    ClassSelection.EXPERIMENT,
+                    ClassSelection.ANALYSIS,
+                ]
+            )
 
     @Slot(int, ExperimentArgs, StructuredExperimentArgs)
     def onExperimentDataChange(
@@ -982,11 +1008,22 @@ class MasterWorker(QObject):
             self.experimentWorker().setStructuredExperimentArgs(structexptargs)
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
+            self.workersUpdated.emit(
+                [
+                    ClassSelection.EXPERIMENT,
+                    ClassSelection.ANALYSIS,
+                ]
+            )
 
     @Slot(int, AnalysisArgs)
     def onAnalysisDataChange(self, row: int, analargs: AnalysisArgs):
         if row == self.currentExperimentRow():
             self.analysisWorker().setAnalysisArgs(analargs)
+            self.workersUpdated.emit(
+                [
+                    ClassSelection.ANALYSIS,
+                ]
+            )
 
     @Slot(int)
     def setCurrentExperimentRow(self, row: int):
@@ -1031,9 +1068,24 @@ class MasterWorker(QObject):
         self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
         self.experimentWorker().updateExperiment()
         self.analysisWorker().setExperiment(self.experimentWorker().experiment())
+        self.workersUpdated.emit(
+            [
+                ClassSelection.REFERENCE,
+                ClassSelection.SUBSTRATE,
+                ClassSelection.EXPERIMENT,
+                ClassSelection.ANALYSIS,
+            ]
+        )
 
     @Slot(VisualizationMode)
     def setVisualizationMode(self, mode: VisualizationMode):
         self.referenceWorker().setVisualizationMode(mode)
         self.substrateWorker().setVisualizationMode(mode)
         self.experimentWorker().setVisualizationMode(mode)
+        self.workersUpdated.emit(
+            [
+                ClassSelection.REFERENCE,
+                ClassSelection.SUBSTRATE,
+                ClassSelection.EXPERIMENT,
+            ]
+        )
