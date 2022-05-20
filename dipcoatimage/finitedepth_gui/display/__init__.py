@@ -7,7 +7,7 @@ This module provides the widgets to display the visualized results.
 """
 
 
-from .display import (
+from .maindisplay import (
     PreviewableNDArrayVideoPlayer,
     ROIVideoWidget,
     ROICameraWidget,
