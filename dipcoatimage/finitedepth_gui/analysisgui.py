@@ -48,23 +48,23 @@ class AnalysisGUI(QMainWindow):
         self.mainDisplayWindow().visualizationModeChanged.connect(
             self.masterWorker().setVisualizationMode
         )
-        self.masterControlWidget().setExperimentItemModel(
-            self.experimentInventory().experimentItemModel()
-        )
         self.experimentInventory().experimentRowActivated.connect(
             self.masterControlWidget().setCurrentExperimentRow
+        )
+        self.experimentInventory().experimentRowActivated.connect(
+            self.masterWorker().setCurrentExperimentRow
+        )
+        self.masterControlWidget().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
         )
         self.masterControlWidget().drawROIToggled.connect(
             self.mainDisplayWindow().toggleROIDraw
         )
-        self.masterControlWidget().imageChanged.connect(
-            self.masterWorker().setReferenceImage
+        self.masterControlWidget().selectedClassChanged.connect(
+            self.mainDisplayWindow().setSelectedClass
         )
         self.masterWorker().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
-        )
-        self.experimentInventory().experimentRowActivated.connect(
-            self.masterWorker().setCurrentExperimentRow
         )
 
         self.cwdButton().clicked.connect(self.browseCWD)

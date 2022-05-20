@@ -2,6 +2,7 @@ from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.workers import VisualizationMode
 from PySide6.QtCore import Signal, Slot
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
+from .core import ClassSelection
 from .toolbar import DisplayWidgetToolBar
 from .roidisplay import NDArrayROILabel
 from .videostream import MediaController
@@ -23,6 +24,7 @@ class MainDisplayWindow(QMainWindow):
         self._display_toolbar = DisplayWidgetToolBar()
         self._display_label = NDArrayROILabel()
         self._video_controller = MediaController()
+        self._selectedClass = ClassSelection.EXPERIMENT
 
         self.displayToolBar().visualizationModeChanged.connect(
             self.visualizationModeChanged
@@ -53,6 +55,10 @@ class MainDisplayWindow(QMainWindow):
             self.displayLabel().addROIModel(model)
         else:
             self.displayLabel().removeROIModel(model)
+
+    @Slot(ClassSelection)
+    def setSelectedClass(self, select: ClassSelection):
+        self._selectedClass = select
 
     def setVisualizeActionToggleState(self, mode: VisualizationMode):
         self.displayToolBar().setVisualizeActionToggleState(mode)

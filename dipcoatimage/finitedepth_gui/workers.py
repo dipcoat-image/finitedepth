@@ -911,6 +911,14 @@ class MasterWorker(QObject):
     def visualizationMode(self) -> VisualizationMode:
         return self._visualize_mode
 
+    def setReferenceImage(self, img: Optional[npt.NDArray[np.uint8]]):
+        self.referenceWorker().setImage(img)
+        self.substrateWorker().setReference(self.referenceWorker().reference())
+        self.substrateWorker().updateSubstrate()
+        self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
+        self.experimentWorker().updateExperiment()
+        self.analysisWorker().setExperiment(self.experimentWorker().experiment())
+
     def setExperimentItemModel(self, model: ExperimentItemModel):
         """Set :meth:`experimentItemModel`."""
         self.disconnectModelSignals()
@@ -1049,15 +1057,6 @@ class MasterWorker(QObject):
         self.experimentWorker().setStructuredExperimentArgs(exptargs)
 
         self.referenceWorker().updateReference()
-        self.substrateWorker().setReference(self.referenceWorker().reference())
-        self.substrateWorker().updateSubstrate()
-        self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
-        self.experimentWorker().updateExperiment()
-        self.analysisWorker().setExperiment(self.experimentWorker().experiment())
-
-    @Slot(object)
-    def setReferenceImage(self, img: Optional[npt.NDArray[np.uint8]]):
-        self.referenceWorker().setImage(img)
         self.substrateWorker().setReference(self.referenceWorker().reference())
         self.substrateWorker().updateSubstrate()
         self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
