@@ -80,6 +80,7 @@ class AnalysisGUI(QMainWindow):
         self.statusBar().addPermanentWidget(self.cwdButton())
         self.statusBar().showMessage(os.getcwd())
 
+        # initialize window state
         self.mainDisplayWindow().setVisualizeActionToggleState(
             self.masterWorker().visualizationMode()
         )

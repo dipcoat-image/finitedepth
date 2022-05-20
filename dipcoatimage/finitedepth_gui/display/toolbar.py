@@ -1,14 +1,8 @@
 import dipcoatimage.finitedepth_gui
-from dipcoatimage.finitedepth_gui.workers import (
-    VisualizationMode,
-)
+from dipcoatimage.finitedepth_gui.workers import VisualizationMode
 import os
 from PySide6.QtCore import Signal, QSize, Slot
-from PySide6.QtGui import (
-    QActionGroup,
-    QAction,
-    QIcon,
-)
+from PySide6.QtGui import QActionGroup, QAction, QIcon
 from PySide6.QtWidgets import QToolBar, QComboBox, QLineEdit, QToolButton, QMenu
 
 
@@ -70,7 +64,7 @@ class DisplayWidgetToolBar(QToolBar):
         captureActionIcon.addFile(get_icons_path("capture.svg"), QSize(24, 24))
         self.captureButton().setIcon(captureActionIcon)
         self.captureButton().setMenu(QMenu(self))
-        self.captureAndAddAction().setText('Capture and add to data')
+        self.captureAndAddAction().setText("Capture and add to data")
         self.captureAndAddAction().setCheckable(True)
         self.captureButton().menu().addAction(self.captureAndAddAction())
         self.captureButton().setPopupMode(QToolButton.MenuButtonPopup)
@@ -83,7 +77,7 @@ class DisplayWidgetToolBar(QToolBar):
         recordActionIcon.addFile(get_icons_path("record.svg"), QSize(24, 24))
         self.recordButton().setIcon(recordActionIcon)
         self.recordButton().setMenu(QMenu(self))
-        self.recordAndAddAction().setText('Record and add to data')
+        self.recordAndAddAction().setText("Record and add to data")
         self.recordAndAddAction().setCheckable(True)
         self.recordButton().menu().addAction(self.recordAndAddAction())
         self.recordButton().setPopupMode(QToolButton.MenuButtonPopup)

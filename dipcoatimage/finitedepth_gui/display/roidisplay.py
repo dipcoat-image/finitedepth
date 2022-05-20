@@ -1,12 +1,6 @@
 from cv2PySide6 import NDArrayLabel
 from PySide6.QtCore import Signal, QSize, QRect, QPoint, Qt
-from PySide6.QtGui import (
-    QPaintEvent,
-    QMouseEvent,
-    QPainter,
-    QBrush,
-    QColor,
-)
+from PySide6.QtGui import QPaintEvent, QMouseEvent, QPainter, QBrush, QColor
 from typing import Union, Tuple, List
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 
