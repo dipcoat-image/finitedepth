@@ -112,6 +112,7 @@ class MainDisplayWindow(QMainWindow):
     def setSelectedClass(self, select: ClassSelection):
         self._selectedClass = select
         self.updateControllerVisibility()
+        self.visualizeProcessor().setSelectedClass(select)
 
     @Slot(int)
     def setCurrentExperimentRow(self, row: int):

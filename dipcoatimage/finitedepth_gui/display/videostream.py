@@ -1,5 +1,6 @@
 import cv2  # type: ignore[import]
 from cv2PySide6 import NDArrayVideoPlayer, ClickableSlider, ArrayProcessor
+from dipcoatimage.finitedepth_gui.core import ClassSelection
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
 import numpy as np
 import numpy.typing as npt
@@ -168,12 +169,34 @@ class VisualizeProcessor(ArrayProcessor):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._worker = None
+        self._selectedClass = ClassSelection.EXPERIMENT
 
     def visualizeWorker(self) -> Optional[MasterWorker]:
         return self._worker
 
+    def selectedClass(self) -> ClassSelection:
+        return self._selectedClass
+
     def setVisualizeWorker(self, worker: Optional[MasterWorker]):
         self._worker = worker
 
+    def setClassSelection(self, select: ClassSelection):
+        self._selectedClass = select
+
     def processArray(self, array: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
+        worker = self.visualizeWorker()
+        if worker is None:
+            ret = array
+        elif self.selectedClass() == ClassSelection.REFERENCE:
+            worker.referenceWorker().setImage(array)
+            worker.referenceWorker().updateReference()
+            ret = worker.referenceWorker().visualizedImage()
+        elif self.selectedClass() == ClassSelection.SUBSTRATE:
+            worker.referenceWorker().setImage(array)
+            worker.referenceWorker().updateReference()
+            worker.substrateWorker().setReference(worker.referenceWorker().reference())
+            worker.substrateWorker().updateSubstrate()
+            ret = worker.substrateWorker().visualizedImage()
+        else:
+            ret = array
         return array
