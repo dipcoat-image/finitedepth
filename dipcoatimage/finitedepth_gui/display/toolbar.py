@@ -16,6 +16,7 @@ class DisplayWidgetToolBar(QToolBar):
     """Toolbar to controll the overall display."""
 
     visualizationModeChanged = Signal(VisualizationMode)
+    cameraToggled = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -24,7 +25,7 @@ class DisplayWidgetToolBar(QToolBar):
         self._visualizeAction = QAction("Toggle visualization")
         self._fastVisualizeAction = QAction("Toggle fast visualization")
         self._cameras_combo = QComboBox()
-        self._streamAction = QAction()
+        self._cameraAction = QAction()
         self._capturepath_ledit = QLineEdit()
         self._captureFormat_combo = QComboBox()
         self._captureButton = QToolButton()
@@ -52,10 +53,12 @@ class DisplayWidgetToolBar(QToolBar):
         self.fastVisualizeAction().setIcon(fastVisIcon)
 
         self.camerasComboBox().setPlaceholderText("Select camera")
-        self.streamingAction().setToolTip("Toggle live streaming")
-        streamActionIcon = QIcon()
-        streamActionIcon.addFile(get_icons_path("camera.svg"), QSize(24, 24))
-        self.streamingAction().setIcon(streamActionIcon)
+        self.cameraAction().setCheckable(True)
+        self.cameraAction().toggled.connect(self.cameraToggled)
+        self.cameraAction().setToolTip("Toggle Camera")
+        cameraActionIcon = QIcon()
+        cameraActionIcon.addFile(get_icons_path("camera.svg"), QSize(24, 24))
+        self.cameraAction().setIcon(cameraActionIcon)
 
         self.capturePathLineEdit().setPlaceholderText("Image capture path")
         self.captureFormatComboBox().setPlaceholderText("Image format")
@@ -87,7 +90,7 @@ class DisplayWidgetToolBar(QToolBar):
         self.addSeparator()
         self.addSeparator()
         self.addWidget(self.camerasComboBox())
-        self.addAction(self.streamingAction())
+        self.addAction(self.cameraAction())
         self.addSeparator()
         self.addWidget(self.capturePathLineEdit())
         self.addWidget(self.captureFormatComboBox())
@@ -111,9 +114,9 @@ class DisplayWidgetToolBar(QToolBar):
     def camerasComboBox(self) -> QComboBox:
         return self._cameras_combo
 
-    def streamingAction(self) -> QAction:
-        """Action to toggle live streaming mode."""
-        return self._streamAction
+    def cameraAction(self) -> QAction:
+        """Action to toggle camera mode."""
+        return self._cameraAction
 
     def capturePathLineEdit(self) -> QLineEdit:
         """Line edit to set the image capture path."""

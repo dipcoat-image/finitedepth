@@ -27,6 +27,7 @@ class MainDisplayWindow(QMainWindow):
         self._currentExperimentRow = -1
         self._expt_kind = ExperimentKind.NullExperiment
         self._selectedClass = ClassSelection.EXPERIMENT
+        self._camera_on = False
 
         self._display_toolbar = DisplayWidgetToolBar()
         self._display_label = NDArrayROILabel()
@@ -35,6 +36,7 @@ class MainDisplayWindow(QMainWindow):
         self.displayToolBar().visualizationModeChanged.connect(
             self.visualizationModeChanged
         )
+        self.displayToolBar().cameraToggled.connect(self.onCameraToggle)
 
         self.addToolBar(self.displayToolBar())
         layout = QVBoxLayout()
@@ -57,6 +59,9 @@ class MainDisplayWindow(QMainWindow):
 
     def selectedClass(self) -> ClassSelection:
         return self._selectedClass
+
+    def cameraOn(self) -> bool:
+        return self._camera_on
 
     def displayToolBar(self) -> DisplayWidgetToolBar:
         """Toolbar to control display options."""
@@ -87,14 +92,35 @@ class MainDisplayWindow(QMainWindow):
     @Slot(int, list, ExperimentKind)
     def onCoatPathsChange(self, row: int, paths: List[str], kind: ExperimentKind):
         self._expt_kind = kind
+        self.updateControllerVisibility()
 
     @Slot(ClassSelection)
     def setSelectedClass(self, select: ClassSelection):
         self._selectedClass = select
+        self.updateControllerVisibility()
 
     @Slot(int)
     def setCurrentExperimentRow(self, row: int):
         self._currentExperimentRow = row
+        model = self.experimentItemModel()
+        if model is None:
+            return
+        self._expt_kind = model.experimentKind(row)
+        self.updateControllerVisibility()
+
+    @Slot(bool)
+    def onCameraToggle(self, toggled: bool):
+        self._camera_on = toggled
+        self.updateControllerVisibility()
+
+    def updateControllerVisibility(self):
+        if self.cameraOn() or self.selectedClass() != ClassSelection.EXPERIMENT:
+            visible = False
+        elif self.experimentKind() == ExperimentKind.VideoExperiment:
+            visible = True
+        else:
+            visible = False
+        self.videoController().setVisible(visible)
 
     @Slot(ROIModel, bool)
     def toggleROIDraw(self, model: ROIModel, state: bool):
@@ -105,6 +131,3 @@ class MainDisplayWindow(QMainWindow):
 
     def setVisualizeActionToggleState(self, mode: VisualizationMode):
         self.displayToolBar().setVisualizeActionToggleState(mode)
-
-    def hideVideoController(self, hide: bool):
-        self.videoController().setVisible(not hide)
