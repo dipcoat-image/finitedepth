@@ -199,4 +199,4 @@ class VisualizeProcessor(ArrayProcessor):
             ret = worker.substrateWorker().visualizedImage()
         else:
             ret = array
-        return array
+        return ret
