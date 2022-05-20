@@ -174,3 +174,6 @@ class VisualizeProcessor(ArrayProcessor):
 
     def setVisualizeWorker(self, worker: Optional[MasterWorker]):
         self._worker = worker
+
+    def processArray(self, array: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
+        return array

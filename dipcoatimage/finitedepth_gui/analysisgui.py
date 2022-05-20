@@ -49,8 +49,12 @@ class AnalysisGUI(QMainWindow):
         self.mainDisplayWindow().visualizationModeChanged.connect(
             self.masterWorker().setVisualizationMode
         )
+        self.mainDisplayWindow().setVisualizeWorker(self.masterWorker())
         self.masterControlWidget().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
+        )
+        self.masterControlWidget().imageChanged.connect(
+            self.masterWorker().setReferenceImage
         )
         self.masterControlWidget().drawROIToggled.connect(
             self.mainDisplayWindow().toggleROIDraw

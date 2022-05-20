@@ -2,12 +2,17 @@ from dipcoatimage.finitedepth.analysis import ExperimentKind
 from dipcoatimage.finitedepth_gui.core import ClassSelection, VisualizationMode
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
+from dipcoatimage.finitedepth_gui.workers import MasterWorker
 from PySide6.QtCore import Signal, Slot
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
 from typing import Optional, List
 from .toolbar import DisplayWidgetToolBar
 from .roidisplay import NDArrayROILabel
-from .videostream import MediaController
+from .videostream import (
+    MediaController,
+    PreviewableNDArrayVideoPlayer,
+    VisualizeProcessor,
+)
 
 
 __all__ = [
@@ -32,6 +37,9 @@ class MainDisplayWindow(QMainWindow):
         self._display_toolbar = DisplayWidgetToolBar()
         self._display_label = NDArrayROILabel()
         self._video_controller = MediaController()
+
+        self._video_player = PreviewableNDArrayVideoPlayer()
+        self._visualize_processor = VisualizeProcessor()
 
         self.displayToolBar().visualizationModeChanged.connect(
             self.visualizationModeChanged
@@ -73,6 +81,12 @@ class MainDisplayWindow(QMainWindow):
 
     def videoController(self) -> MediaController:
         return self._video_controller
+
+    def videoPlayer(self) -> PreviewableNDArrayVideoPlayer:
+        return self._video_player
+
+    def visualizeProcessor(self) -> VisualizeProcessor:
+        return self._visualize_processor
 
     def setExperimentItemModel(self, model: Optional[ExperimentItemModel]):
         """Set :meth:`experimentItemModel`."""
@@ -128,6 +142,9 @@ class MainDisplayWindow(QMainWindow):
             self.displayLabel().addROIModel(model)
         else:
             self.displayLabel().removeROIModel(model)
+
+    def setVisualizeWorker(self, worker: Optional[MasterWorker]):
+        self.visualizeProcessor().setVisualizeWorker(worker)
 
     def setVisualizeActionToggleState(self, mode: VisualizationMode):
         self.displayToolBar().setVisualizeActionToggleState(mode)

@@ -880,6 +880,7 @@ class MasterWorker(QObject):
 
     def setReferenceImage(self, img: Optional[npt.NDArray[np.uint8]]):
         self.referenceWorker().setImage(img)
+        self.referenceWorker().updateReference()
         self.substrateWorker().setReference(self.referenceWorker().reference())
         self.substrateWorker().updateSubstrate()
         self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
