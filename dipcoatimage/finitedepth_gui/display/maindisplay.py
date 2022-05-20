@@ -1,8 +1,10 @@
-from dipcoatimage.finitedepth.analyze import ExperimentKind
+from dipcoatimage.finitedepth.analysis import ExperimentKind
 from dipcoatimage.finitedepth_gui.core import ClassSelection, VisualizationMode
+from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from PySide6.QtCore import Signal, Slot
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
+from typing import Optional, List
 from .toolbar import DisplayWidgetToolBar
 from .roidisplay import NDArrayROILabel
 from .videostream import MediaController

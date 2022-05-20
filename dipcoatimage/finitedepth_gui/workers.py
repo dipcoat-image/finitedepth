@@ -16,7 +16,6 @@ from dipcoatimage.finitedepth import (
 )
 import dataclasses
 from dipcoatimage.finitedepth.analysis import (
-    experiment_kind,
     ExperimentKind,
     ReferenceArgs,
     SubstrateArgs,
@@ -986,7 +985,8 @@ class MasterWorker(QObject):
         self.referenceWorker().setImage(img)
 
         coatpaths = model.coatPaths(row)
-        self.analysisWorker().setPaths(coatpaths, experiment_kind(coatpaths))
+        exptkind = model.experimentKind(row)
+        self.analysisWorker().setPaths(coatpaths, exptkind)
 
         refargs = model.data(
             model.index(row, model.Col_Reference),

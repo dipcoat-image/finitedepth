@@ -85,7 +85,8 @@ class ExperimentItemModel(QStandardItemModel):
     1. Col_ReferencePath
         Path to reference file. Corresponds to :attr:`ExperimentData.ref_path`.
     2. Col_CoatPaths
-        Paths to coated substrate files. Each path is stored in children rows.
+        Paths to coated substrate files. Experimnet kind is stored in data with
+        default role, and each path is stored in children rows.
         Corresponds to :attr:`ExperimentData.coat_paths`.
     3. Col_Reference
         Data to construct reference object. Data is stored with :attr:`Role_Args`
@@ -145,6 +146,8 @@ class ExperimentItemModel(QStandardItemModel):
     def data(self, index, role=Qt.DisplayRole):
         ret = super().data(index, role)
         if ret is None and not index.parent().isValid():
+            if index.column() == self.Col_CoatPaths:
+                ret = ExperimentKind.NullExperiment
             if index.column() == self.Col_Reference:
                 if role == self.Role_Args:
                     ret = ReferenceArgs()
@@ -185,7 +188,9 @@ class ExperimentItemModel(QStandardItemModel):
                 for i in range(self.rowCount(parent.index())):
                     index = self.index(i, 0, parent.index())
                     paths.append(self.data(index))
-                self.coatPathsChanged.emit(parent.row(), paths, experiment_kind(paths))
+                kind = experiment_kind(paths)
+                self.setData(parent.index(), kind)
+                self.coatPathsChanged.emit(parent.row(), paths, kind)
         elif parent is None and item.column() == self.Col_Reference:  # ref change
             self.referenceDataChanged.emit(
                 item.row(),
@@ -228,7 +233,9 @@ class ExperimentItemModel(QStandardItemModel):
                 for i in range(self.rowCount(parent)):
                     index = self.index(i, 0, parent)
                     paths.append(self.data(index))
-                self.coatPathsChanged.emit(parent.row(), paths, experiment_kind(paths))
+                kind = experiment_kind(paths)
+                self.setData(parent, kind)
+                self.coatPathsChanged.emit(parent.row(), paths, kind)
 
     def coatPaths(self, exptRow: int) -> List[str]:
         parent = self.index(exptRow, self.Col_CoatPaths)
@@ -237,6 +244,9 @@ class ExperimentItemModel(QStandardItemModel):
             index = self.index(i, 0, parent)
             paths.append(self.data(index))
         return paths
+
+    def experimentKind(self, exptRow: int) -> ExperimentKind:
+        return self.data(self.index(exptRow, self.Col_CoatPaths))
 
     def setCoatPaths(self, exptRow: int, paths: List[str]):
         """
@@ -251,8 +261,10 @@ class ExperimentItemModel(QStandardItemModel):
         for i, path in enumerate(paths):
             self.insertRow(i, parent)
             self.setData(self.index(i, 0, parent), path)
+        kind = experiment_kind(paths)
+        self.setData(parent, kind)
         self._block_coatPathsChanged = False
-        self.coatPathsChanged.emit(parent.row(), paths, experiment_kind(paths))
+        self.coatPathsChanged.emit(parent.row(), paths, kind)
 
 
 class ExperimentInventory(QWidget):
