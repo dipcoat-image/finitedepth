@@ -1,9 +1,10 @@
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.workers import VisualizationMode
 from PySide6.QtCore import Signal, Slot
-from PySide6.QtWidgets import QMainWindow
+from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
 from .toolbar import DisplayWidgetToolBar
 from .roidisplay import NDArrayROILabel
+from .videostream import MediaController
 
 
 __all__ = [
@@ -21,13 +22,19 @@ class MainDisplayWindow(QMainWindow):
 
         self._display_toolbar = DisplayWidgetToolBar()
         self._display_label = NDArrayROILabel()
+        self._video_controller = MediaController()
 
         self.displayToolBar().visualizationModeChanged.connect(
             self.visualizationModeChanged
         )
 
         self.addToolBar(self.displayToolBar())
-        self.setCentralWidget(self.displayLabel())
+        layout = QVBoxLayout()
+        layout.addWidget(self.displayLabel())
+        layout.addWidget(self.videoController())
+        centralWidget = QWidget()
+        centralWidget.setLayout(layout)
+        self.setCentralWidget(centralWidget)
 
     def displayToolBar(self) -> DisplayWidgetToolBar:
         """Toolbar to control display options."""
@@ -36,6 +43,9 @@ class MainDisplayWindow(QMainWindow):
     def displayLabel(self) -> NDArrayROILabel:
         """Label to display the visualization result."""
         return self._display_label
+
+    def videoController(self) -> MediaController:
+        return self._video_controller
 
     @Slot(ROIModel, bool)
     def toggleROIDraw(self, model: ROIModel, state: bool):
@@ -46,3 +56,6 @@ class MainDisplayWindow(QMainWindow):
 
     def setVisualizeActionToggleState(self, mode: VisualizationMode):
         self.displayToolBar().setVisualizeActionToggleState(mode)
+
+    def hideVideoController(self, hide: bool):
+        self.videoController().setVisible(not hide)
