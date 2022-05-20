@@ -912,7 +912,7 @@ class MasterWorker(QObject):
         model.experimentDataChanged.disconnect(self.onExperimentDataChange)
         model.analysisDataChanged.disconnect(self.onAnalysisDataChange)
 
-    @Slot(int, list)
+    @Slot(int, list, ExperimentKind)
     def onCoatPathsChange(self, row: int, paths: List[str], kind: ExperimentKind):
         if row == self.currentExperimentRow():
             self.analysisWorker().setPaths(paths, kind)

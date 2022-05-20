@@ -34,14 +34,20 @@ class AnalysisGUI(QMainWindow):
         self._master_worker = MasterWorker()
         self._cwd_button = QPushButton()
 
-        self.mainDisplayWindow().visualizationModeChanged.connect(
-            self.masterWorker().setVisualizationMode
+        self.experimentInventory().experimentRowActivated.connect(
+            self.mainDisplayWindow().setCurrentExperimentRow
         )
         self.experimentInventory().experimentRowActivated.connect(
             self.masterControlWidget().setCurrentExperimentRow
         )
         self.experimentInventory().experimentRowActivated.connect(
             self.masterWorker().setCurrentExperimentRow
+        )
+        self.mainDisplayWindow().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
+        )
+        self.mainDisplayWindow().visualizationModeChanged.connect(
+            self.masterWorker().setVisualizationMode
         )
         self.masterControlWidget().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
