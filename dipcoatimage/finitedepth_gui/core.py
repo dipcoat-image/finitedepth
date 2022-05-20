@@ -160,7 +160,9 @@ class ClassSelection(enum.Enum):
     UNKNOWN = 0
     REFERENCE = 1
     SUBSTRATE = 2
-    EXPERIMENT = 3
+    COATINGLAYER = 3
+    EXPERIMENT = 4
+    ANALYSIS = 5
 
 
 class VisualizationMode(enum.IntEnum):

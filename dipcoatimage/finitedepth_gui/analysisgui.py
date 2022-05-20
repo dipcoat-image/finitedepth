@@ -50,6 +50,9 @@ class AnalysisGUI(QMainWindow):
             self.masterWorker().setVisualizationMode
         )
         self.mainDisplayWindow().setVisualizeWorker(self.masterWorker())
+        self.mainDisplayWindow().cameraTurnOff.connect(
+            self.masterControlWidget().resetReferenceImage
+        )
         self.masterControlWidget().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
         )
@@ -64,6 +67,9 @@ class AnalysisGUI(QMainWindow):
         )
         self.masterWorker().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
+        )
+        self.masterWorker().workersUpdated.connect(
+            self.mainDisplayWindow().onWorkersUpdate
         )
 
         self.cwdButton().clicked.connect(self.browseCWD)

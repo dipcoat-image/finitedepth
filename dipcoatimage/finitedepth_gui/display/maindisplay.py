@@ -24,6 +24,8 @@ class MainDisplayWindow(QMainWindow):
     """Main window which includes various display widgets."""
 
     visualizationModeChanged = Signal(VisualizationMode)
+    cameraTurnOn = Signal()
+    cameraTurnOff = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -136,6 +138,10 @@ class MainDisplayWindow(QMainWindow):
     def onCameraToggle(self, toggled: bool):
         self._camera_on = toggled
         self.updateControllerVisibility()
+        if toggled:
+            self.cameraTurnOn.emit()
+        else:
+            self.cameraTurnOff.emit()
 
     def updateControllerVisibility(self):
         if self.cameraOn() or self.selectedClass() != ClassSelection.EXPERIMENT:
@@ -145,6 +151,10 @@ class MainDisplayWindow(QMainWindow):
         else:
             visible = False
         self.videoController().setVisible(visible)
+
+    @Slot(list)
+    def onWorkersUpdate(self, workers: List[ClassSelection]):
+        pass
 
     @Slot(ROIModel, bool)
     def toggleROIDraw(self, model: ROIModel, state: bool):

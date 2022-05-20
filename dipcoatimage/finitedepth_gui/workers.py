@@ -34,6 +34,7 @@ from .core import (
     StructuredSubstrateArgs,
     StructuredCoatingLayerArgs,
     StructuredExperimentArgs,
+    ClassSelection,
     VisualizationMode,
 )
 from .inventory import ExperimentItemModel
@@ -843,7 +844,13 @@ class MasterWorker(QObject):
     """
     Object which contains subworkers. Detects every change which requires the
     display to be updated, and signals.
+
+    When workers are updated, their corresponding :class:`ClassSelection` members
+    are emitted by :attr:`workersUpdated`.
+
     """
+
+    workersUpdated = Signal(list)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -886,6 +893,14 @@ class MasterWorker(QObject):
         self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
         self.experimentWorker().updateExperiment()
         self.analysisWorker().setExperiment(self.experimentWorker().experiment())
+        self.workersUpdated.emit(
+            [
+                ClassSelection.REFERENCE,
+                ClassSelection.SUBSTRATE,
+                ClassSelection.EXPERIMENT,
+                ClassSelection.ANALYSIS,
+            ]
+        )
 
     def setExperimentItemModel(self, model: Optional[ExperimentItemModel]):
         """Set :meth:`experimentItemModel`."""
