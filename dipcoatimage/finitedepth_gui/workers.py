@@ -25,7 +25,6 @@ from dipcoatimage.finitedepth.analysis import (
     ExperimentKind,
 )
 from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
-import enum
 import numpy as np
 import numpy.typing as npt
 import os
@@ -36,14 +35,12 @@ from .core import (
     StructuredSubstrateArgs,
     StructuredCoatingLayerArgs,
     StructuredExperimentArgs,
+    VisualizationMode,
 )
-from .inventory import (
-    ExperimentItemModel,
-)
+from .inventory import ExperimentItemModel
 
 
 __all__ = [
-    "VisualizationMode",
     "WorkerBase",
     "ReferenceWorker",
     "SubstrateWorker",
@@ -51,31 +48,6 @@ __all__ = [
     "AnalysisWorker",
     "MasterWorker",
 ]
-
-
-class VisualizationMode(enum.IntEnum):
-    """
-    Option for workers to determine how the image is shown.
-
-    Attributes
-    ==========
-
-    OFF
-        Do not visualize.
-
-    FULL
-        Full visualization. Reference and substrate are visualized as usual, and
-        coating layer is visualized using coating layer decoration.
-
-    FAST
-        Fast visualization without coating layer decoration. Reference and
-        substrate are visualized as usual, but coating layer is not decorated.
-
-    """
-
-    OFF = 0
-    FULL = 1
-    FAST = 2
 
 
 class WorkerBase(QObject):
@@ -872,20 +844,17 @@ class MasterWorker(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._exptitem_model = ExperimentItemModel()
+        self._exptitem_model = None
         self._currentExperimentRow = -1
 
         self._ref_worker = ReferenceWorker()
         self._subst_worker = SubstrateWorker()
         self._expt_worker = ExperimentWorker()
         self._anal_worker = AnalysisWorker()
-        self._visualizing_worker = ExperimentWorker()
-        self._visualize_mode = VisualizationMode.FULL
 
-        self.connectModelSignals()
-        self.setVisualizationMode(self.visualizationMode())
+        self.setVisualizationMode(VisualizationMode.FULL)
 
-    def experimentItemModel(self) -> ExperimentItemModel:
+    def experimentItemModel(self) -> Optional[ExperimentItemModel]:
         """Model which holds the experiment item data."""
         return self._exptitem_model
 
@@ -905,12 +874,6 @@ class MasterWorker(QObject):
     def analysisWorker(self) -> AnalysisWorker:
         return self._anal_worker
 
-    def visualizingWorker(self) -> WorkerBase:
-        return self._visualizing_worker
-
-    def visualizationMode(self) -> VisualizationMode:
-        return self._visualize_mode
-
     def setReferenceImage(self, img: Optional[npt.NDArray[np.uint8]]):
         self.referenceWorker().setImage(img)
         self.substrateWorker().setReference(self.referenceWorker().reference())
@@ -919,47 +882,30 @@ class MasterWorker(QObject):
         self.experimentWorker().updateExperiment()
         self.analysisWorker().setExperiment(self.experimentWorker().experiment())
 
-    def setExperimentItemModel(self, model: ExperimentItemModel):
+    def setExperimentItemModel(self, model: Optional[ExperimentItemModel]):
         """Set :meth:`experimentItemModel`."""
-        self.disconnectModelSignals()
+        old_model = self.experimentItemModel()
+        if old_model is not None:
+            self.disconnectModel(old_model)
         self._exptitem_model = model
-        self.connectModelSignals()
+        if model is not None:
+            self.connectModel(model)
 
-    def connectModelSignals(self):
-        self.experimentItemModel().coatPathsChanged.connect(self.onCoatPathsChange)
-        self.experimentItemModel().referenceDataChanged.connect(
-            self.onReferenceDataChange
-        )
-        self.experimentItemModel().substrateDataChanged.connect(
-            self.onSubstrateDataChange
-        )
-        self.experimentItemModel().coatingLayerDataChanged.connect(
-            self.onCoatingLayerDataChange
-        )
-        self.experimentItemModel().experimentDataChanged.connect(
-            self.onExperimentDataChange
-        )
-        self.experimentItemModel().analysisDataChanged.connect(
-            self.onAnalysisDataChange
-        )
+    def connectModel(self, model: ExperimentItemModel):
+        model.coatPathsChanged.connect(self.onCoatPathsChange)
+        model.referenceDataChanged.connect(self.onReferenceDataChange)
+        model.substrateDataChanged.connect(self.onSubstrateDataChange)
+        model.coatingLayerDataChanged.connect(self.onCoatingLayerDataChange)
+        model.experimentDataChanged.connect(self.onExperimentDataChange)
+        model.analysisDataChanged.connect(self.onAnalysisDataChange)
 
-    def disconnectModelSignals(self):
-        self.experimentItemModel().coatPathsChanged.disconnect(self.onCoatPathsChange)
-        self.experimentItemModel().referenceDataChanged.disconnect(
-            self.onReferenceDataChange
-        )
-        self.experimentItemModel().substrateDataChanged.disconnect(
-            self.onSubstrateDataChange
-        )
-        self.experimentItemModel().coatingLayerDataChanged.disconnect(
-            self.onCoatingLayerDataChange
-        )
-        self.experimentItemModel().experimentDataChanged.disconnect(
-            self.onExperimentDataChange
-        )
-        self.experimentItemModel().analysisDataChanged.disconnect(
-            self.onAnalysisDataChange
-        )
+    def disconnectModel(self, model: ExperimentItemModel):
+        model.coatPathsChanged.disconnect(self.onCoatPathsChange)
+        model.referenceDataChanged.disconnect(self.onReferenceDataChange)
+        model.substrateDataChanged.disconnect(self.onSubstrateDataChange)
+        model.coatingLayerDataChanged.disconnect(self.onCoatingLayerDataChange)
+        model.experimentDataChanged.disconnect(self.onExperimentDataChange)
+        model.analysisDataChanged.disconnect(self.onAnalysisDataChange)
 
     @Slot(int, list)
     def onCoatPathsChange(self, row: int, paths: List[str]):
@@ -1026,6 +972,8 @@ class MasterWorker(QObject):
     def setCurrentExperimentRow(self, row: int):
         self._currentExperimentRow = row
         model = self.experimentItemModel()
+        if model is None:
+            return
         refpath = model.data(model.index(row, model.Col_ReferencePath))
         img = cv2.imread(refpath)
         if img is not None:
@@ -1065,7 +1013,6 @@ class MasterWorker(QObject):
 
     @Slot(VisualizationMode)
     def setVisualizationMode(self, mode: VisualizationMode):
-        self._visualize_mode = mode
         self.referenceWorker().setVisualizationMode(mode)
         self.substrateWorker().setVisualizationMode(mode)
         self.experimentWorker().setVisualizationMode(mode)

@@ -1,8 +1,7 @@
+from dipcoatimage.finitedepth_gui.core import ClassSelection, VisualizationMode
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
-from dipcoatimage.finitedepth_gui.workers import VisualizationMode
 from PySide6.QtCore import Signal, Slot
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
-from .core import ClassSelection
 from .toolbar import DisplayWidgetToolBar
 from .roidisplay import NDArrayROILabel
 from .videostream import MediaController

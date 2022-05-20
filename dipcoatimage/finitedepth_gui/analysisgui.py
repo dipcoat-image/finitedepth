@@ -1,19 +1,8 @@
 import os
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtWidgets import (
-    QMainWindow,
-    QDockWidget,
-    QPushButton,
-    QFileDialog,
-)
-from .controlwidgets import (
-    ExperimentWidget,
-    ReferenceWidget,
-    SubstrateWidget,
-    CoatingLayerWidget,
-    AnalysisWidget,
-    MasterControlWidget,
-)
+from PySide6.QtWidgets import QMainWindow, QDockWidget, QPushButton,  QFileDialog
+from .controlwidgets import MasterControlWidget
+from .core import VisualizationMode
 from .display import MainDisplayWindow
 from .inventory import ExperimentInventory
 from .workers import MasterWorker
@@ -81,9 +70,8 @@ class AnalysisGUI(QMainWindow):
         self.statusBar().showMessage(os.getcwd())
 
         # initialize window state
-        self.mainDisplayWindow().setVisualizeActionToggleState(
-            self.masterWorker().visualizationMode()
-        )
+        self.masterWorker().setVisualizationMode(VisualizationMode.FULL)
+        self.mainDisplayWindow().setVisualizeActionToggleState(VisualizationMode.FULL)
         self.experimentInventory().addNewExperiment()
         self.experimentInventory().activateExperiment(0)
 
@@ -101,26 +89,6 @@ class AnalysisGUI(QMainWindow):
         experiment item.
         """
         return self._master_controlwidget
-
-    def experimentWidget(self) -> ExperimentWidget:
-        """Widget to manage data for experiment class."""
-        return self.masterControlWidget().experimentWidget()
-
-    def referenceWidget(self) -> ReferenceWidget:
-        """Widget to manage data for substrate reference class."""
-        return self.masterControlWidget().referenceWidget()
-
-    def substrateWidget(self) -> SubstrateWidget:
-        """Widget to manage data for substrate class."""
-        return self.masterControlWidget().substrateWidget()
-
-    def coatingLayerWidget(self) -> CoatingLayerWidget:
-        """Widget to manage data for coating layer class."""
-        return self.masterControlWidget().coatingLayerWidget()
-
-    def analysisWidget(self) -> AnalysisWidget:
-        """Widget to manage analysis."""
-        return self.masterControlWidget().analysisWidget()
 
     def masterWorker(self) -> MasterWorker:
         """Object which contains workers for the experiment."""

@@ -53,9 +53,7 @@ from .core import (
     StructuredCoatingLayerArgs,
     ClassSelection,
 )
-from .inventory import (
-    ExperimentItemModel,
-)
+from .inventory import ExperimentItemModel
 from .roimodel import ROIModel, ROIWidget
 
 

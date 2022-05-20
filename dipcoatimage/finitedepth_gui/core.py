@@ -29,6 +29,7 @@ __all__ = [
     "StructuredSubstrateArgs",
     "StructuredCoatingLayerArgs",
     "ClassSelection",
+    "VisualizationMode",
 ]
 
 
@@ -160,3 +161,28 @@ class ClassSelection(enum.Enum):
     REFERENCE = 1
     SUBSTRATE = 2
     EXPERIMENT = 3
+
+
+class VisualizationMode(enum.IntEnum):
+    """
+    Option to determine how the image is shown.
+
+    Attributes
+    ==========
+
+    OFF
+        Do not visualize.
+
+    FULL
+        Full visualization. Reference and substrate are visualized as usual, and
+        coating layer is visualized using coating layer decoration.
+
+    FAST
+        Fast visualization without coating layer decoration. Reference and
+        substrate are visualized as usual, but coating layer is not decorated.
+
+    """
+
+    OFF = 0
+    FULL = 1
+    FAST = 2
