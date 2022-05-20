@@ -117,7 +117,7 @@ class MainDisplayWindow(QMainWindow):
         if row == self.currentExperimentRow():
             self._coat_paths = paths
             self._expt_kind = kind
-        self.updateControllerVisibility()
+            self.updateControllerVisibility()
 
     @Slot(ClassSelection)
     def setSelectedClass(self, select: ClassSelection):
@@ -144,7 +144,12 @@ class MainDisplayWindow(QMainWindow):
             self.cameraTurnOff.emit()
 
     def updateControllerVisibility(self):
-        if self.cameraOn() or self.selectedClass() != ClassSelection.EXPERIMENT:
+        if self.cameraOn():
+            visible = False
+        elif self.selectedClass() in {
+            ClassSelection.REFERENCE,
+            ClassSelection.SUBSTRATE,
+        }:
             visible = False
         elif self.experimentKind() == ExperimentKind.VideoExperiment:
             visible = True
