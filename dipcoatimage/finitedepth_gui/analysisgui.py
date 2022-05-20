@@ -1,6 +1,6 @@
 import os
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtWidgets import QMainWindow, QDockWidget, QPushButton,  QFileDialog
+from PySide6.QtWidgets import QMainWindow, QDockWidget, QPushButton, QFileDialog
 from .controlwidgets import MasterControlWidget
 from .core import VisualizationMode
 from .display import MainDisplayWindow

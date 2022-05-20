@@ -16,13 +16,13 @@ from dipcoatimage.finitedepth import (
 )
 import dataclasses
 from dipcoatimage.finitedepth.analysis import (
+    experiment_kind,
+    ExperimentKind,
     ReferenceArgs,
     SubstrateArgs,
     CoatingLayerArgs,
     ExperimentArgs,
     AnalysisArgs,
-    experiment_kind,
-    ExperimentKind,
 )
 from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
 import numpy as np
@@ -688,6 +688,7 @@ class AnalysisWorker(WorkerBase):
         super().__init__(parent)
         self._experiment = None
         self._paths = []
+        self._expt_kind = ExperimentKind.NullExperiment
         self._analysisArgs = AnalysisArgs()
 
     def experiment(self) -> Optional[ExperimentBase]:
@@ -696,6 +697,9 @@ class AnalysisWorker(WorkerBase):
     def paths(self) -> List[str]:
         return self._paths
 
+    def experimentKind(self) -> ExperimentKind:
+        return self._expt_kind
+
     def analysisArgs(self) -> AnalysisArgs:
         return self._analysisArgs
 
@@ -703,8 +707,9 @@ class AnalysisWorker(WorkerBase):
     def setExperiment(self, expt: Optional[ExperimentBase]):
         self._experiment = expt
 
-    def setPaths(self, paths: List[str]):
+    def setPaths(self, paths: List[str], kind: ExperimentKind):
         self._paths = paths
+        self._expt_kind = kind
 
     def setAnalysisArgs(self, args: AnalysisArgs):
         self._analysisArgs = args
@@ -715,7 +720,7 @@ class AnalysisWorker(WorkerBase):
         self.experiment.substrate.reference.verify()
         self.experiment.substrate.verify()
         self.experiment.verify()
-        expt_kind = experiment_kind(self.paths)
+        expt_kind = self.experimentKind()
 
         data_path = self.analysisArgs().data_path
         image_path = self.analysisArgs().image_path
@@ -908,9 +913,9 @@ class MasterWorker(QObject):
         model.analysisDataChanged.disconnect(self.onAnalysisDataChange)
 
     @Slot(int, list)
-    def onCoatPathsChange(self, row: int, paths: List[str]):
+    def onCoatPathsChange(self, row: int, paths: List[str], kind: ExperimentKind):
         if row == self.currentExperimentRow():
-            self.analysisWorker().setPaths(paths)
+            self.analysisWorker().setPaths(paths, kind)
 
     @Slot(int, ReferenceArgs, StructuredReferenceArgs)
     def onReferenceDataChange(
@@ -981,7 +986,7 @@ class MasterWorker(QObject):
         self.referenceWorker().setImage(img)
 
         coatpaths = model.coatPaths(row)
-        self.analysisWorker().setPaths(coatpaths)
+        self.analysisWorker().setPaths(coatpaths, experiment_kind(coatpaths))
 
         refargs = model.data(
             model.index(row, model.Col_Reference),

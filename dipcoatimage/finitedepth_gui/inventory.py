@@ -6,6 +6,8 @@ Experiment item model and widget to view it.
 
 """
 from dipcoatimage.finitedepth.analysis import (
+    ExperimentKind,
+    experiment_kind,
     ReferenceArgs,
     SubstrateArgs,
     CoatingLayerArgs,
@@ -124,7 +126,7 @@ class ExperimentItemModel(QStandardItemModel):
     Role_Args = Qt.UserRole
     Role_StructuredArgs = Qt.UserRole + 1  # type: ignore[operator]
 
-    coatPathsChanged = Signal(int, list)
+    coatPathsChanged = Signal(int, list, ExperimentKind)
     referenceDataChanged = Signal(int, ReferenceArgs, StructuredReferenceArgs)
     substrateDataChanged = Signal(int, SubstrateArgs, StructuredSubstrateArgs)
     coatingLayerDataChanged = Signal(int, CoatingLayerArgs, StructuredCoatingLayerArgs)
@@ -183,7 +185,7 @@ class ExperimentItemModel(QStandardItemModel):
                 for i in range(self.rowCount(parent.index())):
                     index = self.index(i, 0, parent.index())
                     paths.append(self.data(index))
-                self.coatPathsChanged.emit(parent.row(), paths)
+                self.coatPathsChanged.emit(parent.row(), paths, experiment_kind(paths))
         elif parent is None and item.column() == self.Col_Reference:  # ref change
             self.referenceDataChanged.emit(
                 item.row(),
@@ -226,7 +228,7 @@ class ExperimentItemModel(QStandardItemModel):
                 for i in range(self.rowCount(parent)):
                     index = self.index(i, 0, parent)
                     paths.append(self.data(index))
-                self.coatPathsChanged.emit(parent.row(), paths)
+                self.coatPathsChanged.emit(parent.row(), paths, experiment_kind(paths))
 
     def coatPaths(self, exptRow: int) -> List[str]:
         parent = self.index(exptRow, self.Col_CoatPaths)
@@ -250,7 +252,7 @@ class ExperimentItemModel(QStandardItemModel):
             self.insertRow(i, parent)
             self.setData(self.index(i, 0, parent), path)
         self._block_coatPathsChanged = False
-        self.coatPathsChanged.emit(parent.row(), paths)
+        self.coatPathsChanged.emit(parent.row(), paths, experiment_kind(paths))
 
 
 class ExperimentInventory(QWidget):
