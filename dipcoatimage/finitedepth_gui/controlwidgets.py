@@ -1412,7 +1412,7 @@ class AnalysisWidget(ControlWidget):
 class MasterControlWidget(QTabWidget):
     """Widget which contains control widgets."""
 
-    imageChanged = Signal(object)
+    referenceImageChanged = Signal(object)
     drawROIToggled = Signal(ROIModel, bool)
     selectedClassChanged = Signal(ClassSelection)
 
@@ -1425,7 +1425,7 @@ class MasterControlWidget(QTabWidget):
         self._layer_widget = CoatingLayerWidget()
         self._anal_widget = AnalysisWidget()
 
-        self.referenceWidget().imageChanged.connect(self.imageChanged)
+        self.referenceWidget().imageChanged.connect(self.referenceImageChanged)
         self.referenceWidget().templateROIDrawButton().toggled.connect(
             self.onTemplateROIDrawButtonToggle
         )

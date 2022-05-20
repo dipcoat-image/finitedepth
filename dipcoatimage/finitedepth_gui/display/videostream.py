@@ -184,6 +184,8 @@ class VisualizeProcessor(ArrayProcessor):
         self._selectedClass = select
 
     def processArray(self, array: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
+        # only the selected class is updated, e.g. updated reference instance is not
+        # applied to substrate worker when visualizing reference.
         worker = self.visualizeWorker()
         if worker is None:
             ret = array

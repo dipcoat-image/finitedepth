@@ -30,6 +30,7 @@ class MainDisplayWindow(QMainWindow):
 
         self._exptitem_model = None
         self._currentExperimentRow = -1
+        self._coat_paths = []
         self._expt_kind = ExperimentKind.NullExperiment
         self._selectedClass = ClassSelection.EXPERIMENT
         self._camera_on = False
@@ -64,6 +65,9 @@ class MainDisplayWindow(QMainWindow):
     def currentExperimentRow(self) -> int:
         """Currently activated row from :meth:`experimentItemModel`."""
         return self._currentExperimentRow
+
+    def coatPaths(self) -> List[str]:
+        return self._coat_paths
 
     def experimentKind(self) -> ExperimentKind:
         return self._expt_kind
@@ -108,7 +112,9 @@ class MainDisplayWindow(QMainWindow):
 
     @Slot(int, list, ExperimentKind)
     def onCoatPathsChange(self, row: int, paths: List[str], kind: ExperimentKind):
-        self._expt_kind = kind
+        if row == self.currentExperimentRow():
+            self._coat_paths = paths
+            self._expt_kind = kind
         self.updateControllerVisibility()
 
     @Slot(ClassSelection)

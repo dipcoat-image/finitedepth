@@ -53,7 +53,7 @@ class AnalysisGUI(QMainWindow):
         self.masterControlWidget().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
         )
-        self.masterControlWidget().imageChanged.connect(
+        self.masterControlWidget().referenceImageChanged.connect(
             self.masterWorker().setReferenceImage
         )
         self.masterControlWidget().drawROIToggled.connect(
