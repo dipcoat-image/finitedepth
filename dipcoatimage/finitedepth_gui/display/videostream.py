@@ -1,5 +1,6 @@
 import cv2  # type: ignore[import]
-from cv2PySide6 import NDArrayVideoPlayer, ClickableSlider
+from cv2PySide6 import NDArrayVideoPlayer, ClickableSlider, ArrayProcessor
+from dipcoatimage.finitedepth_gui.workers import MasterWorker
 import numpy as np
 import numpy.typing as npt
 from PySide6.QtCore import QUrl, Slot, Qt
@@ -11,6 +12,7 @@ from typing import Optional
 __all__ = [
     "MediaController",
     "PreviewableNDArrayVideoPlayer",
+    "VisualizeProcessor",
 ]
 
 
@@ -160,3 +162,15 @@ class PreviewableNDArrayVideoPlayer(NDArrayVideoPlayer):
         if not ok:
             img = np.empty((0, 0, 0))
         return img
+
+
+class VisualizeProcessor(ArrayProcessor):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._worker = None
+
+    def visualizeWorker(self) -> Optional[MasterWorker]:
+        return self._worker
+
+    def setVisualizeWorker(self, worker: Optional[MasterWorker]):
+        self._worker = worker
