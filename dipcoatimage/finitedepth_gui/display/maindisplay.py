@@ -46,6 +46,9 @@ class MainDisplayWindow(QMainWindow):
         )
         self.displayToolBar().cameraToggled.connect(self.onCameraToggle)
 
+        self.videoPlayer().arrayChanged.connect(self.visualizeProcessor().setArray)
+        self.visualizeProcessor().arrayChanged.connect(self.displayLabel().setArray)
+
         self.addToolBar(self.displayToolBar())
         layout = QVBoxLayout()
         layout.addWidget(self.displayLabel())

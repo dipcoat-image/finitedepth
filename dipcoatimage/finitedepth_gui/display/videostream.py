@@ -180,7 +180,7 @@ class VisualizeProcessor(ArrayProcessor):
     def setVisualizeWorker(self, worker: Optional[MasterWorker]):
         self._worker = worker
 
-    def setClassSelection(self, select: ClassSelection):
+    def setSelectedClass(self, select: ClassSelection):
         self._selectedClass = select
 
     def processArray(self, array: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
