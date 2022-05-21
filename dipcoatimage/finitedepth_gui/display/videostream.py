@@ -200,7 +200,7 @@ class VisualizeProcessor(ArrayProcessor):
             worker.substrateWorker().updateSubstrate()
             ret = worker.substrateWorker().visualizedImage()
         else:
-            ret = array
+            ret = worker.experimentWorker().visualizeImage(array)
         return ret
 
     def emitVisualizationFromModel(self, select: ClassSelection):

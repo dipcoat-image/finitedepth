@@ -536,6 +536,18 @@ class ExperimentWorker(WorkerBase):
                 coat_drawopts = None
         self._layer_drawopts = coat_drawopts
 
+        coat_decoopts = data.deco_options
+        if coattype is None:
+            coat_decoopts = None
+        elif isinstance(coat_decoopts, coattype.DecoOptions):
+            pass
+        else:
+            try:
+                coat_decoopts = coattype.DecoOptions()
+            except TypeError:
+                coat_decoopts = None
+        self._layer_decoopts = coat_decoopts
+
     def setStructuredExperimentArgs(self, data: StructuredExperimentArgs):
         """
         Set following values with *data*.
@@ -598,22 +610,9 @@ class ExperimentWorker(WorkerBase):
         """
         return self._expt
 
-    def visualizedImage(self, img: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
+    def visualizeImage(self, img: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
         """
-        Return visualization result of *img* analyzed by
-        :meth:`experiment`.
-
-        If possible, :meth:`ExperimentBase.layer_generator` is used to construct
-        the visualized image. This implies that consecutively visualized images
-        are consecutive in real world as well. If completely unrelated images
-        should be passed, run :meth:`updateLayerGenerator` first.
-
-        If :meth:`visualizationMode` is ``FULL``, visualization is done by
-        constructing analysis objects. If it is ``FAST``, image is visualized by
-        :meth:`fastVisualize`.
-
-        If parameters are invalid or :meth:`visualizationMode` is ``OFF``,
-        directly return *img*.
+        Return visualization result of *img* analyzed by :meth:`experiment`.
 
         """
         expt = self.experiment()
