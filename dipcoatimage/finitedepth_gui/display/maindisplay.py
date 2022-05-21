@@ -1,9 +1,11 @@
+import cv2  # type: ignore[import]
 from dipcoatimage.finitedepth.analysis import ExperimentKind
 from dipcoatimage.finitedepth_gui.core import ClassSelection, VisualizationMode
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
-from PySide6.QtCore import Signal, Slot, Qt
+from PySide6.QtCore import Signal, Slot, Qt, QUrl
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
 from typing import Optional, List
 from .toolbar import DisplayWidgetToolBar
@@ -180,6 +182,16 @@ class MainDisplayWindow(QMainWindow):
             ClassSelection.SUBSTRATE,
         }:  # directly update
             self.visualizeProcessor().emitVisualizationFromModel(self.selectedClass())
+        elif self.experimentKind() == ExperimentKind.VideoExperiment:
+            self.videoPlayer().setSource(QUrl.fromLocalFile(self.coatPaths()[0]))
+        elif (
+            self.experimentKind() == ExperimentKind.SingleImageExperiment
+            or self.experimentKind() == ExperimentKind.MultiImageExperiment
+        ):
+            img = cv2.cvtColor(cv2.imread(self.coatPaths()[0]), cv2.COLOR_BGR2RGB)
+            self.visualizeProcessor().setArray(img)
+        else:  # flush image
+            self.displayLabel().setPixmap(QPixmap())
 
     @Slot(ROIModel, bool)
     def toggleROIDraw(self, model: ROIModel, state: bool):

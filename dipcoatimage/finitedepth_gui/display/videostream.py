@@ -204,9 +204,12 @@ class VisualizeProcessor(ArrayProcessor):
         return ret
 
     def emitVisualizationFromModel(self, select: ClassSelection):
+        worker = self.visualizeWorker()
+        if worker is None:
+            return
         if select == ClassSelection.REFERENCE:
-            ret = self.visualizeWorker().referenceWorker().visualizedImage()
+            ret = worker.referenceWorker().visualizedImage()
             self.arrayChanged.emit(ret)
         elif select == ClassSelection.SUBSTRATE:
-            ret = self.visualizeWorker().substrateWorker().visualizedImage()
+            ret = worker.substrateWorker().visualizedImage()
             self.arrayChanged.emit(ret)
