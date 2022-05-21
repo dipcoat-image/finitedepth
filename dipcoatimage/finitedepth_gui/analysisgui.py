@@ -90,6 +90,7 @@ class AnalysisGUI(QMainWindow):
         self.mainDisplayWindow().setVisualizeActionToggleState(VisualizationMode.FULL)
         self.experimentInventory().addNewExperiment()
         self.experimentInventory().activateExperiment(0)
+        self.masterControlWidget().setCurrentIndex(0)
 
     def mainDisplayWindow(self) -> MainDisplayWindow:
         """Main window which includes all display widgets."""

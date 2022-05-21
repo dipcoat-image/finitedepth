@@ -151,7 +151,7 @@ class StructuredCoatingLayerArgs:
         return cls(layertype, param, drawopt, decoopt)
 
 
-class ClassSelection(enum.Enum):
+class ClassSelection(enum.IntFlag):
     """
     Enum to indicate class-specific selections, e.g. which tab widget or worker
     to choose.
@@ -160,9 +160,8 @@ class ClassSelection(enum.Enum):
     UNKNOWN = 0
     REFERENCE = 1
     SUBSTRATE = 2
-    COATINGLAYER = 3
     EXPERIMENT = 4
-    ANALYSIS = 5
+    ANALYSIS = 8
 
 
 class VisualizationMode(enum.IntEnum):

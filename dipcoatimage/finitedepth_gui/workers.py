@@ -845,12 +845,12 @@ class MasterWorker(QObject):
     Object which contains subworkers. Detects every change which requires the
     display to be updated, and signals.
 
-    When workers are updated, their corresponding :class:`ClassSelection` members
-    are emitted by :attr:`workersUpdated`.
+    When workers are updated, combination of their corresponding
+    :class:`ClassSelection` members are emitted by :attr:`workersUpdated`.
 
     """
 
-    workersUpdated = Signal(list)
+    workersUpdated = Signal(ClassSelection)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -894,12 +894,10 @@ class MasterWorker(QObject):
         self.experimentWorker().updateExperiment()
         self.analysisWorker().setExperiment(self.experimentWorker().experiment())
         self.workersUpdated.emit(
-            [
-                ClassSelection.REFERENCE,
-                ClassSelection.SUBSTRATE,
-                ClassSelection.EXPERIMENT,
-                ClassSelection.ANALYSIS,
-            ]
+            ClassSelection.REFERENCE
+            | ClassSelection.SUBSTRATE
+            | ClassSelection.EXPERIMENT
+            | ClassSelection.ANALYSIS
         )
 
     def setExperimentItemModel(self, model: Optional[ExperimentItemModel]):
@@ -931,11 +929,7 @@ class MasterWorker(QObject):
     def onCoatPathsChange(self, row: int, paths: List[str], kind: ExperimentKind):
         if row == self.currentExperimentRow():
             self.analysisWorker().setPaths(paths, kind)
-            self.workersUpdated.emit(
-                [
-                    ClassSelection.ANALYSIS,
-                ]
-            )
+            self.workersUpdated.emit(ClassSelection.ANALYSIS)
 
     @Slot(int, ReferenceArgs, StructuredReferenceArgs)
     def onReferenceDataChange(
@@ -950,12 +944,10 @@ class MasterWorker(QObject):
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
             self.workersUpdated.emit(
-                [
-                    ClassSelection.REFERENCE,
-                    ClassSelection.SUBSTRATE,
-                    ClassSelection.EXPERIMENT,
-                    ClassSelection.ANALYSIS,
-                ]
+                ClassSelection.REFERENCE
+                | ClassSelection.SUBSTRATE
+                | ClassSelection.EXPERIMENT
+                | ClassSelection.ANALYSIS
             )
 
     @Slot(int, SubstrateArgs, StructuredSubstrateArgs)
@@ -972,11 +964,9 @@ class MasterWorker(QObject):
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
             self.workersUpdated.emit(
-                [
-                    ClassSelection.SUBSTRATE,
-                    ClassSelection.EXPERIMENT,
-                    ClassSelection.ANALYSIS,
-                ]
+                ClassSelection.SUBSTRATE
+                | ClassSelection.EXPERIMENT
+                | ClassSelection.ANALYSIS
             )
 
     @Slot(int, CoatingLayerArgs, StructuredCoatingLayerArgs)
@@ -991,10 +981,7 @@ class MasterWorker(QObject):
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
             self.workersUpdated.emit(
-                [
-                    ClassSelection.EXPERIMENT,
-                    ClassSelection.ANALYSIS,
-                ]
+                ClassSelection.EXPERIMENT | ClassSelection.ANALYSIS
             )
 
     @Slot(int, ExperimentArgs, StructuredExperimentArgs)
@@ -1009,21 +996,14 @@ class MasterWorker(QObject):
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
             self.workersUpdated.emit(
-                [
-                    ClassSelection.EXPERIMENT,
-                    ClassSelection.ANALYSIS,
-                ]
+                ClassSelection.EXPERIMENT | ClassSelection.ANALYSIS
             )
 
     @Slot(int, AnalysisArgs)
     def onAnalysisDataChange(self, row: int, analargs: AnalysisArgs):
         if row == self.currentExperimentRow():
             self.analysisWorker().setAnalysisArgs(analargs)
-            self.workersUpdated.emit(
-                [
-                    ClassSelection.ANALYSIS,
-                ]
-            )
+            self.workersUpdated.emit(ClassSelection.ANALYSIS)
 
     @Slot(int)
     def setCurrentExperimentRow(self, row: int):
@@ -1069,12 +1049,10 @@ class MasterWorker(QObject):
         self.experimentWorker().updateExperiment()
         self.analysisWorker().setExperiment(self.experimentWorker().experiment())
         self.workersUpdated.emit(
-            [
-                ClassSelection.REFERENCE,
-                ClassSelection.SUBSTRATE,
-                ClassSelection.EXPERIMENT,
-                ClassSelection.ANALYSIS,
-            ]
+            ClassSelection.REFERENCE
+            | ClassSelection.SUBSTRATE
+            | ClassSelection.EXPERIMENT
+            | ClassSelection.ANALYSIS
         )
 
     @Slot(VisualizationMode)
@@ -1083,9 +1061,7 @@ class MasterWorker(QObject):
         self.substrateWorker().setVisualizationMode(mode)
         self.experimentWorker().setVisualizationMode(mode)
         self.workersUpdated.emit(
-            [
-                ClassSelection.REFERENCE,
-                ClassSelection.SUBSTRATE,
-                ClassSelection.EXPERIMENT,
-            ]
+            ClassSelection.REFERENCE
+            | ClassSelection.SUBSTRATE
+            | ClassSelection.EXPERIMENT
         )

@@ -34,7 +34,7 @@ class MainDisplayWindow(QMainWindow):
         self._currentExperimentRow = -1
         self._coat_paths = []
         self._expt_kind = ExperimentKind.NullExperiment
-        self._selectedClass = ClassSelection.EXPERIMENT
+        self._selectedClass = ClassSelection.UNKNOWN
         self._camera_on = False
 
         self._display_toolbar = DisplayWidgetToolBar()
@@ -121,6 +121,8 @@ class MainDisplayWindow(QMainWindow):
 
     @Slot(ClassSelection)
     def setSelectedClass(self, select: ClassSelection):
+        if select == ClassSelection.ANALYSIS:
+            select = ClassSelection.EXPERIMENT
         self._selectedClass = select
         self.updateControllerVisibility()
         self.visualizeProcessor().setSelectedClass(select)
@@ -157,8 +159,8 @@ class MainDisplayWindow(QMainWindow):
             visible = False
         self.videoController().setVisible(visible)
 
-    @Slot(list)
-    def onWorkersUpdate(self, workers: List[ClassSelection]):
+    @Slot(ClassSelection)
+    def onWorkersUpdate(self, workers: ClassSelection):
         pass
 
     @Slot(ROIModel, bool)
