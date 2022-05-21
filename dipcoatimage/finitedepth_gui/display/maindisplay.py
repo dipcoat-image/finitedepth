@@ -51,6 +51,7 @@ class MainDisplayWindow(QMainWindow):
         )
         self.displayToolBar().cameraToggled.connect(self.onCameraToggle)
         self.displayLabel().setAlignment(Qt.AlignCenter)
+        self.videoController().setPlayer(self.videoPlayer())
 
         self.videoPlayer().arrayChanged.connect(self.visualizeProcessor().setArray)
         self.visualizeProcessor().arrayChanged.connect(self.displayLabel().setArray)
