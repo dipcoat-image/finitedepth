@@ -3,7 +3,7 @@ from dipcoatimage.finitedepth_gui.core import ClassSelection, VisualizationMode
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
-from PySide6.QtCore import Signal, Slot
+from PySide6.QtCore import Signal, Slot, Qt
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
 from typing import Optional, List
 from .toolbar import DisplayWidgetToolBar
@@ -48,6 +48,7 @@ class MainDisplayWindow(QMainWindow):
             self.visualizationModeChanged
         )
         self.displayToolBar().cameraToggled.connect(self.onCameraToggle)
+        self.displayLabel().setAlignment(Qt.AlignCenter)
 
         self.videoPlayer().arrayChanged.connect(self.visualizeProcessor().setArray)
         self.visualizeProcessor().arrayChanged.connect(self.displayLabel().setArray)
@@ -172,7 +173,13 @@ class MainDisplayWindow(QMainWindow):
             self.updateVisualization()
 
     def updateVisualization(self):
-        pass
+        if self.cameraOn():
+            pass
+        elif self.selectedClass() in {
+            ClassSelection.REFERENCE,
+            ClassSelection.SUBSTRATE,
+        }:  # directly update
+            self.visualizeProcessor().emitVisualizationFromModel(self.selectedClass())
 
     @Slot(ROIModel, bool)
     def toggleROIDraw(self, model: ROIModel, state: bool):

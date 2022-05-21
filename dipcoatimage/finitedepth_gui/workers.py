@@ -435,8 +435,6 @@ class ExperimentWorker(WorkerBase):
         self._expt = None
         self._layer_generator = None
 
-        self._img = None
-
     def experimentType(self) -> Optional[Type[ExperimentBase]]:
         """
         Type object to construct :meth:`experiment`. ``None`` indicates invalid
