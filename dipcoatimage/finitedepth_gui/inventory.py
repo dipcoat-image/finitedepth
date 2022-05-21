@@ -6,6 +6,8 @@ Experiment item model and widget to view it.
 
 """
 from dipcoatimage.finitedepth.analysis import (
+    ExperimentKind,
+    experiment_kind,
     ReferenceArgs,
     SubstrateArgs,
     CoatingLayerArgs,
@@ -13,7 +15,7 @@ from dipcoatimage.finitedepth.analysis import (
     AnalysisArgs,
 )
 import enum
-from PySide6.QtCore import Slot, Qt
+from PySide6.QtCore import Slot, Signal, Qt, QModelIndex
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from PySide6.QtWidgets import (
     QWidget,
@@ -24,6 +26,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QSizePolicy,
 )
+from typing import List
 from .core import (
     StructuredExperimentArgs,
     StructuredReferenceArgs,
@@ -82,28 +85,33 @@ class ExperimentItemModel(QStandardItemModel):
     1. Col_ReferencePath
         Path to reference file. Corresponds to :attr:`ExperimentData.ref_path`.
     2. Col_CoatPaths
-        Paths to coated substrate files. Each path is stored in children rows.
+        Paths to coated substrate files. Experimnet kind is stored in data with
+        default role, and each path is stored in children rows.
         Corresponds to :attr:`ExperimentData.coat_paths`.
     3. Col_Reference
-        Data to construct reference object. Data are stored in :meth:`data` as
-        tuple (:class:`ReferenceArgs`, :class:`StructuredReferenceArgs`) with
-        ``Qt.UserRole``. Corresponds to :attr:`ExperimentData.reference`.
+        Data to construct reference object. Data is stored with :attr:`Role_Args`
+        as :class:`ReferenceArgs` and with :attr:`Role_StructuredArgs` as
+        :class:`StructuredReferenceArgs`.
+        Corresponds to :attr:`ExperimentData.reference`.
     4. Col_Substrate
-        Data to construct substrate object. Data are stored in :meth:`data` as
-        tuple (:class:`SubstrateArgs`, :class:`StructuredSubstrateArgs`) with
-        ``Qt.UserRole``. Corresponds to :attr:`ExperimentData.substrate`.
+        Data to construct substrate object. Data is stored with :attr:`Role_Args`
+        as :class:`SubstrateArgs` and with :attr:`Role_StructuredArgs` as
+        :class:`StructuredSubstrateArgs`.
+        Corresponds to :attr:`ExperimentData.substrate`.
     5. Col_CoatingLayer
-        Data to construct coating layer object. Data are stored in :meth:`data`
-        as tuple (:class:`CoatingLayerArgs`, :class:`StructuredCoatingLayerArgs`)
-        with ``Qt.UserRole``. Corresponds to :attr:`ExperimentData.coatinglayer`.
+        Data to construct coating layer object. Data is stored with
+        :attr:`Role_Args` as :class:`CoatingLayerArgs` and with
+        :attr:`Role_StructuredArgs` as :class:`StructuredCoatingLayerArgs`.
+        Corresponds to :attr:`ExperimentData.coatinglayer`.
     6. Col_Experiment
-        Data to construct experiment object. Data are stored in :meth:`data` as
-        tuple (:class:`ExperimentArgs`, :class:`StructuredExperimentArgs`) with
-        ``Qt.UserRole``. Corresponds to :attr:`ExperimentData.experiment`.
+        Data to construct experiment object. Data is stored with
+        :attr:`Role_Args` as :class:`ExperimentArgs` and with
+        :attr:`Role_StructuredArgs` as :class:`StructuredExperimentArgs`.
+        Corresponds to :attr:`ExperimentData.experiment`.
     7. Col_Analysis
         Data to analyze experiment. Data is stored in :meth:`data` as
-        :attr:`AnalysisArgs` with ``Qt.UserRole``. Corresponds to
-        :attr:`ExperimentData.analysis`.
+        :attr:`AnalysisArgs` with :attr:`Role_Args`.
+        Corresponds to :attr:`ExperimentData.analysis`.
     """
 
     ColumnNames: TypeAlias = ExperimentItemModelColumns
@@ -116,30 +124,153 @@ class ExperimentItemModel(QStandardItemModel):
     Col_Experiment = ExperimentItemModelColumns.EXPERIMENT
     Col_Analysis = ExperimentItemModelColumns.ANALYSIS
 
+    Role_Args = Qt.UserRole
+    Role_StructuredArgs = Qt.UserRole + 1  # type: ignore[operator]
+
+    coatPathsChanged = Signal(int, list, ExperimentKind)
+    referenceDataChanged = Signal(int, ReferenceArgs, StructuredReferenceArgs)
+    substrateDataChanged = Signal(int, SubstrateArgs, StructuredSubstrateArgs)
+    coatingLayerDataChanged = Signal(int, CoatingLayerArgs, StructuredCoatingLayerArgs)
+    experimentDataChanged = Signal(int, ExperimentArgs, StructuredExperimentArgs)
+    analysisDataChanged = Signal(int, AnalysisArgs)
+
     def __init__(self, rows: int = 0, columns: int = len(ColumnNames), parent=None):
         super().__init__(rows, columns, parent)
+        self._block_coatPathsChanged = False
+
+        self.itemChanged.connect(self.onItemChange)  # type: ignore[attr-defined]
+        self.rowsInserted.connect(self.onRowsChange)  # type: ignore[attr-defined]
+        self.rowsMoved.connect(self.onRowsChange)  # type: ignore[attr-defined]
+        self.rowsRemoved.connect(self.onRowsChange)  # type: ignore[attr-defined]
 
     def data(self, index, role=Qt.DisplayRole):
         ret = super().data(index, role)
-        if role == Qt.UserRole and ret is None and not index.parent().isValid():
+        if ret is None and not index.parent().isValid():
+            if index.column() == self.Col_CoatPaths:
+                ret = ExperimentKind.NullExperiment
             if index.column() == self.Col_Reference:
-                args = ReferenceArgs()
-                ret = (args, StructuredReferenceArgs.from_ReferenceArgs(args))
+                if role == self.Role_Args:
+                    ret = ReferenceArgs()
+                elif role == self.Role_StructuredArgs:
+                    ret = StructuredReferenceArgs.from_ReferenceArgs(ReferenceArgs())
             elif index.column() == self.Col_Substrate:
-                args = SubstrateArgs()
-                ret = (args, StructuredSubstrateArgs.from_SubstrateArgs(args))
+                if role == self.Role_Args:
+                    ret = SubstrateArgs()
+                elif role == self.Role_StructuredArgs:
+                    ret = StructuredSubstrateArgs.from_SubstrateArgs(SubstrateArgs())
             elif index.column() == self.Col_CoatingLayer:
-                args = CoatingLayerArgs()
-                ret = (args, StructuredCoatingLayerArgs.from_CoatingLayerArgs(args))
+                if role == self.Role_Args:
+                    ret = CoatingLayerArgs()
+                elif role == self.Role_StructuredArgs:
+                    ret = StructuredCoatingLayerArgs.from_CoatingLayerArgs(
+                        CoatingLayerArgs()
+                    )
             elif index.column() == self.Col_Experiment:
-                args = ExperimentArgs()
-                ret = (args, StructuredExperimentArgs.from_ExperimentArgs(args))
+                if role == self.Role_Args:
+                    ret = ExperimentArgs()
+                elif role == self.Role_StructuredArgs:
+                    ret = StructuredExperimentArgs.from_ExperimentArgs(ExperimentArgs())
             elif index.column() == self.Col_Analysis:
-                ret = AnalysisArgs()
+                if role == self.Role_Args:
+                    ret = AnalysisArgs()
         return ret
+
+    @Slot(QStandardItem)
+    def onItemChange(self, item: QStandardItem):
+        parent = item.parent()
+        if (
+            parent is not None
+            and parent.parent() is None
+            and parent.column() == self.Col_CoatPaths
+        ):  # coat path change
+            if not self._block_coatPathsChanged:
+                paths = []
+                for i in range(self.rowCount(parent.index())):
+                    index = self.index(i, 0, parent.index())
+                    paths.append(self.data(index))
+                kind = experiment_kind(paths)
+                self.setData(parent.index(), kind)
+                self.coatPathsChanged.emit(parent.row(), paths, kind)
+        elif parent is None and item.column() == self.Col_Reference:  # ref change
+            self.referenceDataChanged.emit(
+                item.row(),
+                self.data(item.index(), self.Role_Args),
+                self.data(item.index(), self.Role_StructuredArgs),
+            )
+        elif parent is None and item.column() == self.Col_Substrate:  # subst change
+            self.substrateDataChanged.emit(
+                item.row(),
+                self.data(item.index(), self.Role_Args),
+                self.data(item.index(), self.Role_StructuredArgs),
+            )
+        elif parent is None and item.column() == self.Col_CoatingLayer:  # layer change
+            self.coatingLayerDataChanged.emit(
+                item.row(),
+                self.data(item.index(), self.Role_Args),
+                self.data(item.index(), self.Role_StructuredArgs),
+            )
+        elif parent is None and item.column() == self.Col_Experiment:  # expt change
+            self.experimentDataChanged.emit(
+                item.row(),
+                self.data(item.index(), self.Role_Args),
+                self.data(item.index(), self.Role_StructuredArgs),
+            )
+        elif parent is None and item.column() == self.Col_Analysis:  # analysis change
+            self.analysisDataChanged.emit(
+                item.row(),
+                self.data(item.index(), self.Role_Args),
+            )
+
+    @Slot(QModelIndex, int, int)
+    def onRowsChange(self, parent: QModelIndex, start: int, end: int):
+        if (
+            parent.isValid()
+            and not parent.parent().isValid()
+            and parent.column() == self.Col_CoatPaths
+        ):
+            if not self._block_coatPathsChanged:
+                paths = []
+                for i in range(self.rowCount(parent)):
+                    index = self.index(i, 0, parent)
+                    paths.append(self.data(index))
+                kind = experiment_kind(paths)
+                self.setData(parent, kind)
+                self.coatPathsChanged.emit(parent.row(), paths, kind)
+
+    def coatPaths(self, exptRow: int) -> List[str]:
+        parent = self.index(exptRow, self.Col_CoatPaths)
+        paths = []
+        for i in range(self.rowCount(parent)):
+            index = self.index(i, 0, parent)
+            paths.append(self.data(index))
+        return paths
+
+    def experimentKind(self, exptRow: int) -> ExperimentKind:
+        return self.data(self.index(exptRow, self.Col_CoatPaths))
+
+    def setCoatPaths(self, exptRow: int, paths: List[str]):
+        """
+        Set the paths to coated substrate files of *exptRow*-th experiment to
+        *paths*.
+
+        This method signals *coatPathsChanged* only once.
+        """
+        self._block_coatPathsChanged = True
+        parent = self.index(exptRow, self.Col_CoatPaths)
+        self.removeRows(0, self.rowCount(parent), parent)
+        for i, path in enumerate(paths):
+            self.insertRow(i, parent)
+            self.setData(self.index(i, 0, parent), path)
+        kind = experiment_kind(paths)
+        self.setData(parent, kind)
+        self._block_coatPathsChanged = False
+        self.coatPathsChanged.emit(parent.row(), paths, kind)
 
 
 class ExperimentInventory(QWidget):
+
+    experimentRowActivated = Signal(int)
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -151,6 +282,7 @@ class ExperimentInventory(QWidget):
         self.experimentListView().setSelectionMode(QListView.ExtendedSelection)
         self.experimentListView().setEditTriggers(QListView.SelectedClicked)
         self.experimentListView().setModel(self.experimentItemModel())
+        self.experimentListView().activated.connect(self.onViewIndexActivated)
         self.addButton().clicked.connect(self.addNewExperiment)
 
         layout = QVBoxLayout()
@@ -195,3 +327,8 @@ class ExperimentInventory(QWidget):
         self.experimentListView().activated.emit(  # type: ignore[attr-defined]
             self.experimentListView().currentIndex()
         )
+
+    @Slot(QModelIndex)
+    def onViewIndexActivated(self, index: QModelIndex):
+        if not index.parent().isValid():
+            self.experimentRowActivated.emit(index.row())

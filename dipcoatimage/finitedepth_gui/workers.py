@@ -16,32 +16,31 @@ from dipcoatimage.finitedepth import (
 )
 import dataclasses
 from dipcoatimage.finitedepth.analysis import (
-    AnalysisArgs,
-    experiment_kind,
     ExperimentKind,
+    ReferenceArgs,
+    SubstrateArgs,
+    CoatingLayerArgs,
+    ExperimentArgs,
+    AnalysisArgs,
 )
 from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
-import enum
 import numpy as np
 import numpy.typing as npt
 import os
-from PySide6.QtCore import QObject, QModelIndex, Slot, Signal, Qt
-from PySide6.QtGui import QStandardItem
-from typing import Optional, Type, Generator, List
+from PySide6.QtCore import QObject, Slot, Signal
+from typing import Optional, Type, List
 from .core import (
     StructuredReferenceArgs,
     StructuredSubstrateArgs,
     StructuredCoatingLayerArgs,
     StructuredExperimentArgs,
+    ClassSelection,
+    VisualizationMode,
 )
-from .core import ClassSelection
-from .inventory import (
-    ExperimentItemModel,
-)
+from .inventory import ExperimentItemModel
 
 
 __all__ = [
-    "VisualizationMode",
     "WorkerBase",
     "ReferenceWorker",
     "SubstrateWorker",
@@ -49,31 +48,6 @@ __all__ = [
     "AnalysisWorker",
     "MasterWorker",
 ]
-
-
-class VisualizationMode(enum.IntEnum):
-    """
-    Option for workers to determine how the image is shown.
-
-    Attributes
-    ==========
-
-    OFF
-        Do not visualize.
-
-    FULL
-        Full visualization. Reference and substrate are visualized as usual, and
-        coating layer is visualized using coating layer decoration.
-
-    FAST
-        Fast visualization without coating layer decoration. Reference and
-        substrate are visualized as usual, but coating layer is not decorated.
-
-    """
-
-    OFF = 0
-    FULL = 1
-    FAST = 2
 
 
 class WorkerBase(QObject):
@@ -446,9 +420,6 @@ class ExperimentWorker(WorkerBase):
     :meth:`updateExperiment` constructs the experiment object with data.
     Resulting object can be acquired by :meth:`experiment`.
 
-    To visualize the layer shape image, pass it to :meth:`setImage` first.
-    Visualization result can be directly acquired from:meth:`visualizedImage`.
-
     """
 
     def __init__(self, parent=None):
@@ -463,8 +434,6 @@ class ExperimentWorker(WorkerBase):
 
         self._expt = None
         self._layer_generator = None
-
-        self._img = None
 
     def experimentType(self) -> Optional[Type[ExperimentBase]]:
         """
@@ -567,6 +536,18 @@ class ExperimentWorker(WorkerBase):
                 coat_drawopts = None
         self._layer_drawopts = coat_drawopts
 
+        coat_decoopts = data.deco_options
+        if coattype is None:
+            coat_decoopts = None
+        elif isinstance(coat_decoopts, coattype.DecoOptions):
+            pass
+        else:
+            try:
+                coat_decoopts = coattype.DecoOptions()
+            except TypeError:
+                coat_decoopts = None
+        self._layer_decoopts = coat_decoopts
+
     def setStructuredExperimentArgs(self, data: StructuredExperimentArgs):
         """
         Set following values with *data*.
@@ -595,7 +576,7 @@ class ExperimentWorker(WorkerBase):
         self._params = params
 
     def updateExperiment(self):
-        """Update :meth:`experiment` and :meth:`layerGenerator`."""
+        """Update :meth:`experiment`."""
         expt = None
 
         default_invalid_args = [
@@ -619,7 +600,6 @@ class ExperimentWorker(WorkerBase):
             if not expt.valid():
                 expt = None
         self._expt = expt
-        self.updateLayerGenerator()
 
     def experiment(self) -> Optional[ExperimentBase]:
         """
@@ -630,104 +610,45 @@ class ExperimentWorker(WorkerBase):
         """
         return self._expt
 
-    @Slot()
-    def updateLayerGenerator(self):
+    def visualizeImage(self, img: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
+        """
+        Return visualization result of *img* analyzed by :meth:`experiment`.
+
+        """
         expt = self.experiment()
-        if expt is not None:
-            self._layer_generator = expt.layer_generator()
-            next(self.layerGenerator())
-        else:
-            self._layer_generator = None
-
-    def layerGenerator(
-        self,
-    ) -> Generator[CoatingLayerBase, npt.NDArray[np.uint8], None]:
-        """
-        :meth:`Experiment.layer_generator` from :meth:`experiment`.
-        ``None`` indicates invalid value.
-
-        Run :meth:`updateLayerGenerator` to update this value.
-        """
-        return self._layer_generator
-
-    def setVisualizationMode(self, mode):
-        """
-        Update :meth:`visualizationMode` with *mode*.
-        Also, update :meth:`layerGenerator` if *mode* is True.
-        """
-        super().setVisualizationMode(mode)
-        if mode:
-            self.updateLayerGenerator()
-
-    def image(self) -> npt.NDArray[np.uint8]:
-        """Layer shape image to be visualized."""
-        img = self._img
-        if img is None:
-            img = np.empty((0, 0, 0))
-        return img
-
-    def setImage(self, img: Optional[npt.NDArray[np.uint8]]):
-        """Update :meth:`image` with *img*."""
-        self._img = img
-
-    def visualizedImage(self) -> npt.NDArray[np.uint8]:
-        """
-        Return visualization result of :meth:`image` analyzed by
-        :meth:`experiment`.
-
-        If possible, :meth:`ExperimentBase.layer_generator` is used to construct
-        the visualized image. This implies that consecutively visualized images
-        are consecutive in real world as well. If completely unrelated images
-        should be passed, run :meth:`updateLayerGenerator` first.
-
-        If :meth:`visualizationMode` is ``FULL``, visualization is done by
-        constructing analysis objects. If it is ``FAST``, image is visualized by
-        :meth:`fastVisualize`.
-
-        If parameters are invalid or :meth:`visualizationMode` is ``OFF``,
-        directly return :meth:`image`.
-
-        """
-        ls_gen = self.layerGenerator()
         vismode = self.visualizationMode()
-        image = self.image()
-        if ls_gen is not None and image.size > 0:
+        if expt is not None and img.size > 0:
             if vismode == VisualizationMode.FULL:
-                ls = ls_gen.send(image)
-                while ls is None:  # previous construction not finished
-                    ls = ls_gen.send(image)
-                image = ls.draw()
+                layer = expt.construct_coatinglayer(img)
+                img = layer.draw()
             elif vismode == VisualizationMode.FAST:
-                image = self.fastVisualize()
+                img = self.fastVisualize(img)
             else:
                 pass
-        return image
+        return img
 
-    def fastVisualize(self) -> npt.NDArray[np.uint8]:
+    def fastVisualize(self, img: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
         """
-        Remove substrate from :meth:`image` without constructing analysis
-        objects.
+        Remove substrate from *img* without constructing analysis objects.
 
         This visualization lacks the versatility of full visualization, but it is
         considerably faster for quick overview.
         """
         substrate = self.substrate()
         if substrate is None:
-            return self.image()
+            return img
 
         x0, y0, x1, y1 = substrate.reference.templateROI
         template = substrate.reference.image[y0:y1, x0:x1]
-        res = cv2.matchTemplate(self.image(), template, cv2.TM_CCOEFF)
+        res = cv2.matchTemplate(img, template, cv2.TM_CCOEFF)
         _, _, _, (tx, ty) = cv2.minMaxLoc(res)
         dx, dy = substrate.reference.temp2subst()
         x0, y0 = (tx + dx, ty + dy)
         subst_h, subst_w = substrate.image().shape[:2]
-        img_h, img_w = self.image().shape[:2]
+        img_h, img_w = img.shape[:2]
         x1, y1 = (x0 + subst_w, y0 + subst_h)
 
-        _, bin_img = cv2.threshold(
-            self.image(), 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
-        )
+        _, bin_img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
         bin_img_cropped = bin_img[
             max(y0, 0) : min(y1, img_h), max(x0, 0) : min(x1, img_w)
         ]
@@ -764,6 +685,7 @@ class AnalysisWorker(WorkerBase):
         super().__init__(parent)
         self._experiment = None
         self._paths = []
+        self._expt_kind = ExperimentKind.NullExperiment
         self._analysisArgs = AnalysisArgs()
 
     def experiment(self) -> Optional[ExperimentBase]:
@@ -772,6 +694,9 @@ class AnalysisWorker(WorkerBase):
     def paths(self) -> List[str]:
         return self._paths
 
+    def experimentKind(self) -> ExperimentKind:
+        return self._expt_kind
+
     def analysisArgs(self) -> AnalysisArgs:
         return self._analysisArgs
 
@@ -779,8 +704,9 @@ class AnalysisWorker(WorkerBase):
     def setExperiment(self, expt: Optional[ExperimentBase]):
         self._experiment = expt
 
-    def setPaths(self, paths: List[str]):
+    def setPaths(self, paths: List[str], kind: ExperimentKind):
         self._paths = paths
+        self._expt_kind = kind
 
     def setAnalysisArgs(self, args: AnalysisArgs):
         self._analysisArgs = args
@@ -791,7 +717,7 @@ class AnalysisWorker(WorkerBase):
         self.experiment.substrate.reference.verify()
         self.experiment.substrate.verify()
         self.experiment.verify()
-        expt_kind = experiment_kind(self.paths)
+        expt_kind = self.experimentKind()
 
         data_path = self.analysisArgs().data_path
         image_path = self.analysisArgs().image_path
@@ -913,29 +839,36 @@ class AnalysisWorker(WorkerBase):
 
 class MasterWorker(QObject):
     """
-    Object which contains subworkers.
+    Object which contains subworkers. Detects every change which requires the
+    display to be updated, and signals.
+
+    When workers are updated, combination of their corresponding
+    :class:`ClassSelection` members are emitted by :attr:`workersUpdated`.
+
     """
 
-    visualizedImageChanged = Signal(np.ndarray)
+    workersUpdated = Signal(ClassSelection)
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._exptitem_model = ExperimentItemModel()
+        self._exptitem_model = None
+        self._currentExperimentRow = -1
 
         self._ref_worker = ReferenceWorker()
         self._subst_worker = SubstrateWorker()
         self._expt_worker = ExperimentWorker()
         self._anal_worker = AnalysisWorker()
-        self._visualizing_worker = ExperimentWorker()
-        self._visualize_mode = VisualizationMode.FULL
 
-        self.connectModelSignals()
-        self.setVisualizationMode(self.visualizationMode())
+        self.setVisualizationMode(VisualizationMode.FULL)
 
-    def experimentItemModel(self) -> ExperimentItemModel:
+    def experimentItemModel(self) -> Optional[ExperimentItemModel]:
         """Model which holds the experiment item data."""
         return self._exptitem_model
+
+    def currentExperimentRow(self) -> int:
+        """Currently activated row from :meth:`experimentItemModel`."""
+        return self._currentExperimentRow
 
     def referenceWorker(self) -> ReferenceWorker:
         return self._ref_worker
@@ -949,102 +882,161 @@ class MasterWorker(QObject):
     def analysisWorker(self) -> AnalysisWorker:
         return self._anal_worker
 
-    def visualizingWorker(self) -> WorkerBase:
-        return self._visualizing_worker
+    def setReferenceImage(self, img: Optional[npt.NDArray[np.uint8]]):
+        self.referenceWorker().setImage(img)
+        self.referenceWorker().updateReference()
+        self.substrateWorker().setReference(self.referenceWorker().reference())
+        self.substrateWorker().updateSubstrate()
+        self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
+        self.experimentWorker().updateExperiment()
+        self.analysisWorker().setExperiment(self.experimentWorker().experiment())
+        self.workersUpdated.emit(
+            ClassSelection.REFERENCE
+            | ClassSelection.SUBSTRATE
+            | ClassSelection.EXPERIMENT
+            | ClassSelection.ANALYSIS
+        )
 
-    def visualizationMode(self) -> VisualizationMode:
-        return self._visualize_mode
-
-    def setExperimentItemModel(self, model: ExperimentItemModel):
+    def setExperimentItemModel(self, model: Optional[ExperimentItemModel]):
         """Set :meth:`experimentItemModel`."""
-        self.disconnectModelSignals()
+        old_model = self.experimentItemModel()
+        if old_model is not None:
+            self.disconnectModel(old_model)
         self._exptitem_model = model
-        self.connectModelSignals()
+        if model is not None:
+            self.connectModel(model)
 
-    def connectModelSignals(self):
-        self.experimentItemModel().itemChanged.connect(self.onExperimentItemChange)
-        self.experimentItemModel().rowsInserted.connect(self.onExperimentItemRowsChange)
-        self.experimentItemModel().rowsRemoved.connect(self.onExperimentItemRowsChange)
+    def connectModel(self, model: ExperimentItemModel):
+        model.coatPathsChanged.connect(self.onCoatPathsChange)
+        model.referenceDataChanged.connect(self.onReferenceDataChange)
+        model.substrateDataChanged.connect(self.onSubstrateDataChange)
+        model.coatingLayerDataChanged.connect(self.onCoatingLayerDataChange)
+        model.experimentDataChanged.connect(self.onExperimentDataChange)
+        model.analysisDataChanged.connect(self.onAnalysisDataChange)
 
-    def disconnectModelSignals(self):
-        self.experimentItemModel().itemChanged.disconnect(self.onExperimentItemChange)
-        self.experimentItemModel().rowsInserted.disconnect(
-            self.onExperimentItemRowsChange
-        )
-        self.experimentItemModel().rowsRemoved.disconnect(
-            self.onExperimentItemRowsChange
-        )
+    def disconnectModel(self, model: ExperimentItemModel):
+        model.coatPathsChanged.disconnect(self.onCoatPathsChange)
+        model.referenceDataChanged.disconnect(self.onReferenceDataChange)
+        model.substrateDataChanged.disconnect(self.onSubstrateDataChange)
+        model.coatingLayerDataChanged.disconnect(self.onCoatingLayerDataChange)
+        model.experimentDataChanged.disconnect(self.onExperimentDataChange)
+        model.analysisDataChanged.disconnect(self.onAnalysisDataChange)
 
-    @Slot(QStandardItem)
-    def onExperimentItemChange(self, item: QStandardItem):
-        if not item.model() == self.experimentItemModel() and item.parent() is None:
-            return
-        if item.column() == ExperimentItemModel.Col_Reference:
-            data = self.experimentItemModel().data(item.index(), Qt.UserRole)[1]
-            self.referenceWorker().setStructuredReferenceArgs(data)
+    @Slot(int, list, ExperimentKind)
+    def onCoatPathsChange(self, row: int, paths: List[str], kind: ExperimentKind):
+        if row == self.currentExperimentRow():
+            self.analysisWorker().setPaths(paths, kind)
+            self.workersUpdated.emit(ClassSelection.ANALYSIS)
+
+    @Slot(int, ReferenceArgs, StructuredReferenceArgs)
+    def onReferenceDataChange(
+        self, row: int, refargs: ReferenceArgs, structrefargs: StructuredReferenceArgs
+    ):
+        if row == self.currentExperimentRow():
+            self.referenceWorker().setStructuredReferenceArgs(structrefargs)
             self.referenceWorker().updateReference()
             self.substrateWorker().setReference(self.referenceWorker().reference())
             self.substrateWorker().updateSubstrate()
             self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
-        elif item.column() == ExperimentItemModel.Col_Substrate:
-            data = self.experimentItemModel().data(item.index(), Qt.UserRole)[1]
-            self.substrateWorker().setStructuredSubstrateArgs(data)
+            self.workersUpdated.emit(
+                ClassSelection.REFERENCE
+                | ClassSelection.SUBSTRATE
+                | ClassSelection.EXPERIMENT
+                | ClassSelection.ANALYSIS
+            )
+
+    @Slot(int, SubstrateArgs, StructuredSubstrateArgs)
+    def onSubstrateDataChange(
+        self,
+        row: int,
+        substargs: SubstrateArgs,
+        structsubstargs: StructuredSubstrateArgs,
+    ):
+        if row == self.currentExperimentRow():
+            self.substrateWorker().setStructuredSubstrateArgs(structsubstargs)
             self.substrateWorker().updateSubstrate()
             self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
-        elif item.column() == ExperimentItemModel.Col_CoatingLayer:
-            data = self.experimentItemModel().data(item.index(), Qt.UserRole)[1]
-            self.experimentWorker().setStructuredCoatingLayerArgs(data)
+            self.workersUpdated.emit(
+                ClassSelection.SUBSTRATE
+                | ClassSelection.EXPERIMENT
+                | ClassSelection.ANALYSIS
+            )
+
+    @Slot(int, CoatingLayerArgs, StructuredCoatingLayerArgs)
+    def onCoatingLayerDataChange(
+        self,
+        row: int,
+        layerargs: CoatingLayerArgs,
+        structlayerargs: StructuredCoatingLayerArgs,
+    ):
+        if row == self.currentExperimentRow():
+            self.experimentWorker().setStructuredCoatingLayerArgs(structlayerargs)
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
-        elif item.column() == ExperimentItemModel.Col_Experiment:
-            data = self.experimentItemModel().data(item.index(), Qt.UserRole)[1]
-            self.experimentWorker().setStructuredExperimentArgs(data)
+            self.workersUpdated.emit(
+                ClassSelection.EXPERIMENT | ClassSelection.ANALYSIS
+            )
+
+    @Slot(int, ExperimentArgs, StructuredExperimentArgs)
+    def onExperimentDataChange(
+        self,
+        row: int,
+        exptargs: ExperimentArgs,
+        structexptargs: StructuredExperimentArgs,
+    ):
+        if row == self.currentExperimentRow():
+            self.experimentWorker().setStructuredExperimentArgs(structexptargs)
             self.experimentWorker().updateExperiment()
             self.analysisWorker().setExperiment(self.experimentWorker().experiment())
-        else:
-            return
-        self.emitImage()
+            self.workersUpdated.emit(
+                ClassSelection.EXPERIMENT | ClassSelection.ANALYSIS
+            )
 
-    @Slot(QModelIndex, int, int)
-    def onExperimentItemRowsChange(self, index: QModelIndex, first: int, last: int):
-        pass
+    @Slot(int, AnalysisArgs)
+    def onAnalysisDataChange(self, row: int, analargs: AnalysisArgs):
+        if row == self.currentExperimentRow():
+            self.analysisWorker().setAnalysisArgs(analargs)
+            self.workersUpdated.emit(ClassSelection.ANALYSIS)
 
-    @Slot(QModelIndex)
-    def setCurrentExperimentIndex(self, index: QModelIndex):
-        """Set currently activated index from :meth:`experimentItemModel`."""
-        if index.parent().isValid():
-            raise TypeError("Only top-level index can be activated.")
+    @Slot(int)
+    def setCurrentExperimentRow(self, row: int):
+        self._currentExperimentRow = row
         model = self.experimentItemModel()
-        refpath = model.data(
-            model.index(index.row(), ExperimentItemModel.Col_ReferencePath)
-        )
+        if model is None:
+            return
+        refpath = model.data(model.index(row, model.Col_ReferencePath))
         img = cv2.imread(refpath)
         if img is not None:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.referenceWorker().setImage(img)
+
+        coatpaths = model.coatPaths(row)
+        exptkind = model.experimentKind(row)
+        self.analysisWorker().setPaths(coatpaths, exptkind)
+
         refargs = model.data(
-            model.index(index.row(), ExperimentItemModel.Col_Reference),
-            Qt.UserRole,
-        )[1]
+            model.index(row, model.Col_Reference),
+            model.Role_StructuredArgs,
+        )
         self.referenceWorker().setStructuredReferenceArgs(refargs)
         substargs = model.data(
-            model.index(index.row(), ExperimentItemModel.Col_Substrate),
-            Qt.UserRole,
-        )[1]
+            model.index(row, model.Col_Substrate),
+            model.Role_StructuredArgs,
+        )
         self.substrateWorker().setStructuredSubstrateArgs(substargs)
         layerargs = model.data(
-            model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
-            Qt.UserRole,
-        )[1]
+            model.index(row, model.Col_CoatingLayer),
+            model.Role_StructuredArgs,
+        )
         self.experimentWorker().setStructuredCoatingLayerArgs(layerargs)
         exptargs = model.data(
-            model.index(index.row(), ExperimentItemModel.Col_Experiment),
-            Qt.UserRole,
-        )[1]
+            model.index(row, model.Col_Experiment),
+            model.Role_StructuredArgs,
+        )
         self.experimentWorker().setStructuredExperimentArgs(exptargs)
 
         self.referenceWorker().updateReference()
@@ -1053,37 +1045,20 @@ class MasterWorker(QObject):
         self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
         self.experimentWorker().updateExperiment()
         self.analysisWorker().setExperiment(self.experimentWorker().experiment())
-        self.emitImage()
-
-    @Slot(object)
-    def setReferenceImage(self, img: Optional[npt.NDArray[np.uint8]]):
-        self.referenceWorker().setImage(img)
-        self.substrateWorker().setReference(self.referenceWorker().reference())
-        self.substrateWorker().updateSubstrate()
-        self.experimentWorker().setSubstrate(self.substrateWorker().substrate())
-        self.experimentWorker().updateExperiment()
-        self.analysisWorker().setExperiment(self.experimentWorker().experiment())
-        self.emitImage()
-
-    @Slot(ClassSelection)
-    def setVisualizingWorker(self, selection: ClassSelection):
-        if selection == ClassSelection.REFERENCE:
-            worker: WorkerBase = self.referenceWorker()
-        elif selection == ClassSelection.SUBSTRATE:
-            worker = self.substrateWorker()
-        else:
-            worker = self.experimentWorker()
-        self._visualizing_worker = worker
-        self.emitImage()
+        self.workersUpdated.emit(
+            ClassSelection.REFERENCE
+            | ClassSelection.SUBSTRATE
+            | ClassSelection.EXPERIMENT
+            | ClassSelection.ANALYSIS
+        )
 
     @Slot(VisualizationMode)
     def setVisualizationMode(self, mode: VisualizationMode):
-        self._visualize_mode = mode
         self.referenceWorker().setVisualizationMode(mode)
         self.substrateWorker().setVisualizationMode(mode)
         self.experimentWorker().setVisualizationMode(mode)
-        self.emitImage()
-
-    def emitImage(self):
-        img = self.visualizingWorker().visualizedImage()
-        self.visualizedImageChanged.emit(img)
+        self.workersUpdated.emit(
+            ClassSelection.REFERENCE
+            | ClassSelection.SUBSTRATE
+            | ClassSelection.EXPERIMENT
+        )

@@ -1,19 +1,8 @@
 import os
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtWidgets import (
-    QMainWindow,
-    QDockWidget,
-    QPushButton,
-    QFileDialog,
-)
-from .controlwidgets import (
-    ExperimentWidget,
-    ReferenceWidget,
-    SubstrateWidget,
-    CoatingLayerWidget,
-    AnalysisWidget,
-    MasterControlWidget,
-)
+from PySide6.QtWidgets import QMainWindow, QDockWidget, QPushButton, QFileDialog
+from .controlwidgets import MasterControlWidget
+from .core import ClassSelection, VisualizationMode
 from .display import MainDisplayWindow
 from .inventory import ExperimentInventory
 from .workers import MasterWorker
@@ -45,35 +34,42 @@ class AnalysisGUI(QMainWindow):
         self._master_worker = MasterWorker()
         self._cwd_button = QPushButton()
 
+        self.experimentInventory().experimentRowActivated.connect(
+            self.mainDisplayWindow().setCurrentExperimentRow
+        )
+        self.experimentInventory().experimentRowActivated.connect(
+            self.masterControlWidget().setCurrentExperimentRow
+        )
+        self.experimentInventory().experimentRowActivated.connect(
+            self.masterWorker().setCurrentExperimentRow
+        )
+        self.mainDisplayWindow().setExperimentItemModel(
+            self.experimentInventory().experimentItemModel()
+        )
         self.mainDisplayWindow().visualizationModeChanged.connect(
             self.masterWorker().setVisualizationMode
+        )
+        self.mainDisplayWindow().setVisualizeWorker(self.masterWorker())
+        self.mainDisplayWindow().cameraTurnOff.connect(
+            self.masterControlWidget().resetReferenceImage
         )
         self.masterControlWidget().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
         )
-        self.experimentInventory().experimentListView().activated.connect(
-            self.masterControlWidget().setCurrentExperimentIndex
+        self.masterControlWidget().referenceImageChanged.connect(
+            self.masterWorker().setReferenceImage
         )
         self.masterControlWidget().drawROIToggled.connect(
             self.mainDisplayWindow().toggleROIDraw
         )
         self.masterControlWidget().selectedClassChanged.connect(
-            self.mainDisplayWindow().exposeDisplayWidget
-        )
-        self.masterControlWidget().selectedClassChanged.connect(
-            self.masterWorker().setVisualizingWorker
-        )
-        self.masterControlWidget().imageChanged.connect(
-            self.masterWorker().setReferenceImage
+            self.mainDisplayWindow().setSelectedClass
         )
         self.masterWorker().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
         )
-        self.experimentInventory().experimentListView().activated.connect(
-            self.masterWorker().setCurrentExperimentIndex
-        )
-        self.masterWorker().visualizedImageChanged.connect(
-            self.mainDisplayWindow().displayImage
+        self.masterWorker().workersUpdated.connect(
+            self.mainDisplayWindow().onWorkersUpdate
         )
 
         self.cwdButton().clicked.connect(self.browseCWD)
@@ -89,11 +85,13 @@ class AnalysisGUI(QMainWindow):
         self.statusBar().addPermanentWidget(self.cwdButton())
         self.statusBar().showMessage(os.getcwd())
 
-        self.mainDisplayWindow().setVisualizeActionToggleState(
-            self.masterWorker().visualizationMode()
-        )
+        # initialize window state
+        self.masterWorker().setVisualizationMode(VisualizationMode.FULL)
+        self.mainDisplayWindow().setVisualizeActionToggleState(VisualizationMode.FULL)
         self.experimentInventory().addNewExperiment()
         self.experimentInventory().activateExperiment(0)
+        self.masterControlWidget().setSelectedClass(ClassSelection.EXPERIMENT)
+        self.mainDisplayWindow().setSelectedClass(ClassSelection.EXPERIMENT)
 
     def mainDisplayWindow(self) -> MainDisplayWindow:
         """Main window which includes all display widgets."""
@@ -109,26 +107,6 @@ class AnalysisGUI(QMainWindow):
         experiment item.
         """
         return self._master_controlwidget
-
-    def experimentWidget(self) -> ExperimentWidget:
-        """Widget to manage data for experiment class."""
-        return self.masterControlWidget().experimentWidget()
-
-    def referenceWidget(self) -> ReferenceWidget:
-        """Widget to manage data for substrate reference class."""
-        return self.masterControlWidget().referenceWidget()
-
-    def substrateWidget(self) -> SubstrateWidget:
-        """Widget to manage data for substrate class."""
-        return self.masterControlWidget().substrateWidget()
-
-    def coatingLayerWidget(self) -> CoatingLayerWidget:
-        """Widget to manage data for coating layer class."""
-        return self.masterControlWidget().coatingLayerWidget()
-
-    def analysisWidget(self) -> AnalysisWidget:
-        """Widget to manage analysis."""
-        return self.masterControlWidget().analysisWidget()
 
     def masterWorker(self) -> MasterWorker:
         """Object which contains workers for the experiment."""

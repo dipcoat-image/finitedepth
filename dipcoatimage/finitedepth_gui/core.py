@@ -29,6 +29,7 @@ __all__ = [
     "StructuredSubstrateArgs",
     "StructuredCoatingLayerArgs",
     "ClassSelection",
+    "VisualizationMode",
 ]
 
 
@@ -150,7 +151,7 @@ class StructuredCoatingLayerArgs:
         return cls(layertype, param, drawopt, decoopt)
 
 
-class ClassSelection(enum.Enum):
+class ClassSelection(enum.IntFlag):
     """
     Enum to indicate class-specific selections, e.g. which tab widget or worker
     to choose.
@@ -159,5 +160,30 @@ class ClassSelection(enum.Enum):
     UNKNOWN = 0
     REFERENCE = 1
     SUBSTRATE = 2
-    COATINGLAYER = 3
     EXPERIMENT = 4
+    ANALYSIS = 8
+
+
+class VisualizationMode(enum.IntEnum):
+    """
+    Option to determine how the image is shown.
+
+    Attributes
+    ==========
+
+    OFF
+        Do not visualize.
+
+    FULL
+        Full visualization. Reference and substrate are visualized as usual, and
+        coating layer is visualized using coating layer decoration.
+
+    FAST
+        Fast visualization without coating layer decoration. Reference and
+        substrate are visualized as usual, but coating layer is not decorated.
+
+    """
+
+    OFF = 0
+    FULL = 1
+    FAST = 2

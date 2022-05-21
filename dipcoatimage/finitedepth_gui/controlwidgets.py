@@ -26,7 +26,7 @@ from dipcoatimage.finitedepth.analysis import (
     Analyzer,
 )
 import os
-from PySide6.QtCore import QModelIndex, Qt, Signal, Slot
+from PySide6.QtCore import Signal, Slot
 from PySide6.QtGui import QStandardItem, QDoubleValidator
 from PySide6.QtWidgets import (
     QWidget,
@@ -53,9 +53,7 @@ from .core import (
     StructuredCoatingLayerArgs,
     ClassSelection,
 )
-from .inventory import (
-    ExperimentItemModel,
-)
+from .inventory import ExperimentItemModel
 from .roimodel import ROIModel, ROIWidget
 
 
@@ -78,23 +76,22 @@ class ControlWidget(QWidget):
         super().__init__(parent)
 
         self._exptitem_model = ExperimentItemModel()
-        self._currentIndex = QModelIndex()
+        self._currentExperimentRow = -1
 
     def experimentItemModel(self) -> ExperimentItemModel:
         """Model which holds the experiment item data."""
         return self._exptitem_model
 
-    def currentExperimentIndex(self) -> QModelIndex:
-        """Currently activated index from the model."""
-        return self._currentIndex
+    def currentExperimentRow(self) -> int:
+        """Currently activated row from :meth:`experimentItemModel`."""
+        return self._currentExperimentRow
 
     def setExperimentItemModel(self, model: ExperimentItemModel):
         """Set :meth:`experimentItemModel`."""
         self._exptitem_model = model
 
-    def setCurrentExperimentIndex(self, index: QModelIndex):
-        """Set currently activated index from :meth:`experimentItemModel`."""
-        self._currentIndex = index
+    def setCurrentExperimentRow(self, row: int):
+        self._currentExperimentRow = row
 
 
 class ExperimentWidget(ControlWidget):
@@ -226,25 +223,23 @@ class ExperimentWidget(ControlWidget):
         self.experimentNameMapper().setModel(model)
         self.experimentNameMapper().addMapping(
             self.experimentNameLineEdit(),
-            ExperimentItemModel.Col_ExperimentName,
+            model.Col_ExperimentName,
         )
 
-    def setCurrentExperimentIndex(self, index: QModelIndex):
-        super().setCurrentExperimentIndex(index)
+    def setCurrentExperimentRow(self, row: int):
+        super().setCurrentExperimentRow(row)
         # update experiment name and paths
-        self.experimentNameMapper().setCurrentIndex(index.row())
+        self.experimentNameMapper().setCurrentIndex(row)
         model = self.experimentItemModel()
         self.pathsView().setModel(model)
-        self.pathsView().setRootIndex(
-            model.index(index.row(), ExperimentItemModel.Col_CoatPaths)
-        )
+        self.pathsView().setRootIndex(model.index(row, model.Col_CoatPaths))
 
         # update experiment args
         self._blockModelUpdate = True
         args = model.data(
-            model.index(index.row(), ExperimentItemModel.Col_Experiment),
-            Qt.UserRole,
-        )[0]
+            model.index(row, model.Col_Experiment),
+            model.Role_Args,
+        )
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
         self.typeWidget().onInformationEdit()
@@ -320,47 +315,48 @@ class ExperimentWidget(ControlWidget):
         Set :meth:`experimentArgs` and :meth:`structuredExperimentArgs` to
         currently activated item from :meth:`experimentItemModel`.
         """
-        index = self.currentExperimentIndex()
-        if not self._blockModelUpdate and index.isValid():
+        if not self._blockModelUpdate:
             model = self.experimentItemModel()
-            model.setData(
-                model.index(index.row(), ExperimentItemModel.Col_Experiment),
-                (self.experimentArgs(), self.structuredExperimentArgs()),
-                Qt.UserRole,  # type: ignore[arg-type]
-            )
+            row = self.currentExperimentRow()
+            index = model.index(row, model.Col_Experiment)
+            if index.isValid():
+                model.setData(index, self.experimentArgs(), model.Role_Args)
+                model.setData(
+                    index, self.structuredExperimentArgs(), model.Role_StructuredArgs
+                )
 
     @Slot()
     def onAddButtonClicked(self):
         """Add new item to :meth:`pathsView`."""
         model = self.experimentItemModel()
-        if model is not None:
-            parentItem = model.itemFromIndex(self.pathsView().rootIndex())
-            item = QStandardItem(f"Path {parentItem.rowCount()}")
-            parentItem.appendRow(item)
+        parentItem = model.itemFromIndex(self.pathsView().rootIndex())
+        item = QStandardItem(f"Path {parentItem.rowCount()}")
+        parentItem.appendRow(item)
 
     @Slot()
     def onDeleteButtonClicked(self):
         """Delete selected items from :meth:`pathsView`."""
         model = self.experimentItemModel()
-        if model is not None:
-            parentItem = model.itemFromIndex(self.pathsView().rootIndex())
-            for items in reversed(sorted(self.pathsView().selectedIndexes())):
-                parentItem.removeRow(items.row())
+        exptRow = self.pathsView().rootIndex().row()
+        paths = model.coatPaths(exptRow)
+        selectedRows = [idx.row() for idx in self.pathsView().selectedIndexes()]
+        for i in reversed(sorted(selectedRows)):
+            paths.pop(i)
+            model.setCoatPaths(exptRow, paths)
 
     @Slot()
     def onBrowseButtonClicked(self):
         """Browse file and add their paths to :meth:`pathsView`."""
         model = self.experimentItemModel()
-        if model is not None:
-            parentItem = model.itemFromIndex(self.pathsView().rootIndex())
-            paths, _ = QFileDialog.getOpenFileNames(
-                self,
-                "Select experiment files",
-                "./",
-                options=QFileDialog.DontUseNativeDialog,
-            )
-            for p in paths:
-                parentItem.appendRow(QStandardItem(p))
+        parentItem = model.itemFromIndex(self.pathsView().rootIndex())
+        paths, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Select experiment files",
+            "./",
+            options=QFileDialog.DontUseNativeDialog,
+        )
+        for p in paths:
+            parentItem.appendRow(QStandardItem(p))
 
 
 class ReferenceWidget(ControlWidget):
@@ -550,21 +546,21 @@ class ReferenceWidget(ControlWidget):
         self.pathMapper().setModel(model)
         self.pathMapper().addMapping(
             self.pathLineEdit(),
-            ExperimentItemModel.Col_ReferencePath,
+            model.Col_ReferencePath,
         )
 
-    def setCurrentExperimentIndex(self, index: QModelIndex):
-        super().setCurrentExperimentIndex(index)
+    def setCurrentExperimentRow(self, row: int):
+        super().setCurrentExperimentRow(row)
         # update reference path
-        self.pathMapper().setCurrentIndex(index.row())
+        self.pathMapper().setCurrentIndex(row)
 
         # update reference args
         self._blockModelUpdate = True
         model = self.experimentItemModel()
         args = model.data(
-            model.index(index.row(), ExperimentItemModel.Col_Reference),
-            Qt.UserRole,
-        )[0]
+            model.index(row, model.Col_Reference),
+            model.Role_Args,
+        )
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
         self.typeWidget().onInformationEdit()
@@ -688,14 +684,15 @@ class ReferenceWidget(ControlWidget):
         Set :meth:`referenceArgs` and :meth:`structuredReferenceArgs`to
         currently activated item from :meth:`experimentItemModel`.
         """
-        index = self.currentExperimentIndex()
-        if not self._blockModelUpdate and index.isValid():
+        if not self._blockModelUpdate:
             model = self.experimentItemModel()
-            model.setData(
-                model.index(index.row(), ExperimentItemModel.Col_Reference),
-                (self.referenceArgs(), self.structuredReferenceArgs()),
-                Qt.UserRole,  # type: ignore[arg-type]
-            )
+            row = self.currentExperimentRow()
+            index = model.index(row, model.Col_Reference)
+            if index.isValid():
+                model.setData(index, self.referenceArgs(), model.Role_Args)
+                model.setData(
+                    index, self.structuredReferenceArgs(), model.Role_StructuredArgs
+                )
 
     @Slot(str)
     def setReferencePath(self, path: str):
@@ -728,6 +725,14 @@ class ReferenceWidget(ControlWidget):
         )
         if path:
             self.setReferencePath(path)
+
+    def resetReferenceImage(self):
+        """Apply the reference path in model to reference widget."""
+        model = self.experimentItemModel()
+        refpath = model.data(
+            model.index(self.currentExperimentRow(), model.Col_ReferencePath)
+        )
+        self.setReferencePath(refpath)
 
     @Slot()
     def onTemplateROIDrawButtonToggle(self, state: bool):
@@ -827,15 +832,15 @@ class SubstrateWidget(ControlWidget):
         """Widget to specify the substrate drawing options."""
         return self._drawopt_widget
 
-    def setCurrentExperimentIndex(self, index: QModelIndex):
-        super().setCurrentExperimentIndex(index)
+    def setCurrentExperimentRow(self, row: int):
+        super().setCurrentExperimentRow(row)
 
         self._blockModelUpdate = True
         model = self.experimentItemModel()
         args = model.data(
-            model.index(index.row(), ExperimentItemModel.Col_Substrate),
-            Qt.UserRole,
-        )[0]
+            model.index(row, model.Col_Substrate),
+            model.Role_Args,
+        )
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
         self.typeWidget().onInformationEdit()
@@ -949,14 +954,15 @@ class SubstrateWidget(ControlWidget):
         Set :meth:`substrateArgs` and :meth:`structuredSubstrateArgs` to
         currently activated item from :meth:`experimentItemModel`.
         """
-        index = self.currentExperimentIndex()
-        if not self._blockModelUpdate and index.isValid():
+        if not self._blockModelUpdate:
             model = self.experimentItemModel()
-            model.setData(
-                model.index(index.row(), ExperimentItemModel.Col_Substrate),
-                (self.substrateArgs(), self.structuredSubstrateArgs()),
-                Qt.UserRole,  # type: ignore[arg-type]
-            )
+            row = self.currentExperimentRow()
+            index = model.index(row, model.Col_Substrate)
+            if index.isValid():
+                model.setData(index, self.substrateArgs(), model.Role_Args)
+                model.setData(
+                    index, self.structuredSubstrateArgs(), model.Role_StructuredArgs
+                )
 
 
 class CoatingLayerWidget(ControlWidget):
@@ -1064,15 +1070,15 @@ class CoatingLayerWidget(ControlWidget):
             raise TypeError(f"{widget} is not dataclass widget.")
         return widget
 
-    def setCurrentExperimentIndex(self, index: QModelIndex):
-        super().setCurrentExperimentIndex(index)
+    def setCurrentExperimentRow(self, row: int):
+        super().setCurrentExperimentRow(row)
 
         self._blockModelUpdate = True
         model = self.experimentItemModel()
         args = model.data(
-            model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
-            Qt.UserRole,
-        )[0]
+            model.index(row, model.Col_CoatingLayer),
+            model.Role_Args,
+        )
         self.typeWidget().variableNameLineEdit().setText(args.type.name)
         self.typeWidget().moduleNameLineEdit().setText(args.type.module)
         self.typeWidget().onInformationEdit()
@@ -1221,14 +1227,15 @@ class CoatingLayerWidget(ControlWidget):
         Set :meth:`coatingLayerArgs` and :meth:`structuredCoatingLayerArgs` to
         currently activated item from :meth:`experimentItemModel`.
         """
-        index = self.currentExperimentIndex()
-        if not self._blockModelUpdate and index.isValid():
+        if not self._blockModelUpdate:
             model = self.experimentItemModel()
-            model.setData(
-                model.index(index.row(), ExperimentItemModel.Col_CoatingLayer),
-                (self.coatingLayerArgs(), self.structuredCoatingLayerArgs()),
-                Qt.UserRole,  # type: ignore[arg-type]
-            )
+            row = self.currentExperimentRow()
+            index = model.index(row, model.Col_CoatingLayer)
+            if index.isValid():
+                model.setData(index, self.coatingLayerArgs(), model.Role_Args)
+                model.setData(
+                    index, self.structuredCoatingLayerArgs(), model.Role_StructuredArgs
+                )
 
 
 class EmptyDoubleValidator(QDoubleValidator):
@@ -1355,14 +1362,12 @@ class AnalysisWidget(ControlWidget):
         """Progress bar to display analysis progress."""
         return self._progressbar
 
-    def setCurrentExperimentIndex(self, index: QModelIndex):
-        super().setCurrentExperimentIndex(index)
+    def setCurrentExperimentRow(self, row: int):
+        super().setCurrentExperimentRow(row)
 
         self._blockModelUpdate = True
         model = self.experimentItemModel()
-        args = model.data(
-            model.index(index.row(), ExperimentItemModel.Col_Analysis), Qt.UserRole
-        )
+        args = model.data(model.index(row, model.Col_Analysis), model.Role_Args)
         data_path, data_ext = os.path.splitext(args.data_path)
         self.dataPathLineEdit().setText(data_path)
         self.dataExtensionComboBox().setCurrentText(data_ext)
@@ -1400,20 +1405,22 @@ class AnalysisWidget(ControlWidget):
         Set :meth:`analysisArgs` to currently activated item from
         :meth:`experimentItemModel`.
         """
-        index = self.currentExperimentIndex()
-        if not self._blockModelUpdate and index.isValid():
+        if not self._blockModelUpdate:
             model = self.experimentItemModel()
-            model.setData(
-                model.index(index.row(), ExperimentItemModel.Col_Analysis),
-                self.analysisArgs(),
-                Qt.UserRole,  # type: ignore[arg-type]
-            )
+            row = self.currentExperimentRow()
+            index = model.index(row, model.Col_Analysis)
+            if index.isValid():
+                model.setData(
+                    index,
+                    self.analysisArgs(),
+                    model.Role_Args,  # type: ignore[arg-type]
+                )
 
 
 class MasterControlWidget(QTabWidget):
     """Widget which contains control widgets."""
 
-    imageChanged = Signal(object)
+    referenceImageChanged = Signal(object)
     drawROIToggled = Signal(ROIModel, bool)
     selectedClassChanged = Signal(ClassSelection)
 
@@ -1426,7 +1433,7 @@ class MasterControlWidget(QTabWidget):
         self._layer_widget = CoatingLayerWidget()
         self._anal_widget = AnalysisWidget()
 
-        self.referenceWidget().imageChanged.connect(self.imageChanged)
+        self.referenceWidget().imageChanged.connect(self.referenceImageChanged)
         self.referenceWidget().templateROIDrawButton().toggled.connect(
             self.onTemplateROIDrawButtonToggle
         )
@@ -1479,16 +1486,14 @@ class MasterControlWidget(QTabWidget):
         self.coatingLayerWidget().setExperimentItemModel(model)
         self.analysisWidget().setExperimentItemModel(model)
 
-    @Slot(QModelIndex)
-    def setCurrentExperimentIndex(self, index: QModelIndex):
-        """Set currently activated index from :meth:`experimentItemModel`."""
-        if index.parent().isValid():
-            raise TypeError("Only top-level index can be activated.")
-        self.experimentWidget().setCurrentExperimentIndex(index)
-        self.referenceWidget().setCurrentExperimentIndex(index)
-        self.substrateWidget().setCurrentExperimentIndex(index)
-        self.coatingLayerWidget().setCurrentExperimentIndex(index)
-        self.analysisWidget().setCurrentExperimentIndex(index)
+    @Slot(int)
+    def setCurrentExperimentRow(self, row: int):
+        """Set currently activated row from :meth:`experimentItemModel`."""
+        self.experimentWidget().setCurrentExperimentRow(row)
+        self.referenceWidget().setCurrentExperimentRow(row)
+        self.substrateWidget().setCurrentExperimentRow(row)
+        self.coatingLayerWidget().setCurrentExperimentRow(row)
+        self.analysisWidget().setCurrentExperimentRow(row)
 
     @Slot(bool)
     def onTemplateROIDrawButtonToggle(self, state: bool):
@@ -1504,6 +1509,16 @@ class MasterControlWidget(QTabWidget):
             state,
         )
 
+    @Slot(ClassSelection)
+    def setSelectedClass(self, select: ClassSelection):
+        if select == ClassSelection.REFERENCE:
+            index = 1
+        elif select == ClassSelection.SUBSTRATE:
+            index = 2
+        else:
+            index = 0
+        self.setCurrentIndex(index)
+
     @Slot(int)
     def onCurrentTabChange(self, index: int):
         self.referenceWidget().templateROIDrawButton().setChecked(False)
@@ -1517,9 +1532,15 @@ class MasterControlWidget(QTabWidget):
         elif widget.widget() == self.substrateWidget():
             select = ClassSelection.SUBSTRATE
         elif widget.widget() == self.coatingLayerWidget():
-            select = ClassSelection.COATINGLAYER
+            select = ClassSelection.EXPERIMENT
         elif widget.widget() == self.experimentWidget():
             select = ClassSelection.EXPERIMENT
+        elif widget.widget() == self.analysisWidget():
+            select = ClassSelection.ANALYSIS
         else:
             select = ClassSelection.UNKNOWN
         self.selectedClassChanged.emit(select)
+
+    @Slot()
+    def resetReferenceImage(self):
+        self.referenceWidget().resetReferenceImage()
