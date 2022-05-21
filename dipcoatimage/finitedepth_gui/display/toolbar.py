@@ -1,5 +1,5 @@
 import dipcoatimage.finitedepth_gui
-from dipcoatimage.finitedepth_gui.workers import VisualizationMode
+from dipcoatimage.finitedepth_gui.core import VisualizationMode
 import os
 from PySide6.QtCore import Signal, QSize, Slot
 from PySide6.QtGui import QActionGroup, QAction, QIcon
