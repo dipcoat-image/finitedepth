@@ -12,9 +12,7 @@ from .refwidget import ReferenceWidget
 from .substwidget import SubstrateWidget
 from .layerwidget import CoatingLayerWidget
 from .analysiswidget import AnalysisWidget
-from .controlwidgets import (
-    MasterControlWidget,
-)
+from .controlwidget import MasterControlWidget
 
 __all__ = [
     "ControlWidget",
