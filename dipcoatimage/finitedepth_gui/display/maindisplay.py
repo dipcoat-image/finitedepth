@@ -114,30 +114,37 @@ class MainDisplayWindow(QMainWindow):
 
     @Slot(int, list, ExperimentKind)
     def onCoatPathsChange(self, row: int, paths: List[str], kind: ExperimentKind):
+        # no need to wait for worker update, so visualization directly updated
         if row == self.currentExperimentRow():
             self._coat_paths = paths
             self._expt_kind = kind
             self.updateControllerVisibility()
+            self.updateVisualization()
 
     @Slot(ClassSelection)
     def setSelectedClass(self, select: ClassSelection):
+        # no need to wait for worker update, so visualization directly updated
         if select == ClassSelection.ANALYSIS:
             select = ClassSelection.EXPERIMENT
         self._selectedClass = select
-        self.updateControllerVisibility()
         self.visualizeProcessor().setSelectedClass(select)
+        self.updateControllerVisibility()
+        self.updateVisualization()
 
     @Slot(int)
     def setCurrentExperimentRow(self, row: int):
+        # visualization updated by worker signal
         self._currentExperimentRow = row
         model = self.experimentItemModel()
         if model is None:
             return
+        self._coat_paths = model.coatPaths(row)
         self._expt_kind = model.experimentKind(row)
         self.updateControllerVisibility()
 
     @Slot(bool)
     def onCameraToggle(self, toggled: bool):
+        # visualization updated by worker signal
         self._camera_on = toggled
         self.updateControllerVisibility()
         if toggled:
@@ -160,7 +167,11 @@ class MainDisplayWindow(QMainWindow):
         self.videoController().setVisible(visible)
 
     @Slot(ClassSelection)
-    def onWorkersUpdate(self, workers: ClassSelection):
+    def onWorkersUpdate(self, changed: ClassSelection):
+        if self.selectedClass() & changed:
+            self.updateVisualization()
+
+    def updateVisualization(self):
         pass
 
     @Slot(ROIModel, bool)

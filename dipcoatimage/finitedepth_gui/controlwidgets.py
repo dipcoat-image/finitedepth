@@ -1509,6 +1509,16 @@ class MasterControlWidget(QTabWidget):
             state,
         )
 
+    @Slot(ClassSelection)
+    def setSelectedClass(self, select: ClassSelection):
+        if select == ClassSelection.REFERENCE:
+            index = 1
+        elif select == ClassSelection.SUBSTRATE:
+            index = 2
+        else:
+            index = 0
+        self.setCurrentIndex(index)
+
     @Slot(int)
     def onCurrentTabChange(self, index: int):
         self.referenceWidget().templateROIDrawButton().setChecked(False)

@@ -2,7 +2,7 @@ import os
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import QMainWindow, QDockWidget, QPushButton, QFileDialog
 from .controlwidgets import MasterControlWidget
-from .core import VisualizationMode
+from .core import ClassSelection, VisualizationMode
 from .display import MainDisplayWindow
 from .inventory import ExperimentInventory
 from .workers import MasterWorker
@@ -90,7 +90,8 @@ class AnalysisGUI(QMainWindow):
         self.mainDisplayWindow().setVisualizeActionToggleState(VisualizationMode.FULL)
         self.experimentInventory().addNewExperiment()
         self.experimentInventory().activateExperiment(0)
-        self.masterControlWidget().setCurrentIndex(0)
+        self.masterControlWidget().setSelectedClass(ClassSelection.EXPERIMENT)
+        self.mainDisplayWindow().setSelectedClass(ClassSelection.EXPERIMENT)
 
     def mainDisplayWindow(self) -> MainDisplayWindow:
         """Main window which includes all display widgets."""
