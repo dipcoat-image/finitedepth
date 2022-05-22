@@ -5,7 +5,7 @@ from dipcoatimage.finitedepth_gui.core import StructuredSubstrateArgs
 from dipcoatimage.finitedepth_gui.importwidget import ImportWidget
 from PySide6.QtCore import Slot
 from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout
-from typing import Any
+from typing import Any, List
 from .base import ControlWidget
 
 
@@ -230,3 +230,10 @@ class SubstrateWidget(ControlWidget):
                 model.setData(
                     index, self.structuredSubstrateArgs(), model.Role_StructuredArgs
                 )
+
+    def onExperimentsRemove(self, rows: List[int]):
+        if self.currentExperimentRow() in rows:
+            self._currentExperimentRow = -1
+            self.typeWidget().clear()
+            self.parametersWidget().setCurrentIndex(0)
+            self.drawOptionsWidget().setCurrentIndex(0)

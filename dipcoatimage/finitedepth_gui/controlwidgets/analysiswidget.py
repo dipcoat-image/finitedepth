@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QProgressBar,
 )
+from typing import List
 from .base import ControlWidget
 
 
@@ -197,3 +198,15 @@ class AnalysisWidget(ControlWidget):
                     self.analysisArgs(),
                     model.Role_Args,  # type: ignore[arg-type]
                 )
+
+    def onExperimentsRemove(self, rows: List[int]):
+        if self.currentExperimentRow() in rows:
+            self._currentExperimentRow = -1
+            self.dataPathLineEdit().clear()
+            self.dataExtensionComboBox().setCurrentIndex(-1)
+            self.imagePathLineEdit().clear()
+            self.imageExtensionComboBox().setCurrentIndex(-1)
+            self.videoPathLineEdit().clear()
+            self.videoExtensionComboBox().setCurrentIndex(-1)
+            self.imageFPSLineEdit().clear()
+            self.progressBar().setValue(0)

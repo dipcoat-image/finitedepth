@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QGroupBox,
 )
-from typing import Any
+from typing import Any, List
 from .base import ControlWidget
 
 
@@ -287,3 +287,11 @@ class ExperimentWidget(ControlWidget):
         )
         for p in paths:
             parentItem.appendRow(QStandardItem(p))
+
+    def onExperimentsRemove(self, rows: List[int]):
+        if self.currentExperimentRow() in rows:
+            self._currentExperimentRow = -1
+            self.experimentNameLineEdit().clear()
+            self.typeWidget().clear()
+            self.pathsView().setModel(None)
+            self.parametersWidget().setCurrentIndex(0)

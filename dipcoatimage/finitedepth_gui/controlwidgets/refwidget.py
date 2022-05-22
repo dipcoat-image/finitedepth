@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QSizePolicy,
 )
-from typing import Any
+from typing import Any, List
 from .base import ControlWidget
 
 
@@ -411,3 +411,15 @@ class ReferenceWidget(ControlWidget):
         """Untoggle :meth:`templateROIDrawButton`."""
         if state:
             self.templateROIDrawButton().setChecked(False)
+
+    def onExperimentsRemove(self, rows: List[int]):
+        if self.currentExperimentRow() in rows:
+            self._currentExperimentRow = -1
+            self.pathLineEdit().clear()
+            self.typeWidget().clear()
+            self.templateROIWidget().roiModel().setROI(0, 0, 0, 0)
+            self.substrateROIWidget().roiModel().setROI(0, 0, 0, 0)
+            self.templateROIWidget().setROIMaximum(0, 0)
+            self.substrateROIWidget().setROIMaximum(0, 0)
+            self.parametersWidget().setCurrentIndex(0)
+            self.drawOptionsWidget().setCurrentIndex(0)

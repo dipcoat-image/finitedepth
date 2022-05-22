@@ -46,6 +46,9 @@ class AnalysisGUI(QMainWindow):
         self.experimentInventory().experimentsRemoved.connect(
             self.mainDisplayWindow().onExperimentsRemove
         )
+        self.experimentInventory().experimentsRemoved.connect(
+            self.masterControlWidget().onExperimentsRemove
+        )
         self.mainDisplayWindow().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
         )

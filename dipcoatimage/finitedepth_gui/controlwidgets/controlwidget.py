@@ -3,6 +3,7 @@ from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from PySide6.QtCore import Signal, Slot
 from PySide6.QtWidgets import QTabWidget, QScrollArea
+from typing import List
 from .exptwidget import ExperimentWidget
 from .refwidget import ReferenceWidget
 from .substwidget import SubstrateWidget
@@ -142,3 +143,11 @@ class MasterControlWidget(QTabWidget):
     @Slot()
     def resetReferenceImage(self):
         self.referenceWidget().resetReferenceImage()
+
+    @Slot(list)
+    def onExperimentsRemove(self, rows: List[int]):
+        self.experimentWidget().onExperimentsRemove(rows)
+        self.referenceWidget().onExperimentsRemove(rows)
+        self.substrateWidget().onExperimentsRemove(rows)
+        self.coatingLayerWidget().onExperimentsRemove(rows)
+        self.analysisWidget().onExperimentsRemove(rows)
