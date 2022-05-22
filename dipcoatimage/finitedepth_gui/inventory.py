@@ -282,6 +282,7 @@ class ExperimentInventory(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self._expt_count = 0
         self._item_model = ExperimentItemModel()
         self._list_view = QListView()
         self._add_button = QToolButton()
@@ -326,9 +327,10 @@ class ExperimentInventory(QWidget):
             QStandardItem() for _ in range(self.experimentItemModel().columnCount())
         ]
         items[ExperimentItemModel.Col_ExperimentName].setText(
-            f"Experiment {self.experimentItemModel().rowCount()}"
+            f"Experiment {self._expt_count}"
         )
         self.experimentItemModel().appendRow(items)
+        self._expt_count += 1
 
     @Slot()
     def deleteExperiment(self):
