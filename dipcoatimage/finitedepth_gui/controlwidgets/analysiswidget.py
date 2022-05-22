@@ -201,7 +201,7 @@ class AnalysisWidget(ControlWidget):
 
     def onExperimentsRemove(self, rows: List[int]):
         if self.currentExperimentRow() in rows:
-            self._currentExperimentRow = -1
+            super().onExperimentsRemove(rows)
             self.dataPathLineEdit().clear()
             self.dataExtensionComboBox().setCurrentIndex(-1)
             self.imagePathLineEdit().clear()

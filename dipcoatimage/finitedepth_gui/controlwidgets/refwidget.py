@@ -414,7 +414,7 @@ class ReferenceWidget(ControlWidget):
 
     def onExperimentsRemove(self, rows: List[int]):
         if self.currentExperimentRow() in rows:
-            self._currentExperimentRow = -1
+            super().onExperimentsRemove(rows)
             self.pathLineEdit().clear()
             self.typeWidget().clear()
             self.templateROIWidget().roiModel().setROI(0, 0, 0, 0)

@@ -290,7 +290,7 @@ class ExperimentWidget(ControlWidget):
 
     def onExperimentsRemove(self, rows: List[int]):
         if self.currentExperimentRow() in rows:
-            self._currentExperimentRow = -1
+            super().onExperimentsRemove(rows)
             self.experimentNameLineEdit().clear()
             self.typeWidget().clear()
             self.pathsView().setModel(None)

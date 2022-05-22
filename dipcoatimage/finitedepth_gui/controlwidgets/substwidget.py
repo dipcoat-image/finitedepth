@@ -233,7 +233,7 @@ class SubstrateWidget(ControlWidget):
 
     def onExperimentsRemove(self, rows: List[int]):
         if self.currentExperimentRow() in rows:
-            self._currentExperimentRow = -1
+            super().onExperimentsRemove(rows)
             self.typeWidget().clear()
             self.parametersWidget().setCurrentIndex(0)
             self.drawOptionsWidget().setCurrentIndex(0)
