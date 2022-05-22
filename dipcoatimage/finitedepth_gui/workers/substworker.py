@@ -174,5 +174,5 @@ class SubstrateWorker(WorkerBase):
         self._type = None
         self._ref = None
         self._params = None
-        self._draw_opts = None  
+        self._draw_opts = None
         self.updateSubstrate()

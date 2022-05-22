@@ -293,5 +293,5 @@ class ExperimentWidget(ControlWidget):
             super().onExperimentsRemove(rows)
             self.experimentNameLineEdit().clear()
             self.typeWidget().clear()
-            self.pathsView().setModel(None)
+            self.pathsView().setModel(None)  # type: ignore[arg-type]
             self.parametersWidget().setCurrentIndex(0)

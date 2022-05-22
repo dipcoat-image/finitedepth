@@ -187,4 +187,4 @@ class AnalysisWorker(WorkerBase):
         self._experiment = None
         self._paths = []
         self._expt_kind = ExperimentKind.NullExperiment
-        self._analysisArgs = AnalysisArgs()        
+        self._analysisArgs = AnalysisArgs()

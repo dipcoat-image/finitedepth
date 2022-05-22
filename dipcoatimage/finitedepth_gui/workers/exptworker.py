@@ -296,5 +296,5 @@ class ExperimentWorker(WorkerBase):
         self._layer_params = None
         self._layer_drawopts = None
         self._layer_decoopts = None
-        self._params = None        
+        self._params = None
         self.updateExperiment()

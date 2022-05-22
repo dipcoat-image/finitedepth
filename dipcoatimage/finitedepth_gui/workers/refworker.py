@@ -193,5 +193,5 @@ class ReferenceWorker(WorkerBase):
         self._temproi = (0, 0, None, None)
         self._substroi = (0, 0, None, None)
         self._params = None
-        self._draw_opts = None        
+        self._draw_opts = None
         self.updateReference()
