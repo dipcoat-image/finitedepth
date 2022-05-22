@@ -186,3 +186,12 @@ class ReferenceWorker(WorkerBase):
         else:
             image = self.image()
         return image
+
+    def clear(self):
+        self._type = None
+        self._img = None
+        self._temproi = (0, 0, None, None)
+        self._substroi = (0, 0, None, None)
+        self._params = None
+        self._draw_opts = None        
+        self.updateReference()

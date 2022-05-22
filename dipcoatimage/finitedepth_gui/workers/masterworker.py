@@ -256,3 +256,12 @@ class MasterWorker(QObject):
             | ClassSelection.SUBSTRATE
             | ClassSelection.EXPERIMENT
         )
+
+    @Slot()
+    def onExperimentsRemove(self, rows: List[int]):
+        if self.currentExperimentRow() in rows:
+            self._currentExperimentRow = -1
+            self.referenceWorker().clear()
+            self.substrateWorker().clear()
+            self.experimentWorker().clear()
+            self.analysisWorker().clear()

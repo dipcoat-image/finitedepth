@@ -288,3 +288,13 @@ class ExperimentWorker(WorkerBase):
         nxor = cv2.bitwise_not(xor)
         bin_img[max(y0, 0) : min(y1, img_h), max(x0, 0) : min(x1, img_w)] = nxor
         return cv2.cvtColor(bin_img, cv2.COLOR_GRAY2RGB)
+
+    def clear(self):
+        self._type = None
+        self._subst = None
+        self._layer_type = None
+        self._layer_params = None
+        self._layer_drawopts = None
+        self._layer_decoopts = None
+        self._params = None        
+        self.updateExperiment()
