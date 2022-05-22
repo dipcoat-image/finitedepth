@@ -130,10 +130,12 @@ class MainDisplayWindow(QMainWindow):
         # no need to wait for worker update, so visualization directly updated
         if select == ClassSelection.ANALYSIS:
             select = ClassSelection.EXPERIMENT
-        self._selectedClass = select
-        self.visualizeProcessor().setSelectedClass(select)
-        self.updateControllerVisibility()
-        self.updateVisualization()
+        if select != self.selectedClass():
+            self._selectedClass = select
+            self.visualizeProcessor().setSelectedClass(select)
+            self.updateControllerVisibility()
+            self.videoPlayer().stop()
+            self.updateVisualization()
 
     @Slot(int)
     def setCurrentExperimentRow(self, row: int):
