@@ -204,6 +204,10 @@ class MainDisplayWindow(QMainWindow):
     @Slot(list)
     def onExperimentsRemove(self, rows: List[int]):
         if self.currentExperimentRow() in rows:
+            self._coat_paths = []
+            self._expt_kind = ExperimentKind.NullExperiment
+            self.updateControllerVisibility()
+            self.videoPlayer().setSource(QUrl())
             self.displayLabel().setPixmap(QPixmap())
 
     def setVisualizeWorker(self, worker: Optional[MasterWorker]):
