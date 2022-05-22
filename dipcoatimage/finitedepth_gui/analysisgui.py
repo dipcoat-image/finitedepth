@@ -43,6 +43,9 @@ class AnalysisGUI(QMainWindow):
         self.experimentInventory().experimentRowActivated.connect(
             self.masterWorker().setCurrentExperimentRow
         )
+        self.experimentInventory().experimentsRemoved.connect(
+            self.mainDisplayWindow().onExperimentsRemove
+        )
         self.mainDisplayWindow().setExperimentItemModel(
             self.experimentInventory().experimentItemModel()
         )

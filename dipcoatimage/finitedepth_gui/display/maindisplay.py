@@ -201,6 +201,11 @@ class MainDisplayWindow(QMainWindow):
         else:
             self.displayLabel().removeROIModel(model)
 
+    @Slot(list)
+    def onExperimentsRemove(self, rows: List[int]):
+        if self.currentExperimentRow() in rows:
+            self.displayLabel().setPixmap(QPixmap())
+
     def setVisualizeWorker(self, worker: Optional[MasterWorker]):
         self.visualizeProcessor().setVisualizeWorker(worker)
 

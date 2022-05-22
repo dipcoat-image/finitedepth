@@ -277,6 +277,7 @@ class ExperimentItemModel(QStandardItemModel):
 class ExperimentInventory(QWidget):
 
     experimentRowActivated = Signal(int)
+    experimentsRemoved = Signal(list)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -286,6 +287,7 @@ class ExperimentInventory(QWidget):
         self._add_button = QToolButton()
         self._delete_button = QPushButton()
 
+        self.experimentItemModel().experimentsRemoved.connect(self.experimentsRemoved)
         self.experimentListView().setSelectionMode(QListView.ExtendedSelection)
         self.experimentListView().setEditTriggers(QListView.SelectedClicked)
         self.experimentListView().setModel(self.experimentItemModel())
