@@ -127,6 +127,7 @@ class ExperimentItemModel(QStandardItemModel):
     Role_Args = Qt.UserRole
     Role_StructuredArgs = Qt.UserRole + 1  # type: ignore[operator]
 
+    experimentsRemoved = Signal(list)
     coatPathsChanged = Signal(int, list, ExperimentKind)
     referenceDataChanged = Signal(int, ReferenceArgs, StructuredReferenceArgs)
     substrateDataChanged = Signal(int, SubstrateArgs, StructuredSubstrateArgs)
@@ -174,6 +175,12 @@ class ExperimentItemModel(QStandardItemModel):
                 if role == self.Role_Args:
                     ret = AnalysisArgs()
         return ret
+
+    @Slot(list)
+    def removeExperiments(self, rows: List[int]):
+        for i in reversed(sorted(rows)):
+            self.removeRow(i)
+        self.experimentsRemoved.emit(rows)
 
     @Slot(QStandardItem)
     def onItemChange(self, item: QStandardItem):
@@ -284,6 +291,7 @@ class ExperimentInventory(QWidget):
         self.experimentListView().setModel(self.experimentItemModel())
         self.experimentListView().activated.connect(self.onViewIndexActivated)
         self.addButton().clicked.connect(self.addNewExperiment)
+        self.deleteButton().clicked.connect(self.deleteExperiment)
 
         layout = QVBoxLayout()
         layout.addWidget(self.experimentListView())
@@ -319,6 +327,11 @@ class ExperimentInventory(QWidget):
             f"Experiment {self.experimentItemModel().rowCount()}"
         )
         self.experimentItemModel().appendRow(items)
+
+    @Slot()
+    def deleteExperiment(self):
+        rows = [idx.row() for idx in self.experimentListView().selectedIndexes()]
+        self.experimentItemModel().removeExperiments(rows)
 
     def activateExperiment(self, index: int):
         self.experimentListView().setCurrentIndex(
