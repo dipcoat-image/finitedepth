@@ -131,10 +131,11 @@ class MainDisplayWindow(QMainWindow):
         if select == ClassSelection.ANALYSIS:
             select = ClassSelection.EXPERIMENT
         if select != self.selectedClass():
+            if self.selectedClass() == ClassSelection.EXPERIMENT:
+                self.videoPlayer().stop()
             self._selectedClass = select
-            self.visualizeProcessor().setSelectedClass(select)
             self.updateControllerVisibility()
-            self.videoPlayer().stop()
+            self.visualizeProcessor().setSelectedClass(select)
             self.updateVisualization()
 
     @Slot(int)
