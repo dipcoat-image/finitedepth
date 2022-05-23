@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QSizePolicy,
 )
-from typing import List
+from typing import List, Optional
 from .core import (
     StructuredExperimentArgs,
     StructuredReferenceArgs,
@@ -283,15 +283,13 @@ class ExperimentInventory(QWidget):
         super().__init__(parent)
 
         self._expt_count = 0
-        self._item_model = ExperimentItemModel()
+        self._item_model = None
         self._list_view = QListView()
         self._add_button = QToolButton()
         self._delete_button = QPushButton()
 
-        self.experimentItemModel().experimentsRemoved.connect(self.experimentsRemoved)
         self.experimentListView().setSelectionMode(QListView.ExtendedSelection)
         self.experimentListView().setEditTriggers(QListView.SelectedClicked)
-        self.experimentListView().setModel(self.experimentItemModel())
         self.experimentListView().activated.connect(self.onViewIndexActivated)
         self.addButton().clicked.connect(self.addNewExperiment)
         self.deleteButton().clicked.connect(self.deleteExperiment)
@@ -308,7 +306,7 @@ class ExperimentInventory(QWidget):
         layout.addLayout(button_layout)
         self.setLayout(layout)
 
-    def experimentItemModel(self) -> ExperimentItemModel:
+    def experimentItemModel(self) -> Optional[ExperimentItemModel]:
         return self._item_model
 
     def experimentListView(self) -> QListView:
@@ -320,22 +318,39 @@ class ExperimentInventory(QWidget):
     def deleteButton(self) -> QPushButton:
         return self._delete_button
 
+    def setExperimentItemModel(self, model: Optional[ExperimentItemModel]):
+        """Set :meth:`experimentItemModel`."""
+        old_model = self.experimentItemModel()
+        if old_model is not None:
+            self.disconnectModel(old_model)
+        self._item_model = model
+        if model is not None:
+            self.connectModel(model)
+
+    def connectModel(self, model: ExperimentItemModel):
+        model.experimentsRemoved.connect(self.experimentsRemoved)
+        self.experimentListView().setModel(model)
+
+    def disconnectModel(self, model: ExperimentItemModel):
+        model.experimentsRemoved.disconnect(self.experimentsRemoved)
+        self.experimentListView().setModel(None)  # type: ignore[arg-type]
+
     @Slot()
     def addNewExperiment(self):
         """Add new row to :meth:`experimentItemModel`."""
-        items = [
-            QStandardItem() for _ in range(self.experimentItemModel().columnCount())
-        ]
-        items[ExperimentItemModel.Col_ExperimentName].setText(
-            f"Experiment {self._expt_count}"
-        )
-        self.experimentItemModel().appendRow(items)
-        self._expt_count += 1
+        model = self.experimentItemModel()
+        if model is not None:
+            items = [QStandardItem() for _ in range(model.columnCount())]
+            items[model.Col_ExperimentName].setText(f"Experiment {self._expt_count}")
+            model.appendRow(items)
+            self._expt_count += 1
 
     @Slot()
     def deleteExperiment(self):
-        rows = [idx.row() for idx in self.experimentListView().selectedIndexes()]
-        self.experimentItemModel().removeExperiments(rows)
+        model = self.experimentItemModel()
+        if model is not None:
+            rows = [idx.row() for idx in self.experimentListView().selectedIndexes()]
+            model.removeExperiments(rows)
 
     def activateExperiment(self, index: int):
         self.experimentListView().setCurrentIndex(
