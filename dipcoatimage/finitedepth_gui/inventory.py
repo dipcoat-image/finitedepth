@@ -15,12 +15,14 @@ from dipcoatimage.finitedepth.analysis import (
     AnalysisArgs,
 )
 import enum
+from itertools import product
 from PySide6.QtCore import Slot, Signal, Qt, QModelIndex
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from PySide6.QtWidgets import (
     QWidget,
     QListView,
     QToolButton,
+    QMenu,
     QPushButton,
     QVBoxLayout,
     QHBoxLayout,
@@ -273,6 +275,17 @@ class ExperimentItemModel(QStandardItemModel):
         self._block_coatPathsChanged = False
         self.coatPathsChanged.emit(parent.row(), paths, kind)
 
+    def copyExperiment(self, row: int) -> List[QStandardItem]:
+        def recursiveCopy(item: QStandardItem):
+            ret = QStandardItem(item)
+            for row, col in product(range(item.rowCount()), range(item.columnCount())):
+                child = QStandardItem(item.child(row, col))
+                ret.setChild(row, col, child)
+            return ret
+
+        items = [recursiveCopy(self.item(row, c)) for c in range(self.columnCount())]
+        return items
+
 
 class ExperimentInventory(QWidget):
 
@@ -282,7 +295,7 @@ class ExperimentInventory(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._expt_count = 0
+        self._exptcount = 0
         self._item_model = None
         self._list_view = QListView()
         self._add_button = QToolButton()
@@ -291,7 +304,11 @@ class ExperimentInventory(QWidget):
         self.experimentListView().setSelectionMode(QListView.ExtendedSelection)
         self.experimentListView().setEditTriggers(QListView.SelectedClicked)
         self.experimentListView().activated.connect(self.onViewIndexActivated)
+        self.addButton().setMenu(QMenu(self))
+        copyAction = self.addButton().menu().addAction("")  # text set later
+        self.addButton().setPopupMode(QToolButton.MenuButtonPopup)
         self.addButton().clicked.connect(self.addNewExperiment)
+        copyAction.triggered.connect(self.copySelected)
         self.deleteButton().clicked.connect(self.deleteExperiment)
 
         layout = QVBoxLayout()
@@ -299,6 +316,7 @@ class ExperimentInventory(QWidget):
         button_layout = QHBoxLayout()
         self.addButton().setText("Add")
         self.addButton().setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        copyAction.setText("Copy selected items")
         self.deleteButton().setText("Delete")
         self.deleteButton().setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         button_layout.addWidget(self.addButton())
@@ -341,9 +359,9 @@ class ExperimentInventory(QWidget):
         model = self.experimentItemModel()
         if model is not None:
             items = [QStandardItem() for _ in range(model.columnCount())]
-            items[model.Col_ExperimentName].setText(f"Experiment {self._expt_count}")
+            items[model.Col_ExperimentName].setText(f"Experiment {self._exptcount}")
             model.appendRow(items)
-            self._expt_count += 1
+            self._exptcount += 1
 
     @Slot()
     def deleteExperiment(self):
@@ -364,3 +382,15 @@ class ExperimentInventory(QWidget):
     def onViewIndexActivated(self, index: QModelIndex):
         if not index.parent().isValid():
             self.experimentRowActivated.emit(index.row())
+
+    @Slot()
+    def copySelected(self):
+        model = self.experimentItemModel()
+        if model is not None:
+            rows = [idx.row() for idx in self.experimentListView().selectedIndexes()]
+            for row in sorted(rows):
+                items = model.copyExperiment(row)
+                name = items[model.Col_ExperimentName].text()
+                items[model.Col_ExperimentName].setText(f"{name} (copied)")
+                model.appendRow(items)
+                self._exptcount += 1
