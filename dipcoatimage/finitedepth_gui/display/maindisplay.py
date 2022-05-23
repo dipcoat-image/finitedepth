@@ -30,6 +30,7 @@ class MainDisplayWindow(QMainWindow):
     visualizationModeChanged = Signal(VisualizationMode)
     cameraTurnOn = Signal()
     cameraTurnOff = Signal()
+    imageCaptured = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -58,6 +59,7 @@ class MainDisplayWindow(QMainWindow):
         self.displayToolBar().captureFormatChanged.connect(
             self.imageCapture().setFileFormat
         )
+        self.displayToolBar().captureImage.connect(self.imageCapture().captureToFile)
         self.videoController().setPlayer(self.videoPlayer())
 
         self.videoPlayer().arrayChanged.connect(self.visualizeProcessor().setArray)
@@ -67,6 +69,7 @@ class MainDisplayWindow(QMainWindow):
             self.visualizeProcessor().setArray
         )
         self.mediaCaptureSession().setImageCapture(self.imageCapture())
+        self.imageCapture().imageSaved.connect(self.onImageCapture)
         self.visualizeProcessor().arrayChanged.connect(self.displayLabel().setArray)
 
         self.addToolBar(self.displayToolBar())
@@ -231,6 +234,11 @@ class MainDisplayWindow(QMainWindow):
             self.updateControllerVisibility()
             self.videoPlayer().setSource(QUrl())
             self.displayLabel().setPixmap(QPixmap())
+
+    @Slot(int, str)
+    def onImageCapture(self, id: int, path: str):
+        if id != -1 and self.displayToolBar().captureAndAddAction().isChecked():
+            self.imageCaptured.emit(path)
 
     def setVisualizeWorker(self, worker: Optional[MasterWorker]):
         self.visualizeProcessor().setVisualizeWorker(worker)

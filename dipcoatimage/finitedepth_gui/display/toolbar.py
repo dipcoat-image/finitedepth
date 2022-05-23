@@ -20,6 +20,7 @@ class DisplayWidgetToolBar(QToolBar):
     cameraChanged = Signal(QCameraDevice)
     cameraToggled = Signal(bool)
     captureFormatChanged = Signal(QImageCapture.FileFormat)
+    captureImage = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -70,6 +71,7 @@ class DisplayWidgetToolBar(QToolBar):
             self.onCaptureFormatChange
         )
         self.captureButton().setToolTip("Capture image")
+        self.captureButton().clicked.connect(self.onCaptureButtonClick)
         captureActionIcon = QIcon()
         captureActionIcon.addFile(get_icons_path("capture.svg"), QSize(24, 24))
         self.captureButton().setIcon(captureActionIcon)
@@ -198,7 +200,12 @@ class DisplayWidgetToolBar(QToolBar):
     @Slot(int)
     def onCaptureFormatChange(self, index: int):
         form = self.captureFormatComboBox().itemData(index)
-        self.captureFormatChanged.emit(form)
+        self.captureFormatChanged.emit(QImageCapture.FileFormat(form))
+
+    @Slot()
+    def onCaptureButtonClick(self):
+        path = self.capturePathLineEdit().text()
+        self.captureImage.emit(os.path.abspath(path))
 
 
 def get_icons_path(*paths: str) -> str:

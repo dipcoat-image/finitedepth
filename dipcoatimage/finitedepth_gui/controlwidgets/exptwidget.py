@@ -260,7 +260,12 @@ class ExperimentWidget(ControlWidget):
         """Add new item to :meth:`pathsView`."""
         model = self.experimentItemModel()
         parentItem = model.itemFromIndex(self.pathsView().rootIndex())
-        item = QStandardItem(f"Path {parentItem.rowCount()}")
+        self.addCoatPath(f"Path {parentItem.rowCount()}")
+
+    def addCoatPath(self, path: str):
+        model = self.experimentItemModel()
+        parentItem = model.itemFromIndex(self.pathsView().rootIndex())
+        item = QStandardItem(path)
         parentItem.appendRow(item)
 
     @Slot()
@@ -277,8 +282,6 @@ class ExperimentWidget(ControlWidget):
     @Slot()
     def onBrowseButtonClicked(self):
         """Browse file and add their paths to :meth:`pathsView`."""
-        model = self.experimentItemModel()
-        parentItem = model.itemFromIndex(self.pathsView().rootIndex())
         paths, _ = QFileDialog.getOpenFileNames(
             self,
             "Select experiment files",
@@ -286,7 +289,7 @@ class ExperimentWidget(ControlWidget):
             options=QFileDialog.DontUseNativeDialog,
         )
         for p in paths:
-            parentItem.appendRow(QStandardItem(p))
+            self.addCoatPath(p)
 
     def onExperimentsRemove(self, rows: List[int]):
         if self.currentExperimentRow() in rows:
