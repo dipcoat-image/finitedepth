@@ -5,6 +5,7 @@ Experiment inventory
 Experiment item model and widget to view it.
 
 """
+from dipcoatimage.finitedepth import data_converter
 from dipcoatimage.finitedepth.analysis import (
     ExperimentKind,
     experiment_kind,
@@ -13,9 +14,12 @@ from dipcoatimage.finitedepth.analysis import (
     CoatingLayerArgs,
     ExperimentArgs,
     AnalysisArgs,
+    ExperimentData,
 )
 import enum
 from itertools import product
+import json
+import os
 from PySide6.QtCore import Slot, Signal, Qt, QModelIndex
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from PySide6.QtWidgets import (
@@ -30,6 +34,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
 )
 from typing import List, Optional
+import yaml  # type: ignore[import]
 from .core import (
     StructuredExperimentArgs,
     StructuredReferenceArgs,
@@ -277,12 +282,30 @@ class ExperimentItemModel(QStandardItemModel):
         self._block_coatPathsChanged = False
         self.coatPathsChanged.emit(parent.row(), paths, kind)
 
+    def asExperimentData(self, row: int) -> ExperimentData:
+        refpath = self.data(self.index(row, self.Col_ReferencePath))
+        coatpaths = self.coatPaths(row)
+        refargs = self.data(self.index(row, self.Col_Reference), self.Role_Args)
+        substargs = self.data(self.index(row, self.Col_Substrate), self.Role_Args)
+        layerargs = self.data(self.index(row, self.Col_CoatingLayer), self.Role_Args)
+        exptargs = self.data(self.index(row, self.Col_Experiment), self.Role_Args)
+        analargs = self.data(self.index(row, self.Col_Analysis), self.Role_Args)
+        return ExperimentData(
+            refpath, coatpaths, refargs, substargs, layerargs, exptargs, analargs
+        )
+
 
 class ConfigFileTypeEnum(enum.Enum):
     """Enum of supported file types. Values are file filters."""
 
     JSON = "JSON (*.json)"
     YAML = "YAML (*.yml)"
+
+    def asExtensions(self) -> List[str]:
+        s = self.value
+        patterns = s[s.find("(") + 1 : s.find(")")].split(" ")
+        exts = [p[p.find(".") + 1 :] for p in patterns]
+        return exts
 
 
 class ExperimentInventory(QWidget):
@@ -446,8 +469,24 @@ class ExperimentInventory(QWidget):
             filters,
             options=QFileDialog.DontUseNativeDialog,
         )
+        selectedFilter = ConfigFileTypeEnum(selectedFilter)
         if fileName:
-            self.exportItems(fileName, ConfigFileTypeEnum(selectedFilter))
+            path, ext = os.path.splitext(fileName)
+            if not ext:
+                fileName = f"{path}{os.extsep}{selectedFilter.asExtensions()[0]}"
+            self.exportItems(fileName, selectedFilter)
 
     def exportItems(self, fileName: str, selectedFilter: ConfigFileTypeEnum):
-        pass
+        model = self.experimentItemModel()
+        if model is not None:
+            rows = [idx.row() for idx in self.experimentListView().selectedIndexes()]
+            data = {}
+            for row in rows:
+                name = model.data(model.index(row, model.Col_ExperimentName))
+                exptargs = model.asExperimentData(row)
+                data[name] = data_converter.unstructure(exptargs)
+            with open(fileName, "w") as f:
+                if selectedFilter == ConfigFileTypeEnum.JSON:
+                    json.dump(data, f, indent=2)
+                elif selectedFilter == ConfigFileTypeEnum.YAML:
+                    yaml.dump(data, f)
