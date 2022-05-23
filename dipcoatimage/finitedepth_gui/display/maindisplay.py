@@ -8,7 +8,7 @@ from dipcoatimage.finitedepth_gui.workers import MasterWorker
 from PySide6.QtCore import Signal, Slot, Qt, QUrl
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
-from PySide6.QtMultimedia import QMediaPlayer, QCamera
+from PySide6.QtMultimedia import QMediaPlayer, QCamera, QImageCapture
 from typing import Optional, List
 from .toolbar import DisplayWidgetToolBar
 from .roidisplay import NDArrayROILabel
@@ -47,6 +47,7 @@ class MainDisplayWindow(QMainWindow):
         self._video_player = PreviewableNDArrayVideoPlayer()
         self._camera = QCamera()
         self._capture_session = NDArrayMediaCaptureSession()
+        self._image_capture = QImageCapture()
         self._visualize_processor = VisualizeProcessor()
 
         self.displayToolBar().visualizationModeChanged.connect(
@@ -54,6 +55,9 @@ class MainDisplayWindow(QMainWindow):
         )
         self.displayToolBar().cameraChanged.connect(self.camera().setCameraDevice)
         self.displayToolBar().cameraToggled.connect(self.camera().setActive)
+        self.displayToolBar().captureFormatChanged.connect(
+            self.imageCapture().setFileFormat
+        )
         self.videoController().setPlayer(self.videoPlayer())
 
         self.videoPlayer().arrayChanged.connect(self.visualizeProcessor().setArray)
@@ -62,6 +66,7 @@ class MainDisplayWindow(QMainWindow):
         self.mediaCaptureSession().arrayChanged.connect(
             self.visualizeProcessor().setArray
         )
+        self.mediaCaptureSession().setImageCapture(self.imageCapture())
         self.visualizeProcessor().arrayChanged.connect(self.displayLabel().setArray)
 
         self.addToolBar(self.displayToolBar())
@@ -110,6 +115,9 @@ class MainDisplayWindow(QMainWindow):
 
     def mediaCaptureSession(self) -> NDArrayMediaCaptureSession:
         return self._capture_session
+
+    def imageCapture(self) -> QImageCapture:
+        return self._image_capture
 
     def visualizeProcessor(self) -> VisualizeProcessor:
         return self._visualize_processor

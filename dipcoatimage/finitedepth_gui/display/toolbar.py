@@ -4,7 +4,7 @@ import os
 from PySide6.QtCore import Signal, QSize, Slot
 from PySide6.QtGui import QActionGroup, QAction, QIcon
 from PySide6.QtWidgets import QToolBar, QComboBox, QLineEdit, QToolButton, QMenu
-from PySide6.QtMultimedia import QCameraDevice, QMediaDevices
+from PySide6.QtMultimedia import QCameraDevice, QMediaDevices, QImageCapture
 
 
 __all__ = [
@@ -19,6 +19,7 @@ class DisplayWidgetToolBar(QToolBar):
     visualizationModeChanged = Signal(VisualizationMode)
     cameraChanged = Signal(QCameraDevice)
     cameraToggled = Signal(bool)
+    captureFormatChanged = Signal(QImageCapture.FileFormat)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -65,6 +66,9 @@ class DisplayWidgetToolBar(QToolBar):
 
         self.capturePathLineEdit().setPlaceholderText("Image capture path")
         self.captureFormatComboBox().setPlaceholderText("Image format")
+        self.captureFormatComboBox().currentIndexChanged.connect(
+            self.onCaptureFormatChange
+        )
         self.captureButton().setToolTip("Capture image")
         captureActionIcon = QIcon()
         captureActionIcon.addFile(get_icons_path("capture.svg"), QSize(24, 24))
@@ -104,6 +108,9 @@ class DisplayWidgetToolBar(QToolBar):
         self.addWidget(self.recordButton())
 
         self.loadCameras()
+        for form in QImageCapture.supportedFormats():
+            name = QImageCapture.fileFormatName(form)
+            self.captureFormatComboBox().addItem(name, userData=form)
 
     def visualizeActionGroup(self) -> QActionGroup:
         return self._visualizeActionGroup
@@ -187,6 +194,11 @@ class DisplayWidgetToolBar(QToolBar):
     def onCameraChange(self, index: int):
         device = self.camerasComboBox().itemData(index)
         self.cameraChanged.emit(device)
+
+    @Slot(int)
+    def onCaptureFormatChange(self, index: int):
+        form = self.captureFormatComboBox().itemData(index)
+        self.captureFormatChanged.emit(form)
 
 
 def get_icons_path(*paths: str) -> str:
