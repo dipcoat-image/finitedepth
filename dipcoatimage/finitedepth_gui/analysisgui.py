@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QMainWindow, QDockWidget, QPushButton, QFileDialog
 from .controlwidgets import MasterControlWidget
 from .core import ClassSelection, VisualizationMode
 from .display import MainDisplayWindow
-from .inventory import ExperimentInventory
+from .inventory import ExperimentItemModel, ExperimentInventory
 from .workers import MasterWorker
 
 
@@ -28,12 +28,14 @@ class AnalysisGUI(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self._expt_model = ExperimentItemModel()
         self._main_display = MainDisplayWindow()
         self._expt_inv = ExperimentInventory()
         self._master_controlwidget = MasterControlWidget()
         self._master_worker = MasterWorker()
         self._cwd_button = QPushButton()
 
+        self.experimentInventory().setExperimentItemModel(self.experimentItemModel())
         self.experimentInventory().experimentRowActivated.connect(
             self.mainDisplayWindow().setCurrentExperimentRow
         )
@@ -43,19 +45,24 @@ class AnalysisGUI(QMainWindow):
         self.experimentInventory().experimentRowActivated.connect(
             self.masterWorker().setCurrentExperimentRow
         )
-        self.mainDisplayWindow().setExperimentItemModel(
-            self.experimentInventory().experimentItemModel()
+        self.experimentInventory().experimentsRemoved.connect(
+            self.mainDisplayWindow().onExperimentsRemove
         )
+        self.experimentInventory().experimentsRemoved.connect(
+            self.masterControlWidget().onExperimentsRemove
+        )
+        self.experimentInventory().experimentsRemoved.connect(
+            self.masterWorker().onExperimentsRemove
+        )
+        self.mainDisplayWindow().setExperimentItemModel(self.experimentItemModel())
+        self.mainDisplayWindow().setVisualizeWorker(self.masterWorker())
         self.mainDisplayWindow().visualizationModeChanged.connect(
             self.masterWorker().setVisualizationMode
         )
-        self.mainDisplayWindow().setVisualizeWorker(self.masterWorker())
         self.mainDisplayWindow().cameraTurnOff.connect(
             self.masterControlWidget().resetReferenceImage
         )
-        self.masterControlWidget().setExperimentItemModel(
-            self.experimentInventory().experimentItemModel()
-        )
+        self.masterControlWidget().setExperimentItemModel(self.experimentItemModel())
         self.masterControlWidget().referenceImageChanged.connect(
             self.masterWorker().setReferenceImage
         )
@@ -65,8 +72,9 @@ class AnalysisGUI(QMainWindow):
         self.masterControlWidget().selectedClassChanged.connect(
             self.mainDisplayWindow().setSelectedClass
         )
-        self.masterWorker().setExperimentItemModel(
-            self.experimentInventory().experimentItemModel()
+        self.masterWorker().setExperimentItemModel(self.experimentItemModel())
+        self.masterWorker().referenceImageShapeChanged.connect(
+            self.masterControlWidget().setROIMaximum
         )
         self.masterWorker().workersUpdated.connect(
             self.mainDisplayWindow().onWorkersUpdate
@@ -92,6 +100,9 @@ class AnalysisGUI(QMainWindow):
         self.experimentInventory().activateExperiment(0)
         self.masterControlWidget().setSelectedClass(ClassSelection.EXPERIMENT)
         self.mainDisplayWindow().setSelectedClass(ClassSelection.EXPERIMENT)
+
+    def experimentItemModel(self) -> ExperimentItemModel:
+        return self._expt_model
 
     def mainDisplayWindow(self) -> MainDisplayWindow:
         """Main window which includes all display widgets."""

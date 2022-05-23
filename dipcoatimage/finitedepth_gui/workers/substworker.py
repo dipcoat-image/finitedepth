@@ -169,3 +169,10 @@ class SubstrateWorker(WorkerBase):
         else:
             image = np.empty((0, 0, 0), dtype=np.uint8)
         return image
+
+    def clear(self):
+        self._type = None
+        self._ref = None
+        self._params = None
+        self._draw_opts = None
+        self.updateSubstrate()

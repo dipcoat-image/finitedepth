@@ -41,6 +41,7 @@ class MasterWorker(QObject):
 
     """
 
+    referenceImageShapeChanged = Signal(int, int)
     workersUpdated = Signal(ClassSelection)
 
     def __init__(self, parent=None):
@@ -54,6 +55,9 @@ class MasterWorker(QObject):
         self._expt_worker = ExperimentWorker()
         self._anal_worker = AnalysisWorker()
 
+        self.referenceWorker().imageShapeChanged.connect(
+            self.referenceImageShapeChanged
+        )
         self.setVisualizationMode(VisualizationMode.FULL)
 
     def experimentItemModel(self) -> Optional[ExperimentItemModel]:
@@ -256,3 +260,12 @@ class MasterWorker(QObject):
             | ClassSelection.SUBSTRATE
             | ClassSelection.EXPERIMENT
         )
+
+    @Slot()
+    def onExperimentsRemove(self, rows: List[int]):
+        if self.currentExperimentRow() in rows:
+            self._currentExperimentRow = -1
+            self.referenceWorker().clear()
+            self.substrateWorker().clear()
+            self.experimentWorker().clear()
+            self.analysisWorker().clear()

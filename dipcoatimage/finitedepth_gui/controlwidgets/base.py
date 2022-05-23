@@ -1,5 +1,6 @@
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from PySide6.QtWidgets import QWidget
+from typing import List
 
 
 __all__ = [
@@ -30,3 +31,7 @@ class ControlWidget(QWidget):
 
     def setCurrentExperimentRow(self, row: int):
         self._currentExperimentRow = row
+
+    def onExperimentsRemove(self, rows: List[int]):
+        if self.currentExperimentRow() in rows:
+            self._currentExperimentRow = -1

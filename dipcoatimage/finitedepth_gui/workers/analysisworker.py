@@ -182,3 +182,9 @@ class AnalysisWorker(WorkerBase):
                 datawriter.terminate()
             if write_video:
                 videowriter.release()
+
+    def clear(self):
+        self._experiment = None
+        self._paths = []
+        self._expt_kind = ExperimentKind.NullExperiment
+        self._analysisArgs = AnalysisArgs()

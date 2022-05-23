@@ -5,6 +5,7 @@ Experiment inventory
 Experiment item model and widget to view it.
 
 """
+from dipcoatimage.finitedepth import data_converter
 from dipcoatimage.finitedepth.analysis import (
     ExperimentKind,
     experiment_kind,
@@ -13,20 +14,27 @@ from dipcoatimage.finitedepth.analysis import (
     CoatingLayerArgs,
     ExperimentArgs,
     AnalysisArgs,
+    ExperimentData,
 )
 import enum
+from itertools import product
+import json
+import os
 from PySide6.QtCore import Slot, Signal, Qt, QModelIndex
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from PySide6.QtWidgets import (
     QWidget,
     QListView,
     QToolButton,
+    QMenu,
     QPushButton,
     QVBoxLayout,
     QHBoxLayout,
     QSizePolicy,
+    QFileDialog,
 )
-from typing import List
+from typing import List, Optional, Dict, Any
+import yaml  # type: ignore[import]
 from .core import (
     StructuredExperimentArgs,
     StructuredReferenceArgs,
@@ -43,6 +51,7 @@ except ImportError:
 __all__ = [
     "ExperimentItemModelColumns",
     "ExperimentItemModel",
+    "ConfigFileTypeEnum",
     "ExperimentInventory",
 ]
 
@@ -127,6 +136,7 @@ class ExperimentItemModel(QStandardItemModel):
     Role_Args = Qt.UserRole
     Role_StructuredArgs = Qt.UserRole + 1  # type: ignore[operator]
 
+    experimentsRemoved = Signal(list)
     coatPathsChanged = Signal(int, list, ExperimentKind)
     referenceDataChanged = Signal(int, ReferenceArgs, StructuredReferenceArgs)
     substrateDataChanged = Signal(int, SubstrateArgs, StructuredSubstrateArgs)
@@ -174,6 +184,12 @@ class ExperimentItemModel(QStandardItemModel):
                 if role == self.Role_Args:
                     ret = AnalysisArgs()
         return ret
+
+    @Slot(list)
+    def removeExperiments(self, rows: List[int]):
+        for i in reversed(sorted(rows)):
+            self.removeRow(i)
+        self.experimentsRemoved.emit(rows)
 
     @Slot(QStandardItem)
     def onItemChange(self, item: QStandardItem):
@@ -266,38 +282,128 @@ class ExperimentItemModel(QStandardItemModel):
         self._block_coatPathsChanged = False
         self.coatPathsChanged.emit(parent.row(), paths, kind)
 
+    def asExperimentData(self, row: int) -> ExperimentData:
+        refpath = self.data(self.index(row, self.Col_ReferencePath))
+        coatpaths = self.coatPaths(row)
+        refargs = self.data(self.index(row, self.Col_Reference), self.Role_Args)
+        substargs = self.data(self.index(row, self.Col_Substrate), self.Role_Args)
+        layerargs = self.data(self.index(row, self.Col_CoatingLayer), self.Role_Args)
+        exptargs = self.data(self.index(row, self.Col_Experiment), self.Role_Args)
+        analargs = self.data(self.index(row, self.Col_Analysis), self.Role_Args)
+        return ExperimentData(
+            refpath, coatpaths, refargs, substargs, layerargs, exptargs, analargs
+        )
+
+    def addFromExperimentData(self, name: str, data: Dict[str, Any]):
+        items = [QStandardItem() for _ in range(self.columnCount())]
+        items[self.Col_ExperimentName].setText(name)
+
+        args = data_converter.structure(data, ExperimentData)
+        items[self.Col_ReferencePath].setData(
+            args.ref_path, role=Qt.DisplayRole  # type: ignore[arg-type]
+        )
+        coat_paths = args.coat_paths
+        for path in coat_paths:
+            path_item = QStandardItem()
+            path_item.setData(path, role=Qt.DisplayRole)  # type: ignore[arg-type]
+            items[self.Col_CoatPaths].appendRow(path_item)
+        items[self.Col_CoatPaths].setData(
+            experiment_kind(coat_paths), role=Qt.DisplayRole  # type: ignore[arg-type]
+        )
+        items[self.Col_Reference].setData(
+            args.reference, role=self.Role_Args  # type: ignore[arg-type]
+        )
+        items[self.Col_Reference].setData(
+            StructuredReferenceArgs.from_ReferenceArgs(args.reference),
+            role=self.Role_StructuredArgs,
+        )
+        items[self.Col_Substrate].setData(
+            args.substrate, role=self.Role_Args  # type: ignore[arg-type]
+        )
+        items[self.Col_Substrate].setData(
+            StructuredSubstrateArgs.from_SubstrateArgs(args.substrate),
+            role=self.Role_StructuredArgs,
+        )
+        items[self.Col_CoatingLayer].setData(
+            args.coatinglayer, role=self.Role_Args  # type: ignore[arg-type]
+        )
+        items[self.Col_CoatingLayer].setData(
+            StructuredCoatingLayerArgs.from_CoatingLayerArgs(args.coatinglayer),
+            role=self.Role_StructuredArgs,
+        )
+        items[self.Col_Experiment].setData(
+            args.experiment, role=self.Role_Args  # type: ignore[arg-type]
+        )
+        items[self.Col_Experiment].setData(
+            StructuredExperimentArgs.from_ExperimentArgs(args.experiment),
+            role=self.Role_StructuredArgs,
+        )
+        items[self.Col_Analysis].setData(
+            args.analysis, role=self.Role_Args  # type: ignore[arg-type]
+        )
+
+        self.appendRow(items)
+
+
+class ConfigFileTypeEnum(enum.Enum):
+    """Enum of supported file types. Values are file filters."""
+
+    JSON = "JSON (*.json)"
+    YAML = "YAML (*.yml)"
+
+    def asExtensions(self) -> List[str]:
+        s = self.value
+        patterns = s[s.find("(") + 1 : s.find(")")].split(" ")
+        exts = [p[p.find(".") + 1 :] for p in patterns]
+        return exts
+
 
 class ExperimentInventory(QWidget):
 
     experimentRowActivated = Signal(int)
+    experimentsRemoved = Signal(list)
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._item_model = ExperimentItemModel()
+        self._exptcount = 0
+        self._item_model = None
         self._list_view = QListView()
         self._add_button = QToolButton()
         self._delete_button = QPushButton()
+        self._import_button = QPushButton()
+        self._export_button = QPushButton()
 
         self.experimentListView().setSelectionMode(QListView.ExtendedSelection)
         self.experimentListView().setEditTriggers(QListView.SelectedClicked)
-        self.experimentListView().setModel(self.experimentItemModel())
         self.experimentListView().activated.connect(self.onViewIndexActivated)
+        self.addButton().setMenu(QMenu(self))
+        copyAction = self.addButton().menu().addAction("")  # text set later
+        self.addButton().setPopupMode(QToolButton.MenuButtonPopup)
         self.addButton().clicked.connect(self.addNewExperiment)
+        copyAction.triggered.connect(self.copySelected)
+        self.deleteButton().clicked.connect(self.deleteExperiment)
 
         layout = QVBoxLayout()
         layout.addWidget(self.experimentListView())
         button_layout = QHBoxLayout()
         self.addButton().setText("Add")
         self.addButton().setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        copyAction.setText("Copy selected items")
         self.deleteButton().setText("Delete")
         self.deleteButton().setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.importButton().setText("Import")
+        self.importButton().clicked.connect(self.openImportDialog)
+        self.exportButton().setText("Export")
+        self.exportButton().clicked.connect(self.openExportDialog)
         button_layout.addWidget(self.addButton())
         button_layout.addWidget(self.deleteButton())
         layout.addLayout(button_layout)
+        layout.addWidget(self.importButton())
+        layout.addWidget(self.exportButton())
         self.setLayout(layout)
 
-    def experimentItemModel(self) -> ExperimentItemModel:
+    def experimentItemModel(self) -> Optional[ExperimentItemModel]:
         return self._item_model
 
     def experimentListView(self) -> QListView:
@@ -309,16 +415,45 @@ class ExperimentInventory(QWidget):
     def deleteButton(self) -> QPushButton:
         return self._delete_button
 
+    def importButton(self) -> QPushButton:
+        return self._import_button
+
+    def exportButton(self) -> QPushButton:
+        return self._export_button
+
+    def setExperimentItemModel(self, model: Optional[ExperimentItemModel]):
+        """Set :meth:`experimentItemModel`."""
+        old_model = self.experimentItemModel()
+        if old_model is not None:
+            self.disconnectModel(old_model)
+        self._item_model = model
+        if model is not None:
+            self.connectModel(model)
+
+    def connectModel(self, model: ExperimentItemModel):
+        model.experimentsRemoved.connect(self.experimentsRemoved)
+        self.experimentListView().setModel(model)
+
+    def disconnectModel(self, model: ExperimentItemModel):
+        model.experimentsRemoved.disconnect(self.experimentsRemoved)
+        self.experimentListView().setModel(None)  # type: ignore[arg-type]
+
     @Slot()
     def addNewExperiment(self):
         """Add new row to :meth:`experimentItemModel`."""
-        items = [
-            QStandardItem() for _ in range(self.experimentItemModel().columnCount())
-        ]
-        items[ExperimentItemModel.Col_ExperimentName].setText(
-            f"Experiment {self.experimentItemModel().rowCount()}"
-        )
-        self.experimentItemModel().appendRow(items)
+        model = self.experimentItemModel()
+        if model is not None:
+            items = [QStandardItem() for _ in range(model.columnCount())]
+            items[model.Col_ExperimentName].setText(f"Experiment {self._exptcount}")
+            model.appendRow(items)
+            self._exptcount += 1
+
+    @Slot()
+    def deleteExperiment(self):
+        model = self.experimentItemModel()
+        if model is not None:
+            rows = [idx.row() for idx in self.experimentListView().selectedIndexes()]
+            model.removeExperiments(rows)
 
     def activateExperiment(self, index: int):
         self.experimentListView().setCurrentIndex(
@@ -332,3 +467,85 @@ class ExperimentInventory(QWidget):
     def onViewIndexActivated(self, index: QModelIndex):
         if not index.parent().isValid():
             self.experimentRowActivated.emit(index.row())
+
+    @Slot()
+    def copySelected(self):
+        model = self.experimentItemModel()
+        if model is not None:
+
+            def recursiveCopy(item: QStandardItem):
+                ret = QStandardItem(item)
+                for row, col in product(
+                    range(item.rowCount()), range(item.columnCount())
+                ):
+                    child = QStandardItem(item.child(row, col))
+                    ret.setChild(row, col, child)
+                return ret
+
+            rows = [idx.row() for idx in self.experimentListView().selectedIndexes()]
+            for row in sorted(rows):
+                items = [
+                    recursiveCopy(model.item(row, c))
+                    for c in range(model.columnCount())
+                ]
+                name = items[model.Col_ExperimentName].text()
+                items[model.Col_ExperimentName].setText(f"{name} (copied)")
+                model.appendRow(items)
+                self._exptcount += 1
+
+    @Slot()
+    def openImportDialog(self):
+        filters = ";;".join([e.value for e in ConfigFileTypeEnum])
+        fileNames, selectedFilter = QFileDialog.getOpenFileNames(
+            self,
+            "Select configuration files",
+            "./",
+            filters,
+            options=QFileDialog.DontUseNativeDialog,
+        )
+        if fileNames:
+            self.importItems(fileNames, ConfigFileTypeEnum(selectedFilter))
+
+    def importItems(self, fileNames: List[str], selectedFilter: ConfigFileTypeEnum):
+        model = self.experimentItemModel()
+        if model is not None:
+            for filename in fileNames:
+                with open(filename, "r") as f:
+                    if selectedFilter == ConfigFileTypeEnum.JSON:
+                        data = json.load(f)
+                    elif selectedFilter == ConfigFileTypeEnum.YAML:
+                        data = yaml.load(f, Loader=yaml.FullLoader)
+                for key, val in data.items():
+                    model.addFromExperimentData(key, val)
+
+    @Slot()
+    def openExportDialog(self):
+        filters = ";;".join([e.value for e in ConfigFileTypeEnum])
+        fileName, selectedFilter = QFileDialog.getSaveFileName(
+            self,
+            "Save as configuration file",
+            "./",
+            filters,
+            options=QFileDialog.DontUseNativeDialog,
+        )
+        selectedFilter = ConfigFileTypeEnum(selectedFilter)
+        if fileName:
+            path, ext = os.path.splitext(fileName)
+            if not ext:
+                fileName = f"{path}{os.extsep}{selectedFilter.asExtensions()[0]}"
+            self.exportItems(fileName, selectedFilter)
+
+    def exportItems(self, fileName: str, selectedFilter: ConfigFileTypeEnum):
+        model = self.experimentItemModel()
+        if model is not None:
+            rows = [idx.row() for idx in self.experimentListView().selectedIndexes()]
+            data = {}
+            for row in rows:
+                name = model.data(model.index(row, model.Col_ExperimentName))
+                exptargs = model.asExperimentData(row)
+                data[name] = data_converter.unstructure(exptargs)
+            with open(fileName, "w") as f:
+                if selectedFilter == ConfigFileTypeEnum.JSON:
+                    json.dump(data, f, indent=2)
+                elif selectedFilter == ConfigFileTypeEnum.YAML:
+                    yaml.dump(data, f)

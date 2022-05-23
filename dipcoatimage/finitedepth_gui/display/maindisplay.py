@@ -7,6 +7,7 @@ from dipcoatimage.finitedepth_gui.workers import MasterWorker
 from PySide6.QtCore import Signal, Slot, Qt, QUrl
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
+from PySide6.QtMultimedia import QMediaPlayer
 from typing import Optional, List
 from .toolbar import DisplayWidgetToolBar
 from .roidisplay import NDArrayROILabel
@@ -130,10 +131,13 @@ class MainDisplayWindow(QMainWindow):
         # no need to wait for worker update, so visualization directly updated
         if select == ClassSelection.ANALYSIS:
             select = ClassSelection.EXPERIMENT
-        self._selectedClass = select
-        self.visualizeProcessor().setSelectedClass(select)
-        self.updateControllerVisibility()
-        self.updateVisualization()
+        if select != self.selectedClass():
+            if self.videoPlayer().playbackState() == QMediaPlayer.PlayingState:
+                self.videoPlayer().stop()
+            self._selectedClass = select
+            self.updateControllerVisibility()
+            self.visualizeProcessor().setSelectedClass(select)
+            self.updateVisualization()
 
     @Slot(int)
     def setCurrentExperimentRow(self, row: int):
@@ -200,6 +204,15 @@ class MainDisplayWindow(QMainWindow):
             self.displayLabel().addROIModel(model)
         else:
             self.displayLabel().removeROIModel(model)
+
+    @Slot(list)
+    def onExperimentsRemove(self, rows: List[int]):
+        if self.currentExperimentRow() in rows:
+            self._coat_paths = []
+            self._expt_kind = ExperimentKind.NullExperiment
+            self.updateControllerVisibility()
+            self.videoPlayer().setSource(QUrl())
+            self.displayLabel().setPixmap(QPixmap())
 
     def setVisualizeWorker(self, worker: Optional[MasterWorker]):
         self.visualizeProcessor().setVisualizeWorker(worker)

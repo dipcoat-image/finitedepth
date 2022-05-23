@@ -157,10 +157,13 @@ class PreviewableNDArrayVideoPlayer(NDArrayVideoPlayer):
 
     def previewImage(self) -> npt.NDArray[np.uint8]:
         path = self.source().toLocalFile()
-        cap = cv2.VideoCapture(path)
-        ok, img = cap.read()
-        cap.release()
-        if not ok:
+        if path:
+            cap = cv2.VideoCapture(path)
+            ok, img = cap.read()
+            cap.release()
+            if not ok:
+                img = np.empty((0, 0, 0))
+        else:
             img = np.empty((0, 0, 0))
         return img
 

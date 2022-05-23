@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QSizePolicy,
 )
-from typing import Any
+from typing import Any, List
 from .base import ControlWidget
 
 
@@ -376,9 +376,15 @@ class ReferenceWidget(ControlWidget):
         else:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             w, h = (img.shape[1], img.shape[0])
-        self.templateROIWidget().setROIMaximum(w, h)
-        self.substrateROIWidget().setROIMaximum(w, h)
+        self.setROIMaximum(w, h)
         self.imageChanged.emit(img)
+
+    def setROIMaximum(self, width: int, height: int):
+        maximum = (width, height)
+        if maximum != self.templateROIWidget().roiMaximum():
+            self.templateROIWidget().setROIMaximum(*maximum)
+        if maximum != self.substrateROIWidget().roiMaximum():
+            self.substrateROIWidget().setROIMaximum(*maximum)
 
     @Slot()
     def browseReferenceImage(self):
@@ -411,3 +417,14 @@ class ReferenceWidget(ControlWidget):
         """Untoggle :meth:`templateROIDrawButton`."""
         if state:
             self.templateROIDrawButton().setChecked(False)
+
+    def onExperimentsRemove(self, rows: List[int]):
+        if self.currentExperimentRow() in rows:
+            super().onExperimentsRemove(rows)
+            self.pathLineEdit().clear()
+            self.typeWidget().clear()
+            self.templateROIWidget().roiModel().setROI(0, 0, 0, 0)
+            self.substrateROIWidget().roiModel().setROI(0, 0, 0, 0)
+            self.setROIMaximum(0, 0)
+            self.parametersWidget().setCurrentIndex(0)
+            self.drawOptionsWidget().setCurrentIndex(0)

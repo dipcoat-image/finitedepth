@@ -359,3 +359,9 @@ class ImportWidget(QWidget):
         self.moduleNameLineEdit().setVisible(not state)
         self.messageBox().setVisible(not state)
         self.registryWindowButton().setVisible(not state)
+
+    def clear(self):
+        self.variableComboBox().setCurrentIndex(-1)
+        self.variableNameLineEdit().clear()
+        self.moduleNameLineEdit().clear()
+        self._applyVariable(self.INVALID, ImportStatus.NO_MODULE)
