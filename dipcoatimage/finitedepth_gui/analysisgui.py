@@ -55,10 +55,10 @@ class AnalysisGUI(QMainWindow):
             self.masterWorker().onExperimentsRemove
         )
         self.mainDisplayWindow().setExperimentItemModel(self.experimentItemModel())
+        self.mainDisplayWindow().setVisualizeWorker(self.masterWorker())
         self.mainDisplayWindow().visualizationModeChanged.connect(
             self.masterWorker().setVisualizationMode
         )
-        self.mainDisplayWindow().setVisualizeWorker(self.masterWorker())
         self.mainDisplayWindow().cameraTurnOff.connect(
             self.masterControlWidget().resetReferenceImage
         )
@@ -73,6 +73,9 @@ class AnalysisGUI(QMainWindow):
             self.mainDisplayWindow().setSelectedClass
         )
         self.masterWorker().setExperimentItemModel(self.experimentItemModel())
+        self.masterWorker().referenceImageShapeChanged.connect(
+            self.masterControlWidget().setROIMaximum
+        )
         self.masterWorker().workersUpdated.connect(
             self.mainDisplayWindow().onWorkersUpdate
         )

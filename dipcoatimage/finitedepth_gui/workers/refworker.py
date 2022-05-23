@@ -3,6 +3,7 @@ from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol
 from dipcoatimage.finitedepth_gui.core import StructuredReferenceArgs
 import numpy as np
 import numpy.typing as npt
+from PySide6.QtCore import Signal
 from typing import Optional, Type
 from .base import WorkerBase
 
@@ -36,6 +37,8 @@ class ReferenceWorker(WorkerBase):
 
     """
 
+    imageShapeChanged = Signal(int, int)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._type = None
@@ -63,12 +66,17 @@ class ReferenceWorker(WorkerBase):
 
     def setImage(self, img: Optional[npt.NDArray[np.uint8]]):
         """
-        Set :meth:`image` with *img*.
+        Set :meth:`image` and emit its shape to :attr:`imageShapeChanged`.
 
         This does not update :meth:`reference`. Run :meth:`updateReference`
         manually.
         """
         self._img = img
+        if img is None:
+            h, w = 0, 0
+        else:
+            h, w = img.shape[:2]
+        self.imageShapeChanged.emit(w, h)
 
     def templateROI(self) -> OptionalROI:
         """

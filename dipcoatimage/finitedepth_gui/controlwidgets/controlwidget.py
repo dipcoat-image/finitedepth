@@ -94,6 +94,10 @@ class MasterControlWidget(QTabWidget):
         self.coatingLayerWidget().setCurrentExperimentRow(row)
         self.analysisWidget().setCurrentExperimentRow(row)
 
+    @Slot(int, int)
+    def setROIMaximum(self, width: int, height: int):
+        self.referenceWidget().setROIMaximum(width, height)
+
     @Slot(bool)
     def onTemplateROIDrawButtonToggle(self, state: bool):
         self.drawROIToggled.emit(
