@@ -277,17 +277,6 @@ class ExperimentItemModel(QStandardItemModel):
         self._block_coatPathsChanged = False
         self.coatPathsChanged.emit(parent.row(), paths, kind)
 
-    def copyExperiment(self, row: int) -> List[QStandardItem]:
-        def recursiveCopy(item: QStandardItem):
-            ret = QStandardItem(item)
-            for row, col in product(range(item.rowCount()), range(item.columnCount())):
-                child = QStandardItem(item.child(row, col))
-                ret.setChild(row, col, child)
-            return ret
-
-        items = [recursiveCopy(self.item(row, c)) for c in range(self.columnCount())]
-        return items
-
 
 class ConfigFileTypeEnum(enum.Enum):
     """Enum of supported file types. Values are file filters."""
@@ -410,9 +399,22 @@ class ExperimentInventory(QWidget):
     def copySelected(self):
         model = self.experimentItemModel()
         if model is not None:
+
+            def recursiveCopy(item: QStandardItem):
+                ret = QStandardItem(item)
+                for row, col in product(
+                    range(item.rowCount()), range(item.columnCount())
+                ):
+                    child = QStandardItem(item.child(row, col))
+                    ret.setChild(row, col, child)
+                return ret
+
             rows = [idx.row() for idx in self.experimentListView().selectedIndexes()]
             for row in sorted(rows):
-                items = model.copyExperiment(row)
+                items = [
+                    recursiveCopy(model.item(row, c))
+                    for c in range(model.columnCount())
+                ]
                 name = items[model.Col_ExperimentName].text()
                 items[model.Col_ExperimentName].setText(f"{name} (copied)")
                 model.appendRow(items)
