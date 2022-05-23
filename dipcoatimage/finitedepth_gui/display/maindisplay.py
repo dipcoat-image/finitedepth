@@ -1,4 +1,5 @@
 import cv2  # type: ignore[import]
+from cv2PySide6 import NDArrayMediaCaptureSession
 from dipcoatimage.finitedepth.analysis import ExperimentKind
 from dipcoatimage.finitedepth_gui.core import ClassSelection, VisualizationMode
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
@@ -45,6 +46,7 @@ class MainDisplayWindow(QMainWindow):
 
         self._video_player = PreviewableNDArrayVideoPlayer()
         self._camera = QCamera()
+        self._capture_session = NDArrayMediaCaptureSession()
         self._visualize_processor = VisualizeProcessor()
 
         self.displayToolBar().visualizationModeChanged.connect(
@@ -56,6 +58,10 @@ class MainDisplayWindow(QMainWindow):
 
         self.videoPlayer().arrayChanged.connect(self.visualizeProcessor().setArray)
         self.camera().activeChanged.connect(self.onCameraActiveChange)
+        self.mediaCaptureSession().setCamera(self.camera())
+        self.mediaCaptureSession().arrayChanged.connect(
+            self.visualizeProcessor().setArray
+        )
         self.visualizeProcessor().arrayChanged.connect(self.displayLabel().setArray)
 
         self.addToolBar(self.displayToolBar())
@@ -101,6 +107,9 @@ class MainDisplayWindow(QMainWindow):
 
     def camera(self) -> QCamera:
         return self._camera
+
+    def mediaCaptureSession(self) -> NDArrayMediaCaptureSession:
+        return self._capture_session
 
     def visualizeProcessor(self) -> VisualizeProcessor:
         return self._visualize_processor
