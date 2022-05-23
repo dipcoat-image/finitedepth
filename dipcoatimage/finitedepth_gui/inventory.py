@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QSizePolicy,
+    QFileDialog,
 )
 from typing import List, Optional
 from .core import (
@@ -45,6 +46,7 @@ except ImportError:
 __all__ = [
     "ExperimentItemModelColumns",
     "ExperimentItemModel",
+    "ConfigFileTypeEnum",
     "ExperimentInventory",
 ]
 
@@ -287,6 +289,13 @@ class ExperimentItemModel(QStandardItemModel):
         return items
 
 
+class ConfigFileTypeEnum(enum.Enum):
+    """Enum of supported file types. Values are file filters."""
+
+    JSON = "JSON (*.json)"
+    YAML = "YAML (*.yml)"
+
+
 class ExperimentInventory(QWidget):
 
     experimentRowActivated = Signal(int)
@@ -300,6 +309,8 @@ class ExperimentInventory(QWidget):
         self._list_view = QListView()
         self._add_button = QToolButton()
         self._delete_button = QPushButton()
+        self._import_button = QPushButton()
+        self._export_button = QPushButton()
 
         self.experimentListView().setSelectionMode(QListView.ExtendedSelection)
         self.experimentListView().setEditTriggers(QListView.SelectedClicked)
@@ -319,9 +330,15 @@ class ExperimentInventory(QWidget):
         copyAction.setText("Copy selected items")
         self.deleteButton().setText("Delete")
         self.deleteButton().setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.importButton().setText("Import")
+        self.importButton().clicked.connect(self.openImportDialog)
+        self.exportButton().setText("Export")
+        self.exportButton().clicked.connect(self.openExportDialog)
         button_layout.addWidget(self.addButton())
         button_layout.addWidget(self.deleteButton())
         layout.addLayout(button_layout)
+        layout.addWidget(self.importButton())
+        layout.addWidget(self.exportButton())
         self.setLayout(layout)
 
     def experimentItemModel(self) -> Optional[ExperimentItemModel]:
@@ -335,6 +352,12 @@ class ExperimentInventory(QWidget):
 
     def deleteButton(self) -> QPushButton:
         return self._delete_button
+
+    def importButton(self) -> QPushButton:
+        return self._import_button
+
+    def exportButton(self) -> QPushButton:
+        return self._export_button
 
     def setExperimentItemModel(self, model: Optional[ExperimentItemModel]):
         """Set :meth:`experimentItemModel`."""
@@ -394,3 +417,35 @@ class ExperimentInventory(QWidget):
                 items[model.Col_ExperimentName].setText(f"{name} (copied)")
                 model.appendRow(items)
                 self._exptcount += 1
+
+    @Slot()
+    def openImportDialog(self):
+        filters = ";;".join([e.value for e in ConfigFileTypeEnum])
+        fileNames, selectedFilter = QFileDialog.getOpenFileNames(
+            self,
+            "Select configuration files",
+            "./",
+            filters,
+            options=QFileDialog.DontUseNativeDialog,
+        )
+        if fileNames:
+            self.importItems(fileNames, ConfigFileTypeEnum(selectedFilter))
+
+    def importItems(self, fileNames: List[str], selectedFilter: ConfigFileTypeEnum):
+        pass
+
+    @Slot()
+    def openExportDialog(self):
+        filters = ";;".join([e.value for e in ConfigFileTypeEnum])
+        fileName, selectedFilter = QFileDialog.getSaveFileName(
+            self,
+            "Save as configuration file",
+            "./",
+            filters,
+            options=QFileDialog.DontUseNativeDialog,
+        )
+        if fileName:
+            self.exportItems(fileName, ConfigFileTypeEnum(selectedFilter))
+
+    def exportItems(self, fileName: str, selectedFilter: ConfigFileTypeEnum):
+        pass
