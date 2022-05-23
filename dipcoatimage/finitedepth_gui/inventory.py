@@ -33,7 +33,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QFileDialog,
 )
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import yaml  # type: ignore[import]
 from .core import (
     StructuredExperimentArgs,
@@ -294,6 +294,56 @@ class ExperimentItemModel(QStandardItemModel):
             refpath, coatpaths, refargs, substargs, layerargs, exptargs, analargs
         )
 
+    def addFromExperimentData(self, name: str, data: Dict[str, Any]):
+        items = [QStandardItem() for _ in range(self.columnCount())]
+        items[self.Col_ExperimentName].setText(name)
+
+        args = data_converter.structure(data, ExperimentData)
+        items[self.Col_ReferencePath].setData(
+            args.ref_path, role=Qt.DisplayRole  # type: ignore[arg-type]
+        )
+        coat_paths = args.coat_paths
+        for path in coat_paths:
+            path_item = QStandardItem()
+            path_item.setData(path, role=Qt.DisplayRole)  # type: ignore[arg-type]
+            items[self.Col_CoatPaths].appendRow(path_item)
+        items[self.Col_CoatPaths].setData(
+            experiment_kind(coat_paths), role=Qt.DisplayRole  # type: ignore[arg-type]
+        )
+        items[self.Col_Reference].setData(
+            args.reference, role=self.Role_Args  # type: ignore[arg-type]
+        )
+        items[self.Col_Reference].setData(
+            StructuredReferenceArgs.from_ReferenceArgs(args.reference),
+            role=self.Role_StructuredArgs,
+        )
+        items[self.Col_Substrate].setData(
+            args.substrate, role=self.Role_Args  # type: ignore[arg-type]
+        )
+        items[self.Col_Substrate].setData(
+            StructuredSubstrateArgs.from_SubstrateArgs(args.substrate),
+            role=self.Role_StructuredArgs,
+        )
+        items[self.Col_CoatingLayer].setData(
+            args.coatinglayer, role=self.Role_Args  # type: ignore[arg-type]
+        )
+        items[self.Col_CoatingLayer].setData(
+            StructuredCoatingLayerArgs.from_CoatingLayerArgs(args.coatinglayer),
+            role=self.Role_StructuredArgs,
+        )
+        items[self.Col_Experiment].setData(
+            args.experiment, role=self.Role_Args  # type: ignore[arg-type]
+        )
+        items[self.Col_Experiment].setData(
+            StructuredExperimentArgs.from_ExperimentArgs(args.experiment),
+            role=self.Role_StructuredArgs,
+        )
+        items[self.Col_Analysis].setData(
+            args.analysis, role=self.Role_Args  # type: ignore[arg-type]
+        )
+
+        self.appendRow(items)
+
 
 class ConfigFileTypeEnum(enum.Enum):
     """Enum of supported file types. Values are file filters."""
@@ -457,7 +507,16 @@ class ExperimentInventory(QWidget):
             self.importItems(fileNames, ConfigFileTypeEnum(selectedFilter))
 
     def importItems(self, fileNames: List[str], selectedFilter: ConfigFileTypeEnum):
-        pass
+        model = self.experimentItemModel()
+        if model is not None:
+            for filename in fileNames:
+                with open(filename, "r") as f:
+                    if selectedFilter == ConfigFileTypeEnum.JSON:
+                        data = json.load(f)
+                    elif selectedFilter == ConfigFileTypeEnum.YAML:
+                        data = yaml.load(f, Loader=yaml.FullLoader)
+                for key, val in data.items():
+                    model.addFromExperimentData(key, val)
 
     @Slot()
     def openExportDialog(self):

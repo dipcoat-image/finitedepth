@@ -60,7 +60,7 @@ import numpy as np
 import numpy.typing as npt
 import os
 import tqdm  # type: ignore
-from typing import List, Type, Optional, Union, Dict, Any, Tuple
+from typing import List, Type, Optional, Dict, Any, Tuple
 from .reference import SubstrateReferenceBase
 from .substrate import SubstrateBase
 from .coatinglayer import CoatingLayerBase
@@ -250,7 +250,7 @@ class Analyzer:
         image_path: str = "",
         video_path: str = "",
         *,
-        fps: Union[int, float, None] = None,
+        fps: Optional[float] = None,
         name: str = "",
     ):
         """
@@ -786,7 +786,7 @@ class AnalysisArgs:
     data_path: str = ""
     image_path: str = ""
     video_path: str = ""
-    fps: Union[int, float, None] = None
+    fps: Optional[float] = None
 
 
 @dataclasses.dataclass
