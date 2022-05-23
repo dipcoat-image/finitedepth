@@ -4,6 +4,7 @@ import os
 from PySide6.QtCore import Signal, QSize, Slot
 from PySide6.QtGui import QActionGroup, QAction, QIcon
 from PySide6.QtWidgets import QToolBar, QComboBox, QLineEdit, QToolButton, QMenu
+from PySide6.QtMultimedia import QCameraDevice, QMediaDevices
 
 
 __all__ = [
@@ -16,6 +17,7 @@ class DisplayWidgetToolBar(QToolBar):
     """Toolbar to controll the overall display."""
 
     visualizationModeChanged = Signal(VisualizationMode)
+    cameraChanged = Signal(QCameraDevice)
     cameraToggled = Signal(bool)
 
     def __init__(self, parent=None):
@@ -53,6 +55,7 @@ class DisplayWidgetToolBar(QToolBar):
         self.fastVisualizeAction().setIcon(fastVisIcon)
 
         self.camerasComboBox().setPlaceholderText("Select camera")
+        self.camerasComboBox().currentIndexChanged.connect(self.onCameraChange)
         self.cameraAction().setCheckable(True)
         self.cameraAction().toggled.connect(self.cameraToggled)
         self.cameraAction().setToolTip("Toggle Camera")
@@ -99,6 +102,8 @@ class DisplayWidgetToolBar(QToolBar):
         self.addWidget(self.recordPathLineEdit())
         self.addWidget(self.recordFormatComboBox())
         self.addWidget(self.recordButton())
+
+        self.loadCameras()
 
     def visualizeActionGroup(self) -> QActionGroup:
         return self._visualizeActionGroup
@@ -170,6 +175,18 @@ class DisplayWidgetToolBar(QToolBar):
         elif mode == VisualizationMode.FULL:
             self.fastVisualizeAction().setChecked(False)
             self.visualizeAction().setChecked(True)
+
+    @Slot()
+    def loadCameras(self):
+        self.camerasComboBox().clear()
+        for device in QMediaDevices.videoInputs():
+            name = device.description()
+            self.camerasComboBox().addItem(name, userData=device)
+
+    @Slot(int)
+    def onCameraChange(self, index: int):
+        device = self.camerasComboBox().itemData(index)
+        self.cameraChanged.emit(device)
 
 
 def get_icons_path(*paths: str) -> str:
