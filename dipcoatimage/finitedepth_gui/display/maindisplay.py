@@ -1,4 +1,5 @@
 import cv2  # type: ignore[import]
+from cv2PySide6 import NDArrayMediaCaptureSession
 from dipcoatimage.finitedepth.analysis import ExperimentKind
 from dipcoatimage.finitedepth_gui.core import ClassSelection, VisualizationMode
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
@@ -7,7 +8,7 @@ from dipcoatimage.finitedepth_gui.workers import MasterWorker
 from PySide6.QtCore import Signal, Slot, Qt, QUrl
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
-from PySide6.QtMultimedia import QMediaPlayer
+from PySide6.QtMultimedia import QMediaPlayer, QCamera, QImageCapture, QMediaRecorder
 from typing import Optional, List
 from .toolbar import DisplayWidgetToolBar
 from .roidisplay import NDArrayROILabel
@@ -29,6 +30,8 @@ class MainDisplayWindow(QMainWindow):
     visualizationModeChanged = Signal(VisualizationMode)
     cameraTurnOn = Signal()
     cameraTurnOff = Signal()
+    imageCaptured = Signal(str)
+    videoRecorded = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -38,23 +41,51 @@ class MainDisplayWindow(QMainWindow):
         self._coat_paths = []
         self._expt_kind = ExperimentKind.NullExperiment
         self._selectedClass = ClassSelection.UNKNOWN
-        self._camera_on = False
 
         self._display_toolbar = DisplayWidgetToolBar()
         self._display_label = NDArrayROILabel()
         self._video_controller = MediaController()
 
         self._video_player = PreviewableNDArrayVideoPlayer()
+        self._camera = QCamera()
+        self._capture_session = NDArrayMediaCaptureSession()
+        self._image_capture = QImageCapture()
+        self._media_recorder = QMediaRecorder()
         self._visualize_processor = VisualizeProcessor()
 
         self.displayToolBar().visualizationModeChanged.connect(
             self.visualizationModeChanged
         )
-        self.displayToolBar().cameraToggled.connect(self.onCameraToggle)
-        self.displayLabel().setAlignment(Qt.AlignCenter)
+        self.displayToolBar().cameraChanged.connect(self.camera().setCameraDevice)
+        self.displayToolBar().cameraToggled.connect(self.camera().setActive)
+        self.displayToolBar().captureFormatChanged.connect(
+            self.imageCapture().setFileFormat
+        )
+        self.displayToolBar().captureTriggered.connect(
+            self.imageCapture().captureToFile
+        )
+        self.displayToolBar().recordFormatChanged.connect(
+            self.mediaRecorder().mediaFormat().setFileFormat
+        )
+        self.displayToolBar().recordPathChanged.connect(self.setRecordPath)
+        self.displayToolBar().recordStateChangeTriggered.connect(
+            self.changeRecorderState
+        )
         self.videoController().setPlayer(self.videoPlayer())
 
         self.videoPlayer().arrayChanged.connect(self.visualizeProcessor().setArray)
+        self.camera().activeChanged.connect(self.displayToolBar().onCameraActiveChange)
+        self.camera().activeChanged.connect(self.onCameraActiveChange)
+        self.mediaCaptureSession().setCamera(self.camera())
+        self.mediaCaptureSession().arrayChanged.connect(
+            self.visualizeProcessor().setArray
+        )
+        self.mediaCaptureSession().setImageCapture(self.imageCapture())
+        self.imageCapture().imageSaved.connect(self.onImageCapture)
+        self.mediaCaptureSession().setRecorder(self.mediaRecorder())
+        self.mediaRecorder().recorderStateChanged.connect(
+            self.displayToolBar().onRecorderStateChange
+        )
         self.visualizeProcessor().arrayChanged.connect(self.displayLabel().setArray)
 
         self.addToolBar(self.displayToolBar())
@@ -64,6 +95,8 @@ class MainDisplayWindow(QMainWindow):
         centralWidget = QWidget()
         centralWidget.setLayout(layout)
         self.setCentralWidget(centralWidget)
+
+        self.displayLabel().setAlignment(Qt.AlignCenter)
 
     def experimentItemModel(self) -> Optional[ExperimentItemModel]:
         """Model which holds the experiment item data."""
@@ -82,9 +115,6 @@ class MainDisplayWindow(QMainWindow):
     def selectedClass(self) -> ClassSelection:
         return self._selectedClass
 
-    def cameraOn(self) -> bool:
-        return self._camera_on
-
     def displayToolBar(self) -> DisplayWidgetToolBar:
         """Toolbar to control display options."""
         return self._display_toolbar
@@ -98,6 +128,18 @@ class MainDisplayWindow(QMainWindow):
 
     def videoPlayer(self) -> PreviewableNDArrayVideoPlayer:
         return self._video_player
+
+    def camera(self) -> QCamera:
+        return self._camera
+
+    def mediaCaptureSession(self) -> NDArrayMediaCaptureSession:
+        return self._capture_session
+
+    def imageCapture(self) -> QImageCapture:
+        return self._image_capture
+
+    def mediaRecorder(self) -> QMediaRecorder:
+        return self._media_recorder
 
     def visualizeProcessor(self) -> VisualizeProcessor:
         return self._visualize_processor
@@ -151,17 +193,16 @@ class MainDisplayWindow(QMainWindow):
         self.updateControllerVisibility()
 
     @Slot(bool)
-    def onCameraToggle(self, toggled: bool):
-        # visualization updated by worker signal
-        self._camera_on = toggled
+    def onCameraActiveChange(self, active: bool):
         self.updateControllerVisibility()
-        if toggled:
+        if active:
             self.cameraTurnOn.emit()
         else:
+            self.mediaRecorder().stop()
             self.cameraTurnOff.emit()
 
     def updateControllerVisibility(self):
-        if self.cameraOn():
+        if self.camera().isActive():
             visible = False
         elif self.selectedClass() in {
             ClassSelection.REFERENCE,
@@ -180,7 +221,7 @@ class MainDisplayWindow(QMainWindow):
             self.updateVisualization()
 
     def updateVisualization(self):
-        if self.cameraOn():
+        if self.camera().isActive():
             pass
         elif self.selectedClass() in {
             ClassSelection.REFERENCE,
@@ -213,6 +254,28 @@ class MainDisplayWindow(QMainWindow):
             self.updateControllerVisibility()
             self.videoPlayer().setSource(QUrl())
             self.displayLabel().setPixmap(QPixmap())
+
+    @Slot(int, str)
+    def onImageCapture(self, id: int, path: str):
+        if id != -1 and self.displayToolBar().captureAndAddAction().isChecked():
+            self.imageCaptured.emit(path)
+
+    @Slot(str)
+    def setRecordPath(self, path: str):
+        self.mediaRecorder().setOutputLocation(QUrl.fromLocalFile(path))
+
+    @Slot()
+    def changeRecorderState(self):
+        if self.camera().isActive():
+            state = self.mediaRecorder().recorderState()
+            if state == QMediaRecorder.RecordingState:
+                self.mediaRecorder().stop()
+                if self.displayToolBar().recordAndAddAction().isChecked():
+                    self.videoRecorded.emit(
+                        self.mediaRecorder().actualLocation().toLocalFile()
+                    )
+            else:
+                self.mediaRecorder().record()
 
     def setVisualizeWorker(self, worker: Optional[MasterWorker]):
         self.visualizeProcessor().setVisualizeWorker(worker)

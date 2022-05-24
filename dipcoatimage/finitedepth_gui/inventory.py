@@ -469,6 +469,10 @@ class ExperimentInventory(QWidget):
             self.experimentRowActivated.emit(index.row())
 
     @Slot()
+    def reactivateCurrentIndex(self):
+        self.experimentRowActivated.emit(self.experimentListView().currentIndex().row())
+
+    @Slot()
     def copySelected(self):
         model = self.experimentItemModel()
         if model is not None:

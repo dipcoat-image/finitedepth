@@ -112,21 +112,33 @@ class MasterControlWidget(QTabWidget):
             state,
         )
 
-    @Slot(ClassSelection)
-    def setSelectedClass(self, select: ClassSelection):
-        if select == ClassSelection.REFERENCE:
-            index = 1
-        elif select == ClassSelection.SUBSTRATE:
-            index = 2
-        else:
-            index = 0
-        self.setCurrentIndex(index)
-
     @Slot(int)
     def onCurrentTabChange(self, index: int):
         self.referenceWidget().templateROIDrawButton().setChecked(False)
         self.referenceWidget().substrateROIDrawButton().setChecked(False)
+        self.selectedClassChanged.emit(self.selectedClassForIndex(index))
 
+    @Slot(str)
+    def addCapturedImage(self, path: str):
+        select = self.selectedClassForIndex(self.currentIndex())
+        if select == ClassSelection.REFERENCE or select == ClassSelection.SUBSTRATE:
+            self.referenceWidget().setReferencePath(path)
+        else:
+            self.experimentWidget().addCoatPath(path)
+
+    @Slot(str)
+    def addRecordedVideo(self, path: str):
+        self.experimentWidget().addCoatPath(path)
+
+    @Slot(list)
+    def onExperimentsRemove(self, rows: List[int]):
+        self.experimentWidget().onExperimentsRemove(rows)
+        self.referenceWidget().onExperimentsRemove(rows)
+        self.substrateWidget().onExperimentsRemove(rows)
+        self.coatingLayerWidget().onExperimentsRemove(rows)
+        self.analysisWidget().onExperimentsRemove(rows)
+
+    def selectedClassForIndex(self, index: int) -> ClassSelection:
         widget = self.widget(index)
         if not isinstance(widget, QScrollArea):
             select = ClassSelection.UNKNOWN
@@ -142,16 +154,14 @@ class MasterControlWidget(QTabWidget):
             select = ClassSelection.ANALYSIS
         else:
             select = ClassSelection.UNKNOWN
-        self.selectedClassChanged.emit(select)
+        return select
 
-    @Slot()
-    def resetReferenceImage(self):
-        self.referenceWidget().resetReferenceImage()
-
-    @Slot(list)
-    def onExperimentsRemove(self, rows: List[int]):
-        self.experimentWidget().onExperimentsRemove(rows)
-        self.referenceWidget().onExperimentsRemove(rows)
-        self.substrateWidget().onExperimentsRemove(rows)
-        self.coatingLayerWidget().onExperimentsRemove(rows)
-        self.analysisWidget().onExperimentsRemove(rows)
+    @Slot(ClassSelection)
+    def setSelectedClass(self, select: ClassSelection):
+        if select == ClassSelection.REFERENCE:
+            index = 1
+        elif select == ClassSelection.SUBSTRATE:
+            index = 2
+        else:
+            index = 0
+        self.setCurrentIndex(index)

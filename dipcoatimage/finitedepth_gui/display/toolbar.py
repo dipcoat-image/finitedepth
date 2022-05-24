@@ -3,7 +3,14 @@ from dipcoatimage.finitedepth_gui.core import VisualizationMode
 import os
 from PySide6.QtCore import Signal, QSize, Slot
 from PySide6.QtGui import QActionGroup, QAction, QIcon
-from PySide6.QtWidgets import QToolBar, QComboBox, QLineEdit, QToolButton, QMenu
+from PySide6.QtWidgets import QToolBar, QComboBox, QLineEdit, QToolButton, QMenu, QStyle
+from PySide6.QtMultimedia import (
+    QCameraDevice,
+    QMediaDevices,
+    QImageCapture,
+    QMediaFormat,
+    QMediaRecorder,
+)
 
 
 __all__ = [
@@ -16,7 +23,13 @@ class DisplayWidgetToolBar(QToolBar):
     """Toolbar to controll the overall display."""
 
     visualizationModeChanged = Signal(VisualizationMode)
+    cameraChanged = Signal(QCameraDevice)
     cameraToggled = Signal(bool)
+    captureFormatChanged = Signal(QImageCapture.FileFormat)
+    captureTriggered = Signal(str)
+    recordFormatChanged = Signal(QMediaFormat.FileFormat)
+    recordPathChanged = Signal(str)
+    recordStateChangeTriggered = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -53,6 +66,7 @@ class DisplayWidgetToolBar(QToolBar):
         self.fastVisualizeAction().setIcon(fastVisIcon)
 
         self.camerasComboBox().setPlaceholderText("Select camera")
+        self.camerasComboBox().currentIndexChanged.connect(self.onCameraChange)
         self.cameraAction().setCheckable(True)
         self.cameraAction().toggled.connect(self.cameraToggled)
         self.cameraAction().setToolTip("Toggle Camera")
@@ -62,7 +76,11 @@ class DisplayWidgetToolBar(QToolBar):
 
         self.capturePathLineEdit().setPlaceholderText("Image capture path")
         self.captureFormatComboBox().setPlaceholderText("Image format")
+        self.captureFormatComboBox().currentIndexChanged.connect(
+            self.onCaptureFormatChange
+        )
         self.captureButton().setToolTip("Capture image")
+        self.captureButton().clicked.connect(self.onCaptureButtonClick)
         captureActionIcon = QIcon()
         captureActionIcon.addFile(get_icons_path("capture.svg"), QSize(24, 24))
         self.captureButton().setIcon(captureActionIcon)
@@ -73,9 +91,13 @@ class DisplayWidgetToolBar(QToolBar):
         self.captureButton().setPopupMode(QToolButton.MenuButtonPopup)
 
         self.recordPathLineEdit().setPlaceholderText("Video record path")
+        self.recordPathLineEdit().textChanged.connect(self.onRecordPathChange)
         self.recordFormatComboBox().setPlaceholderText("Video format")
-        self.recordButton().setCheckable(True)
+        self.recordFormatComboBox().currentIndexChanged.connect(
+            self.onRecordFormatChange
+        )
         self.recordButton().setToolTip("Record video")
+        self.recordButton().clicked.connect(self.recordStateChangeTriggered)
         recordActionIcon = QIcon()
         recordActionIcon.addFile(get_icons_path("record.svg"), QSize(24, 24))
         self.recordButton().setIcon(recordActionIcon)
@@ -99,6 +121,14 @@ class DisplayWidgetToolBar(QToolBar):
         self.addWidget(self.recordPathLineEdit())
         self.addWidget(self.recordFormatComboBox())
         self.addWidget(self.recordButton())
+
+        self.loadCameras()
+        for form in QImageCapture.supportedFormats():
+            name = QImageCapture.fileFormatName(form)
+            self.captureFormatComboBox().addItem(name, userData=form)
+        for form in QMediaFormat().supportedFileFormats(QMediaFormat.Encode):
+            name = QMediaFormat.fileFormatName(form)
+            self.recordFormatComboBox().addItem(name, userData=form)
 
     def visualizeActionGroup(self) -> QActionGroup:
         return self._visualizeActionGroup
@@ -170,6 +200,52 @@ class DisplayWidgetToolBar(QToolBar):
         elif mode == VisualizationMode.FULL:
             self.fastVisualizeAction().setChecked(False)
             self.visualizeAction().setChecked(True)
+
+    @Slot()
+    def loadCameras(self):
+        self.camerasComboBox().clear()
+        for device in QMediaDevices.videoInputs():
+            name = device.description()
+            self.camerasComboBox().addItem(name, userData=device)
+
+    @Slot(int)
+    def onCameraChange(self, index: int):
+        device = self.camerasComboBox().itemData(index)
+        self.cameraChanged.emit(device)
+
+    @Slot(bool)
+    def onCameraActiveChange(self, active: bool):
+        self.recordButton().setCheckable(active)
+
+    @Slot(int)
+    def onCaptureFormatChange(self, index: int):
+        form = self.captureFormatComboBox().itemData(index)
+        self.captureFormatChanged.emit(QImageCapture.FileFormat(form))
+
+    @Slot()
+    def onCaptureButtonClick(self):
+        path = self.capturePathLineEdit().text()
+        self.captureTriggered.emit(os.path.abspath(path))
+
+    @Slot(int)
+    def onRecordFormatChange(self, index: int):
+        form = self.recordFormatComboBox().itemData(index)
+        self.recordFormatChanged.emit(form)
+
+    @Slot(str)
+    def onRecordPathChange(self, path: str):
+        self.recordPathChanged.emit(os.path.abspath(path))
+
+    @Slot(QMediaRecorder.RecorderState)
+    def onRecorderStateChange(self, state: QMediaRecorder.RecorderState):
+        if state == QMediaRecorder.RecordingState:
+            self.recordButton().setChecked(True)
+            icon = self.style().standardIcon(QStyle.SP_MediaStop)
+        else:
+            self.recordButton().setChecked(False)
+            icon = QIcon()
+            icon.addFile(get_icons_path("record.svg"), QSize(24, 24))
+        self.recordButton().setIcon(icon)
 
 
 def get_icons_path(*paths: str) -> str:
