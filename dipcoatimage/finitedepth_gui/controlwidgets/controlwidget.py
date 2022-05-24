@@ -118,10 +118,6 @@ class MasterControlWidget(QTabWidget):
         self.referenceWidget().substrateROIDrawButton().setChecked(False)
         self.selectedClassChanged.emit(self.selectedClassForIndex(index))
 
-    @Slot()
-    def resetReferenceImage(self):
-        self.referenceWidget().resetReferenceImage()
-
     @Slot(str)
     def addCapturedImage(self, path: str):
         select = self.selectedClassForIndex(self.currentIndex())

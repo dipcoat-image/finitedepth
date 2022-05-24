@@ -60,7 +60,7 @@ class AnalysisGUI(QMainWindow):
             self.masterWorker().setVisualizationMode
         )
         self.mainDisplayWindow().cameraTurnOff.connect(
-            self.masterControlWidget().resetReferenceImage
+            self.experimentInventory().reactivateCurrentIndex
         )
         self.mainDisplayWindow().imageCaptured.connect(
             self.masterControlWidget().addCapturedImage
@@ -105,6 +105,7 @@ class AnalysisGUI(QMainWindow):
         self.experimentInventory().addNewExperiment()
         self.experimentInventory().activateExperiment(0)
         self.masterControlWidget().setSelectedClass(ClassSelection.EXPERIMENT)
+        self.mainDisplayWindow().setSelectedClass(ClassSelection.EXPERIMENT)
 
     def experimentItemModel(self) -> ExperimentItemModel:
         return self._expt_model

@@ -398,14 +398,6 @@ class ReferenceWidget(ControlWidget):
         if path:
             self.setReferencePath(path)
 
-    def resetReferenceImage(self):
-        """Apply the reference path in model to reference widget."""
-        model = self.experimentItemModel()
-        refpath = model.data(
-            model.index(self.currentExperimentRow(), model.Col_ReferencePath)
-        )
-        self.setReferencePath(refpath)
-
     @Slot()
     def onTemplateROIDrawButtonToggle(self, state: bool):
         """Untoggle :meth:`substrateROIDrawButton`."""
