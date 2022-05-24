@@ -91,7 +91,7 @@ class DisplayWidgetToolBar(QToolBar):
         self.captureButton().setPopupMode(QToolButton.MenuButtonPopup)
 
         self.recordPathLineEdit().setPlaceholderText("Video record path")
-        self.recordPathLineEdit().textEdited.connect(self.recordPathChanged)
+        self.recordPathLineEdit().editingFinished.connect(self.onRecordPathEdit)
         self.recordFormatComboBox().setPlaceholderText("Video format")
         self.recordFormatComboBox().currentIndexChanged.connect(
             self.onRecordFormatChange
@@ -231,6 +231,11 @@ class DisplayWidgetToolBar(QToolBar):
     def onRecordFormatChange(self, index: int):
         form = self.recordFormatComboBox().itemData(index)
         self.recordFormatChanged.emit(form)
+
+    @Slot()
+    def onRecordPathEdit(self):
+        path = self.recordPathLineEdit().text()
+        self.recordPathChanged.emit(os.path.abspath(path))
 
     @Slot(QMediaRecorder.RecorderState)
     def onRecorderStateChange(self, state: QMediaRecorder.RecorderState):
