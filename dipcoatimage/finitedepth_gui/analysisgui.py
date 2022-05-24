@@ -65,6 +65,9 @@ class AnalysisGUI(QMainWindow):
         self.mainDisplayWindow().imageCaptured.connect(
             self.masterControlWidget().addCapturedImage
         )
+        self.mainDisplayWindow().videoRecorded.connect(
+            self.masterControlWidget().addRecordedVideo
+        )
         self.masterControlWidget().setExperimentItemModel(self.experimentItemModel())
         self.masterControlWidget().referenceImageChanged.connect(
             self.masterWorker().setReferenceImage

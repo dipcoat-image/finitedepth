@@ -31,6 +31,7 @@ class MainDisplayWindow(QMainWindow):
     cameraTurnOn = Signal()
     cameraTurnOff = Signal()
     imageCaptured = Signal(str)
+    videoRecorded = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -269,6 +270,10 @@ class MainDisplayWindow(QMainWindow):
             state = self.mediaRecorder().recorderState()
             if state == QMediaRecorder.RecordingState:
                 self.mediaRecorder().stop()
+                if self.displayToolBar().recordAndAddAction().isChecked():
+                    self.videoRecorded.emit(
+                        self.mediaRecorder().actualLocation().toLocalFile()
+                    )
             else:
                 self.mediaRecorder().record()
 

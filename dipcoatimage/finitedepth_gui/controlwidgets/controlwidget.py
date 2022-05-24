@@ -130,6 +130,10 @@ class MasterControlWidget(QTabWidget):
         else:
             self.experimentWidget().addCoatPath(path)
 
+    @Slot(str)
+    def addRecordedVideo(self, path: str):
+        self.experimentWidget().addCoatPath(path)
+
     @Slot(list)
     def onExperimentsRemove(self, rows: List[int]):
         self.experimentWidget().onExperimentsRemove(rows)
