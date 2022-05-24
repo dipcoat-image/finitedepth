@@ -66,6 +66,10 @@ class MainDisplayWindow(QMainWindow):
         self.displayToolBar().recordFormatChanged.connect(
             self.mediaRecorder().mediaFormat().setFileFormat
         )
+        self.displayToolBar().recordPathChanged.connect(self.setRecordPath)
+        self.displayToolBar().recordStateChangeTriggered.connect(
+            self.changeRecorderState
+        )
         self.videoController().setPlayer(self.videoPlayer())
 
         self.videoPlayer().arrayChanged.connect(self.visualizeProcessor().setArray)
@@ -77,6 +81,9 @@ class MainDisplayWindow(QMainWindow):
         self.mediaCaptureSession().setImageCapture(self.imageCapture())
         self.imageCapture().imageSaved.connect(self.onImageCapture)
         self.mediaCaptureSession().setRecorder(self.mediaRecorder())
+        self.mediaRecorder().recorderStateChanged.connect(
+            self.displayToolBar().onRecorderStateChange
+        )
         self.visualizeProcessor().arrayChanged.connect(self.displayLabel().setArray)
 
         self.addToolBar(self.displayToolBar())
@@ -189,6 +196,7 @@ class MainDisplayWindow(QMainWindow):
         if active:
             self.cameraTurnOn.emit()
         else:
+            self.mediaRecorder().stop()
             self.cameraTurnOff.emit()
 
     def updateControllerVisibility(self):
@@ -249,6 +257,19 @@ class MainDisplayWindow(QMainWindow):
     def onImageCapture(self, id: int, path: str):
         if id != -1 and self.displayToolBar().captureAndAddAction().isChecked():
             self.imageCaptured.emit(path)
+
+    @Slot(str)
+    def setRecordPath(self, path: str):
+        self.mediaRecorder().setOutputLocation(QUrl.fromLocalFile(path))
+
+    @Slot()
+    def changeRecorderState(self):
+        if self.camera().isActive():
+            state = self.mediaRecorder().recorderState()
+            if state == QMediaRecorder.RecordingState:
+                self.mediaRecorder().stop()
+            else:
+                self.mediaRecorder().record()
 
     def setVisualizeWorker(self, worker: Optional[MasterWorker]):
         self.visualizeProcessor().setVisualizeWorker(worker)

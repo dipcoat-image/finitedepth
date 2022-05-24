@@ -3,7 +3,7 @@ from dipcoatimage.finitedepth_gui.core import VisualizationMode
 import os
 from PySide6.QtCore import Signal, QSize, Slot
 from PySide6.QtGui import QActionGroup, QAction, QIcon
-from PySide6.QtWidgets import QToolBar, QComboBox, QLineEdit, QToolButton, QMenu
+from PySide6.QtWidgets import QToolBar, QComboBox, QLineEdit, QToolButton, QMenu, QStyle
 from PySide6.QtMultimedia import (
     QCameraDevice,
     QMediaDevices,
@@ -28,6 +28,7 @@ class DisplayWidgetToolBar(QToolBar):
     captureFormatChanged = Signal(QImageCapture.FileFormat)
     captureTriggered = Signal(str)
     recordFormatChanged = Signal(QMediaFormat.FileFormat)
+    recordPathChanged = Signal(str)
     recordStateChangeTriggered = Signal()
 
     def __init__(self, parent=None):
@@ -90,6 +91,7 @@ class DisplayWidgetToolBar(QToolBar):
         self.captureButton().setPopupMode(QToolButton.MenuButtonPopup)
 
         self.recordPathLineEdit().setPlaceholderText("Video record path")
+        self.recordPathLineEdit().textEdited.connect(self.recordPathChanged)
         self.recordFormatComboBox().setPlaceholderText("Video format")
         self.recordFormatComboBox().currentIndexChanged.connect(
             self.onRecordFormatChange
@@ -235,7 +237,7 @@ class DisplayWidgetToolBar(QToolBar):
         else:
             self.recordButton().setChecked(False)
             icon = QIcon()
-            icon.addFile(get_icons_path('record.svg'), QSize(24, 24))
+            icon.addFile(get_icons_path("record.svg"), QSize(24, 24))
         self.recordButton().setIcon(icon)
 
 
