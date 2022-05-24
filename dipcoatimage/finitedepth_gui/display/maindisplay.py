@@ -60,7 +60,9 @@ class MainDisplayWindow(QMainWindow):
         self.displayToolBar().captureFormatChanged.connect(
             self.imageCapture().setFileFormat
         )
-        self.displayToolBar().captureImage.connect(self.imageCapture().captureToFile)
+        self.displayToolBar().captureTriggered.connect(
+            self.imageCapture().captureToFile
+        )
         self.displayToolBar().recordFormatChanged.connect(
             self.mediaRecorder().mediaFormat().setFileFormat
         )

@@ -25,7 +25,7 @@ class DisplayWidgetToolBar(QToolBar):
     cameraChanged = Signal(QCameraDevice)
     cameraToggled = Signal(bool)
     captureFormatChanged = Signal(QImageCapture.FileFormat)
-    captureImage = Signal(str)
+    captureTriggered = Signal(str)
     recordFormatChanged = Signal(QMediaFormat.FileFormat)
 
     def __init__(self, parent=None):
@@ -217,7 +217,7 @@ class DisplayWidgetToolBar(QToolBar):
     @Slot()
     def onCaptureButtonClick(self):
         path = self.capturePathLineEdit().text()
-        self.captureImage.emit(os.path.abspath(path))
+        self.captureTriggered.emit(os.path.abspath(path))
 
     @Slot(int)
     def onRecordFormatChange(self, index: int):
