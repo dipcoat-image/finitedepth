@@ -4,7 +4,12 @@ import os
 from PySide6.QtCore import Signal, QSize, Slot
 from PySide6.QtGui import QActionGroup, QAction, QIcon
 from PySide6.QtWidgets import QToolBar, QComboBox, QLineEdit, QToolButton, QMenu
-from PySide6.QtMultimedia import QCameraDevice, QMediaDevices, QImageCapture
+from PySide6.QtMultimedia import (
+    QCameraDevice,
+    QMediaDevices,
+    QImageCapture,
+    QMediaFormat,
+)
 
 
 __all__ = [
@@ -21,6 +26,7 @@ class DisplayWidgetToolBar(QToolBar):
     cameraToggled = Signal(bool)
     captureFormatChanged = Signal(QImageCapture.FileFormat)
     captureImage = Signal(str)
+    recordFormatChanged = Signal(QMediaFormat.FileFormat)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -83,6 +89,9 @@ class DisplayWidgetToolBar(QToolBar):
 
         self.recordPathLineEdit().setPlaceholderText("Video record path")
         self.recordFormatComboBox().setPlaceholderText("Video format")
+        self.recordFormatComboBox().currentIndexChanged.connect(
+            self.onRecordFormatChange
+        )
         self.recordButton().setCheckable(True)
         self.recordButton().setToolTip("Record video")
         recordActionIcon = QIcon()
@@ -113,6 +122,9 @@ class DisplayWidgetToolBar(QToolBar):
         for form in QImageCapture.supportedFormats():
             name = QImageCapture.fileFormatName(form)
             self.captureFormatComboBox().addItem(name, userData=form)
+        for form in QMediaFormat().supportedFileFormats(QMediaFormat.Encode):
+            name = QMediaFormat.fileFormatName(form)
+            self.recordFormatComboBox().addItem(name, userData=form)
 
     def visualizeActionGroup(self) -> QActionGroup:
         return self._visualizeActionGroup
@@ -206,6 +218,11 @@ class DisplayWidgetToolBar(QToolBar):
     def onCaptureButtonClick(self):
         path = self.capturePathLineEdit().text()
         self.captureImage.emit(os.path.abspath(path))
+
+    @Slot(int)
+    def onRecordFormatChange(self, index: int):
+        form = self.recordFormatComboBox().itemData(index)
+        self.recordFormatChanged.emit(form)
 
 
 def get_icons_path(*paths: str) -> str:
