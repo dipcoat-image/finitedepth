@@ -8,7 +8,7 @@ from dipcoatimage.finitedepth_gui.workers import MasterWorker
 from PySide6.QtCore import Signal, Slot, Qt, QUrl
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
-from PySide6.QtMultimedia import QMediaPlayer, QCamera, QImageCapture
+from PySide6.QtMultimedia import QMediaPlayer, QCamera, QImageCapture, QMediaRecorder
 from typing import Optional, List
 from .toolbar import DisplayWidgetToolBar
 from .roidisplay import NDArrayROILabel
@@ -49,6 +49,7 @@ class MainDisplayWindow(QMainWindow):
         self._camera = QCamera()
         self._capture_session = NDArrayMediaCaptureSession()
         self._image_capture = QImageCapture()
+        self._media_recorder = QMediaRecorder()
         self._visualize_processor = VisualizeProcessor()
 
         self.displayToolBar().visualizationModeChanged.connect(
@@ -60,6 +61,9 @@ class MainDisplayWindow(QMainWindow):
             self.imageCapture().setFileFormat
         )
         self.displayToolBar().captureImage.connect(self.imageCapture().captureToFile)
+        self.displayToolBar().recordFormatChanged.connect(
+            self.mediaRecorder().mediaFormat().setFileFormat
+        )
         self.videoController().setPlayer(self.videoPlayer())
 
         self.videoPlayer().arrayChanged.connect(self.visualizeProcessor().setArray)
@@ -70,6 +74,7 @@ class MainDisplayWindow(QMainWindow):
         )
         self.mediaCaptureSession().setImageCapture(self.imageCapture())
         self.imageCapture().imageSaved.connect(self.onImageCapture)
+        self.mediaCaptureSession().setRecorder(self.mediaRecorder())
         self.visualizeProcessor().arrayChanged.connect(self.displayLabel().setArray)
 
         self.addToolBar(self.displayToolBar())
@@ -121,6 +126,9 @@ class MainDisplayWindow(QMainWindow):
 
     def imageCapture(self) -> QImageCapture:
         return self._image_capture
+
+    def mediaRecorder(self) -> QMediaRecorder:
+        return self._media_recorder
 
     def visualizeProcessor(self) -> VisualizeProcessor:
         return self._visualize_processor
