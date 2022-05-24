@@ -9,6 +9,7 @@ from PySide6.QtMultimedia import (
     QMediaDevices,
     QImageCapture,
     QMediaFormat,
+    QMediaRecorder,
 )
 
 
@@ -27,6 +28,7 @@ class DisplayWidgetToolBar(QToolBar):
     captureFormatChanged = Signal(QImageCapture.FileFormat)
     captureTriggered = Signal(str)
     recordFormatChanged = Signal(QMediaFormat.FileFormat)
+    recordStateChangeTriggered = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -92,8 +94,8 @@ class DisplayWidgetToolBar(QToolBar):
         self.recordFormatComboBox().currentIndexChanged.connect(
             self.onRecordFormatChange
         )
-        self.recordButton().setCheckable(True)
         self.recordButton().setToolTip("Record video")
+        self.recordButton().clicked.connect(self.recordStateChangeTriggered)
         recordActionIcon = QIcon()
         recordActionIcon.addFile(get_icons_path("record.svg"), QSize(24, 24))
         self.recordButton().setIcon(recordActionIcon)
@@ -223,6 +225,18 @@ class DisplayWidgetToolBar(QToolBar):
     def onRecordFormatChange(self, index: int):
         form = self.recordFormatComboBox().itemData(index)
         self.recordFormatChanged.emit(form)
+
+    @Slot(QMediaRecorder.RecorderState)
+    def onRecorderStateChange(self, state: QMediaRecorder.RecorderState):
+        self.recordButton().setCheckable(True)
+        if state == QMediaRecorder.RecordingState:
+            self.recordButton().setChecked(True)
+            icon = self.style().standardIcon(QStyle.SP_MediaStop)
+        else:
+            self.recordButton().setChecked(False)
+            icon = QIcon()
+            icon.addFile(get_icons_path('record.svg'), QSize(24, 24))
+        self.recordButton().setIcon(icon)
 
 
 def get_icons_path(*paths: str) -> str:
