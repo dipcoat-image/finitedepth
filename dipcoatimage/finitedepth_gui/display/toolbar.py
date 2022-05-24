@@ -213,6 +213,10 @@ class DisplayWidgetToolBar(QToolBar):
         device = self.camerasComboBox().itemData(index)
         self.cameraChanged.emit(device)
 
+    @Slot(bool)
+    def onCameraActiveChange(self, active: bool):
+        self.recordButton().setCheckable(active)
+
     @Slot(int)
     def onCaptureFormatChange(self, index: int):
         form = self.captureFormatComboBox().itemData(index)
@@ -230,7 +234,6 @@ class DisplayWidgetToolBar(QToolBar):
 
     @Slot(QMediaRecorder.RecorderState)
     def onRecorderStateChange(self, state: QMediaRecorder.RecorderState):
-        self.recordButton().setCheckable(True)
         if state == QMediaRecorder.RecordingState:
             self.recordButton().setChecked(True)
             icon = self.style().standardIcon(QStyle.SP_MediaStop)

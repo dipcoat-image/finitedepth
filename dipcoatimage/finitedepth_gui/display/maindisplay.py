@@ -73,6 +73,7 @@ class MainDisplayWindow(QMainWindow):
         self.videoController().setPlayer(self.videoPlayer())
 
         self.videoPlayer().arrayChanged.connect(self.visualizeProcessor().setArray)
+        self.camera().activeChanged.connect(self.displayToolBar().onCameraActiveChange)
         self.camera().activeChanged.connect(self.onCameraActiveChange)
         self.mediaCaptureSession().setCamera(self.camera())
         self.mediaCaptureSession().arrayChanged.connect(
