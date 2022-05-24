@@ -125,7 +125,7 @@ class MasterControlWidget(QTabWidget):
     @Slot(str)
     def addCapturedImage(self, path: str):
         select = self.selectedClassForIndex(self.currentIndex())
-        if select == ClassSelection.REFERENCE or select == ClassSelection.Substrate:
+        if select == ClassSelection.REFERENCE or select == ClassSelection.SUBSTRATE:
             self.referenceWidget().setReferencePath(path)
         else:
             self.experimentWidget().addCoatPath(path)
