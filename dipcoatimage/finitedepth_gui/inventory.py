@@ -542,7 +542,8 @@ class ExperimentInventory(QWidget):
     def exportItems(self, fileName: str, selectedFilter: ConfigFileTypeEnum):
         model = self.experimentItemModel()
         if model is not None:
-            rows = [idx.row() for idx in self.experimentListView().selectedIndexes()]
+            indices = self.experimentListView().selectedIndexes()
+            rows = [idx.row() for idx in indices]  # type: ignore[attr-defined]
             data = {}
             for row in rows:
                 name = model.data(model.index(row, model.Col_ExperimentName))
