@@ -60,6 +60,10 @@ Run the following command to check your code.
 
    $ mypy .
 
+.. note::
+
+   `mypy == 9.6.0` has issue for checking `TypeVar[Protocol]`. Use other version.
+
 Unit testing
 ============
 
