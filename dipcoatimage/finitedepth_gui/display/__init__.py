@@ -19,12 +19,17 @@ from .toolbar import (
     DisplayWidgetToolBar,
     get_icons_path,
 )
-from .videostream import MediaController, PreviewableNDArrayVideoPlayer
+from .videostream import (
+    MediaController,
+    PreviewableNDArrayVideoPlayer,
+    VisualizeProcessor,
+)
 
 
 __all__ = [
     "MediaController",
     "PreviewableNDArrayVideoPlayer",
+    "VisualizeProcessor",
     "NDArrayROILabel",
     "coords_label2pixmap",
     "coords_pixmap2label",
