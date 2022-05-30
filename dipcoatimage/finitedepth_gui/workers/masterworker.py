@@ -207,7 +207,10 @@ class MasterWorker(QObject):
         if model is None:
             return
         refpath = model.data(model.index(row, model.Col_ReferencePath))
-        img = cv2.imread(refpath)
+        if not refpath:
+            img = None
+        else:
+            img = cv2.imread(refpath)
         if img is not None:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.referenceWorker().setImage(img)
