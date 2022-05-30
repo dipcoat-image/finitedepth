@@ -370,7 +370,11 @@ class ReferenceWidget(ControlWidget):
     @Slot()
     def onPathEditFinished(self):
         """Update ROI widget, emit :attr:`imageChanged` and commit to model."""
-        img = cv2.imread(self.pathLineEdit().text())
+        path = self.pathLineEdit().text()
+        if not path:
+            img = None
+        else:
+            img = cv2.imread(path)
         if img is None:
             w, h = (0, 0)
         else:
