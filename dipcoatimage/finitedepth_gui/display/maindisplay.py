@@ -8,7 +8,7 @@ from dipcoatimage.finitedepth_gui.workers import MasterWorker
 from PySide6.QtCore import Signal, Slot, Qt, QUrl
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
-from PySide6.QtMultimedia import QMediaPlayer, QCamera, QImageCapture, QMediaRecorder
+from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaRecorder
 from typing import Optional, List
 from .toolbar import DisplayWidgetToolBar
 from .roidisplay import NDArrayROILabel
@@ -174,7 +174,7 @@ class MainDisplayWindow(QMainWindow):
         if select == ClassSelection.ANALYSIS:
             select = ClassSelection.EXPERIMENT
         if select != self.selectedClass():
-            if self.videoPlayer().playbackState() == QMediaPlayer.PlayingState:
+            if self.videoPlayer().playbackState() == self.videoPlayer().PlayingState:
                 self.videoPlayer().stop()
             self._selectedClass = select
             self.updateControllerVisibility()
