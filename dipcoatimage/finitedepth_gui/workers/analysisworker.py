@@ -1,5 +1,6 @@
 import cv2  # type: ignore
 from dipcoatimage.finitedepth import ExperimentBase
+from dipcoatimage.finitedepth.analysis import Analyzer
 import dataclasses
 from dipcoatimage.finitedepth.analysis import ExperimentKind, AnalysisArgs
 import os
@@ -27,6 +28,7 @@ class AnalysisWorker(WorkerBase):
 
     progressMaximumChanged = Signal(int)
     progressValueChanged = Signal(int)
+    analysisFinished = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -58,12 +60,14 @@ class AnalysisWorker(WorkerBase):
     def setAnalysisArgs(self, args: AnalysisArgs):
         self._analysisArgs = args
 
+    @Slot()
     def analyze(self):
-        if self.experiment is None:
+        if self.experiment() is None:
+            self.analysisFinished.emit()
             return
-        self.experiment.substrate.reference.verify()
-        self.experiment.substrate.verify()
-        self.experiment.verify()
+        self.experiment().substrate.reference.verify()
+        self.experiment().substrate.verify()
+        self.experiment().verify()
         expt_kind = self.experimentKind()
 
         data_path = self.analysisArgs().data_path
@@ -76,13 +80,13 @@ class AnalysisWorker(WorkerBase):
             expt_kind == ExperimentKind.SingleImageExperiment
             or expt_kind == ExperimentKind.MultiImageExperiment
         ):
-            img_gen = (cv2.imread(path) for path in self.paths)
+            img_gen = (cv2.imread(path) for path in self.paths())
             if fps is None:
                 fps = 0
-            h, w = cv2.imread(self.paths[0]).shape[:2]
-            total = len(self.paths)
+            h, w = cv2.imread(self.paths()[0]).shape[:2]
+            total = len(self.paths())
         elif expt_kind == ExperimentKind.VideoExperiment:
-            (path,) = self.paths
+            (path,) = self.paths()
             cap = cv2.VideoCapture(path)
             fnum = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             img_gen = (cap.read()[1] for _ in range(fnum))
@@ -102,11 +106,11 @@ class AnalysisWorker(WorkerBase):
                 os.makedirs(dirname, exist_ok=True)
             _, data_ext = os.path.splitext(data_path)
             data_ext = data_ext.lstrip(os.path.extsep).lower()
-            writercls = self.data_writers.get(data_ext, None)
+            writercls = Analyzer.data_writers.get(data_ext, None)
             if writercls is None:
                 raise TypeError(f"Unsupported extension: {data_ext}")
             headers = [
-                f.name for f in dataclasses.fields(self.experiment.layer_type.Data)
+                f.name for f in dataclasses.fields(self.experiment().layer_type.Data)
             ]
             if fps:
                 headers = ["time (s)"] + headers
@@ -134,7 +138,7 @@ class AnalysisWorker(WorkerBase):
             write_video = True
             _, video_ext = os.path.splitext(video_path)
             video_ext = video_ext.lstrip(os.path.extsep).lower()
-            fourcc = self.video_codecs.get(video_ext, None)
+            fourcc = Analyzer.video_codecs.get(video_ext, None)
             if fourcc is None:
                 raise TypeError(f"Unsupported extension: {video_ext}")
             dirname, _ = os.path.split(video_path)
@@ -145,7 +149,7 @@ class AnalysisWorker(WorkerBase):
             write_video = False
 
         # analyze!
-        layer_gen = self.experiment.layer_generator()
+        layer_gen = self.experiment().layer_generator()
         try:
             for i, img in enumerate(img_gen):
                 if img is None:
@@ -182,6 +186,7 @@ class AnalysisWorker(WorkerBase):
                 datawriter.terminate()
             if write_video:
                 videowriter.release()
+            self.analysisFinished.emit()
 
     def clear(self):
         self._experiment = None

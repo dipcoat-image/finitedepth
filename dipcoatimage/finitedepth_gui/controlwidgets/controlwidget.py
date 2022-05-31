@@ -115,6 +115,14 @@ class MasterControlWidget(QTabWidget):
         )
 
     @Slot(int)
+    def setProgressMaximum(self, maximum: int):
+        self.analysisWidget().setProgressMaximum(maximum)
+
+    @Slot(int)
+    def setProgressValue(self, val: int):
+        self.analysisWidget().setProgressValue(val)
+
+    @Slot(int)
     def onCurrentTabChange(self, index: int):
         self.referenceWidget().templateROIDrawButton().setChecked(False)
         self.referenceWidget().substrateROIDrawButton().setChecked(False)

@@ -18,7 +18,7 @@ from dipcoatimage.finitedepth_gui.core import (
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 import numpy as np
 import numpy.typing as npt
-from PySide6.QtCore import QObject, Slot, Signal
+from PySide6.QtCore import QObject, Slot, Signal, QThread
 from typing import Optional, List
 from .refworker import ReferenceWorker
 from .substworker import SubstrateWorker
@@ -43,6 +43,8 @@ class MasterWorker(QObject):
 
     referenceImageShapeChanged = Signal(int, int)
     workersUpdated = Signal(ClassSelection)
+    progressMaximumChanged = Signal(int)
+    progressValueChanged = Signal(int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -54,10 +56,18 @@ class MasterWorker(QObject):
         self._subst_worker = SubstrateWorker()
         self._expt_worker = ExperimentWorker()
         self._anal_worker = AnalysisWorker()
+        self._anal_thread = QThread()
 
         self.referenceWorker().imageShapeChanged.connect(
             self.referenceImageShapeChanged
         )
+        self.analysisWorker().moveToThread(self.analysisThread())
+        self.analysisThread().started.connect(self.analysisWorker().analyze)
+        self.analysisWorker().analysisFinished.connect(self.analysisThread().quit)
+        self.analysisWorker().progressMaximumChanged.connect(
+            self.progressMaximumChanged
+        )
+        self.analysisWorker().progressValueChanged.connect(self.progressValueChanged)
         self.setVisualizationMode(VisualizationMode.FULL)
 
     def experimentItemModel(self) -> Optional[ExperimentItemModel]:
@@ -79,6 +89,9 @@ class MasterWorker(QObject):
 
     def analysisWorker(self) -> AnalysisWorker:
         return self._anal_worker
+
+    def analysisThread(self) -> QThread:
+        return self._anal_thread
 
     def setReferenceImage(self, img: Optional[npt.NDArray[np.uint8]]):
         self.referenceWorker().setImage(img)
@@ -272,3 +285,7 @@ class MasterWorker(QObject):
             self.substrateWorker().clear()
             self.experimentWorker().clear()
             self.analysisWorker().clear()
+
+    @Slot()
+    def analyze(self):
+        self.analysisThread().start()
