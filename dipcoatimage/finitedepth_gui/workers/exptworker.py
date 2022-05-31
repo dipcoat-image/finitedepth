@@ -244,7 +244,8 @@ class ExperimentWorker(WorkerBase):
         if expt is not None and img.size > 0:
             if vismode == VisualizationMode.FULL:
                 layer = expt.construct_coatinglayer(img)
-                img = layer.draw()
+                if layer.valid():
+                    img = layer.draw()
             elif vismode == VisualizationMode.FAST:
                 img = self.fastVisualize(img)
             else:
