@@ -28,7 +28,7 @@ Utilities
 """
 
 from .dataclass import data_converter
-from .geometry import get_extended_line, intrsct_pt_polar
+from .geometry import intrsct_pt_polar
 from .importing import import_variable, ImportStatus, Importer
 from .path import get_samples_path, cwd
 from .typing import DataclassProtocol, OptionalROI, IntROI
@@ -41,7 +41,6 @@ from .testing import dict_includes
 
 __all__ = [
     "data_converter",
-    "get_extended_line",
     "intrsct_pt_polar",
     "import_variable",
     "ImportStatus",
