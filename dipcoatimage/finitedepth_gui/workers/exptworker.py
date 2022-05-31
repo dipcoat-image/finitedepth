@@ -272,11 +272,26 @@ class ExperimentWorker(WorkerBase):
         img_h, img_w = img.shape[:2]
         x1, y1 = (x0 + subst_w, y0 + subst_h)
 
-        _, bin_img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+        if len(img.shape) == 2:
+            gray = img
+        elif len(img.shape) == 3:
+            ch = img.shape[-1]
+            if ch == 1:
+                gray = img
+            elif ch == 3:
+                gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+            elif ch == 4:
+                gray = cv2.cvtColor(img, cv2.COLOR_RGBA2GRAY)
+            else:
+                raise TypeError(f"Image with invalid channel: {img.shape}")
+        else:
+            raise TypeError(f"Invalid image shape: {img.shape}")
+        _, bin_img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
         bin_img_cropped = bin_img[
             max(y0, 0) : min(y1, img_h), max(x0, 0) : min(x1, img_w)
         ]
-        subst_cropped = substrate.image()[
+
+        subst_cropped = substrate.binary_image()[
             max(-y0, 0) : min(img_h - y0, subst_h),
             max(-x0, 0) : min(img_w - x0, subst_w),
         ]
