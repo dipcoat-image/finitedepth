@@ -1,6 +1,6 @@
 from dipcoatimage.finitedepth.analysis import AnalysisArgs, Analyzer
 import os
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Signal, Slot
 from PySide6.QtGui import QDoubleValidator
 from PySide6.QtWidgets import (
     QLineEdit,
@@ -36,6 +36,8 @@ class AnalysisWidget(ControlWidget):
     Widget to analyze the experiment.
     """
 
+    analysisRequested = Signal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -65,6 +67,7 @@ class AnalysisWidget(ControlWidget):
         )
         self.imageFPSLineEdit().editingFinished.connect(self.commitToCurrentItem)
         self.imageFPSLineEdit().setValidator(EmptyDoubleValidator())
+        self.analyzeButton().clicked.connect(self.analysisRequested)
 
         self.dataPathLineEdit().setPlaceholderText("Data file path")
         self.imagePathLineEdit().setPlaceholderText("Image file path")
