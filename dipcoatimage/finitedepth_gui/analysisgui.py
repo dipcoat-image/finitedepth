@@ -75,12 +75,21 @@ class AnalysisGUI(QMainWindow):
         self.masterControlWidget().drawROIToggled.connect(
             self.mainDisplayWindow().toggleROIDraw
         )
+        self.masterControlWidget().analysisRequested.connect(
+            self.masterWorker().analyze
+        )
         self.masterControlWidget().selectedClassChanged.connect(
             self.mainDisplayWindow().setSelectedClass
         )
         self.masterWorker().setExperimentItemModel(self.experimentItemModel())
         self.masterWorker().referenceImageShapeChanged.connect(
             self.masterControlWidget().setROIMaximum
+        )
+        self.masterWorker().progressMaximumChanged.connect(
+            self.masterControlWidget().setProgressMaximum
+        )
+        self.masterWorker().progressValueChanged.connect(
+            self.masterControlWidget().setProgressValue
         )
         self.masterWorker().workersUpdated.connect(
             self.mainDisplayWindow().onWorkersUpdate

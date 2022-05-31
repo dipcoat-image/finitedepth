@@ -22,6 +22,7 @@ class MasterControlWidget(QTabWidget):
     referenceImageChanged = Signal(object)
     drawROIToggled = Signal(ROIModel, bool)
     selectedClassChanged = Signal(ClassSelection)
+    analysisRequested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -39,6 +40,7 @@ class MasterControlWidget(QTabWidget):
         self.referenceWidget().substrateROIDrawButton().toggled.connect(
             self.onSubstrateROIDrawButtonToggle
         )
+        self.analysisWidget().analysisRequested.connect(self.analysisRequested)
         self.currentChanged.connect(self.onCurrentTabChange)
 
         expt_scroll = QScrollArea()
@@ -111,6 +113,14 @@ class MasterControlWidget(QTabWidget):
             self.referenceWidget().substrateROIWidget().roiModel(),
             state,
         )
+
+    @Slot(int)
+    def setProgressMaximum(self, maximum: int):
+        self.analysisWidget().setProgressMaximum(maximum)
+
+    @Slot(int)
+    def setProgressValue(self, val: int):
+        self.analysisWidget().setProgressValue(val)
 
     @Slot(int)
     def onCurrentTabChange(self, index: int):

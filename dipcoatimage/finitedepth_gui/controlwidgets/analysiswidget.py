@@ -1,6 +1,6 @@
 from dipcoatimage.finitedepth.analysis import AnalysisArgs, Analyzer
 import os
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Signal, Slot
 from PySide6.QtGui import QDoubleValidator
 from PySide6.QtWidgets import (
     QLineEdit,
@@ -36,6 +36,8 @@ class AnalysisWidget(ControlWidget):
     Widget to analyze the experiment.
     """
 
+    analysisRequested = Signal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -65,6 +67,7 @@ class AnalysisWidget(ControlWidget):
         )
         self.imageFPSLineEdit().editingFinished.connect(self.commitToCurrentItem)
         self.imageFPSLineEdit().setValidator(EmptyDoubleValidator())
+        self.analyzeButton().clicked.connect(self.analysisRequested)
 
         self.dataPathLineEdit().setPlaceholderText("Data file path")
         self.imagePathLineEdit().setPlaceholderText("Image file path")
@@ -166,17 +169,24 @@ class AnalysisWidget(ControlWidget):
 
     def analysisArgs(self) -> AnalysisArgs:
         """Return :class:`analysisArgs` from current widget values."""
-        data_path = (
-            self.dataPathLineEdit().text() + self.dataExtensionComboBox().currentText()
-        )
-        image_path = (
-            self.imagePathLineEdit().text()
-            + self.imageExtensionComboBox().currentText()
-        )
-        video_path = (
-            self.videoPathLineEdit().text()
-            + self.videoExtensionComboBox().currentText()
-        )
+        data_name = self.dataPathLineEdit().text()
+        if not data_name:
+            data_path = ""
+        else:
+            data_path = data_name + self.dataExtensionComboBox().currentText()
+
+        image_name = self.imagePathLineEdit().text()
+        if not image_name:
+            image_path = ""
+        else:
+            image_path = image_name + self.imageExtensionComboBox().currentText()
+
+        video_name = self.videoPathLineEdit().text()
+        if not video_name:
+            video_path = ""
+        else:
+            video_path = video_name + self.videoExtensionComboBox().currentText()
+
         fps_text = self.imageFPSLineEdit().text()
         fps = None if not fps_text else float(fps_text)
         args = AnalysisArgs(data_path, image_path, video_path, fps)
@@ -198,6 +208,12 @@ class AnalysisWidget(ControlWidget):
                     self.analysisArgs(),
                     model.Role_Args,  # type: ignore[arg-type]
                 )
+
+    def setProgressMaximum(self, maximum: int):
+        self.progressBar().setMaximum(maximum)
+
+    def setProgressValue(self, val: int):
+        self.progressBar().setValue(val)
 
     def onExperimentsRemove(self, rows: List[int]):
         if self.currentExperimentRow() in rows:
