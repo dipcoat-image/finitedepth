@@ -71,12 +71,14 @@ class ReferenceWorker(WorkerBase):
         This does not update :meth:`reference`. Run :meth:`updateReference`
         manually.
         """
+        old_h, old_w = self.image().shape[:2]
         self._img = img
         if img is None:
             h, w = 0, 0
         else:
             h, w = img.shape[:2]
-        self.imageShapeChanged.emit(w, h)
+        if (w, h) != (old_w, old_h):
+            self.imageShapeChanged.emit(w, h)
 
     def templateROI(self) -> OptionalROI:
         """
