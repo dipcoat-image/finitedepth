@@ -169,6 +169,9 @@ class PreviewableNDArrayVideoPlayer(NDArrayVideoPlayer):
 
 
 class VisualizeProcessor(QObject):
+    """
+    Video pipeline component to set the image to worker and visualize.
+    """
 
     arrayChanged = Signal(np.ndarray)
 
