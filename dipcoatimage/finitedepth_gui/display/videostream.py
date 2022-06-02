@@ -1,10 +1,10 @@
 import cv2  # type: ignore[import]
-from cv2PySide6 import NDArrayVideoPlayer, ClickableSlider, ArrayProcessor
+from cv2PySide6 import NDArrayVideoPlayer, ClickableSlider
 from dipcoatimage.finitedepth_gui.core import ClassSelection
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
 import numpy as np
 import numpy.typing as npt
-from PySide6.QtCore import QUrl, Slot, Qt
+from PySide6.QtCore import QUrl, Signal, Slot, Qt, QObject
 from PySide6.QtWidgets import QWidget, QPushButton, QHBoxLayout, QStyle
 from PySide6.QtMultimedia import QMediaPlayer
 from typing import Optional
@@ -168,7 +168,10 @@ class PreviewableNDArrayVideoPlayer(NDArrayVideoPlayer):
         return img
 
 
-class VisualizeProcessor(ArrayProcessor):
+class VisualizeProcessor(QObject):
+
+    arrayChanged = Signal(np.ndarray)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._worker = None
@@ -185,6 +188,14 @@ class VisualizeProcessor(ArrayProcessor):
 
     def setSelectedClass(self, select: ClassSelection):
         self._selectedClass = select
+
+    @Slot(np.ndarray)
+    def setArray(self, array: npt.NDArray[np.uint8]):
+        """
+        Process *array* with :meth:`processArray` and emit to
+        :attr:`arrayChanged`.
+        """
+        self.arrayChanged.emit(self.processArray(array))
 
     def processArray(self, array: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
         # only the selected class is updated, e.g. updated reference instance is not
