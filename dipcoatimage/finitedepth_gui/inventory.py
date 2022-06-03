@@ -134,7 +134,7 @@ class ExperimentItemModel(QStandardItemModel):
     Col_Analysis = ExperimentItemModelColumns.ANALYSIS
 
     Role_Args = Qt.UserRole
-    Role_StructuredArgs = Qt.ItemDataRole(int(Qt.UserRole) + 1)
+    Role_StructuredArgs = int(Qt.UserRole) + 1  # type: ignore[call-overload]
 
     experimentsRemoved = Signal(list)
     coatPathsChanged = Signal(int, list, ExperimentKind)
