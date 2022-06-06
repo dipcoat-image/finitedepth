@@ -1,4 +1,4 @@
-from cv2PySide6 import NDArrayLabel
+from araviq6 import NDArrayLabel
 from PySide6.QtCore import Signal, QSize, QRect, QPoint, Qt
 from PySide6.QtGui import QPaintEvent, QMouseEvent, QPainter, QBrush, QColor
 from typing import Union, Tuple, List
@@ -17,7 +17,7 @@ Number = Union[int, float]
 
 class NDArrayROILabel(NDArrayLabel):
     """
-    ``cv2PySide6.NDArrayLabel`` which multiple ROIs can be set.
+    ``araviq6.NDArrayLabel`` which multiple ROIs can be set.
 
     .. rubric:: Model
 
