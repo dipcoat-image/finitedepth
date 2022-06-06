@@ -1,6 +1,5 @@
-from araviq6 import MediaController
+from araviq6 import MediaController, NDArrayMediaCaptureSession
 import cv2  # type: ignore[import]
-from cv2PySide6 import NDArrayMediaCaptureSession
 from dipcoatimage.finitedepth.analysis import ExperimentKind
 from dipcoatimage.finitedepth_gui.core import ClassSelection, VisualizationMode
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
