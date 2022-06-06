@@ -1,11 +1,12 @@
+from araviq6 import MediaController, NDArrayMediaCaptureSession
 import cv2  # type: ignore[import]
-from cv2PySide6 import NDArrayMediaCaptureSession
 from dipcoatimage.finitedepth.analysis import ExperimentKind
 from dipcoatimage.finitedepth_gui.core import ClassSelection, VisualizationMode
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
-from PySide6.QtCore import Signal, Slot, Qt, QUrl
+import numpy as np
+from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt, QUrl
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
 from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaRecorder
@@ -13,7 +14,6 @@ from typing import Optional, List
 from .toolbar import DisplayWidgetToolBar
 from .roidisplay import NDArrayROILabel
 from .videostream import (
-    MediaController,
     PreviewableNDArrayVideoPlayer,
     VisualizeProcessor,
 )
@@ -22,6 +22,12 @@ from .videostream import (
 __all__ = [
     "MainDisplayWindow",
 ]
+
+
+class SignalSender(QObject):
+    """Object to send the signals to processor thread."""
+
+    arrayChanged = Signal(np.ndarray)
 
 
 class MainDisplayWindow(QMainWindow):
@@ -51,7 +57,12 @@ class MainDisplayWindow(QMainWindow):
         self._capture_session = NDArrayMediaCaptureSession()
         self._image_capture = QImageCapture()
         self._media_recorder = QMediaRecorder()
+        self._signalSender = SignalSender()
+        self._processorThread = QThread()
         self._visualize_processor = VisualizeProcessor()
+
+        self.visualizeProcessor().moveToThread(self.processorThread())
+        self.processorThread().start()
 
         self.displayToolBar().visualizationModeChanged.connect(
             self.visualizationModeChanged
@@ -73,19 +84,18 @@ class MainDisplayWindow(QMainWindow):
         )
         self.videoController().setPlayer(self.videoPlayer())
 
-        self.videoPlayer().arrayChanged.connect(self.visualizeProcessor().setArray)
+        self.videoPlayer().arrayChanged.connect(self.onArrayPassedFromSource)
         self.camera().activeChanged.connect(self.displayToolBar().onCameraActiveChange)
         self.camera().activeChanged.connect(self.onCameraActiveChange)
         self.mediaCaptureSession().setCamera(self.camera())
-        self.mediaCaptureSession().arrayChanged.connect(
-            self.visualizeProcessor().setArray
-        )
+        self.mediaCaptureSession().arrayChanged.connect(self.onArrayPassedFromSource)
         self.mediaCaptureSession().setImageCapture(self.imageCapture())
         self.imageCapture().imageSaved.connect(self.onImageCapture)
         self.mediaCaptureSession().setRecorder(self.mediaRecorder())
         self.mediaRecorder().recorderStateChanged.connect(
             self.displayToolBar().onRecorderStateChange
         )
+        self._signalSender.arrayChanged.connect(self.visualizeProcessor().setArray)
         self.visualizeProcessor().arrayChanged.connect(self.displayLabel().setArray)
 
         self.addToolBar(self.displayToolBar())
@@ -141,8 +151,16 @@ class MainDisplayWindow(QMainWindow):
     def mediaRecorder(self) -> QMediaRecorder:
         return self._media_recorder
 
+    def processorThread(self) -> QThread:
+        return self._processorThread
+
     def visualizeProcessor(self) -> VisualizeProcessor:
         return self._visualize_processor
+
+    @Slot(np.ndarray)
+    def onArrayPassedFromSource(self, array: np.ndarray):
+        if self.visualizeProcessor().ready():
+            self._signalSender.arrayChanged.emit(array)
 
     def setExperimentItemModel(self, model: Optional[ExperimentItemModel]):
         """Set :meth:`experimentItemModel`."""
@@ -282,3 +300,8 @@ class MainDisplayWindow(QMainWindow):
 
     def setVisualizeActionToggleState(self, mode: VisualizationMode):
         self.displayToolBar().setVisualizeActionToggleState(mode)
+
+    def closeEvent(self, event):
+        self.processorThread().quit()
+        self.processorThread().wait()
+        super().closeEvent(event)

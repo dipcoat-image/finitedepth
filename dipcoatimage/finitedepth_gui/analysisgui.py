@@ -156,3 +156,7 @@ class AnalysisGUI(QMainWindow):
     def setCWD(self, path: str):
         os.chdir(path)
         self.statusBar().showMessage(path)
+
+    def closeEvent(self, event):
+        self.mainDisplayWindow().close()
+        super().closeEvent(event)
