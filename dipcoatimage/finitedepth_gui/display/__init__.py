@@ -20,14 +20,12 @@ from .toolbar import (
     get_icons_path,
 )
 from .videostream import (
-    MediaController,
     PreviewableNDArrayVideoPlayer,
     VisualizeProcessor,
 )
 
 
 __all__ = [
-    "MediaController",
     "PreviewableNDArrayVideoPlayer",
     "VisualizeProcessor",
     "NDArrayROILabel",

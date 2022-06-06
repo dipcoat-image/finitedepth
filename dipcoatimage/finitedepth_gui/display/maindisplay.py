@@ -1,3 +1,4 @@
+from araviq6 import MediaController
 import cv2  # type: ignore[import]
 from cv2PySide6 import NDArrayMediaCaptureSession
 from dipcoatimage.finitedepth.analysis import ExperimentKind
@@ -13,7 +14,6 @@ from typing import Optional, List
 from .toolbar import DisplayWidgetToolBar
 from .roidisplay import NDArrayROILabel
 from .videostream import (
-    MediaController,
     PreviewableNDArrayVideoPlayer,
     VisualizeProcessor,
 )
