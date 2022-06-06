@@ -54,12 +54,16 @@ class VisualizeProcessor(QObject):
         super().__init__(parent)
         self._worker = None
         self._selectedClass = ClassSelection.EXPERIMENT
+        self._ready = True
 
     def visualizeWorker(self) -> Optional[MasterWorker]:
         return self._worker
 
     def selectedClass(self) -> ClassSelection:
         return self._selectedClass
+
+    def ready(self) -> bool:
+        return self._ready
 
     def setVisualizeWorker(self, worker: Optional[MasterWorker]):
         self._worker = worker
@@ -73,7 +77,9 @@ class VisualizeProcessor(QObject):
         Process *array* with :meth:`processArray` and emit to
         :attr:`arrayChanged`.
         """
+        self._ready = False
         self.arrayChanged.emit(self.processArray(array))
+        self._ready = True
 
     def processArray(self, array: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
         # only the selected class is updated, e.g. updated reference instance is not
