@@ -289,10 +289,44 @@ class CoatingLayerBase(
         if not hasattr(self, "_template_point"):
             x0, y0, x1, y1 = self.substrate.reference.templateROI
             template = self.substrate.reference.image[y0:y1, x0:x1]
-            res = cv2.matchTemplate(self.image, template, cv2.TM_CCOEFF)
+
+            # make channel same
+            if len(self.image.shape) == 2:
+                img_gray = True
+            elif len(self.image.shape) == 3:
+                ch = self.image.shape[-1]
+                if ch == 1:
+                    img_gray = True
+                elif ch == 3:
+                    img_gray = False
+                else:
+                    raise TypeError(f"Image with invalid channel: {self.image.shape}")
+            else:
+                raise TypeError(f"Invalid image shape: {self.image.shape}")
+            if len(template.shape) == 2:
+                tmp_gray = True
+            elif len(template.shape) == 3:
+                ch = template.shape[-1]
+                if ch == 1:
+                    tmp_gray = True
+                elif ch == 3:
+                    tmp_gray = False
+                else:
+                    raise TypeError(f"Image with invalid channel: {template.shape}")
+            else:
+                raise TypeError(f"Invalid image shape: {template.shape}")
+            if img_gray and not tmp_gray:
+                image = self.image
+                template = cv2.cvtColor(template, cv2.COLOR_RGB2GRAY)
+            elif not img_gray and tmp_gray:
+                image = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
+            else:
+                image = self.image
+
+            res = cv2.matchTemplate(image, template, cv2.TM_CCOEFF)
             _, _, _, max_loc = cv2.minMaxLoc(res)
-            self._template_point = tuple(max_loc)  # type: ignore
-        return self._template_point  # type: ignore
+            self._template_point = tuple(max_loc)
+        return self._template_point  # type: ignore[return-value]
 
     def substrate_point(self) -> Tuple[int, int]:
         """
