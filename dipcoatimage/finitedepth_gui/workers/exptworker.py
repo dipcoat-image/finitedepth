@@ -44,6 +44,17 @@ class ExperimentWorker(WorkerBase):
     :meth:`updateExperiment` constructs the experiment object with data.
     Resulting object can be acquired by :meth:`experiment`.
 
+    Notes
+    =====
+
+    Unlike :class:`Experiment`, previous coating layer instance is not passed to
+    consecutive instance construction. This is to ensure consistent result when
+    visualizing the images in random order, e.g. moving the video player slider.
+    Therefore :meth:`experiment` set to the worker must return same result from
+    :meth:`construct_coatinglayer` whether *prev* is passed or not.
+
+    This does not apply to :class:`AnalysisWorker`.
+
     """
 
     def __init__(self, parent=None):
