@@ -111,6 +111,9 @@ jobs:
       - name: set up Python
         uses: actions/setup-python@v2
 
+      - name: update apt-get
+        run: sudo apt-get update
+
       - name: install libopengl
         run: sudo apt-get install freeglut3 freeglut3-dev
 
