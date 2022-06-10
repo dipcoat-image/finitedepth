@@ -77,6 +77,7 @@ class VisualizeProcessor(QObject):
         Process *array* with :meth:`processArray` and emit to
         :attr:`arrayChanged`.
         """
+        array = array.copy()  # must detach array from the memory
         self._ready = False
         self.arrayChanged.emit(self.processArray(array))
         self._ready = True
