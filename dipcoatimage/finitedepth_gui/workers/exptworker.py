@@ -57,7 +57,6 @@ class ExperimentWorker(WorkerBase):
         self._params = None
 
         self._expt = None
-        self._layer_generator = None
 
     def experimentType(self) -> Optional[Type[ExperimentBase]]:
         """
