@@ -186,24 +186,19 @@ class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
     def construct_coatinglayer(
         self,
         image: npt.NDArray[np.uint8],
-        i: int = 0,
         prev: Optional[CoatingLayerBase] = None,
     ) -> CoatingLayerBase:
         """
         Construct instance of :attr:`layer_type` with *image* and attributes.
 
-        *i* and *prev* are passed to allow passing different parameters for
-        each coating layer instance. Subclass may override this method modify
-        the parameters.
+        *prev* is passed to allow passing different parameters for each coating
+        layer instance. Subclass may override this method modify the parameters.
 
         Parameters
         ==========
 
         image
             *image* argument for coating layer class.
-
-        i
-            Frame number for *img*.
 
         prev
             Previous coating layer instance.
@@ -219,7 +214,7 @@ class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
         return ret
 
     def layer_generator(
-        self, i: int = 0, prev: Optional[CoatingLayerBase] = None
+        self, prev: Optional[CoatingLayerBase] = None
     ) -> Generator[CoatingLayerBase, npt.NDArray[np.uint8], None]:
         """
         Generator which receives coated substrate image to yield instance of
@@ -235,9 +230,6 @@ class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
         Parameters
         ==========
 
-        i
-            Starting number to count passed image.
-
         prev
             Coating layer instance treated to be previous one to construct the
             first coating layer instance.
@@ -245,10 +237,9 @@ class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
         """
         while True:
             img = yield  # type: ignore
-            layer = self.construct_coatinglayer(img, i, prev)
+            layer = self.construct_coatinglayer(img, prev)
             yield layer
             prev = layer
-            i += 1
 
 
 @dataclasses.dataclass(frozen=True)
