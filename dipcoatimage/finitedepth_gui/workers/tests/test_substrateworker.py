@@ -1,4 +1,4 @@
-"""Test for substrate widget and substrate worker."""
+"""Test for substrate worker."""
 
 import cv2  # type: ignore
 from dipcoatimage.finitedepth import (
@@ -8,13 +8,9 @@ from dipcoatimage.finitedepth import (
     RectSubstrate,
     data_converter,
 )
-from dipcoatimage.finitedepth_gui.controlwidgets import (
-    SubstrateWidget,
-)
 from dipcoatimage.finitedepth_gui.inventory import StructuredSubstrateArgs
 from dipcoatimage.finitedepth_gui.workers import SubstrateWorker
 import numpy as np
-import pytest
 
 
 REF_PATH = get_samples_path("ref1.png")
@@ -31,52 +27,6 @@ params = data_converter.structure(
     RectSubstrate.Parameters,
 )
 SUBST = RectSubstrate(REF, parameters=params)
-
-
-@pytest.fixture
-def substwidget(qtbot):
-    widget = SubstrateWidget()
-    widget.typeWidget().registerVariable(
-        "Substrate", "Substrate", "dipcoatimage.finitedepth"
-    )
-    widget.typeWidget().registerVariable(
-        "RectSubstrate", "RectSubstrate", "dipcoatimage.finitedepth"
-    )
-    return widget
-
-
-def test_SubstrateWidget_onSubstrateTypeChange(qtbot, substwidget):
-    signals = [
-        substwidget.parametersWidget().currentChanged,
-        substwidget.drawOptionsWidget().currentChanged,
-    ]
-
-    with qtbot.waitSignals(signals):
-        substwidget.typeWidget().variableComboBox().setCurrentIndex(0)
-    assert (
-        substwidget.parametersWidget().currentWidget().dataclassType()
-        == Substrate.Parameters
-    )
-    assert (
-        substwidget.drawOptionsWidget().currentWidget().dataclassType()
-        == Substrate.DrawOptions
-    )
-
-    with qtbot.waitSignals(signals):
-        substwidget.typeWidget().variableComboBox().setCurrentIndex(1)
-    assert (
-        substwidget.parametersWidget().currentWidget().dataclassType()
-        == RectSubstrate.Parameters
-    )
-    assert (
-        substwidget.drawOptionsWidget().currentWidget().dataclassType()
-        == RectSubstrate.DrawOptions
-    )
-
-    with qtbot.waitSignals(signals):
-        substwidget.typeWidget().setImportInformation("foo", "bar")
-    assert substwidget.parametersWidget().currentIndex() == 0
-    assert substwidget.drawOptionsWidget().currentIndex() == 0
 
 
 def test_SubstrateWorker_setStructuredSubstrateArgs(qtbot):

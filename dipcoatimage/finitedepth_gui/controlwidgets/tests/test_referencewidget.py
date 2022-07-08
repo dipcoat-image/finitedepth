@@ -1,24 +1,12 @@
-"""Test for reference widget and reference worker."""
+"""Test for reference widget."""
 
-import cv2  # type: ignore
-from dipcoatimage.finitedepth import (
-    get_samples_path,
-    SubstrateReference,
-)
-from dipcoatimage.finitedepth_gui.controlwidgets import (
-    ReferenceWidget,
-)
-from dipcoatimage.finitedepth_gui.inventory import StructuredReferenceArgs
-from dipcoatimage.finitedepth_gui.workers import ReferenceWorker
+from dipcoatimage.finitedepth import get_samples_path, SubstrateReference
+from dipcoatimage.finitedepth_gui.controlwidgets import ReferenceWidget
 from PySide6.QtCore import Qt
 import pytest
 
 
 REF_PATH = get_samples_path("ref1.png")
-REF_IMG = cv2.imread(REF_PATH)
-if REF_IMG is None:
-    raise TypeError("Invalid reference image sample.")
-REF_IMG = cv2.cvtColor(REF_IMG, cv2.COLOR_BGR2RGB)
 
 
 @pytest.fixture
@@ -112,43 +100,3 @@ def test_ReferenceWidget_exclusiveButtons(qtbot):
     qtbot.mouseClick(refwidget.substrateROIDrawButton(), Qt.LeftButton)
     assert refwidget.substrateROIDrawButton().isChecked()
     assert not refwidget.templateROIDrawButton().isChecked()
-
-
-def test_ReferenceWorker_setStructuredReferenceArgs(qtbot):
-    worker = ReferenceWorker()
-    assert worker.referenceType() is None
-    assert worker.image().size == 0
-    assert worker.parameters() is None
-    assert worker.drawOptions() is None
-
-    valid_data1 = StructuredReferenceArgs(
-        SubstrateReference, (0, 0, None, None), (0, 0, None, None), None, None
-    )
-    worker.setStructuredReferenceArgs(valid_data1)
-    assert worker.referenceType() == valid_data1.type
-    assert worker.parameters() == worker.referenceType().Parameters()
-    assert worker.drawOptions() == worker.referenceType().DrawOptions()
-
-    valid_data2 = StructuredReferenceArgs(
-        SubstrateReference,
-        (0, 0, None, None),
-        (0, 0, None, None),
-        SubstrateReference.Parameters(),
-        SubstrateReference.DrawOptions(),
-    )
-    worker.setStructuredReferenceArgs(valid_data2)
-    assert worker.referenceType() == valid_data2.type
-    assert worker.parameters() == valid_data2.parameters
-    assert worker.drawOptions() == valid_data2.draw_options
-
-    type_invalid_data = StructuredReferenceArgs(
-        type,
-        (0, 0, None, None),
-        (0, 0, None, None),
-        SubstrateReference.Parameters(),
-        SubstrateReference.DrawOptions(),
-    )
-    worker.setStructuredReferenceArgs(type_invalid_data)
-    assert worker.referenceType() is None
-    assert worker.parameters() is None
-    assert worker.drawOptions() is None
