@@ -178,12 +178,30 @@ class MainDisplayWindow(QMainWindow):
 
     @Slot(int, list, ExperimentKind)
     def onCoatPathsChange(self, row: int, paths: List[str], kind: ExperimentKind):
-        # no need to wait for worker update, so visualization directly updated
-        if row == self.currentExperimentRow():
-            self._coat_paths = paths
-            self._expt_kind = kind
-            self.updateControllerVisibility()
-            self.updateVisualization()
+        if row != self.currentExperimentRow():
+            return
+
+        self._coat_paths = paths
+        self._expt_kind = kind
+        self.updateControllerVisibility()
+        if self.camera().isActive():
+            pass
+        elif self.selectedClass() in {
+            ClassSelection.REFERENCE,
+            ClassSelection.SUBSTRATE,
+        }:
+            self.visualizeProcessor().emitVisualizationFromModel(self.selectedClass())
+        elif self.experimentKind() == ExperimentKind.VideoExperiment:
+            self.videoPlayer().setSource(QUrl.fromLocalFile(self.coatPaths()[0]))
+        elif (
+            self.experimentKind() == ExperimentKind.SingleImageExperiment
+            or self.experimentKind() == ExperimentKind.MultiImageExperiment
+        ):
+            img = cv2.cvtColor(cv2.imread(self.coatPaths()[0]), cv2.COLOR_BGR2RGB)
+            self.visualizeProcessor().setArray(img)
+        else:
+            img = np.empty((0, 0, 0), dtype=np.uint8)
+            self.visualizeProcessor().setArray(img)
 
     @Slot(ClassSelection)
     def setSelectedClass(self, select: ClassSelection):
