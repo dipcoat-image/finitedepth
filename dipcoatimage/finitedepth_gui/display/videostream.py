@@ -108,7 +108,10 @@ class VisualizeProcessor(QObject):
             return
         if select == ClassSelection.REFERENCE:
             ret = worker.referenceWorker().visualizedImage()
-            self.arrayChanged.emit(ret)
         elif select == ClassSelection.SUBSTRATE:
             ret = worker.substrateWorker().visualizedImage()
-            self.arrayChanged.emit(ret)
+        else:
+            ret = worker.experimentWorker().visualizeImage(
+                worker.experimentWorker().coatingLayerImage()
+            )
+        self.arrayChanged.emit(ret)
