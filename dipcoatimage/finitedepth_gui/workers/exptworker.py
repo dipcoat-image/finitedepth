@@ -44,6 +44,9 @@ class ExperimentWorker(WorkerBase):
     :meth:`updateExperiment` constructs the experiment object with data.
     Resulting object can be acquired by :meth:`experiment`.
 
+    Most recent coating layer image passed to the experiment can be retrieved by
+    :meth:`coatingLayerImage`.
+
     Notes
     =====
 
@@ -68,6 +71,7 @@ class ExperimentWorker(WorkerBase):
         self._params = None
 
         self._expt = None
+        self._layer_img = np.empty((0, 0, 0), dtype=np.uint8)
 
     def experimentType(self) -> Optional[Type[ExperimentBase]]:
         """
@@ -244,11 +248,20 @@ class ExperimentWorker(WorkerBase):
         """
         return self._expt
 
+    def coatingLayerImage(self) -> npt.NDArray[np.uint8]:
+        """
+        Most recent coating layer image passed to :meth:`visualizeImage`.
+        """
+        return self._layer_img
+
     def visualizeImage(self, img: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
         """
         Return visualization result of *img* analyzed by :meth:`experiment`.
+        *img* is stored to :meth:`coatingLayerImage`.
 
         """
+        self._layer_img = img.copy()
+
         expt = self.experiment()
         vismode = self.visualizationMode()
         if expt is not None and img.size > 0:

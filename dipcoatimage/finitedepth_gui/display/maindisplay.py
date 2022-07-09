@@ -176,14 +176,34 @@ class MainDisplayWindow(QMainWindow):
     def disconnectModel(self, model: ExperimentItemModel):
         model.coatPathsChanged.disconnect(self.onCoatPathsChange)
 
+    def setCoatPaths(self, paths: List[str], kind: ExperimentKind):
+        self._coat_paths = paths
+        self._expt_kind = kind
+        self.updateControllerVisibility()
+        if self.camera().isActive():
+            pass
+        elif self.selectedClass() in {
+            ClassSelection.REFERENCE,
+            ClassSelection.SUBSTRATE,
+        }:
+            pass
+        elif self.experimentKind() == ExperimentKind.VideoExperiment:
+            self.videoPlayer().setSource(QUrl.fromLocalFile(self.coatPaths()[0]))
+        elif (
+            self.experimentKind() == ExperimentKind.SingleImageExperiment
+            or self.experimentKind() == ExperimentKind.MultiImageExperiment
+        ):
+            img = cv2.cvtColor(cv2.imread(self.coatPaths()[0]), cv2.COLOR_BGR2RGB)
+            self.visualizeProcessor().setArray(img)
+        else:
+            img = np.empty((0, 0, 0), dtype=np.uint8)
+            self.visualizeProcessor().setArray(img)
+
     @Slot(int, list, ExperimentKind)
     def onCoatPathsChange(self, row: int, paths: List[str], kind: ExperimentKind):
-        # no need to wait for worker update, so visualization directly updated
-        if row == self.currentExperimentRow():
-            self._coat_paths = paths
-            self._expt_kind = kind
-            self.updateControllerVisibility()
-            self.updateVisualization()
+        if row != self.currentExperimentRow():
+            return
+        self.setCoatPaths(paths, kind)
 
     @Slot(ClassSelection)
     def setSelectedClass(self, select: ClassSelection):
@@ -192,7 +212,7 @@ class MainDisplayWindow(QMainWindow):
             select = ClassSelection.EXPERIMENT
         if select != self.selectedClass():
             if self.videoPlayer().playbackState() == self.videoPlayer().PlayingState:
-                self.videoPlayer().stop()
+                self.videoPlayer().pause()
             self._selectedClass = select
             self.updateControllerVisibility()
             self.visualizeProcessor().setSelectedClass(select)
@@ -200,14 +220,14 @@ class MainDisplayWindow(QMainWindow):
 
     @Slot(int)
     def setCurrentExperimentRow(self, row: int):
-        # visualization updated by worker signal
+        # visualization is not updated here but by onWorkersUpdate()
         self._currentExperimentRow = row
         model = self.experimentItemModel()
         if model is None:
             return
-        self._coat_paths = model.coatPaths(row)
-        self._expt_kind = model.experimentKind(row)
-        self.updateControllerVisibility()
+        paths = model.coatPaths(row)
+        kind = model.experimentKind(row)
+        self.setCoatPaths(paths, kind)
 
     @Slot(bool)
     def onCameraActiveChange(self, active: bool):
@@ -240,22 +260,8 @@ class MainDisplayWindow(QMainWindow):
 
     def updateVisualization(self):
         if self.camera().isActive():
-            pass
-        elif self.selectedClass() in {
-            ClassSelection.REFERENCE,
-            ClassSelection.SUBSTRATE,
-        }:  # directly update
-            self.visualizeProcessor().emitVisualizationFromModel(self.selectedClass())
-        elif self.experimentKind() == ExperimentKind.VideoExperiment:
-            self.videoPlayer().setSource(QUrl.fromLocalFile(self.coatPaths()[0]))
-        elif (
-            self.experimentKind() == ExperimentKind.SingleImageExperiment
-            or self.experimentKind() == ExperimentKind.MultiImageExperiment
-        ):
-            img = cv2.cvtColor(cv2.imread(self.coatPaths()[0]), cv2.COLOR_BGR2RGB)
-            self.visualizeProcessor().setArray(img)
-        else:  # flush image
-            self.displayLabel().setPixmap(QPixmap())
+            return
+        self.visualizeProcessor().emitVisualizationFromModel(self.selectedClass())
 
     @Slot(ROIModel, bool)
     def toggleROIDraw(self, model: ROIModel, state: bool):
