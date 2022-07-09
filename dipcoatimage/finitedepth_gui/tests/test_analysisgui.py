@@ -1,9 +1,7 @@
 from dipcoatimage.finitedepth import get_samples_path
 from dipcoatimage.finitedepth_gui import AnalysisGUI
-import pytest
 
 
-@pytest.mark.xfail
 def test_issue65(qtbot):
     """Test that changing options does not stops video."""
     window = AnalysisGUI()
