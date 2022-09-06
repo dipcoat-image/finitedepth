@@ -323,9 +323,9 @@ class CoatingLayerBase(
             else:
                 image = self.image
 
-            res = cv2.matchTemplate(image, template, cv2.TM_CCOEFF)
-            _, _, _, max_loc = cv2.minMaxLoc(res)
-            self._template_point = tuple(max_loc)
+            res = cv2.matchTemplate(image, template, cv2.TM_SQDIFF_NORMED)
+            _, _, loc, _ = cv2.minMaxLoc(res)
+            self._template_point = tuple(loc)
         return self._template_point  # type: ignore[return-value]
 
     def substrate_point(self) -> Tuple[int, int]:
