@@ -160,6 +160,7 @@ class CoatingLayerBase(
         "_deco_options",
         "_binary_image",
         "_template_point",
+        "_template_score",
         "_extracted_layer",
     )
 
@@ -276,57 +277,81 @@ class CoatingLayerBase(
             self._binary_image = ret
         return self._binary_image
 
+    def _match_template(self) -> Tuple[float, Tuple[int, int]]:
+        x0, y0, x1, y1 = self.substrate.reference.templateROI
+        template = self.substrate.reference.image[y0:y1, x0:x1]
+
+        # make channel same
+        if len(self.image.shape) == 2:
+            img_gray = True
+        elif len(self.image.shape) == 3:
+            ch = self.image.shape[-1]
+            if ch == 1:
+                img_gray = True
+            elif ch == 3:
+                img_gray = False
+            else:
+                raise TypeError(f"Image with invalid channel: {self.image.shape}")
+        else:
+            raise TypeError(f"Invalid image shape: {self.image.shape}")
+        if len(template.shape) == 2:
+            tmp_gray = True
+        elif len(template.shape) == 3:
+            ch = template.shape[-1]
+            if ch == 1:
+                tmp_gray = True
+            elif ch == 3:
+                tmp_gray = False
+            else:
+                raise TypeError(f"Image with invalid channel: {template.shape}")
+        else:
+            raise TypeError(f"Invalid image shape: {template.shape}")
+        if img_gray and not tmp_gray:
+            image = self.image
+            template = cv2.cvtColor(template, cv2.COLOR_RGB2GRAY)
+        elif not img_gray and tmp_gray:
+            image = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
+        else:
+            image = self.image
+
+        res = cv2.matchTemplate(image, template, cv2.TM_SQDIFF_NORMED)
+        score, _, loc, _ = cv2.minMaxLoc(res)
+        return (score, loc)
+
     def template_point(self) -> Tuple[int, int]:
         """
         Upper left point in ``(x, y)`` where the matched template is located.
 
+        Template matching is performed with :obj:`cv2.TM_SQDIFF_NORMED`.
+
         Notes
         =====
 
-        This method is cached.
+        This method is cached. Calling this method for the first time updates
+        :meth:`template_score` as well.
 
         """
         if not hasattr(self, "_template_point"):
-            x0, y0, x1, y1 = self.substrate.reference.templateROI
-            template = self.substrate.reference.image[y0:y1, x0:x1]
+            self._template_score, self._template_point = self._match_template()
+        return self._template_point
 
-            # make channel same
-            if len(self.image.shape) == 2:
-                img_gray = True
-            elif len(self.image.shape) == 3:
-                ch = self.image.shape[-1]
-                if ch == 1:
-                    img_gray = True
-                elif ch == 3:
-                    img_gray = False
-                else:
-                    raise TypeError(f"Image with invalid channel: {self.image.shape}")
-            else:
-                raise TypeError(f"Invalid image shape: {self.image.shape}")
-            if len(template.shape) == 2:
-                tmp_gray = True
-            elif len(template.shape) == 3:
-                ch = template.shape[-1]
-                if ch == 1:
-                    tmp_gray = True
-                elif ch == 3:
-                    tmp_gray = False
-                else:
-                    raise TypeError(f"Image with invalid channel: {template.shape}")
-            else:
-                raise TypeError(f"Invalid image shape: {template.shape}")
-            if img_gray and not tmp_gray:
-                image = self.image
-                template = cv2.cvtColor(template, cv2.COLOR_RGB2GRAY)
-            elif not img_gray and tmp_gray:
-                image = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
-            else:
-                image = self.image
+    def template_score(self) -> float:
+        """
+        Normalized score in range ``[0, 1]`` for the matched template.
 
-            res = cv2.matchTemplate(image, template, cv2.TM_CCOEFF)
-            _, _, _, max_loc = cv2.minMaxLoc(res)
-            self._template_point = tuple(max_loc)
-        return self._template_point  # type: ignore[return-value]
+        Template matching is performed with :obj:`cv2.TM_SQDIFF_NORMED`. Zero
+        score indicates complete match.
+
+        Notes
+        =====
+
+        This method is cached. Calling this method for the first time updates
+        :meth:`template_point` as well.
+
+        """
+        if not hasattr(self, "_template_score"):
+            self._template_score, self._template_point = self._match_template()
+        return self._template_score
 
     def substrate_point(self) -> Tuple[int, int]:
         """
