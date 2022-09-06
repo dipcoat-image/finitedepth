@@ -14,7 +14,7 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
-autodoc_mock_imports = []
+autodoc_mock_imports = ["PySide6.QtMultimedia"]
 
 
 # -- Project information -----------------------------------------------------
