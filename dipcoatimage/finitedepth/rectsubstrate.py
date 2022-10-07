@@ -51,7 +51,7 @@ import enum
 from math import isclose
 import numpy as np
 import numpy.typing as npt
-from typing import Tuple, Optional, Dict
+from typing import TypeVar, Tuple, Optional, Dict, Type
 from .substrate import SubstrateError, SubstrateBase
 from .util import intrsct_pt_polar, CannyParameters, HoughLinesParameters
 
@@ -62,16 +62,23 @@ except ImportError:
 
 
 __all__ = [
+    "RectSubstrateError",
     "RectSubstrateParameters",
     "RectSubstrateDrawMode",
     "RectSubstrateDrawOptions",
-    "RectSubstrateError",
     "RectSubstrateHoughLinesError",
     "RectSubstrateEdgeError",
     "RectSubstrateLineType",
     "RectSubstratePointType",
+    "RectSubstrateBase",
     "RectSubstrate",
 ]
+
+
+class RectSubstrateError(SubstrateError):
+    """Base class for error from :class:`RectSubstrate`."""
+
+    pass
 
 
 @dataclasses.dataclass(frozen=True)
@@ -139,12 +146,6 @@ class RectSubstrateDrawOptions:
     Draw_Edges: bool = True
     edge_color: Tuple[int, int, int] = (0, 0, 255)
     edge_thickness: int = 5
-
-
-class RectSubstrateError(SubstrateError):
-    """Base class for error from :class:`RectSubstrate`."""
-
-    pass
 
 
 class RectSubstrateHoughLinesError(RectSubstrateError):
@@ -221,68 +222,18 @@ class RectSubstratePointType(enum.Enum):
     TOPRIGHT = "TOPRIGHT"
 
 
-class RectSubstrate(SubstrateBase[RectSubstrateParameters, RectSubstrateDrawOptions]):
+ParametersType = TypeVar("ParametersType", bound=RectSubstrateParameters)
+DrawOptionsType = TypeVar("DrawOptionsType", bound=RectSubstrateDrawOptions)
+
+
+class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     """
-    Class for the substrate image in rectangular shape.
-
-    Rectangular substrate is characterized by four edges and vertices,
-    which are detected by :meth:`edge_lines` and :meth:`vertex_points`.
-
-    Examples
-    ========
-
-    Construct substrate reference instance first.
-
-    .. plot::
-       :include-source:
-       :context: reset
-
-       >>> import cv2
-       >>> from dipcoatimage.finitedepth import (SubstrateReference,
-       ...     get_samples_path)
-       >>> ref_path = get_samples_path("ref1.png")
-       >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
-       >>> tempROI = (200, 50, 1200, 200)
-       >>> substROI = (400, 100, 1000, 500)
-       >>> ref = SubstrateReference(img, tempROI, substROI)
-       >>> import matplotlib.pyplot as plt #doctest: +SKIP
-       >>> plt.imshow(ref.draw()) #doctest: +SKIP
-
-    Construct the parameters and substrate instance from reference instance.
-
-    .. plot::
-       :include-source:
-       :context: close-figs
-
-       >>> from dipcoatimage.finitedepth import (CannyParameters,
-       ...     HoughLinesParameters, RectSubstrate)
-       >>> cparams = CannyParameters(50, 150)
-       >>> hparams = HoughLinesParameters(1, 0.01, 100)
-       >>> params = RectSubstrate.Parameters(cparams, hparams)
-       >>> subst = RectSubstrate(ref, parameters=params)
-       >>> plt.imshow(subst.draw()) #doctest: +SKIP
-
-    Visualization can be controlled by modifying :attr:`draw_options`.
-
-    .. plot::
-       :include-source:
-       :context: close-figs
-
-       >>> subst.draw_options.draw_lines = False
-       >>> subst.draw_options.edge_color = (255, 0, 0)
-       >>> plt.imshow(subst.draw()) #doctest: +SKIP
+    Abstract base class for substrate with rectangular shape.
 
     """
 
-    __slots__ = (
-        "_cannyimage",
-        "_lines",
-        "_edge_lines",
-        "_vertex_points",
-    )
-
-    Parameters = RectSubstrateParameters
-    DrawOptions = RectSubstrateDrawOptions
+    Parameters: Type[ParametersType]
+    DrawOptions: Type[DrawOptionsType]
 
     DrawMode: TypeAlias = RectSubstrateDrawMode
     Draw_Original = RectSubstrateDrawMode.ORIGINAL
@@ -498,3 +449,69 @@ class RectSubstrate(SubstrateBase[RectSubstrateParameters, RectSubstrateDrawOpti
                 cv2.line(ret, bottomleft, topleft, color, thickness)
 
         return ret
+
+
+class RectSubstrate(
+    RectSubstrateBase[RectSubstrateParameters, RectSubstrateDrawOptions]
+):
+    """
+    Class for the substrate image in rectangular shape.
+
+    Rectangular substrate is characterized by four edges and vertices,
+    which are detected by :meth:`edge_lines` and :meth:`vertex_points`.
+
+    Examples
+    ========
+
+    Construct substrate reference instance first.
+
+    .. plot::
+       :include-source:
+       :context: reset
+
+       >>> import cv2
+       >>> from dipcoatimage.finitedepth import (SubstrateReference,
+       ...     get_samples_path)
+       >>> ref_path = get_samples_path("ref1.png")
+       >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+       >>> tempROI = (200, 50, 1200, 200)
+       >>> substROI = (400, 100, 1000, 500)
+       >>> ref = SubstrateReference(img, tempROI, substROI)
+       >>> import matplotlib.pyplot as plt #doctest: +SKIP
+       >>> plt.imshow(ref.draw()) #doctest: +SKIP
+
+    Construct the parameters and substrate instance from reference instance.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> from dipcoatimage.finitedepth import (CannyParameters,
+       ...     HoughLinesParameters, RectSubstrate)
+       >>> cparams = CannyParameters(50, 150)
+       >>> hparams = HoughLinesParameters(1, 0.01, 100)
+       >>> params = RectSubstrate.Parameters(cparams, hparams)
+       >>> subst = RectSubstrate(ref, parameters=params)
+       >>> plt.imshow(subst.draw()) #doctest: +SKIP
+
+    Visualization can be controlled by modifying :attr:`draw_options`.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> subst.draw_options.draw_lines = False
+       >>> subst.draw_options.edge_color = (255, 0, 0)
+       >>> plt.imshow(subst.draw()) #doctest: +SKIP
+
+    """
+
+    __slots__ = (
+        "_cannyimage",
+        "_lines",
+        "_edge_lines",
+        "_vertex_points",
+    )
+
+    Parameters = RectSubstrateParameters
+    DrawOptions = RectSubstrateDrawOptions

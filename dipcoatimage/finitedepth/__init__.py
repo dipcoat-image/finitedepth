@@ -31,6 +31,7 @@ from .substrate import (
 )
 from .rectsubstrate import (
     RectSubstrateError,
+    RectSubstrateBase,
     RectSubstrateHoughLinesError,
     RectSubstrateEdgeError,
     RectSubstrate,
@@ -61,6 +62,7 @@ __all__ = [
     "CannyParameters",
     "HoughLinesParameters",
     "RectSubstrateError",
+    "RectSubstrateBase",
     "RectSubstrateHoughLinesError",
     "RectSubstrateEdgeError",
     "RectSubstrate",
