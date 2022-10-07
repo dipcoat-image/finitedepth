@@ -2,9 +2,14 @@
 Welcome to DipCoatImage-FiniteDepth's documentation!
 ====================================================
 
-.. toctree::
-   :maxdepth: 1
+This is the central page for all documents.
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
+
+   intro
+   install
    user-guide/index
    API reference <reference/index>
    dev-guide/index
