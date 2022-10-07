@@ -76,14 +76,17 @@ __all__ = [
 
 
 class RectSubstrateError(SubstrateError):
-    """Base class for error from :class:`RectSubstrate`."""
+    """Base class for the errors from rectangular substrate class."""
 
     pass
 
 
 @dataclasses.dataclass(frozen=True)
 class RectSubstrateParameters:
-    """Parameters for :class:`RectSubstrate`."""
+    """
+    Parameters for the rectangular substrate class to detect the substrate edges
+    using Canny edge detection and Hough line transformation.
+    """
 
     Canny: CannyParameters
     HoughLines: HoughLinesParameters
@@ -91,8 +94,7 @@ class RectSubstrateParameters:
 
 class RectSubstrateDrawMode(enum.Enum):
     """
-    Option for :class:`RectSubstrateDrawOptions` to determine how the substrate
-    image is drawn.
+    Option to determine how the rectangular substrate is drawn.
 
     Attributes
     ==========
@@ -116,7 +118,7 @@ class RectSubstrateDrawMode(enum.Enum):
 @dataclasses.dataclass
 class RectSubstrateDrawOptions:
     """
-    Drawing options for :class:`RectSubstrate`.
+    Drawing options for rectangular substrate.
 
     Parameters
     ==========
@@ -149,20 +151,20 @@ class RectSubstrateDrawOptions:
 
 
 class RectSubstrateHoughLinesError(RectSubstrateError):
-    """Error from Hough lines transformation in :class:`RectSubstrate`."""
+    """Error from Hough lines transformation in rectangular substrate."""
 
     pass
 
 
 class RectSubstrateEdgeError(RectSubstrateError):
-    """Error from edge line classification in :class:`RectSubstrate`."""
+    """Error from edge line classification in rectangular substrate."""
 
     pass
 
 
 class RectSubstrateLineType(enum.Enum):
     """
-    Type of the line detected in :class:`RectSubstrate()`.
+    Type of the line detected in rectangular substrate.
 
     Attributes
     ==========
@@ -193,7 +195,7 @@ class RectSubstrateLineType(enum.Enum):
 
 class RectSubstratePointType(enum.Enum):
     """
-    Type of the point detected in :class:`RectSubstrate()`.
+    Type of the point detected in rectangular substrate.
 
     Attributes
     ==========
@@ -229,6 +231,9 @@ DrawOptionsType = TypeVar("DrawOptionsType", bound=RectSubstrateDrawOptions)
 class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     """
     Abstract base class for substrate with rectangular shape.
+
+    Rectangular substrate is characterized by four edges and vertices,
+    which are detected by :meth:`edge_lines` and :meth:`vertex_points`.
 
     """
 
@@ -455,10 +460,7 @@ class RectSubstrate(
     RectSubstrateBase[RectSubstrateParameters, RectSubstrateDrawOptions]
 ):
     """
-    Class for the substrate image in rectangular shape.
-
-    Rectangular substrate is characterized by four edges and vertices,
-    which are detected by :meth:`edge_lines` and :meth:`vertex_points`.
+    Simplest implementation of :class:`RectSubstrate`.
 
     Examples
     ========
