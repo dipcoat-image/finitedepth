@@ -10,7 +10,9 @@ This is the central page for all documents.
 
    intro
    install
+   tutorial/index
    user-guide/index
+   explanation/index
    API reference <reference/index>
    dev-guide/index
 

@@ -55,7 +55,7 @@ Which to choose depends on your purpose.
 2. If you expect your class to be further extended, defining abstract class is the right choice.
 3. If you just want to override a few methods, you may inherit from concrete class.
 
-:ref:`how-to` provides guide to implement concrete class from abstract class.
+:ref:`user-guide` provides guide to implement concrete class from abstract class.
 To know how to define new abstract class, :class:`.RectLayerArea` can serve as a good example.
 
 Inheriting concrete class is generally not recommended because the class design is extremely restricted.
