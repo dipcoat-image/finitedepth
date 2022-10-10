@@ -1,12 +1,12 @@
+.. _user-guide:
+
 ==========
 User guide
 ==========
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
-   introduction
-   installation
-   tutorials/index
-   how-to/index
-   explanation/index
+   defining-reference
+   defining-substrate
+   dataclass-design
