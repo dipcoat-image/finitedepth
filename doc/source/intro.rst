@@ -2,6 +2,8 @@
 Introduction
 ============
 
+.. currentmodule:: dipcoatimage.finitedepth
+
 DipCoatImage-FiniteDepth is a Python package to perform image analysis on the coating layer shape from the batch dip coating process with finite depth.
 
 The image below shows how the finite depth dip coating is performed.
@@ -57,8 +59,90 @@ From the coated substrate image, coating layer region can be extracted for analy
    plt.axis("off")
    plt.imshow(coat.draw())
 
-For this, DipCoatImage-FiniteDepth defines three kind of classes:
+For this, :mod:`dipcoatimage.finitedepth` defines three kind of classes:
 
 1. Substrate reference
 2. Substrate
 3. Coating layer
+
+Substrate reference
+===================
+
+Substrate reference class specifies the template ROI and substrate ROI from the bare substrate image.
+
+.. plot::
+   :context: reset
+   :include-source:
+   :caption: Template ROI (green), substrate ROI (red)
+   :align: center
+
+   >>> import cv2
+   >>> from dipcoatimage.finitedepth import get_samples_path, SubstrateReference
+   >>> import matplotlib.pyplot as plt
+
+   >>> ref_path = get_samples_path("ref3.png")
+   >>> ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+   >>> templateROI, substrateROI = (50, 50, 1200, 200), (200, 30, 1000, 600)
+   >>> ref = SubstrateReference(ref_img, templateROI, substrateROI)
+   >>> plt.imshow(ref.draw()) #doctest: +SKIP
+
+Substrate
+=========
+
+Substrate class analyzes the geometery of the bare substrate.
+
+.. plot::
+   :context: close-figs
+   :include-source:
+   :caption: Edge of the substrate (blue) detected by :class:`.RectSubstrate`
+   :align: center
+
+   >>> from dipcoatimage.finitedepth import CannyParameters, HoughLinesParameters, RectSubstrate
+
+   >>> cparams = CannyParameters(50, 150)
+   >>> hparams = HoughLinesParameters(1, 0.01, 50)
+   >>> params = RectSubstrate.Parameters(cparams, hparams)
+   >>> subst = RectSubstrate(ref, parameters=params)
+   >>> subst.draw_options.draw_lines = False
+   >>> plt.imshow(subst.draw()) #doctest: +SKIP
+
+Coating layer
+=============
+
+Coating layer class extracts the coating layer by locating the bare substrate using template matching.
+It then analyzes the coating layer image using the geometery from the substrate class.
+
+.. plot::
+   :context: close-figs
+   :include-source:
+   :caption: Coating layer region (blue) extracted by :class:`.LayerArea`
+   :align: center
+
+   >>> from dipcoatimage.finitedepth import LayerArea
+
+   >>> coat_path = get_samples_path("coat3.png")
+   >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
+   >>> coat = LayerArea(coat_img, subst)
+   >>> coat.draw_options.draw_substrate = False
+   >>> coat.analyze()
+   LayerAreaData(Area=41283)
+   >>> plt.imshow(coat.draw()) #doctest: +SKIP
+
+GUI
+===
+
+:mod:`dipcoatimage.finitedepth_gui` provides GUI which wraps :mod:`dipcoatimage.finitedepth`.
+
+The following code runs the GUI.
+
+.. code-block:: python
+
+   from PySide6.QtWidgets import QApplication
+   import sys
+   from dipcoatimage.finitedepth_gui import AnalysisGUI
+
+   app = QApplication(sys.argv)
+   window = AnalysisGUI()
+   window.show()
+   app.exec()
+   app.quit()
