@@ -78,7 +78,7 @@ Substrate reference class specifies the template ROI and substrate ROI from the 
 
    >>> import cv2
    >>> from dipcoatimage.finitedepth import get_samples_path, SubstrateReference
-   >>> import matplotlib.pyplot as plt
+   >>> import matplotlib.pyplot as plt #doctest: +SKIP
 
    >>> ref_path = get_samples_path("ref3.png")
    >>> ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
