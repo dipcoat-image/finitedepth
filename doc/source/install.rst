@@ -73,6 +73,8 @@ This package contains :mod:`dipcoatimage.finitedepth` only (no :mod:`dipcoatimag
 
 .. rubric:: Install options
 
+.. _install-options:
+
 There are two types of install options for developers.
 
 * Install with editable option (``-e``)
