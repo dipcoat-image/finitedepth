@@ -8,6 +8,7 @@ V2 for inventory.py
 import copy
 import dataclasses
 from dipcoatimage.finitedepth import ExperimentData
+from dipcoatimage.finitedepth.util import DataclassProtocol
 from PySide6.QtCore import (
     QAbstractItemModel,
     QModelIndex,
@@ -25,7 +26,7 @@ from PySide6.QtWidgets import (
     QMenu,
     QSizePolicy,
 )
-from typing import Optional
+from typing import Optional, Any, List, Type
 
 
 __all__ = [
@@ -45,13 +46,13 @@ class ExperimentDataItem(object):
         self._children = []
         self._parent = None
 
-    def data(self, role):
+    def data(self, role: Qt.ItemDataRole) -> Any:
         return self._data.get(role, None)
 
-    def setData(self, role, data):
+    def setData(self, role: Qt.ItemDataRole, data: Any):
         self._data[role] = data
 
-    def children(self):
+    def children(self) -> List["ExperimentDataItem"]:
         return self._children
 
     def child(self, index):
@@ -59,17 +60,18 @@ class ExperimentDataItem(object):
             return self._children[index]
         return None
 
-    def parent(self):
+    def parent(self) -> Optional["ExperimentDataItem"]:
         return self._parent
 
-    def setParent(self, parent):
-        if self.parent() is not None:
-            raise RuntimeError("Can't reset parent.")
+    def setParent(self, parent: Optional["ExperimentDataItem"]):
+        old_parent = self.parent()
+        if old_parent is not None:
+            old_parent._children.remove(self)
         if parent is not None:
             parent._children.append(self)
         self._parent = parent
 
-    def remove(self, index):
+    def remove(self, index: int):
         if index < len(self._children):
             orphan = self._children.pop(index)
             orphan._parent = None
@@ -77,7 +79,7 @@ class ExperimentDataItem(object):
                 orphan.remove(0)
 
     @classmethod
-    def fromDataclass(cls, dcls):
+    def fromDataclass(cls, dcls: Type[DataclassProtocol]):
         inst = cls()
         for field in dataclasses.fields(dcls):
             t = field.type
@@ -88,7 +90,7 @@ class ExperimentDataItem(object):
             subItem.setParent(inst)
         return inst
 
-    def copyDataTo(self, other):
+    def copyDataTo(self, other: "ExperimentDataItem"):
         other._data = copy.deepcopy(self._data)
         for (subSelf, subOther) in zip(self._children, other._children):
             subSelf.copyDataTo(subOther)
