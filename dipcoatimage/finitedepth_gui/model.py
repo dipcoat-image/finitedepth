@@ -5,6 +5,7 @@ Experiment data model
 V2 for inventory.py
 """
 
+import copy
 import dataclasses
 from dipcoatimage.finitedepth import ExperimentData
 from PySide6.QtCore import (
@@ -87,6 +88,11 @@ class ExperimentDataItem(object):
             subItem.setParent(inst)
         return inst
 
+    def copyDataTo(self, other):
+        other._data = copy.deepcopy(self._data)
+        for (subSelf, subOther) in zip(self._children, other._children):
+            subSelf.copyDataTo(subOther)
+
 
 class ExperimentDataModel(QAbstractItemModel):
     """Model to store the data for :class:`ExperimentData`."""
@@ -151,19 +157,36 @@ class ExperimentDataModel(QAbstractItemModel):
         return False
 
     def insertRows(self, row, count, parent=QModelIndex()):
+        self.beginInsertRows(parent, row, row + count - 1)
         if not parent.isValid():
-            self.beginInsertRows(parent, row, row + count - 1)
             for _ in range(count):
                 newItem = ExperimentDataItem.fromDataclass(ExperimentData)
                 newItem.setParent(self._rootItem)
-            self.endInsertRows()
-            return True
         else:
-            self.beginInsertRows(parent, row, row + count - 1)
             for _ in range(count):
-                ExperimentDataItem(parent.internalPointer())
-            self.endInsertRows()
-            return True
+                newItem = ExperimentDataItem()
+                newItem.setParent(parent.internalPointer())
+        self.endInsertRows()
+        return True
+
+    def copyRows(self, row, count, parent=QModelIndex()):
+        """Copy and append the rows."""
+        maxRow = self.rowCount()
+        self.beginInsertRows(parent, maxRow, maxRow + count - 1)
+        if not parent.isValid():
+            for i in range(count):
+                oldItem = self.index(row + i, 0, parent).internalPointer()
+                newItem = ExperimentDataItem.fromDataclass(ExperimentData)
+                newItem.setParent(self._rootItem)
+                oldItem.copyDataTo(newItem)
+        else:
+            for i in range(count):
+                oldItem = self.index(row + i, 0, parent)
+                newItem = ExperimentDataItem()
+                newItem.setParent(parent.internalPointer())
+                oldItem.copyDataTo(newItem)
+        self.endInsertRows()
+        return True
 
     def removeRows(self, row, count, parent=QModelIndex()):
         self.beginRemoveRows(parent, row, row + count - 1)
@@ -242,7 +265,11 @@ class ExperimentListWidget(QWidget):
 
     @Slot()
     def copySelectedExperiments(self):
-        ...
+        model = self.model()
+        if model is not None:
+            rows = [idx.row() for idx in self._listView.selectedIndexes()]
+            for i in sorted(rows):
+                model.copyRows(i, 1)
 
     @Slot()
     def deleteSelectedExperiments(self):
