@@ -7,7 +7,13 @@ V2 for inventory.py
 
 import dataclasses
 from dipcoatimage.finitedepth import ExperimentData
-from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal, Slot
+from PySide6.QtCore import (
+    QAbstractItemModel,
+    QModelIndex,
+    Qt,
+    Signal,
+    Slot,
+)
 from PySide6.QtWidgets import (
     QWidget,
     QListView,
@@ -16,6 +22,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QMenu,
+    QSizePolicy,
 )
 from typing import Optional
 
@@ -159,7 +166,8 @@ class ExperimentListWidget(QWidget):
 
     >>> from PySide6.QtWidgets import QApplication
     >>> import sys
-    >>> from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, ExperimentListWidget
+    >>> from dipcoatimage.finitedepth_gui.model import (ExperimentDataModel,
+    ...     ExperimentListWidget)
     >>> def runGUI():
     ...     app = QApplication(sys.argv)
     ...     window = ExperimentListWidget()
@@ -178,18 +186,28 @@ class ExperimentListWidget(QWidget):
 
         self._listView = QListView()
         self._addButton = QToolButton()
+        self._addButton.setMenu(QMenu(self))
+        copyAction = self._addButton.menu().addAction("Copy selected items")
         self._deleteButton = QPushButton()
 
         self._listView.setSelectionMode(QListView.ExtendedSelection)
         self._listView.activated.connect(self.activated)
         self._addButton.clicked.connect(self.addNewExperiment)
+        copyAction.triggered.connect(self.copySelectedExperiments)
+        self._deleteButton.clicked.connect(self.deleteSelectedExperiments)
+
+        self._addButton.setPopupMode(QToolButton.MenuButtonPopup)
+        self._addButton.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self._deleteButton.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         self._addButton.setText("Add")
+        self._deleteButton.setText("Delete")
 
         layout = QVBoxLayout()
         layout.addWidget(self._listView)
         buttonLayout = QHBoxLayout()
         buttonLayout.addWidget(self._addButton)
+        buttonLayout.addWidget(self._deleteButton)
         layout.addLayout(buttonLayout)
         self.setLayout(layout)
 
@@ -208,3 +226,15 @@ class ExperimentListWidget(QWidget):
             if success:
                 index = model.index(rowNum, 0)
                 model.setData(index, "New Experiment", role=Qt.DisplayRole)
+
+    @Slot()
+    def copySelectedExperiments(self):
+        ...
+
+    @Slot()
+    def deleteSelectedExperiments(self):
+        model = self.model()
+        if model is not None:
+            rows = [idx.row() for idx in self._listView.selectedIndexes()]
+            for i in reversed(sorted(rows)):
+                model.removeRow(i)
