@@ -7,12 +7,23 @@ V2 for inventory.py
 
 import dataclasses
 from dipcoatimage.finitedepth import ExperimentData
-from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt
+from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal, Slot
+from PySide6.QtWidgets import (
+    QWidget,
+    QListView,
+    QToolButton,
+    QPushButton,
+    QVBoxLayout,
+    QHBoxLayout,
+    QMenu,
+)
+from typing import Optional
 
 
 __all__ = [
     "ExperimentDataItem",
     "ExperimentDataModel",
+    "ExperimentListWidget",
 ]
 
 
@@ -111,6 +122,7 @@ class ExperimentDataModel(QAbstractItemModel):
         dataItem = index.internalPointer()
         if isinstance(dataItem, ExperimentDataItem):
             dataItem.setData(role, value)
+            self.dataChanged.emit(index, index, [role])
             return True
         return False
 
@@ -139,3 +151,60 @@ class ExperimentDataModel(QAbstractItemModel):
             self._rootItem.remove(row)
         self.endRemoveRows()
         return True
+
+
+class ExperimentListWidget(QWidget):
+    """
+    Widget to display the list of experiments.
+
+    >>> from PySide6.QtWidgets import QApplication
+    >>> import sys
+    >>> from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, ExperimentListWidget
+    >>> def runGUI():
+    ...     app = QApplication(sys.argv)
+    ...     window = ExperimentListWidget()
+    ...     window.setModel(ExperimentDataModel())
+    ...     window.show()
+    ...     app.exec()
+    ...     app.quit()
+    >>> runGUI() # doctest: +SKIP
+
+    """
+
+    activated = Signal(QModelIndex)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self._listView = QListView()
+        self._addButton = QToolButton()
+        self._deleteButton = QPushButton()
+
+        self._listView.setSelectionMode(QListView.ExtendedSelection)
+        self._listView.activated.connect(self.activated)
+        self._addButton.clicked.connect(self.addNewExperiment)
+
+        self._addButton.setText("Add")
+
+        layout = QVBoxLayout()
+        layout.addWidget(self._listView)
+        buttonLayout = QHBoxLayout()
+        buttonLayout.addWidget(self._addButton)
+        layout.addLayout(buttonLayout)
+        self.setLayout(layout)
+
+    def model(self) -> Optional[ExperimentDataModel]:
+        return self._listView.model()
+
+    def setModel(self, model: Optional[ExperimentDataModel]):
+        self._listView.setModel(model)
+
+    @Slot()
+    def addNewExperiment(self):
+        model = self.model()
+        if model is not None:
+            rowNum = model.rowCount()
+            success = model.insertRow(model.rowCount())
+            if success:
+                index = model.index(rowNum, 0)
+                model.setData(index, "New Experiment", role=Qt.DisplayRole)
