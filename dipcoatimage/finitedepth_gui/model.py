@@ -39,12 +39,10 @@ class ExperimentDataItem(object):
     Internal data item for :class:`ExperimentDataModel`.
     """
 
-    def __init__(self, parent=None):
+    def __init__(self):
         self._data = dict()
         self._children = []
-        if parent is not None:
-            parent._children.append(self)
-        self._parent = parent
+        self._parent = None
 
     def data(self, role):
         return self._data.get(role, None)
@@ -63,12 +61,31 @@ class ExperimentDataItem(object):
     def parent(self):
         return self._parent
 
+    def setParent(self, parent):
+        if self.parent() is not None:
+            raise RuntimeError("Can't reset parent.")
+        if parent is not None:
+            parent._children.append(self)
+        self._parent = parent
+
     def remove(self, index):
         if index < len(self._children):
             orphan = self._children.pop(index)
             orphan._parent = None
             while orphan._children:
                 orphan.remove(0)
+
+    @classmethod
+    def fromDataclass(cls, dcls):
+        inst = cls()
+        for field in dataclasses.fields(dcls):
+            t = field.type
+            if dataclasses.is_dataclass(t):
+                subItem = cls.fromDataclass(t)
+            else:
+                subItem = cls()
+            subItem.setParent(inst)
+        return inst
 
 
 class ExperimentDataModel(QAbstractItemModel):
@@ -137,12 +154,8 @@ class ExperimentDataModel(QAbstractItemModel):
         if not parent.isValid():
             self.beginInsertRows(parent, row, row + count - 1)
             for _ in range(count):
-                newItem = ExperimentDataItem(self._rootItem)
-                for field in dataclasses.fields(ExperimentData):
-                    subItem = ExperimentDataItem(newItem)
-                    if dataclasses.is_dataclass(field.type):
-                        for _ in dataclasses.fields(field.type):
-                            ExperimentDataItem(subItem)
+                newItem = ExperimentDataItem.fromDataclass(ExperimentData)
+                newItem.setParent(self._rootItem)
             self.endInsertRows()
             return True
         else:
