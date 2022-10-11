@@ -63,12 +63,15 @@ class ExperimentDataItem(object):
     def parent(self) -> Optional["ExperimentDataItem"]:
         return self._parent
 
-    def setParent(self, parent: Optional["ExperimentDataItem"]):
+    def setParent(self, parent: Optional["ExperimentDataItem"], insertIndex: int = -1):
         old_parent = self.parent()
         if old_parent is not None:
             old_parent._children.remove(self)
         if parent is not None:
-            parent._children.append(self)
+            if insertIndex == -1:
+                parent._children.append(self)
+            else:
+                parent._children.insert(insertIndex, self)
         self._parent = parent
 
     def remove(self, index: int):
@@ -101,7 +104,7 @@ class ExperimentDataModel(QAbstractItemModel):
 
     # https://stackoverflow.com/a/57129496/11501976
 
-    dataClass = ExperimentData
+    ROW_COATPATHS = 1
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -159,43 +162,80 @@ class ExperimentDataModel(QAbstractItemModel):
         return False
 
     def insertRows(self, row, count, parent=QModelIndex()):
-        self.beginInsertRows(parent, row, row + count - 1)
         if not parent.isValid():
+            self.beginInsertRows(parent, row, row + count - 1)
             for _ in range(count):
                 newItem = ExperimentDataItem.fromDataclass(ExperimentData)
                 newItem.setParent(self._rootItem)
-        else:
+            self.endInsertRows()
+            return True
+        elif not parent.parent().isValid() and parent.row() == self.ROW_COATPATHS:
+            self.beginInsertRows(parent, row, row + count - 1)
             for _ in range(count):
                 newItem = ExperimentDataItem()
                 newItem.setParent(parent.internalPointer())
-        self.endInsertRows()
-        return True
+            self.endInsertRows()
+            return True
+        return False
 
-    def copyRows(self, row, count, parent=QModelIndex()):
-        """Copy and append the rows."""
-        maxRow = self.rowCount()
-        self.beginInsertRows(parent, maxRow, maxRow + count - 1)
-        if not parent.isValid():
+    def copyRows(
+        self,
+        sourceParent: QModelIndex,
+        sourceRow: int,
+        count: int,
+        destinationParent: QModelIndex,
+        destinationChild: int,
+    ) -> bool:
+        if sourceParent != destinationParent:
+            return False
+        if not sourceParent.isValid():
+            newItems = []
             for i in range(count):
-                oldItem = self.index(row + i, 0, parent).internalPointer()
+                oldItem = self.index(sourceRow + i, 0, sourceParent).internalPointer()
                 newItem = ExperimentDataItem.fromDataclass(ExperimentData)
-                newItem.setParent(self._rootItem)
                 oldItem.copyDataTo(newItem)
-        else:
+                newItems.append(newItem)
+            self.beginInsertRows(
+                sourceParent, destinationChild, destinationChild + count - 1
+            )
+            for item in reversed(newItems):
+                item.setParent(self._rootItem, destinationChild)
+            self.endInsertRows()
+            return True
+        elif (
+            not sourceParent.parent().isValid()
+            and sourceParent.row() == self.ROW_COATPATHS
+        ):
+            newItems = []
             for i in range(count):
-                oldItem = self.index(row + i, 0, parent)
+                oldItem = self.index(sourceRow + i, 0, sourceParent).internalPointer()
                 newItem = ExperimentDataItem()
-                newItem.setParent(parent.internalPointer())
                 oldItem.copyDataTo(newItem)
-        self.endInsertRows()
-        return True
+                newItems.append(newItem)
+            self.beginInsertRows(
+                sourceParent, destinationChild, destinationChild + count - 1
+            )
+            parentDataItem = destinationParent.internalPointer()
+            for item in reversed(newItems):
+                item.setParent(parentDataItem, destinationChild)
+            self.endInsertRows()
+        return False
 
     def removeRows(self, row, count, parent=QModelIndex()):
-        self.beginRemoveRows(parent, row, row + count - 1)
-        for _ in range(count):
-            self._rootItem.remove(row)
-        self.endRemoveRows()
-        return True
+        if not parent.isValid():
+            self.beginRemoveRows(parent, row, row + count - 1)
+            for _ in range(count):
+                self._rootItem.remove(row)
+            self.endRemoveRows()
+            return True
+        elif not parent.parent().isValid() and parent.row() == self.ROW_COATPATHS:
+            self.beginRemoveRows(parent, row, row + count - 1)
+            dataItem = parent.internalPointer()
+            for _ in range(count):
+                dataItem.remove(row)
+            self.endRemoveRows()
+            return True
+        return False
 
 
 class ExperimentListWidget(QWidget):
@@ -269,9 +309,9 @@ class ExperimentListWidget(QWidget):
     def copySelectedExperiments(self):
         model = self.model()
         if model is not None:
-            rows = [idx.row() for idx in self._listView.selectedIndexes()]
-            for i in sorted(rows):
-                model.copyRows(i, 1)
+            for index in self._listView.selectedIndexes():
+                parent = index.parent()
+                model.copyRows(parent, index.row(), 1, parent, model.rowCount(parent))
 
     @Slot()
     def deleteSelectedExperiments(self):
