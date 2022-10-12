@@ -180,13 +180,23 @@ class ExperimentDataModel(QAbstractItemModel):
         return False
 
     def insertRows(self, row, count, parent=QModelIndex()):
-        # TODO: make activated index changed
         if not parent.isValid():
+
+            activatedIndex = self.activatedIndex()
+            activatedRow = activatedIndex.row()
+            activatedColumn = activatedIndex.column()
+            reactivate = (parent == activatedIndex.parent()) and row <= activatedRow
+
             self.beginInsertRows(parent, row, row + count - 1)
             for _ in range(count):
                 newItem = ExperimentDataItem.fromDataclass(ExperimentData)
                 newItem.setParent(self._rootItem)
             self.endInsertRows()
+
+            if reactivate:
+                newRow = activatedRow + count
+                newIndex = self.index(newRow, activatedColumn, parent)
+                self.setActivatedIndex(newIndex)
             return True
         elif not parent.parent().isValid() and parent.row() == self.ROW_COATPATHS:
             self.beginInsertRows(parent, row, row + count - 1)
@@ -214,10 +224,17 @@ class ExperimentDataModel(QAbstractItemModel):
         Returns True on successs; otherwise return False.
 
         """
-        # TODO: make activated index changed
         if sourceParent != destinationParent:
             return False
         if not sourceParent.isValid():
+
+            activatedIndex = self.activatedIndex()
+            activatedRow = activatedIndex.row()
+            activatedColumn = activatedIndex.column()
+            reactivate = (
+                sourceParent == activatedIndex.parent()
+            ) and destinationChild <= activatedRow
+
             newItems = []
             for i in range(count):
                 oldItem = self.index(sourceRow + i, 0, sourceParent).internalPointer()
@@ -230,6 +247,11 @@ class ExperimentDataModel(QAbstractItemModel):
             for item in reversed(newItems):
                 item.setParent(self._rootItem, destinationChild)
             self.endInsertRows()
+
+            if reactivate:
+                newRow = activatedRow + count
+                newIndex = self.index(newRow, activatedColumn, sourceParent)
+                self.setActivatedIndex(newIndex)
             return True
         elif (
             not sourceParent.parent().isValid()
@@ -252,7 +274,6 @@ class ExperimentDataModel(QAbstractItemModel):
 
     def removeRows(self, row, count, parent=QModelIndex()):
         if not parent.isValid():
-            self.beginRemoveRows(parent, row, row + count - 1)
 
             # to avoid reference issue, decide whether activated index should be
             # changed before destroying data structure
