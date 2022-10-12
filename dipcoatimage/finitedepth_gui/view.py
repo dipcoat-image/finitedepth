@@ -110,7 +110,7 @@ class ExperimentListWidget(QWidget):
             for i in reversed(sorted(rows)):
                 model.removeRow(i)
 
-    @Slot(int)
+    @Slot(QModelIndex)
     def onIndexActivated(self, index: QModelIndex):
         model = self.model()
         if model is not None:
