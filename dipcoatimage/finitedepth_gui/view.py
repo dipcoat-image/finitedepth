@@ -11,6 +11,7 @@ from PySide6.QtCore import (
     Slot,
 )
 from PySide6.QtWidgets import (
+    QStyledItemDelegate,
     QWidget,
     QListView,
     QToolButton,
@@ -25,8 +26,20 @@ from typing import Optional
 
 
 __all__ = [
+    "QStyledItemDelegate",
     "ExperimentListWidget",
 ]
+
+
+class ExperimentListDelegate(QStyledItemDelegate):
+    """Delegate to mark activated item."""
+    def initStyleOption(self, option, index):
+        super().initStyleOption(option, index)
+        model = index.model()
+        if isinstance(model, ExperimentDataModel):
+            if index == model.activatedIndex():
+                option.font.setBold(True)
+                option.rect.adjust(10, 0, 0, 0)
 
 
 class ExperimentListWidget(QWidget):
@@ -57,6 +70,7 @@ class ExperimentListWidget(QWidget):
         copyAction = self._addButton.menu().addAction("Copy selected items")
         self._deleteButton = QPushButton()
 
+        self._listView.setItemDelegate(ExperimentListDelegate())
         self._listView.setSelectionMode(QListView.ExtendedSelection)
         self._listView.activated.connect(self.onIndexActivated)
         self._addButton.clicked.connect(self.appendNewRow)
@@ -82,7 +96,12 @@ class ExperimentListWidget(QWidget):
         return self._listView.model()
 
     def setModel(self, model: Optional[ExperimentDataModel]):
+        oldModel = self.model()
+        if oldModel is not None:
+            oldModel.activatedIndexChanged.disconnect(self._listView.viewport().update)
         self._listView.setModel(model)
+        if model is not None:
+            model.activatedIndexChanged.connect(self._listView.viewport().update)
 
     @Slot()
     def appendNewRow(self):
