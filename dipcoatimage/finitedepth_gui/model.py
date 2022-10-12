@@ -21,7 +21,8 @@ __all__ = [
 
 class ExperimentDataItem(object):
     """
-    Internal data node for :class:`ExperimentDataModel`.
+    Internal data node for :class:`ExperimentDataModel` which represents tree
+    structure with one column.
 
     Data for the node can be get and set by :meth:`data` and :meth:`setData`.
     Tree structure can be accessed by :meth:`child` and :meth:`parent`, which
@@ -129,13 +130,7 @@ class ExperimentDataModel(QAbstractItemModel):
         self._activatedIndex = QModelIndex()
 
     def columnCount(self, index=QModelIndex()):
-        if not index.isValid():
-            return 1
-        elif not index.parent().isValid():
-            return 1
-        elif not index.parent().parent().isValid():
-            return 1
-        return 0
+        return 1
 
     def rowCount(self, index=QModelIndex()):
         if not index.isValid():
@@ -149,9 +144,13 @@ class ExperimentDataModel(QAbstractItemModel):
             return QModelIndex()
         dataItem = index.internalPointer()
         parentDataItem = dataItem.parent()
-        if parentDataItem is self._rootItem:
+        if parentDataItem is None or parentDataItem is self._rootItem:
             return QModelIndex()
-        return self.createIndex(index.row(), index.column(), parentDataItem)
+        grandparentDataItem = parentDataItem.parent()
+        if grandparentDataItem is None:
+            return QModelIndex()
+        row = grandparentDataItem._children.index(parentDataItem)
+        return self.createIndex(row, 0, grandparentDataItem)
 
     def index(self, row, column, parent=QModelIndex()):
         if not self.hasIndex(row, column, parent):
@@ -198,7 +197,10 @@ class ExperimentDataModel(QAbstractItemModel):
                 newIndex = self.index(newRow, activatedColumn, parent)
                 self.setActivatedIndex(newIndex)
             return True
-        elif not parent.parent().isValid() and parent.row() == self.ROW_COATPATHS:
+        elif (
+            not parent.parent().parent().isValid()
+            and parent.row() == self.ROW_COATPATHS
+        ):
             self.beginInsertRows(parent, row, row + count - 1)
             for _ in range(count):
                 newItem = ExperimentDataItem()
@@ -254,7 +256,7 @@ class ExperimentDataModel(QAbstractItemModel):
                 self.setActivatedIndex(newIndex)
             return True
         elif (
-            not sourceParent.parent().isValid()
+            not sourceParent.parent().parent().isValid()
             and sourceParent.row() == self.ROW_COATPATHS
         ):
             newItems = []
@@ -296,7 +298,10 @@ class ExperimentDataModel(QAbstractItemModel):
                 self.setActivatedIndex(newIndex)
             return True
 
-        elif not parent.parent().isValid() and parent.row() == self.ROW_COATPATHS:
+        elif (
+            not parent.parent().parent().isValid()
+            and parent.row() == self.ROW_COATPATHS
+        ):
             self.beginRemoveRows(parent, row, row + count - 1)
             dataItem = parent.internalPointer()
             for _ in range(count):

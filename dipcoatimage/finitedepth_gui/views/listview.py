@@ -132,7 +132,7 @@ class ExperimentListWidget(QWidget):
         model = self.model()
         if model is not None:
             rowNum = model.rowCount()
-            success = model.insertRow(model.rowCount())
+            success = model.insertRow(rowNum)
             if success:
                 index = model.index(rowNum, 0)
                 model.setData(index, "New Experiment", role=Qt.DisplayRole)

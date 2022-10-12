@@ -108,7 +108,7 @@ class ExperimentWidget(QWidget):
         parent = self._pathsListView.rootIndex()
         if model is not None and parent.isValid():
             rowNum = model.rowCount(parent)
-            success = model.insertRow(model.rowCount(), parent)
+            success = model.insertRow(rowNum, parent)
             if success:
                 index = model.index(rowNum, 0, parent)
                 model.setData(index, "New path", role=Qt.DisplayRole)
