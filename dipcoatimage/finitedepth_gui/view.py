@@ -8,7 +8,6 @@ V2 for inventory.py
 from PySide6.QtCore import (
     QModelIndex,
     Qt,
-    Signal,
     Slot,
 )
 from PySide6.QtWidgets import (
@@ -49,8 +48,6 @@ class ExperimentListWidget(QWidget):
 
     """
 
-    activated = Signal(QModelIndex)
-
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -61,7 +58,7 @@ class ExperimentListWidget(QWidget):
         self._deleteButton = QPushButton()
 
         self._listView.setSelectionMode(QListView.ExtendedSelection)
-        self._listView.activated.connect(self.activated)
+        self._listView.activated.connect(self.onIndexActivated)
         self._addButton.clicked.connect(self.addNewExperiment)
         copyAction.triggered.connect(self.copySelectedExperiments)
         self._deleteButton.clicked.connect(self.deleteSelectedExperiments)
@@ -112,3 +109,9 @@ class ExperimentListWidget(QWidget):
             rows = [idx.row() for idx in self._listView.selectedIndexes()]
             for i in reversed(sorted(rows)):
                 model.removeRow(i)
+
+    @Slot(int)
+    def onIndexActivated(self, index: QModelIndex):
+        model = self.model()
+        if model is not None:
+            model.setActivatedIndex(index)

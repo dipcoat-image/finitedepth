@@ -13,8 +13,9 @@ from PySide6.QtCore import (
     QAbstractItemModel,
     QModelIndex,
     Qt,
+    Signal
 )
-from typing import Optional, Any, List, Type
+from typing import Optional, Any, Type
 
 
 __all__ = [
@@ -123,9 +124,12 @@ class ExperimentDataModel(QAbstractItemModel):
 
     ROW_COATPATHS = 1
 
+    activatedIndexChanged = Signal(QModelIndex)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._rootItem = ExperimentDataItem()
+        self._activatedIndex = QModelIndex()
 
     def columnCount(self, index=QModelIndex()):
         if not index.isValid():
@@ -262,3 +266,10 @@ class ExperimentDataModel(QAbstractItemModel):
             self.endRemoveRows()
             return True
         return False
+
+    def activatedIndex(self) -> QModelIndex:
+        return self._activatedIndex
+
+    def setActivatedIndex(self, index: QModelIndex):
+        self._activatedIndex = index
+        self.activatedIndexChanged.emit(index)
