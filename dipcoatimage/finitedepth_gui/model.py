@@ -9,12 +9,7 @@ import copy
 import dataclasses
 from dipcoatimage.finitedepth import ExperimentData
 from dipcoatimage.finitedepth.util import DataclassProtocol
-from PySide6.QtCore import (
-    QAbstractItemModel,
-    QModelIndex,
-    Qt,
-    Signal
-)
+from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
 from typing import Optional, Any, Type
 
 
