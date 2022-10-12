@@ -59,9 +59,9 @@ class ExperimentListWidget(QWidget):
 
         self._listView.setSelectionMode(QListView.ExtendedSelection)
         self._listView.activated.connect(self.onIndexActivated)
-        self._addButton.clicked.connect(self.addNewExperiment)
-        copyAction.triggered.connect(self.copySelectedExperiments)
-        self._deleteButton.clicked.connect(self.deleteSelectedExperiments)
+        self._addButton.clicked.connect(self.appendNewRow)
+        copyAction.triggered.connect(self.copySelectedRows)
+        self._deleteButton.clicked.connect(self.deleteSelectedRows)
 
         self._addButton.setPopupMode(QToolButton.MenuButtonPopup)
         self._addButton.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
@@ -85,7 +85,7 @@ class ExperimentListWidget(QWidget):
         self._listView.setModel(model)
 
     @Slot()
-    def addNewExperiment(self):
+    def appendNewRow(self):
         model = self.model()
         if model is not None:
             rowNum = model.rowCount()
@@ -95,7 +95,7 @@ class ExperimentListWidget(QWidget):
                 model.setData(index, "New Experiment", role=Qt.DisplayRole)
 
     @Slot()
-    def copySelectedExperiments(self):
+    def copySelectedRows(self):
         model = self.model()
         if model is not None:
             for index in self._listView.selectedIndexes():
@@ -103,7 +103,7 @@ class ExperimentListWidget(QWidget):
                 model.copyRows(parent, index.row(), 1, parent, model.rowCount(parent))
 
     @Slot()
-    def deleteSelectedExperiments(self):
+    def deleteSelectedRows(self):
         model = self.model()
         if model is not None:
             rows = [idx.row() for idx in self._listView.selectedIndexes()]
