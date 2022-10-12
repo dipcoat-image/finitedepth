@@ -66,7 +66,7 @@ class ExperimentListDelegate(QStyledItemDelegate):
 
 class ExperimentListWidget(QWidget):
     """
-    Widget to display the list of experiments.
+    Widget to display the list of experiment data.
 
     >>> from PySide6.QtWidgets import QApplication
     >>> import sys
@@ -86,6 +86,7 @@ class ExperimentListWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self._model = None
         self._listView = QListView()
         self._addButton = QToolButton()
         self._addButton.setMenu(QMenu(self))
@@ -115,12 +116,13 @@ class ExperimentListWidget(QWidget):
         self.setLayout(layout)
 
     def model(self) -> Optional[ExperimentDataModel]:
-        return self._listView.model()
+        return self._model
 
     def setModel(self, model: Optional[ExperimentDataModel]):
         oldModel = self.model()
         if oldModel is not None:
             oldModel.activatedIndexChanged.disconnect(self._listView.viewport().update)
+        self._model = model
         self._listView.setModel(model)
         if model is not None:
             model.activatedIndexChanged.connect(self._listView.viewport().update)

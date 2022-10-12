@@ -310,5 +310,7 @@ class ExperimentDataModel(QAbstractItemModel):
         return self._activatedIndex
 
     def setActivatedIndex(self, index: QModelIndex):
+        if index.parent().isValid():
+            index = QModelIndex()
         self._activatedIndex = index
         self.activatedIndexChanged.emit(index)
