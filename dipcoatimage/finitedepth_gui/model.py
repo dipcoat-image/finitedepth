@@ -253,20 +253,26 @@ class ExperimentDataModel(QAbstractItemModel):
     def removeRows(self, row, count, parent=QModelIndex()):
         if not parent.isValid():
             self.beginRemoveRows(parent, row, row + count - 1)
+
+            # to avoid reference issue, decide whether activated index should be
+            # changed before destroying data structure
+            activatedIndex = self.activatedIndex()
+            activatedRow = activatedIndex.row()
+            activatedColumn = activatedIndex.column()
+            reactivate = (parent == activatedIndex.parent()) and row <= activatedRow
+
+            self.beginRemoveRows(parent, row, row + count - 1)
             for _ in range(count):
                 self._rootItem.remove(row)
-
-            activatedIndex = self.activatedIndex()
-            if parent == activatedIndex.parent():
-                activatedRow = activatedIndex.row()
-                if row <= activatedRow < row + count:
-                    self.setActivatedIndex(QModelIndex())
-                elif row + count <= activatedRow:
-                    newRow = activatedRow - count
-                    newIndex = self.index(newRow, activatedIndex.column(), parent)
-                    self.setActivatedIndex(newIndex)
-
             self.endRemoveRows()
+
+            if reactivate:
+                if activatedRow < row + count:
+                    newIndex = QModelIndex()
+                else:
+                    newRow = activatedRow - count
+                    newIndex = self.index(newRow, activatedColumn, parent)
+                self.setActivatedIndex(newIndex)
             return True
 
         elif not parent.parent().isValid() and parent.row() == self.ROW_COATPATHS:
