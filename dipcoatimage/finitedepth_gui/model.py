@@ -25,7 +25,12 @@ __all__ = [
 
 class ExperimentDataItem(object):
     """
-    Internal data item for :class:`ExperimentDataModel`.
+    Internal data node for :class:`ExperimentDataModel`.
+
+    Data for the node can be get and set by :meth:`data` and :meth:`setData`.
+    Tree structure can be accessed by :meth:`child` and :meth:`parent`, which
+    are modified by :meth:`setParent` and :meth:`remove`.
+
     """
 
     def __init__(self):
@@ -39,10 +44,8 @@ class ExperimentDataItem(object):
     def setData(self, role: Qt.ItemDataRole, data: Any):
         self._data[role] = data
 
-    def children(self) -> List["ExperimentDataItem"]:
-        return self._children
-
-    def child(self, index):
+    def child(self, index: int) -> Optional["ExperimentDataItem"]:
+        """Get *index*-th subitem, or None if the index is invalid."""
         if len(self._children) > index:
             return self._children[index]
         return None
@@ -51,6 +54,13 @@ class ExperimentDataItem(object):
         return self._parent
 
     def setParent(self, parent: Optional["ExperimentDataItem"], insertIndex: int = -1):
+        """
+        Set *self* as *insertIndex*-th child of *parent*.
+
+        If *insertIndex* is -1, *self* becomes the last child of *parent*.
+        If *parent* is None, *self* is no longer a child of another node and
+        becomes the top node of its tree structure.
+        """
         old_parent = self.parent()
         if old_parent is not None:
             old_parent._children.remove(self)
@@ -62,6 +72,9 @@ class ExperimentDataItem(object):
         self._parent = parent
 
     def remove(self, index: int):
+        """
+        Destroy all tree structure under *index*-th child.
+        """
         if index < len(self._children):
             orphan = self._children.pop(index)
             orphan._parent = None
@@ -70,6 +83,12 @@ class ExperimentDataItem(object):
 
     @classmethod
     def fromDataclass(cls, dcls: Type[DataclassProtocol]):
+        """
+        Construct the tree structure from *dcls*.
+
+        If the field is dataclass, its fields are recursively constructed as tree
+        structure. Else, a single node is constructed from the field.
+        """
         inst = cls()
         for field in dataclasses.fields(dcls):
             t = field.type
@@ -81,13 +100,24 @@ class ExperimentDataItem(object):
         return inst
 
     def copyDataTo(self, other: "ExperimentDataItem"):
+        """
+        Copy the data of *self* and its children to *other* and its children.
+        """
         other._data = copy.deepcopy(self._data)
         for (subSelf, subOther) in zip(self._children, other._children):
             subSelf.copyDataTo(subOther)
 
 
 class ExperimentDataModel(QAbstractItemModel):
-    """Model to store the data for :class:`ExperimentData`."""
+    """
+    Model to store the data for :class:`ExperimentData`.
+
+    Each row on the top level has vertical tree structure which can be used to
+    construct :class:`ExperimentData`.
+
+    Subtree structure under each top-level row is not modifiable, except the rows
+    which represents the coating layer image paths.
+    """
 
     # https://stackoverflow.com/a/57129496/11501976
 
@@ -173,6 +203,15 @@ class ExperimentDataModel(QAbstractItemModel):
         destinationParent: QModelIndex,
         destinationChild: int,
     ) -> bool:
+        """
+        Copy *count* rows starting with *sourceRow* under parent *sourceParent*
+        to row *destinationChild* under parent *destinationParent*.
+
+        Every node of the tree and its data is copied.
+
+        Returns True on successs; otherwise return False.
+
+        """
         if sourceParent != destinationParent:
             return False
         if not sourceParent.isValid():
