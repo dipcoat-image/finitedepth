@@ -183,6 +183,7 @@ class ExperimentDataModel(QAbstractItemModel):
         return False
 
     def insertRows(self, row, count, parent=QModelIndex()):
+        # TODO: make activated index changed
         if not parent.isValid():
             self.beginInsertRows(parent, row, row + count - 1)
             for _ in range(count):
@@ -216,6 +217,7 @@ class ExperimentDataModel(QAbstractItemModel):
         Returns True on successs; otherwise return False.
 
         """
+        # TODO: make activated index changed
         if sourceParent != destinationParent:
             return False
         if not sourceParent.isValid():
@@ -257,6 +259,10 @@ class ExperimentDataModel(QAbstractItemModel):
             for _ in range(count):
                 self._rootItem.remove(row)
             self.endRemoveRows()
+
+            if row <= self.activatedIndex().row() < row + count:
+                self.setActivatedIndex(QModelIndex())
+
             return True
         elif not parent.parent().isValid() and parent.row() == self.ROW_COATPATHS:
             self.beginRemoveRows(parent, row, row + count - 1)
