@@ -29,6 +29,8 @@ class ExperimentDataItem(object):
 
     """
 
+    __slots__ = ("_data", "_children", "_parent")
+
     def __init__(self):
         self._data = dict()
         self._children = []
@@ -253,12 +255,20 @@ class ExperimentDataModel(QAbstractItemModel):
             self.beginRemoveRows(parent, row, row + count - 1)
             for _ in range(count):
                 self._rootItem.remove(row)
+
+            activatedIndex = self.activatedIndex()
+            if parent == activatedIndex.parent():
+                activatedRow = activatedIndex.row()
+                if row <= activatedRow < row + count:
+                    self.setActivatedIndex(QModelIndex())
+                elif row + count <= activatedRow:
+                    newRow = activatedRow - count
+                    newIndex = self.index(newRow, activatedIndex.column(), parent)
+                    self.setActivatedIndex(newIndex)
+
             self.endRemoveRows()
-
-            if row <= self.activatedIndex().row() < row + count:
-                self.setActivatedIndex(QModelIndex())
-
             return True
+
         elif not parent.parent().isValid() and parent.row() == self.ROW_COATPATHS:
             self.beginRemoveRows(parent, row, row + count - 1)
             dataItem = parent.internalPointer()
@@ -266,6 +276,7 @@ class ExperimentDataModel(QAbstractItemModel):
                 dataItem.remove(row)
             self.endRemoveRows()
             return True
+
         return False
 
     def activatedIndex(self) -> QModelIndex:
