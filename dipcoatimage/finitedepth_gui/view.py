@@ -33,6 +33,7 @@ __all__ = [
 
 class ExperimentListDelegate(QStyledItemDelegate):
     """Delegate to mark activated item."""
+
     def initStyleOption(self, option, index):
         super().initStyleOption(option, index)
         model = index.model()
