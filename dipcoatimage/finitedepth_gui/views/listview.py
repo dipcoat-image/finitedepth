@@ -1,6 +1,6 @@
 """
-Experiment data view
-====================
+Experiment data list view
+=========================
 
 V2 for inventory.py
 """
@@ -21,12 +21,12 @@ from PySide6.QtWidgets import (
     QMenu,
     QSizePolicy,
 )
-from .model import ExperimentDataModel
+from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from typing import Optional
 
 
 __all__ = [
-    "QStyledItemDelegate",
+    "ExperimentListDelegate",
     "ExperimentListWidget",
 ]
 
@@ -71,7 +71,7 @@ class ExperimentListWidget(QWidget):
     >>> from PySide6.QtWidgets import QApplication
     >>> import sys
     >>> from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
-    >>> from dipcoatimage.finitedepth_gui.view import ExperimentListWidget
+    >>> from dipcoatimage.finitedepth_gui.views import ExperimentListWidget
     >>> def runGUI():
     ...     app = QApplication(sys.argv)
     ...     window = ExperimentListWidget()
