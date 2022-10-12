@@ -5,13 +5,15 @@ Experiment view
 V2 for controlwidgets/exptwidget.py
 """
 
-from PySide6.QtCore import Slot, QModelIndex
+from PySide6.QtCore import Slot, QModelIndex, Qt
 from PySide6.QtWidgets import (
     QWidget,
     QLineEdit,
     QListView,
+    QPushButton,
     QDataWidgetMapper,
     QVBoxLayout,
+    QHBoxLayout,
     QGroupBox,
 )
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
@@ -60,13 +62,23 @@ class ExperimentWidget(QWidget):
         self._model = None
         self._nameLineEdit = QLineEdit()
         self._pathsListView = QListView()
+        self._addButton = QPushButton("Add")
+        self._deleteButton = QPushButton("Delete")
         self._mapper = QDataWidgetMapper()
+
+        self._pathsListView.setSelectionMode(QListView.ExtendedSelection)
+        self._pathsListView.setEditTriggers(QListView.SelectedClicked)
+        self._addButton.clicked.connect(self.appendNewPath)
 
         layout = QVBoxLayout()
         layout.addWidget(self._nameLineEdit)
         pathsGroupBox = QGroupBox("Coating layer files path")
         pathsLayout = QVBoxLayout()
         pathsLayout.addWidget(self._pathsListView)
+        buttonsLayout = QHBoxLayout()
+        buttonsLayout.addWidget(self._addButton)
+        buttonsLayout.addWidget(self._deleteButton)
+        pathsLayout.addLayout(buttonsLayout)
         pathsGroupBox.setLayout(pathsLayout)
         layout.addWidget(pathsGroupBox)
         self.setLayout(layout)
@@ -86,4 +98,17 @@ class ExperimentWidget(QWidget):
     def setActivatedIndex(self, index: QModelIndex):
         model = index.model()
         self._pathsListView.setModel(model)
-        self._pathsListView.setRootIndex(model.index(model.ROW_COATPATHS, 0, index))
+        if model is not None:
+            rootIndex = model.index(model.ROW_COATPATHS, 0, index)
+            self._pathsListView.setRootIndex(rootIndex)
+
+    @Slot()
+    def appendNewPath(self):
+        model = self.model()
+        parent = self._pathsListView.rootIndex()
+        if model is not None and parent.isValid():
+            rowNum = model.rowCount(parent)
+            success = model.insertRow(model.rowCount(), parent)
+            if success:
+                index = model.index(rowNum, 0, parent)
+                model.setData(index, "New path", role=Qt.DisplayRole)
