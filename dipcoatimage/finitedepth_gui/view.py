@@ -34,13 +34,34 @@ __all__ = [
 class ExperimentListDelegate(QStyledItemDelegate):
     """Delegate to mark activated item."""
 
+    ACTIVATED_INDENT = 10
+    ACTIVATED_MARKER_RADIUS = 2
+
     def initStyleOption(self, option, index):
         super().initStyleOption(option, index)
         model = index.model()
         if isinstance(model, ExperimentDataModel):
             if index == model.activatedIndex():
                 option.font.setBold(True)
-                option.rect.adjust(10, 0, 0, 0)
+                option.rect.adjust(self.ACTIVATED_INDENT, 0, 0, 0)
+
+    def paint(self, painter, option, index):
+        super().paint(painter, option, index)
+        model = index.model()
+        if isinstance(model, ExperimentDataModel):
+            if index == model.activatedIndex():
+                markerSpace = option.rect.adjusted(
+                    0, 0, -option.rect.width() + self.ACTIVATED_INDENT, 0
+                )
+                w, h = markerSpace.width(), markerSpace.height()
+                dx = w // 2 - self.ACTIVATED_MARKER_RADIUS
+                dy = h // 2 - self.ACTIVATED_MARKER_RADIUS
+                markerRect = markerSpace.adjusted(dx, dy, -dx, -dy)
+
+                painter.save()
+                painter.setBrush(Qt.black)
+                painter.drawEllipse(markerRect)
+                painter.restore()
 
 
 class ExperimentListWidget(QWidget):
