@@ -43,6 +43,12 @@ class ExperimentDataItem(object):
     def setData(self, role: Qt.ItemDataRole, data: Any):
         self._data[role] = data
 
+    def columnCount(self) -> int:
+        return 1
+
+    def rowCount(self) -> int:
+        return len(self._children)
+
     def child(self, index: int) -> Optional["ExperimentDataItem"]:
         """Get *index*-th subitem, or None if the index is invalid."""
         if len(self._children) > index:
@@ -130,14 +136,18 @@ class ExperimentDataModel(QAbstractItemModel):
         self._activatedIndex = QModelIndex()
 
     def columnCount(self, index=QModelIndex()):
-        return 1
+        if not index.isValid():
+            dataItem = self._rootItem
+        else:
+            dataItem = index.internalPointer()
+        return dataItem.columnCount()
 
     def rowCount(self, index=QModelIndex()):
         if not index.isValid():
             dataItem = self._rootItem
         else:
             dataItem = index.internalPointer()
-        return len(dataItem._children)
+        return dataItem.rowCount()
 
     def parent(self, index):
         if not index.isValid():
@@ -150,7 +160,7 @@ class ExperimentDataModel(QAbstractItemModel):
         if grandparentDataItem is None:
             return QModelIndex()
         row = grandparentDataItem._children.index(parentDataItem)
-        return self.createIndex(row, 0, grandparentDataItem)
+        return self.createIndex(row, 0, parentDataItem)
 
     def index(self, row, column, parent=QModelIndex()):
         if not self.hasIndex(row, column, parent):
@@ -190,12 +200,12 @@ class ExperimentDataModel(QAbstractItemModel):
             for _ in range(count):
                 newItem = ExperimentDataItem.fromDataclass(ExperimentData)
                 newItem.setParent(self._rootItem)
-            self.endInsertRows()
 
             if reactivate:
                 newRow = activatedRow + count
                 newIndex = self.index(newRow, activatedColumn, parent)
                 self.setActivatedIndex(newIndex)
+            self.endInsertRows()
             return True
         elif (
             not parent.parent().parent().isValid()
@@ -248,12 +258,12 @@ class ExperimentDataModel(QAbstractItemModel):
             )
             for item in reversed(newItems):
                 item.setParent(self._rootItem, destinationChild)
-            self.endInsertRows()
 
             if reactivate:
                 newRow = activatedRow + count
                 newIndex = self.index(newRow, activatedColumn, sourceParent)
                 self.setActivatedIndex(newIndex)
+            self.endInsertRows()
             return True
         elif (
             not sourceParent.parent().parent().isValid()
@@ -287,7 +297,6 @@ class ExperimentDataModel(QAbstractItemModel):
             self.beginRemoveRows(parent, row, row + count - 1)
             for _ in range(count):
                 self._rootItem.remove(row)
-            self.endRemoveRows()
 
             if reactivate:
                 if activatedRow < row + count:
@@ -296,6 +305,7 @@ class ExperimentDataModel(QAbstractItemModel):
                     newRow = activatedRow - count
                     newIndex = self.index(newRow, activatedColumn, parent)
                 self.setActivatedIndex(newIndex)
+            self.endRemoveRows()
             return True
 
         elif (
