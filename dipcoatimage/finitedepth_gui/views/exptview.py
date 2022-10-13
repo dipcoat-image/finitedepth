@@ -5,7 +5,7 @@ Experiment view
 V2 for controlwidgets/exptwidget.py
 """
 
-from PySide6.QtCore import Slot, QModelIndex
+from PySide6.QtCore import Qt, Slot, QModelIndex
 from PySide6.QtWidgets import (
     QWidget,
     QLineEdit,
@@ -98,21 +98,35 @@ class ExperimentView(QWidget):
         if oldModel is not None:
             oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
         self._model = model
-        self._nameMapper.setModel(model)
         if model is not None:
-            self._nameMapper.addMapping(self._nameLineEdit, 0)
             model.activatedIndexChanged.connect(self.setActivatedIndex)
 
     @Slot(QModelIndex)
     def setActivatedIndex(self, index: QModelIndex):
         model = index.model()
+        self._nameMapper.setModel(model)
+        self._pathsListView.setModel(model)
         if isinstance(model, ExperimentDataModel):
+            self._nameMapper.addMapping(self._nameLineEdit, 0)
             self._nameMapper.setCurrentModelIndex(index)
+            coatPathIndex = model.index(model.ROW_COATPATHS, 0, index)
+            self._pathsListView.setRootIndex(coatPathIndex)
 
     @Slot()
     def appendNewPath(self):
-        pass
+        model = self._pathsListView.model()
+        parent = self._pathsListView.rootIndex()
+        if model is not None and parent.isValid():
+            rowNum = model.rowCount(parent)
+            success = model.insertRow(rowNum, parent)
+            if success:
+                index = model.index(rowNum, 0, parent)
+                model.setData(index, "New path", role=Qt.DisplayRole)
 
     @Slot()
     def deleteSelectedPaths(self):
-        pass
+        model = self._pathsListView.model()
+        if model is not None:
+            rows = [idx.row() for idx in self._pathsListView.selectedIndexes()]
+            for i in reversed(sorted(rows)):
+                model.removeRow(i, self._pathsListView.rootIndex())

@@ -169,11 +169,7 @@ class ExperimentDataModel(QAbstractItemModel):
 
     # https://stackoverflow.com/a/57129496/11501976
 
-    ROW_REFPATH = 0
     ROW_COATPATHS = 1
-    ROW_EXPERIMENT = 5
-
-    ROW_EXPERIMENT_TYPE = 0
 
     activatedIndexChanged = Signal(QModelIndex)
 
@@ -253,6 +249,16 @@ class ExperimentDataModel(QAbstractItemModel):
                 self.setActivatedIndex(newIndex)
             self.endInsertRows()
             return True
+        elif (
+            not parent.parent().parent().isValid()
+            and parent.row() == self.ROW_COATPATHS
+        ):
+            self.beginInsertRows(parent, row, row + count - 1)
+            for _ in range(count):
+                newItem = ExperimentDataItem()
+                newItem.setParent(parent.internalPointer())
+            self.endInsertRows()
+            return True
         return False
 
     def copyRows(
@@ -300,6 +306,23 @@ class ExperimentDataModel(QAbstractItemModel):
                 self.setActivatedIndex(newIndex)
             self.endInsertRows()
             return True
+        elif (
+            not sourceParent.parent().parent().isValid()
+            and sourceParent.row() == self.ROW_COATPATHS
+        ):
+            newItems = []
+            for i in range(count):
+                oldItem = self.index(sourceRow + i, 0, sourceParent).internalPointer()
+                newItem = ExperimentDataItem()
+                oldItem.copyDataTo(newItem)
+                newItems.append(newItem)
+            self.beginInsertRows(
+                sourceParent, destinationChild, destinationChild + count - 1
+            )
+            parentDataItem = destinationParent.internalPointer()
+            for item in reversed(newItems):
+                item.setParent(parentDataItem, destinationChild)
+            self.endInsertRows()
         return False
 
     def removeRows(self, row, count, parent=QModelIndex()):
@@ -322,6 +345,16 @@ class ExperimentDataModel(QAbstractItemModel):
                     newRow = activatedRow - count
                     newIndex = self.index(newRow, activatedColumn, parent)
                 self.setActivatedIndex(newIndex)
+            self.endRemoveRows()
+            return True
+        elif (
+            not parent.parent().parent().isValid()
+            and parent.row() == self.ROW_COATPATHS
+        ):
+            self.beginRemoveRows(parent, row, row + count - 1)
+            dataItem = parent.internalPointer()
+            for _ in range(count):
+                dataItem.remove(row)
             self.endRemoveRows()
             return True
         return False
