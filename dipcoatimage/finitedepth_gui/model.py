@@ -98,7 +98,6 @@ class ExperimentDataItem(object):
         """Construct the tree structure from *exptData*."""
         inst = cls()
 
-        # reference path
         refPathItem = cls()
         refPathItem.setData(Qt.DisplayRole, exptData.ref_path)
         refPathItem.setParent(inst)
@@ -110,36 +109,52 @@ class ExperimentDataItem(object):
             coatPathItem.setParent(coatPathsItem)
         coatPathsItem.setParent(inst)
 
+        refArgs = exptData.reference
         refDataItem = cls()
-        for val in dataclasses.asdict(exptData.reference).values():
+        for val in (
+            getattr(refArgs, field.name) for field in dataclasses.fields(refArgs)
+        ):
             refArgItem = cls()
             refArgItem.setData(Qt.UserRole, val)
             refArgItem.setParent(refDataItem)
         refDataItem.setParent(inst)
 
+        substArgs = exptData.substrate
         substDataItem = cls()
-        for val in dataclasses.asdict(exptData.substrate).values():
+        for val in (
+            getattr(substArgs, field.name) for field in dataclasses.fields(substArgs)
+        ):
             substArgItem = cls()
             substArgItem.setData(Qt.UserRole, val)
             substArgItem.setParent(substDataItem)
         substDataItem.setParent(inst)
 
+        layerArgs = exptData.coatinglayer
         layerDataItem = cls()
-        for val in dataclasses.asdict(exptData.coatinglayer).values():
+        for val in (
+            getattr(layerArgs, field.name) for field in dataclasses.fields(layerArgs)
+        ):
             layerArgItem = cls()
             layerArgItem.setData(Qt.UserRole, val)
             layerArgItem.setParent(layerDataItem)
         layerDataItem.setParent(inst)
 
+        exptArgs = exptData.experiment
         exptDataItem = cls()
-        for val in dataclasses.asdict(exptData.experiment).values():
+        for val in (
+            getattr(exptArgs, field.name) for field in dataclasses.fields(exptArgs)
+        ):
             exptArgItem = cls()
             exptArgItem.setData(Qt.UserRole, val)
             exptArgItem.setParent(exptDataItem)
         exptDataItem.setParent(inst)
 
+        analysisArgs = exptData.analysis
         analysisDataItem = cls()
-        for val in dataclasses.asdict(exptData.analysis).values():
+        for val in (
+            getattr(analysisArgs, field.name)
+            for field in dataclasses.fields(analysisArgs)
+        ):
             analysisArgItem = cls()
             analysisArgItem.setData(Qt.UserRole, val)
             analysisArgItem.setParent(analysisDataItem)
@@ -170,6 +185,7 @@ class ExperimentDataModel(QAbstractItemModel):
     # https://stackoverflow.com/a/57129496/11501976
 
     ROW_COATPATHS = 1
+    ROW_EXPERIMENT = 5
 
     activatedIndexChanged = Signal(QModelIndex)
 

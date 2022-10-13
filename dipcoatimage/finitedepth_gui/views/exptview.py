@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
 )
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
-from .importview import ImportDataView
+from .importview import ImportDataView, ImportDataDelegate
 from typing import Optional
 
 
@@ -64,10 +64,15 @@ class ExperimentView(QWidget):
         self._nameLineEdit = QLineEdit()
         self._nameMapper = QDataWidgetMapper()
         self._importView = ImportDataView()
+        self._importDataDelegate = ImportDataDelegate()
+        self._importArgsMapper = QDataWidgetMapper()
         self._pathsListView = QListView()
         self._addButton = QPushButton("Add")
         self._deleteButton = QPushButton("Delete")
 
+        self._importView.editingFinished.connect(self._importArgsMapper.submit)
+        self._importArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
+        self._importArgsMapper.setItemDelegate(self._importDataDelegate)
         self._pathsListView.setSelectionMode(QListView.ExtendedSelection)
         self._pathsListView.setEditTriggers(QListView.SelectedClicked)
         self._addButton.clicked.connect(self.appendNewPath)
@@ -105,10 +110,16 @@ class ExperimentView(QWidget):
     def setActivatedIndex(self, index: QModelIndex):
         model = index.model()
         self._nameMapper.setModel(model)
+        self._importArgsMapper.setModel(model)
         self._pathsListView.setModel(model)
         if isinstance(model, ExperimentDataModel):
             self._nameMapper.addMapping(self._nameLineEdit, 0)
             self._nameMapper.setCurrentModelIndex(index)
+            exptIndex = model.index(model.ROW_EXPERIMENT, 0, index)
+            exptTypeIndex = model.index(0, 0, exptIndex)
+            self._importArgsMapper.setRootIndex(exptIndex)
+            self._importArgsMapper.addMapping(self._importView, 0)
+            self._importArgsMapper.setCurrentModelIndex(exptTypeIndex)
             coatPathIndex = model.index(model.ROW_COATPATHS, 0, index)
             self._pathsListView.setRootIndex(coatPathIndex)
 
