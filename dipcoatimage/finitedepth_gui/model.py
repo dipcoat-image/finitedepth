@@ -40,11 +40,15 @@ class ExperimentDataItem(object):
     def data(self, role: Union[Qt.ItemDataRole, int]) -> Any:
         if isinstance(role, int):
             role = Qt.ItemDataRole(role)
+        if role == Qt.EditRole:
+            role = Qt.DisplayRole
         return self._data.get(role, None)
 
     def setData(self, role: Union[Qt.ItemDataRole, int], data: Any):
         if isinstance(role, int):
             role = Qt.ItemDataRole(role)
+        if role == Qt.EditRole:
+            role = Qt.DisplayRole
         self._data[role] = data
 
     def columnCount(self) -> int:
