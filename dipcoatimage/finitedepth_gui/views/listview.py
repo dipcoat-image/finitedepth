@@ -68,14 +68,22 @@ class ExperimentListWidget(QWidget):
     """
     Widget to display the list of experiment data.
 
-    >>> from PySide6.QtWidgets import QApplication
+    >>> from PySide6.QtWidgets import QApplication, QWidget, QTreeView, QHBoxLayout
     >>> import sys
     >>> from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
     >>> from dipcoatimage.finitedepth_gui.views import ExperimentListWidget
     >>> def runGUI():
     ...     app = QApplication(sys.argv)
-    ...     window = ExperimentListWidget()
-    ...     window.setModel(ExperimentDataModel())
+    ...     model = ExperimentDataModel()
+    ...     window = QWidget()
+    ...     layout = QHBoxLayout()
+    ...     treeView = QTreeView()
+    ...     treeView.setModel(model)
+    ...     layout.addWidget(treeView)
+    ...     exptListWidget = ExperimentListWidget()
+    ...     exptListWidget.setModel(model)
+    ...     layout.addWidget(exptListWidget)
+    ...     window.setLayout(layout)
     ...     window.show()
     ...     app.exec()
     ...     app.quit()
