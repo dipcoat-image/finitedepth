@@ -98,11 +98,52 @@ class ExperimentDataItem(object):
         """Construct the tree structure from *exptData*."""
         inst = cls()
 
-        for name, val in dataclasses.asdict(exptData).items():
-            subItem = cls()
-            subItem.setData(Qt.DisplayRole, name)
-            subItem.setData(Qt.UserRole, val)
-            subItem.setParent(inst)
+        # reference path
+        refPathItem = cls()
+        refPathItem.setData(Qt.DisplayRole, exptData.ref_path)
+        refPathItem.setParent(inst)
+
+        coatPathsItem = cls()
+        for path in exptData.coat_paths:
+            coatPathItem = cls()
+            coatPathItem.setData(Qt.DisplayRole, path)
+            coatPathItem.setParent(coatPathsItem)
+        coatPathsItem.setParent(inst)
+
+        refDataItem = cls()
+        for val in dataclasses.asdict(exptData.reference).values():
+            refArgItem = cls()
+            refArgItem.setData(Qt.UserRole, val)
+            refArgItem.setParent(refDataItem)
+        refDataItem.setParent(inst)
+
+        substDataItem = cls()
+        for val in dataclasses.asdict(exptData.substrate).values():
+            substArgItem = cls()
+            substArgItem.setData(Qt.UserRole, val)
+            substArgItem.setParent(substDataItem)
+        substDataItem.setParent(inst)
+
+        layerDataItem = cls()
+        for val in dataclasses.asdict(exptData.coatinglayer).values():
+            layerArgItem = cls()
+            layerArgItem.setData(Qt.UserRole, val)
+            layerArgItem.setParent(layerDataItem)
+        layerDataItem.setParent(inst)
+
+        exptDataItem = cls()
+        for val in dataclasses.asdict(exptData.experiment).values():
+            exptArgItem = cls()
+            exptArgItem.setData(Qt.UserRole, val)
+            exptArgItem.setParent(exptDataItem)
+        exptDataItem.setParent(inst)
+
+        analysisDataItem = cls()
+        for val in dataclasses.asdict(exptData.analysis).values():
+            analysisArgItem = cls()
+            analysisArgItem.setData(Qt.UserRole, val)
+            analysisArgItem.setParent(analysisDataItem)
+        analysisDataItem.setParent(inst)
 
         return inst
 
