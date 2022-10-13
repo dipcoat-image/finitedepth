@@ -31,7 +31,7 @@ class ExperimentView(QWidget):
     Widget to display experiment name, coating layer file paths and
     :class:`ExperimentArgs`.
 
-    >>> from PySide6.QtWidgets import QApplication, QWidget, QTreeView, QHBoxLayout
+    >>> from PySide6.QtWidgets import QApplication, QWidget, QHBoxLayout
     >>> import sys
     >>> from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
     >>> from dipcoatimage.finitedepth_gui.views import (
@@ -46,9 +46,6 @@ class ExperimentView(QWidget):
     ...     exptListWidget = ExperimentListView()
     ...     exptListWidget.setModel(model)
     ...     layout.addWidget(exptListWidget)
-    ...     treeView = QTreeView()
-    ...     treeView.setModel(model)
-    ...     layout.addWidget(treeView)
     ...     exptWidget = ExperimentView()
     ...     exptWidget.setModel(model)
     ...     layout.addWidget(exptWidget)
@@ -71,7 +68,6 @@ class ExperimentView(QWidget):
         self._addButton = QPushButton("Add")
         self._deleteButton = QPushButton("Delete")
 
-        self._importView.setOrientation(Qt.Vertical)
         self._pathsListView.setSelectionMode(QListView.ExtendedSelection)
         self._pathsListView.setEditTriggers(QListView.SelectedClicked)
         self._addButton.clicked.connect(self.appendNewPath)
@@ -103,7 +99,6 @@ class ExperimentView(QWidget):
             oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
         self._model = model
         self._nameMapper.setModel(model)
-        self._importView.setModel(model)
         if model is not None:
             self._nameMapper.addMapping(self._nameLineEdit, 0)
             model.activatedIndexChanged.connect(self.setActivatedIndex)
@@ -111,30 +106,13 @@ class ExperimentView(QWidget):
     @Slot(QModelIndex)
     def setActivatedIndex(self, index: QModelIndex):
         model = index.model()
-        self._pathsListView.setModel(model)
         if isinstance(model, ExperimentDataModel):
             self._nameMapper.setCurrentModelIndex(index)
-            coatPathIndex = model.index(model.ROW_COATPATHS, 0, index)
-            self._pathsListView.setRootIndex(coatPathIndex)
-            exptIndex = model.index(model.ROW_EXPERIMENT, 0, index)
-            exptTypeIndex = model.index(model.ROW_EXPERIMENT_TYPE, 0, exptIndex)
-            self._importView.setRootIndex(exptTypeIndex)
 
     @Slot()
     def appendNewPath(self):
-        model = self._pathsListView.model()
-        parent = self._pathsListView.rootIndex()
-        if model is not None and parent.isValid():
-            rowNum = model.rowCount(parent)
-            success = model.insertRow(rowNum, parent)
-            if success:
-                index = model.index(rowNum, 0, parent)
-                model.setData(index, "New path", role=Qt.DisplayRole)
+        pass
 
     @Slot()
     def deleteSelectedPaths(self):
-        model = self._pathsListView.model()
-        if model is not None:
-            rows = [idx.row() for idx in self._pathsListView.selectedIndexes()]
-            for i in reversed(sorted(rows)):
-                model.removeRow(i, self._pathsListView.rootIndex())
+        pass

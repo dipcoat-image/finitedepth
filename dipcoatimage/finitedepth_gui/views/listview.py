@@ -26,13 +26,13 @@ from typing import Optional
 
 
 __all__ = [
-    "ExperimentListDelegate",
+    "ExperimentNameDelegate",
     "ExperimentListView",
 ]
 
 
-class ExperimentListDelegate(QStyledItemDelegate):
-    """Delegate to mark activated item."""
+class ExperimentNameDelegate(QStyledItemDelegate):
+    """Delegate to mark activated experiment."""
 
     ACTIVATED_INDENT = 10
     ACTIVATED_MARKER_RADIUS = 2
@@ -68,23 +68,16 @@ class ExperimentListView(QWidget):
     """
     Widget to display the list of experiment data.
 
-    >>> from PySide6.QtWidgets import QApplication, QWidget, QTreeView, QHBoxLayout
+    >>> from PySide6.QtWidgets import QApplication
     >>> import sys
     >>> from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
     >>> from dipcoatimage.finitedepth_gui.views import ExperimentListView
     >>> def runGUI():
     ...     app = QApplication(sys.argv)
     ...     model = ExperimentDataModel()
-    ...     window = QWidget()
-    ...     layout = QHBoxLayout()
     ...     exptListWidget = ExperimentListView()
     ...     exptListWidget.setModel(model)
-    ...     layout.addWidget(exptListWidget)
-    ...     treeView = QTreeView()
-    ...     treeView.setModel(model)
-    ...     layout.addWidget(treeView)
-    ...     window.setLayout(layout)
-    ...     window.show()
+    ...     exptListWidget.show()
     ...     app.exec()
     ...     app.quit()
     >>> runGUI() # doctest: +SKIP
@@ -101,7 +94,7 @@ class ExperimentListView(QWidget):
         copyAction = self._addButton.menu().addAction("Copy selected items")
         self._deleteButton = QPushButton()
 
-        self._listView.setItemDelegate(ExperimentListDelegate())
+        self._listView.setItemDelegate(ExperimentNameDelegate())
         self._listView.setSelectionMode(QListView.ExtendedSelection)
         self._listView.activated.connect(self.onIndexActivated)
         self._addButton.clicked.connect(self.appendNewRow)

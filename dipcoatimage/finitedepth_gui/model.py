@@ -8,9 +8,8 @@ V2 for inventory.py
 import copy
 import dataclasses
 from dipcoatimage.finitedepth import ExperimentData
-from dipcoatimage.finitedepth.util import DataclassProtocol
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
-from typing import Optional, Any, Type, Union
+from typing import Optional, Any, Union
 
 
 __all__ = [
@@ -95,21 +94,16 @@ class ExperimentDataItem(object):
                 orphan.remove(0)
 
     @classmethod
-    def fromDataclass(cls, dcls: Type[DataclassProtocol]):
-        """
-        Construct the tree structure from *dcls*.
-
-        If the field is dataclass, its fields are recursively constructed as tree
-        structure. Else, a single node is constructed from the field.
-        """
+    def fromExperimentData(cls, exptData: ExperimentData):
+        """Construct the tree structure from *exptData*."""
         inst = cls()
-        for field in dataclasses.fields(dcls):
-            t = field.type
-            if dataclasses.is_dataclass(t):
-                subItem = cls.fromDataclass(t)
-            else:
-                subItem = cls()
+
+        for name, val in dataclasses.asdict(exptData).items():
+            subItem = cls()
+            subItem.setData(Qt.DisplayRole, name)
+            subItem.setData(Qt.UserRole, val)
             subItem.setParent(inst)
+
         return inst
 
     def copyDataTo(self, other: "ExperimentDataItem"):
@@ -202,7 +196,6 @@ class ExperimentDataModel(QAbstractItemModel):
 
     def insertRows(self, row, count, parent=QModelIndex()):
         if not parent.isValid():
-
             activatedIndex = self.activatedIndex()
             activatedRow = activatedIndex.row()
             activatedColumn = activatedIndex.column()
@@ -210,23 +203,13 @@ class ExperimentDataModel(QAbstractItemModel):
 
             self.beginInsertRows(parent, row, row + count - 1)
             for _ in range(count):
-                newItem = ExperimentDataItem.fromDataclass(ExperimentData)
+                newItem = ExperimentDataItem.fromExperimentData(ExperimentData())
                 newItem.setParent(self._rootItem)
 
             if reactivate:
                 newRow = activatedRow + count
                 newIndex = self.index(newRow, activatedColumn, parent)
                 self.setActivatedIndex(newIndex)
-            self.endInsertRows()
-            return True
-        elif (
-            not parent.parent().parent().isValid()
-            and parent.row() == self.ROW_COATPATHS
-        ):
-            self.beginInsertRows(parent, row, row + count - 1)
-            for _ in range(count):
-                newItem = ExperimentDataItem()
-                newItem.setParent(parent.internalPointer())
             self.endInsertRows()
             return True
         return False
@@ -251,7 +234,6 @@ class ExperimentDataModel(QAbstractItemModel):
         if sourceParent != destinationParent:
             return False
         if not sourceParent.isValid():
-
             activatedIndex = self.activatedIndex()
             activatedRow = activatedIndex.row()
             activatedColumn = activatedIndex.column()
@@ -262,7 +244,7 @@ class ExperimentDataModel(QAbstractItemModel):
             newItems = []
             for i in range(count):
                 oldItem = self.index(sourceRow + i, 0, sourceParent).internalPointer()
-                newItem = ExperimentDataItem.fromDataclass(ExperimentData)
+                newItem = ExperimentDataItem.fromExperimentData(ExperimentData())
                 oldItem.copyDataTo(newItem)
                 newItems.append(newItem)
             self.beginInsertRows(
@@ -277,28 +259,10 @@ class ExperimentDataModel(QAbstractItemModel):
                 self.setActivatedIndex(newIndex)
             self.endInsertRows()
             return True
-        elif (
-            not sourceParent.parent().parent().isValid()
-            and sourceParent.row() == self.ROW_COATPATHS
-        ):
-            newItems = []
-            for i in range(count):
-                oldItem = self.index(sourceRow + i, 0, sourceParent).internalPointer()
-                newItem = ExperimentDataItem()
-                oldItem.copyDataTo(newItem)
-                newItems.append(newItem)
-            self.beginInsertRows(
-                sourceParent, destinationChild, destinationChild + count - 1
-            )
-            parentDataItem = destinationParent.internalPointer()
-            for item in reversed(newItems):
-                item.setParent(parentDataItem, destinationChild)
-            self.endInsertRows()
         return False
 
     def removeRows(self, row, count, parent=QModelIndex()):
         if not parent.isValid():
-
             # to avoid reference issue, decide whether activated index should be
             # changed before destroying data structure
             activatedIndex = self.activatedIndex()
@@ -319,18 +283,6 @@ class ExperimentDataModel(QAbstractItemModel):
                 self.setActivatedIndex(newIndex)
             self.endRemoveRows()
             return True
-
-        elif (
-            not parent.parent().parent().isValid()
-            and parent.row() == self.ROW_COATPATHS
-        ):
-            self.beginRemoveRows(parent, row, row + count - 1)
-            dataItem = parent.internalPointer()
-            for _ in range(count):
-                dataItem.remove(row)
-            self.endRemoveRows()
-            return True
-
         return False
 
     def activatedIndex(self) -> QModelIndex:
