@@ -22,11 +22,11 @@ from typing import Optional
 
 
 __all__ = [
-    "ExperimentWidget",
+    "ExperimentView",
 ]
 
 
-class ExperimentWidget(QWidget):
+class ExperimentView(QWidget):
     """
     Widget to display experiment name, coating layer file paths and
     :class:`ExperimentArgs`.
@@ -35,21 +35,21 @@ class ExperimentWidget(QWidget):
     >>> import sys
     >>> from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
     >>> from dipcoatimage.finitedepth_gui.views import (
-    ...     ExperimentListWidget,
-    ...     ExperimentWidget
+    ...     ExperimentListView,
+    ...     ExperimentView
     ... )
     >>> def runGUI():
     ...     app = QApplication(sys.argv)
     ...     model = ExperimentDataModel()
     ...     window = QWidget()
     ...     layout = QHBoxLayout()
-    ...     exptListWidget = ExperimentListWidget()
+    ...     exptListWidget = ExperimentListView()
     ...     exptListWidget.setModel(model)
     ...     layout.addWidget(exptListWidget)
     ...     treeView = QTreeView()
     ...     treeView.setModel(model)
     ...     layout.addWidget(treeView)
-    ...     exptWidget = ExperimentWidget()
+    ...     exptWidget = ExperimentView()
     ...     exptWidget.setModel(model)
     ...     layout.addWidget(exptWidget)
     ...     window.setLayout(layout)
@@ -65,7 +65,7 @@ class ExperimentWidget(QWidget):
 
         self._model = None
         self._nameLineEdit = QLineEdit()
-        self._mapper = QDataWidgetMapper()
+        self._nameMapper = QDataWidgetMapper()
         self._importView = ImportDataView()
         self._pathsListView = QListView()
         self._addButton = QPushButton("Add")
@@ -101,9 +101,9 @@ class ExperimentWidget(QWidget):
         if oldModel is not None:
             oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
         self._model = model
-        self._mapper.setModel(model)
+        self._nameMapper.setModel(model)
         if model is not None:
-            self._mapper.addMapping(self._nameLineEdit, 0)
+            self._nameMapper.addMapping(self._nameLineEdit, 0)
             model.activatedIndexChanged.connect(self.setActivatedIndex)
 
     @Slot(QModelIndex)
@@ -111,7 +111,7 @@ class ExperimentWidget(QWidget):
         model = index.model()
         self._pathsListView.setModel(model)
         if model is not None:
-            self._mapper.setCurrentModelIndex(index)
+            self._nameMapper.setCurrentModelIndex(index)
             self._pathsListView.setRootIndex(model.index(model.ROW_COATPATHS, 0, index))
 
     @Slot()

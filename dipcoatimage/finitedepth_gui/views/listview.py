@@ -27,7 +27,7 @@ from typing import Optional
 
 __all__ = [
     "ExperimentListDelegate",
-    "ExperimentListWidget",
+    "ExperimentListView",
 ]
 
 
@@ -64,20 +64,20 @@ class ExperimentListDelegate(QStyledItemDelegate):
                 painter.restore()
 
 
-class ExperimentListWidget(QWidget):
+class ExperimentListView(QWidget):
     """
     Widget to display the list of experiment data.
 
     >>> from PySide6.QtWidgets import QApplication, QWidget, QTreeView, QHBoxLayout
     >>> import sys
     >>> from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
-    >>> from dipcoatimage.finitedepth_gui.views import ExperimentListWidget
+    >>> from dipcoatimage.finitedepth_gui.views import ExperimentListView
     >>> def runGUI():
     ...     app = QApplication(sys.argv)
     ...     model = ExperimentDataModel()
     ...     window = QWidget()
     ...     layout = QHBoxLayout()
-    ...     exptListWidget = ExperimentListWidget()
+    ...     exptListWidget = ExperimentListView()
     ...     exptListWidget.setModel(model)
     ...     layout.addWidget(exptListWidget)
     ...     treeView = QTreeView()
