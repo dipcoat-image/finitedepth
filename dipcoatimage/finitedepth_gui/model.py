@@ -217,6 +217,12 @@ class ExperimentDataModel(QAbstractItemModel):
             return self.createIndex(row, column, dataItem)
         return QModelIndex()
 
+    def flags(self, index):
+        ret = Qt.ItemIsSelectable | Qt.ItemIsEnabled
+        if index.parent().isValid():
+            ret |= Qt.ItemIsEditable
+        return ret
+
     def data(self, index, role=Qt.DisplayRole):
         dataItem = index.internalPointer()
         if isinstance(dataItem, ExperimentDataItem):
