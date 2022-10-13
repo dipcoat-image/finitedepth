@@ -95,7 +95,9 @@ class ExperimentWidget(QWidget):
         if oldModel is not None:
             oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
         self._model = model
+        self._mapper.setModel(model)
         if model is not None:
+            self._mapper.addMapping(self._nameLineEdit, 0)
             model.activatedIndexChanged.connect(self.setActivatedIndex)
 
     @Slot(QModelIndex)
@@ -103,6 +105,7 @@ class ExperimentWidget(QWidget):
         model = index.model()
         self._pathsListView.setModel(model)
         if model is not None:
+            self._mapper.setCurrentModelIndex(index)
             self._pathsListView.setRootIndex(model.index(model.ROW_COATPATHS, 0, index))
 
     @Slot()
