@@ -136,6 +136,9 @@ class ExperimentDataModel(QAbstractItemModel):
 
     ROW_REFPATH = 0
     ROW_COATPATHS = 1
+    ROW_EXPERIMENT = 5
+
+    ROW_EXPERIMENT_TYPE = 0
 
     activatedIndexChanged = Signal(QModelIndex)
 
