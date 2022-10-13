@@ -9,11 +9,11 @@ from PySide6.QtWidgets import QGroupBox, QLineEdit, QVBoxLayout
 
 
 __all__ = [
-    "ImportWidget",
+    "ImportDataView",
 ]
 
 
-class ImportWidget(QGroupBox):
+class ImportDataView(QGroupBox):
     """
     Widget to display import data.
     """
@@ -22,12 +22,12 @@ class ImportWidget(QGroupBox):
         super().__init__(parent)
 
         self._varNameLineEdit = QLineEdit()
-        self._moduleLineEdit = QLineEdit()
+        self._moduleNameLineEdit = QLineEdit()
 
         self._varNameLineEdit.setPlaceholderText("Variable name")
-        self._moduleLineEdit.setPlaceholderText("Module")
+        self._moduleNameLineEdit.setPlaceholderText("Module")
 
         layout = QVBoxLayout()
         layout.addWidget(self._varNameLineEdit)
-        layout.addWidget(self._moduleLineEdit)
+        layout.addWidget(self._moduleNameLineEdit)
         self.setLayout(layout)
