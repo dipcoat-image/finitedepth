@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
 )
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
+from .importview import ImportWidget
 from typing import Optional
 
 
@@ -64,18 +65,23 @@ class ExperimentWidget(QWidget):
 
         self._model = None
         self._nameLineEdit = QLineEdit()
+        self._mapper = QDataWidgetMapper()
+        self._importWidget = ImportWidget()
         self._pathsListView = QListView()
         self._addButton = QPushButton("Add")
         self._deleteButton = QPushButton("Delete")
-        self._mapper = QDataWidgetMapper()
 
         self._pathsListView.setSelectionMode(QListView.ExtendedSelection)
         self._pathsListView.setEditTriggers(QListView.SelectedClicked)
         self._addButton.clicked.connect(self.appendNewPath)
         self._deleteButton.clicked.connect(self.deleteSelectedPaths)
 
+        self._nameLineEdit.setPlaceholderText("Experiment name")
+        self._importWidget.setTitle("Experiment type")
+
         layout = QVBoxLayout()
         layout.addWidget(self._nameLineEdit)
+        layout.addWidget(self._importWidget)
         pathsGroupBox = QGroupBox("Coating layer files path")
         pathsLayout = QVBoxLayout()
         pathsLayout.addWidget(self._pathsListView)
