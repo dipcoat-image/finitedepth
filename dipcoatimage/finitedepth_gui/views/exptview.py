@@ -30,7 +30,7 @@ class ExperimentWidget(QWidget):
     Widget to display experiment name, coating layer file paths and
     :class:`ExperimentArgs`.
 
-    >>> from PySide6.QtWidgets import QApplication, QWidget, QHBoxLayout
+    >>> from PySide6.QtWidgets import QApplication, QWidget, QTreeView, QHBoxLayout
     >>> import sys
     >>> from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
     >>> from dipcoatimage.finitedepth_gui.views import (
@@ -45,6 +45,9 @@ class ExperimentWidget(QWidget):
     ...     exptListWidget = ExperimentListWidget()
     ...     exptListWidget.setModel(model)
     ...     layout.addWidget(exptListWidget)
+    ...     treeView = QTreeView()
+    ...     treeView.setModel(model)
+    ...     layout.addWidget(treeView)
     ...     exptWidget = ExperimentWidget()
     ...     exptWidget.setModel(model)
     ...     layout.addWidget(exptWidget)
@@ -100,8 +103,7 @@ class ExperimentWidget(QWidget):
         model = index.model()
         self._pathsListView.setModel(model)
         if model is not None:
-            rootIndex = model.index(model.ROW_COATPATHS, 0, index)
-            self._pathsListView.setRootIndex(rootIndex)
+            self._pathsListView.setRootIndex(model.index(model.ROW_COATPATHS, 0, index))
 
     @Slot()
     def appendNewPath(self):
