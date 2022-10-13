@@ -69,6 +69,7 @@ class ExperimentWidget(QWidget):
         self._pathsListView.setSelectionMode(QListView.ExtendedSelection)
         self._pathsListView.setEditTriggers(QListView.SelectedClicked)
         self._addButton.clicked.connect(self.appendNewPath)
+        self._deleteButton.clicked.connect(self.deleteSelectedPaths)
 
         layout = QVBoxLayout()
         layout.addWidget(self._nameLineEdit)
@@ -104,7 +105,7 @@ class ExperimentWidget(QWidget):
 
     @Slot()
     def appendNewPath(self):
-        model = self.model()
+        model = self._pathsListView.model()
         parent = self._pathsListView.rootIndex()
         if model is not None and parent.isValid():
             rowNum = model.rowCount(parent)
@@ -112,3 +113,11 @@ class ExperimentWidget(QWidget):
             if success:
                 index = model.index(rowNum, 0, parent)
                 model.setData(index, "New path", role=Qt.DisplayRole)
+
+    @Slot()
+    def deleteSelectedPaths(self):
+        model = self._pathsListView.model()
+        if model is not None:
+            rows = [idx.row() for idx in self._pathsListView.selectedIndexes()]
+            for i in reversed(sorted(rows)):
+                model.removeRow(i, self._pathsListView.rootIndex())
