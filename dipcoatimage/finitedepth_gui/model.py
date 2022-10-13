@@ -10,7 +10,7 @@ import dataclasses
 from dipcoatimage.finitedepth import ExperimentData
 from dipcoatimage.finitedepth.util import DataclassProtocol
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
-from typing import Optional, Any, Type
+from typing import Optional, Any, Type, Union
 
 
 __all__ = [
@@ -37,10 +37,14 @@ class ExperimentDataItem(object):
         self._children = []
         self._parent = None
 
-    def data(self, role: Qt.ItemDataRole) -> Any:
+    def data(self, role: Union[Qt.ItemDataRole, int]) -> Any:
+        if isinstance(role, int):
+            role = Qt.ItemDataRole(role)
         return self._data.get(role, None)
 
-    def setData(self, role: Qt.ItemDataRole, data: Any):
+    def setData(self, role: Union[Qt.ItemDataRole, int], data: Any):
+        if isinstance(role, int):
+            role = Qt.ItemDataRole(role)
         self._data[role] = data
 
     def columnCount(self) -> int:
