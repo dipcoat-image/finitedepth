@@ -5,7 +5,7 @@ Experiment view
 V2 for controlwidgets/exptwidget.py
 """
 
-from PySide6.QtCore import Slot, QModelIndex, Qt
+from PySide6.QtCore import Slot, QModelIndex
 from PySide6.QtWidgets import (
     QWidget,
     QLineEdit,
