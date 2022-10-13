@@ -16,36 +16,7 @@ __all__ = [
 
 
 class ImportDataView(QGroupBox):
-    """
-    Widget to display import data.
-
-    >>> from PySide6.QtCore import Qt
-    >>> from PySide6.QtWidgets import QApplication, QWidget, QTreeView, QHBoxLayout
-    >>> from PySide6.QtGui import QStandardItemModel, QStandardItem
-    >>> import sys
-    >>> from dipcoatimage.finitedepth_gui.views import ImportDataView
-    >>> def runGUI():
-    ...     app = QApplication(sys.argv)
-    ...     model = QStandardItemModel()
-    ...     parent = QStandardItem()
-    ...     parent.appendRows([QStandardItem() for _ in range(2)])
-    ...     model.appendRow(parent)
-    ...     window = QWidget()
-    ...     layout = QHBoxLayout()
-    ...     treeView = QTreeView()
-    ...     treeView.setModel(model)
-    ...     layout.addWidget(treeView)
-    ...     importView = ImportDataView()
-    ...     importView.setModel(model)
-    ...     importView.setRootIndex(parent.index())
-    ...     importView.setOrientation(Qt.Vertical)
-    ...     layout.addWidget(importView)
-    ...     window.setLayout(layout)
-    ...     window.show()
-    ...     app.exec()
-    ...     app.quit()
-    >>> runGUI() # doctest: +SKIP
-    """
+    """Widget to display import data."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
