@@ -112,7 +112,7 @@ class ExperimentView(QWidget):
     def setActivatedIndex(self, index: QModelIndex):
         model = index.model()
         self._pathsListView.setModel(model)
-        if model is not None:
+        if isinstance(model, ExperimentDataModel):
             self._nameMapper.setCurrentModelIndex(index)
             coatPathIndex = model.index(model.ROW_COATPATHS, 0, index)
             self._pathsListView.setRootIndex(coatPathIndex)
