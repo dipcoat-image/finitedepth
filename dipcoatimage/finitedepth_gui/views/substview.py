@@ -10,8 +10,9 @@ from PySide6.QtCore import Qt, Slot, QModelIndex
 from PySide6.QtWidgets import (
     QWidget,
     QDataWidgetMapper,
-    QVBoxLayout,
     QGroupBox,
+    QVBoxLayout,
+    QHBoxLayout,
     QStyledItemDelegate,
 )
 from dipcoatimage.finitedepth import SubstrateBase
@@ -82,8 +83,10 @@ class SubstrateView(QWidget):
 
         layout = QVBoxLayout()
         layout.addWidget(self._importView)
-        layout.addWidget(self._parametersView)
-        layout.addWidget(self._drawOptionsView)
+        dataLayout = QHBoxLayout()
+        dataLayout.addWidget(self._parametersView)
+        dataLayout.addWidget(self._drawOptionsView)
+        layout.addLayout(dataLayout)
         self.setLayout(layout)
 
     def model(self) -> Optional[ExperimentDataModel]:
