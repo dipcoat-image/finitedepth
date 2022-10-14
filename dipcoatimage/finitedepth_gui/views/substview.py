@@ -13,7 +13,6 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QVBoxLayout,
     QHBoxLayout,
-    QStyledItemDelegate,
 )
 from dipcoatimage.finitedepth import SubstrateBase
 from dipcoatimage.finitedepth.analysis import ImportArgs, SubstrateArgs
@@ -64,28 +63,30 @@ class SubstrateView(QWidget):
 
         self._model = None
         self._importView = ImportDataView()
-        self._parametersView = dawiq.DataclassStackedWidget()
-        self._drawOptionsView = dawiq.DataclassStackedWidget()
+        self._paramStackWidget = dawiq.DataclassStackedWidget()
+        self._drawOptStackWidget = dawiq.DataclassStackedWidget()
         self._substArgsDelegate = SubstrateArgsDelegate()
         self._substArgsMapper = QDataWidgetMapper()
 
         self._substArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._importView.editingFinished.connect(self._substArgsMapper.submit)
+        self._paramStackWidget.currentDataValueChanged.connect(self._substArgsMapper.submit)
+        self._drawOptStackWidget.currentDataValueChanged.connect(self._substArgsMapper.submit)
         self._substArgsMapper.setItemDelegate(self._substArgsDelegate)
 
         self._importView.setTitle("Substrate type")
-        self._parametersView.addWidget(
+        self._paramStackWidget.addWidget(
             QGroupBox("Parameters")  # default empty widget
         )
-        self._drawOptionsView.addWidget(
+        self._drawOptStackWidget.addWidget(
             QGroupBox("Draw options")  # default empty widget
         )
 
         layout = QVBoxLayout()
         layout.addWidget(self._importView)
         dataLayout = QHBoxLayout()
-        dataLayout.addWidget(self._parametersView)
-        dataLayout.addWidget(self._drawOptionsView)
+        dataLayout.addWidget(self._paramStackWidget)
+        dataLayout.addWidget(self._drawOptStackWidget)
         layout.addLayout(dataLayout)
         self.setLayout(layout)
 
@@ -101,6 +102,12 @@ class SubstrateView(QWidget):
         self._substArgsMapper.addMapping(self, 0)
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
+
+    def parametersStackedWidget(self) -> dawiq.DataclassStackedWidget:
+        return self._paramStackWidget
+
+    def drawOptionsStackedWidget(self) -> dawiq.DataclassStackedWidget:
+        return self._drawOptStackWidget
 
     def typeName(self) -> str:
         return self._importView.variableName()
@@ -123,40 +130,50 @@ class SubstrateView(QWidget):
             self._substArgsMapper.setCurrentModelIndex(substIndex)
         else:
             self._importView.clear()
-            self._parametersView.setCurrentIndex(0)
-            self._drawOptionsView.setCurrentIndex(0)
+            self._paramStackWidget.setCurrentIndex(0)
+            self._drawOptStackWidget.setCurrentIndex(0)
             self._substArgsMapper.setCurrentModelIndex(QModelIndex())
 
     def indexOfParameterType(self, paramType: Type[DataclassProtocol]) -> int:
-        return self._parametersView.indexOfDataclass(paramType)
+        return self._paramStackWidget.indexOfDataclass(paramType)
 
     def addParameterType(self, paramType: Type[DataclassProtocol]) -> int:
         widget = dawiq.dataclass2Widget(paramType)
         widget.setTitle("Parameters")
-        index = self._parametersView.addDataWidget(widget, paramType)
+        index = self._paramStackWidget.addDataWidget(widget, paramType)
         return index
 
     def setCurrentParameterIndex(self, index: int):
-        self._parametersView.setCurrentIndex(index)
+        self._paramStackWidget.setCurrentIndex(index)
 
     def indexOfDrawOptionsType(self, drawOptType: Type[DataclassProtocol]) -> int:
-        return self._drawOptionsView.indexOfDataclass(drawOptType)
+        return self._drawOptStackWidget.indexOfDataclass(drawOptType)
 
     def addDrawOptionsType(self, drawOptType: Type[DataclassProtocol]) -> int:
         widget = dawiq.dataclass2Widget(drawOptType)
         widget.setTitle("Draw options")
-        index = self._drawOptionsView.addDataWidget(widget, drawOptType)
+        index = self._drawOptStackWidget.addDataWidget(widget, drawOptType)
         return index
 
     def setCurrentDrawOptionsIndex(self, index: int):
-        self._drawOptionsView.setCurrentIndex(index)
+        self._drawOptStackWidget.setCurrentIndex(index)
 
 
-class SubstrateArgsDelegate(QStyledItemDelegate):
+class SubstrateArgsDelegate(dawiq.DataclassDelegate):
     def setModelData(self, editor, model, index):
         if isinstance(editor, SubstrateView):
             importArgs = ImportArgs(editor.typeName(), editor.moduleName())
-            substArgs = SubstrateArgs(importArgs)
+            paramWidget = editor.parametersStackedWidget().currentWidget()
+            if isinstance(paramWidget, dawiq.DataWidget):
+                parameters = paramWidget.dataValue()
+            else:
+                parameters = {}
+            drawOptWidget = editor.drawOptionsStackedWidget().currentWidget()
+            if isinstance(drawOptWidget, dawiq.DataWidget):
+                drawOpt = drawOptWidget.dataValue()
+            else:
+                drawOpt = {}
+            substArgs = SubstrateArgs(importArgs, parameters, drawOpt)
             model.setData(index, substArgs, Qt.UserRole)
         super().setModelData(editor, model, index)
 
@@ -176,10 +193,20 @@ class SubstrateArgsDelegate(QStyledItemDelegate):
                 drawOptIdx = editor.indexOfDrawOptionsType(drawOptType)
                 if drawOptIdx == -1:
                     drawOptIdx = editor.addDrawOptionsType(drawOptType)
-            else:
-                paramIdx = 0
-                drawOptIdx = 0
-            editor.setCurrentParameterIndex(paramIdx)
-            editor.setCurrentDrawOptionsIndex(drawOptIdx)
+                editor.setCurrentParameterIndex(paramIdx)
+                editor.setCurrentDrawOptionsIndex(drawOptIdx)
 
+                self.setEditorDataclassData(
+                    editor.parametersStackedWidget().currentWidget(),
+                    paramType,
+                    data.parameters,
+                )
+                self.setEditorDataclassData(
+                    editor.drawOptionsStackedWidget().currentWidget(),
+                    drawOptType,
+                    data.draw_options,
+                )
+            else:
+                editor.setCurrentParameterIndex(0)
+                editor.setCurrentDrawOptionsIndex(0)
         super().setEditorData(editor, index)
