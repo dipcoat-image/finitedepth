@@ -113,24 +113,31 @@ class ExperimentView(QWidget):
         if oldModel is not None:
             oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
         self._model = model
+        # no pathsListView.setModel here (if not, expt list will be displayed)
+        self._nameMapper.setModel(model)
+        self._nameMapper.addMapping(self._nameLineEdit, 0)
+        self._exptArgsMapper.setModel(model)
+        self._exptArgsMapper.addMapping(self, 0)
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
 
     @Slot(QModelIndex)
     def setActivatedIndex(self, index: QModelIndex):
         model = index.model()
-        self._nameMapper.setModel(model)
-        self._pathsListView.setModel(model)
-        self._exptArgsMapper.setModel(model)
         if isinstance(model, ExperimentDataModel):
-            self._nameMapper.addMapping(self._nameLineEdit, 0)
             self._nameMapper.setCurrentModelIndex(index)
+            self._pathsListView.setModel(model)
             coatPathIndex = model.index(model.ROW_COATPATHS, 0, index)
             self._pathsListView.setRootIndex(coatPathIndex)
             self._exptArgsMapper.setRootIndex(index)
-            self._exptArgsMapper.addMapping(self, 0)
             exptIndex = model.index(model.ROW_EXPERIMENT, 0, index)
             self._exptArgsMapper.setCurrentModelIndex(exptIndex)
+        else:
+            self._nameLineEdit.clear()
+            self._importView.clear()
+            self._nameMapper.setCurrentModelIndex(QModelIndex())
+            self._pathsListView.setModel(None)
+            self._exptArgsMapper.setCurrentModelIndex(QModelIndex())
 
     def variableName(self) -> str:
         return self._importView.variableName()

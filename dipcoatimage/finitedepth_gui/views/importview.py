@@ -51,3 +51,7 @@ class ImportDataView(QGroupBox):
 
     def setModuleName(self, name: str):
         self._moduleNameLineEdit.setText(name)
+
+    def clear(self):
+        self._varNameLineEdit.clear()
+        self._moduleNameLineEdit.clear()
