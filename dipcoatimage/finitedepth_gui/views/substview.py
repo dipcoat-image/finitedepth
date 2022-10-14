@@ -1,25 +1,21 @@
 """
-Experiment view
-===============
+Substrate view
+==============
 
-V2 for controlwidgets/exptwidget.py
+V2 for controlwidgets/substwidget.py
 """
 
 import dawiq
 from PySide6.QtCore import Qt, Slot, QModelIndex
 from PySide6.QtWidgets import (
     QWidget,
-    QLineEdit,
-    QListView,
-    QPushButton,
     QDataWidgetMapper,
     QVBoxLayout,
-    QHBoxLayout,
     QGroupBox,
     QStyledItemDelegate,
 )
-from dipcoatimage.finitedepth import Experiment
-from dipcoatimage.finitedepth.analysis import ImportArgs, ExperimentArgs
+from dipcoatimage.finitedepth import Substrate
+from dipcoatimage.finitedepth.analysis import ImportArgs, SubstrateArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from .importview import ImportDataView
@@ -27,22 +23,21 @@ from typing import Optional, Type
 
 
 __all__ = [
-    "ExperimentView",
-    "ExperimentArgsDelegate",
+    "SubstrateView",
+    "SubstrateArgsDelegate",
 ]
 
 
-class ExperimentView(QWidget):
+class SubstrateView(QWidget):
     """
-    Widget to display experiment name, coating layer file paths and
-    :class:`ExperimentArgs`.
+    Widget to :class:`SubstrateArgs`.
 
     >>> from PySide6.QtWidgets import QApplication, QWidget, QHBoxLayout
     >>> import sys
     >>> from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
     >>> from dipcoatimage.finitedepth_gui.views import (
     ...     ExperimentListView,
-    ...     ExperimentView
+    ...     SubstrateView,
     ... )
     >>> def runGUI():
     ...     app = QApplication(sys.argv)
@@ -52,9 +47,9 @@ class ExperimentView(QWidget):
     ...     exptListWidget = ExperimentListView()
     ...     exptListWidget.setModel(model)
     ...     layout.addWidget(exptListWidget)
-    ...     exptWidget = ExperimentView()
-    ...     exptWidget.setModel(model)
-    ...     layout.addWidget(exptWidget)
+    ...     substWidget = SubstrateView()
+    ...     substWidget.setModel(model)
+    ...     layout.addWidget(substWidget)
     ...     window.setLayout(layout)
     ...     window.show()
     ...     app.exec()
@@ -67,45 +62,32 @@ class ExperimentView(QWidget):
         super().__init__(parent)
 
         self._model = None
-        self._nameLineEdit = QLineEdit()
-        self._nameMapper = QDataWidgetMapper()
         self._importView = ImportDataView()
-        self._pathsListView = QListView()
-        self._addButton = QPushButton("Add")
-        self._deleteButton = QPushButton("Delete")
         self._parametersView = dawiq.DataclassStackedWidget()
-        self._exptArgsDelegate = ExperimentArgsDelegate()
-        self._exptArgsMapper = QDataWidgetMapper()
+        self._drawOptionsView = dawiq.DataclassStackedWidget()
+        self._substArgsDelegate = SubstrateArgsDelegate()
+        self._substArgsMapper = QDataWidgetMapper()
 
-        self._pathsListView.setSelectionMode(QListView.ExtendedSelection)
-        self._pathsListView.setEditTriggers(QListView.SelectedClicked)
-        self._addButton.clicked.connect(self.appendNewPath)
-        self._deleteButton.clicked.connect(self.deleteSelectedPaths)
-        self._exptArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
-        self._importView.editingFinished.connect(self._exptArgsMapper.submit)
+        self._substArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
+        self._importView.editingFinished.connect(self._substArgsMapper.submit)
         self._parametersView.addWidget(QWidget())  # default empty widget
-        self._exptArgsMapper.setItemDelegate(self._exptArgsDelegate)
+        self._drawOptionsView.addWidget(QWidget())  # default empty widget
+        self._substArgsMapper.setItemDelegate(self._substArgsDelegate)
 
-        self._nameLineEdit.setPlaceholderText("Experiment name")
-        self._importView.setTitle("Experiment type")
+        self._importView.setTitle("Substrate type")
 
         layout = QVBoxLayout()
-        layout.addWidget(self._nameLineEdit)
         layout.addWidget(self._importView)
-        pathsGroupBox = QGroupBox("Coating layer files path")
-        pathsLayout = QVBoxLayout()
-        pathsLayout.addWidget(self._pathsListView)
-        buttonsLayout = QHBoxLayout()
-        buttonsLayout.addWidget(self._addButton)
-        buttonsLayout.addWidget(self._deleteButton)
-        pathsLayout.addLayout(buttonsLayout)
-        pathsGroupBox.setLayout(pathsLayout)
-        layout.addWidget(pathsGroupBox)
         paramsGroupBox = QGroupBox("Parameters")
         paramsLayout = QVBoxLayout()
         paramsLayout.addWidget(self._parametersView)
         paramsGroupBox.setLayout(paramsLayout)
         layout.addWidget(paramsGroupBox)
+        drawOptGroupBox = QGroupBox("Drawing options")
+        drawOptLayout = QVBoxLayout()
+        drawOptLayout.addWidget(self._drawOptionsView)
+        drawOptGroupBox.setLayout(drawOptLayout)
+        layout.addWidget(drawOptGroupBox)
         self.setLayout(layout)
 
     def model(self) -> Optional[ExperimentDataModel]:
@@ -116,11 +98,8 @@ class ExperimentView(QWidget):
         if oldModel is not None:
             oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
         self._model = model
-        # no pathsListView.setModel here (if not, expt list will be displayed)
-        self._nameMapper.setModel(model)
-        self._nameMapper.addMapping(self._nameLineEdit, 0)
-        self._exptArgsMapper.setModel(model)
-        self._exptArgsMapper.addMapping(self, 0)
+        self._substArgsMapper.setModel(model)
+        self._substArgsMapper.addMapping(self, 0)
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
 
@@ -140,39 +119,14 @@ class ExperimentView(QWidget):
     def setActivatedIndex(self, index: QModelIndex):
         model = index.model()
         if isinstance(model, ExperimentDataModel):
-            self._nameMapper.setCurrentModelIndex(index)
-            self._pathsListView.setModel(model)
-            coatPathIndex = model.index(model.ROW_COATPATHS, 0, index)
-            self._pathsListView.setRootIndex(coatPathIndex)
-            self._exptArgsMapper.setRootIndex(index)
-            exptIndex = model.index(model.ROW_EXPERIMENT, 0, index)
-            self._exptArgsMapper.setCurrentModelIndex(exptIndex)
+            self._substArgsMapper.setRootIndex(index)
+            substIndex = model.index(model.ROW_SUBSTRATE, 0, index)
+            self._substArgsMapper.setCurrentModelIndex(substIndex)
         else:
-            self._nameLineEdit.clear()
             self._importView.clear()
-            self._nameMapper.setCurrentModelIndex(QModelIndex())
-            self._pathsListView.setModel(None)
             self._parametersView.setCurrentIndex(0)
-            self._exptArgsMapper.setCurrentModelIndex(QModelIndex())
-
-    @Slot()
-    def appendNewPath(self):
-        model = self._pathsListView.model()
-        parent = self._pathsListView.rootIndex()
-        if model is not None and parent.isValid():
-            rowNum = model.rowCount(parent)
-            success = model.insertRow(rowNum, parent)
-            if success:
-                index = model.index(rowNum, 0, parent)
-                model.setData(index, "New path", role=Qt.DisplayRole)
-
-    @Slot()
-    def deleteSelectedPaths(self):
-        model = self._pathsListView.model()
-        if model is not None:
-            rows = [idx.row() for idx in self._pathsListView.selectedIndexes()]
-            for i in reversed(sorted(rows)):
-                model.removeRow(i, self._pathsListView.rootIndex())
+            self._drawOptionsView.setCurrentIndex(0)
+            self._substArgsMapper.setCurrentModelIndex(QModelIndex())
 
     def indexOfParameterType(self, paramType: Type[DataclassProtocol]) -> int:
         return self._parametersView.indexOfDataclass(paramType)
@@ -187,29 +141,48 @@ class ExperimentView(QWidget):
     def setCurrentParameterIndex(self, index: int):
         self._parametersView.setCurrentIndex(index)
 
+    def indexOfDrawOptionsType(self, drawOptType: Type[DataclassProtocol]) -> int:
+        return self._drawOptionsView.indexOfDataclass(drawOptType)
 
-class ExperimentArgsDelegate(QStyledItemDelegate):
+    def addDrawOptionsType(self, drawOptType: Type[DataclassProtocol]) -> int:
+        index = self._drawOptionsView.addDataWidget(
+            dawiq.dataclass2Widget(drawOptType),
+            drawOptType,
+        )
+        return index
+
+    def setCurrentDrawOptionsIndex(self, index: int):
+        self._drawOptionsView.setCurrentIndex(index)
+
+
+class SubstrateArgsDelegate(QStyledItemDelegate):
     def setModelData(self, editor, model, index):
-        if isinstance(editor, ExperimentView):
+        if isinstance(editor, SubstrateView):
             importArgs = ImportArgs(editor.typeName(), editor.moduleName())
-            exptArgs = ExperimentArgs(importArgs)
-            model.setData(index, exptArgs, Qt.UserRole)
+            substArgs = SubstrateArgs(importArgs)
+            model.setData(index, substArgs, Qt.UserRole)
         super().setModelData(editor, model, index)
 
     def setEditorData(self, editor, index):
         data = index.data(Qt.UserRole)
-        if isinstance(editor, ExperimentView) and isinstance(data, ExperimentArgs):
+        if isinstance(editor, SubstrateView) and isinstance(data, SubstrateArgs):
             editor.setTypeName(data.type.name)
             editor.setModuleName(data.type.module)
 
             typeVar, _ = Importer(data.type.name, data.type.module).try_import()
-            if isinstance(typeVar, type) and issubclass(typeVar, Experiment):
+            if isinstance(typeVar, type) and issubclass(typeVar, Substrate):
                 paramType = typeVar.Parameters
                 paramIdx = editor.indexOfParameterType(paramType)
                 if paramIdx == -1:
                     paramIdx = editor.addParameterType(paramType)
+                drawOptType = typeVar.DrawOptions
+                drawOptIdx = editor.indexOfDrawOptionsType(drawOptType)
+                if drawOptIdx == -1:
+                    drawOptIdx = editor.addDrawOptionsType(drawOptType)
             else:
                 paramIdx = 0
+                drawOptIdx = 0
             editor.setCurrentParameterIndex(paramIdx)
+            editor.setCurrentDrawOptionsIndex(drawOptIdx)
 
         super().setEditorData(editor, index)
