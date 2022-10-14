@@ -168,6 +168,12 @@ class SubstrateArgsDelegate(dawiq.DataclassDelegate):
                 drawOpt = drawOptWidget.dataValue()
             else:
                 drawOpt = {}
+            typeVar, _ = Importer(importArgs.name, importArgs.module).try_import()
+            if isinstance(typeVar, type) and issubclass(typeVar, SubstrateBase):
+                paramType = typeVar.Parameters
+                drawOptType = typeVar.DrawOptions
+                parameters = dawiq.convertFromQt(paramType, parameters)
+                drawOptType = dawiq.convertFromQt(drawOptType, drawOpt)
             substArgs = SubstrateArgs(importArgs, parameters, drawOpt)
             model.setData(index, substArgs, Qt.UserRole)
         super().setModelData(editor, model, index)
