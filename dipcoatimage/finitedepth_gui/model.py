@@ -8,9 +8,8 @@ V2 for inventory.py
 import copy
 import dataclasses
 from dipcoatimage.finitedepth import ExperimentData
-from dipcoatimage.finitedepth.util import DataclassProtocol
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
-from typing import Optional, Any, Type
+from typing import Optional, Any, Union
 
 
 __all__ = [
@@ -21,7 +20,8 @@ __all__ = [
 
 class ExperimentDataItem(object):
     """
-    Internal data node for :class:`ExperimentDataModel`.
+    Internal data node for :class:`ExperimentDataModel` which represents tree
+    structure with one column.
 
     Data for the node can be get and set by :meth:`data` and :meth:`setData`.
     Tree structure can be accessed by :meth:`child` and :meth:`parent`, which
@@ -36,11 +36,25 @@ class ExperimentDataItem(object):
         self._children = []
         self._parent = None
 
-    def data(self, role: Qt.ItemDataRole) -> Any:
+    def data(self, role: Union[Qt.ItemDataRole, int]) -> Any:
+        if isinstance(role, int):
+            role = Qt.ItemDataRole(role)
+        if role == Qt.EditRole:
+            role = Qt.DisplayRole
         return self._data.get(role, None)
 
-    def setData(self, role: Qt.ItemDataRole, data: Any):
+    def setData(self, role: Union[Qt.ItemDataRole, int], data: Any):
+        if isinstance(role, int):
+            role = Qt.ItemDataRole(role)
+        if role == Qt.EditRole:
+            role = Qt.DisplayRole
         self._data[role] = data
+
+    def columnCount(self) -> int:
+        return 1
+
+    def rowCount(self) -> int:
+        return len(self._children)
 
     def child(self, index: int) -> Optional["ExperimentDataItem"]:
         """Get *index*-th subitem, or None if the index is invalid."""
@@ -80,21 +94,67 @@ class ExperimentDataItem(object):
                 orphan.remove(0)
 
     @classmethod
-    def fromDataclass(cls, dcls: Type[DataclassProtocol]):
-        """
-        Construct the tree structure from *dcls*.
-
-        If the field is dataclass, its fields are recursively constructed as tree
-        structure. Else, a single node is constructed from the field.
-        """
+    def fromExperimentData(cls, exptData: ExperimentData):
+        """Construct the tree structure from *exptData*."""
         inst = cls()
-        for field in dataclasses.fields(dcls):
-            t = field.type
-            if dataclasses.is_dataclass(t):
-                subItem = cls.fromDataclass(t)
-            else:
-                subItem = cls()
-            subItem.setParent(inst)
+
+        refPathItem = cls()
+        refPathItem.setData(Qt.DisplayRole, exptData.ref_path)
+        refPathItem.setParent(inst)
+
+        coatPathsItem = cls()
+        for path in exptData.coat_paths:
+            coatPathItem = cls()
+            coatPathItem.setData(Qt.DisplayRole, path)
+            coatPathItem.setParent(coatPathsItem)
+        coatPathsItem.setParent(inst)
+
+        refArgs = exptData.reference
+        refDataItem = cls()
+        for val in (
+            getattr(refArgs, field.name) for field in dataclasses.fields(refArgs)
+        ):
+            refArgItem = cls()
+            refArgItem.setData(Qt.UserRole, val)
+            refArgItem.setParent(refDataItem)
+        refDataItem.setParent(inst)
+
+        substArgs = exptData.substrate
+        substDataItem = cls()
+        for val in (
+            getattr(substArgs, field.name) for field in dataclasses.fields(substArgs)
+        ):
+            substArgItem = cls()
+            substArgItem.setData(Qt.UserRole, val)
+            substArgItem.setParent(substDataItem)
+        substDataItem.setParent(inst)
+
+        layerArgs = exptData.coatinglayer
+        layerDataItem = cls()
+        for val in (
+            getattr(layerArgs, field.name) for field in dataclasses.fields(layerArgs)
+        ):
+            layerArgItem = cls()
+            layerArgItem.setData(Qt.UserRole, val)
+            layerArgItem.setParent(layerDataItem)
+        layerDataItem.setParent(inst)
+
+        exptArgs = exptData.experiment
+        exptArgsItem = cls()
+        exptArgsItem.setData(Qt.UserRole, exptArgs)
+        exptArgsItem.setParent(inst)
+
+        analysisArgs = exptData.analysis
+        analysisDataItem = cls()
+        for val in (
+            getattr(analysisArgs, field.name)
+            for field in dataclasses.fields(analysisArgs)
+        ):
+            analysisArgItem = cls()
+            analysisArgItem.setData(Qt.UserRole, val)
+            analysisArgItem.setParent(analysisDataItem)
+        analysisDataItem.setParent(inst)
+
         return inst
 
     def copyDataTo(self, other: "ExperimentDataItem"):
@@ -120,6 +180,7 @@ class ExperimentDataModel(QAbstractItemModel):
     # https://stackoverflow.com/a/57129496/11501976
 
     ROW_COATPATHS = 1
+    ROW_EXPERIMENT = 5
 
     activatedIndexChanged = Signal(QModelIndex)
 
@@ -130,28 +191,30 @@ class ExperimentDataModel(QAbstractItemModel):
 
     def columnCount(self, index=QModelIndex()):
         if not index.isValid():
-            return 1
-        elif not index.parent().isValid():
-            return 1
-        elif not index.parent().parent().isValid():
-            return 1
-        return 0
+            dataItem = self._rootItem
+        else:
+            dataItem = index.internalPointer()
+        return dataItem.columnCount()
 
     def rowCount(self, index=QModelIndex()):
         if not index.isValid():
             dataItem = self._rootItem
         else:
             dataItem = index.internalPointer()
-        return len(dataItem._children)
+        return dataItem.rowCount()
 
     def parent(self, index):
         if not index.isValid():
             return QModelIndex()
         dataItem = index.internalPointer()
         parentDataItem = dataItem.parent()
-        if parentDataItem is self._rootItem:
+        if parentDataItem is None or parentDataItem is self._rootItem:
             return QModelIndex()
-        return self.createIndex(index.row(), index.column(), parentDataItem)
+        grandparentDataItem = parentDataItem.parent()
+        if grandparentDataItem is None:
+            return QModelIndex()
+        row = grandparentDataItem._children.index(parentDataItem)
+        return self.createIndex(row, 0, parentDataItem)
 
     def index(self, row, column, parent=QModelIndex()):
         if not self.hasIndex(row, column, parent):
@@ -164,6 +227,12 @@ class ExperimentDataModel(QAbstractItemModel):
         if dataItem is not None:
             return self.createIndex(row, column, dataItem)
         return QModelIndex()
+
+    def flags(self, index):
+        ret = Qt.ItemIsSelectable | Qt.ItemIsEnabled
+        if index.parent().isValid():
+            ret |= Qt.ItemIsEditable
+        return ret
 
     def data(self, index, role=Qt.DisplayRole):
         dataItem = index.internalPointer()
@@ -181,7 +250,6 @@ class ExperimentDataModel(QAbstractItemModel):
 
     def insertRows(self, row, count, parent=QModelIndex()):
         if not parent.isValid():
-
             activatedIndex = self.activatedIndex()
             activatedRow = activatedIndex.row()
             activatedColumn = activatedIndex.column()
@@ -189,16 +257,19 @@ class ExperimentDataModel(QAbstractItemModel):
 
             self.beginInsertRows(parent, row, row + count - 1)
             for _ in range(count):
-                newItem = ExperimentDataItem.fromDataclass(ExperimentData)
+                newItem = ExperimentDataItem.fromExperimentData(ExperimentData())
                 newItem.setParent(self._rootItem)
-            self.endInsertRows()
 
             if reactivate:
                 newRow = activatedRow + count
                 newIndex = self.index(newRow, activatedColumn, parent)
                 self.setActivatedIndex(newIndex)
+            self.endInsertRows()
             return True
-        elif not parent.parent().isValid() and parent.row() == self.ROW_COATPATHS:
+        elif (
+            not parent.parent().parent().isValid()
+            and parent.row() == self.ROW_COATPATHS
+        ):
             self.beginInsertRows(parent, row, row + count - 1)
             for _ in range(count):
                 newItem = ExperimentDataItem()
@@ -227,7 +298,6 @@ class ExperimentDataModel(QAbstractItemModel):
         if sourceParent != destinationParent:
             return False
         if not sourceParent.isValid():
-
             activatedIndex = self.activatedIndex()
             activatedRow = activatedIndex.row()
             activatedColumn = activatedIndex.column()
@@ -238,7 +308,7 @@ class ExperimentDataModel(QAbstractItemModel):
             newItems = []
             for i in range(count):
                 oldItem = self.index(sourceRow + i, 0, sourceParent).internalPointer()
-                newItem = ExperimentDataItem.fromDataclass(ExperimentData)
+                newItem = ExperimentDataItem.fromExperimentData(ExperimentData())
                 oldItem.copyDataTo(newItem)
                 newItems.append(newItem)
             self.beginInsertRows(
@@ -246,15 +316,15 @@ class ExperimentDataModel(QAbstractItemModel):
             )
             for item in reversed(newItems):
                 item.setParent(self._rootItem, destinationChild)
-            self.endInsertRows()
 
             if reactivate:
                 newRow = activatedRow + count
                 newIndex = self.index(newRow, activatedColumn, sourceParent)
                 self.setActivatedIndex(newIndex)
+            self.endInsertRows()
             return True
         elif (
-            not sourceParent.parent().isValid()
+            not sourceParent.parent().parent().isValid()
             and sourceParent.row() == self.ROW_COATPATHS
         ):
             newItems = []
@@ -274,7 +344,6 @@ class ExperimentDataModel(QAbstractItemModel):
 
     def removeRows(self, row, count, parent=QModelIndex()):
         if not parent.isValid():
-
             # to avoid reference issue, decide whether activated index should be
             # changed before destroying data structure
             activatedIndex = self.activatedIndex()
@@ -285,7 +354,6 @@ class ExperimentDataModel(QAbstractItemModel):
             self.beginRemoveRows(parent, row, row + count - 1)
             for _ in range(count):
                 self._rootItem.remove(row)
-            self.endRemoveRows()
 
             if reactivate:
                 if activatedRow < row + count:
@@ -294,21 +362,25 @@ class ExperimentDataModel(QAbstractItemModel):
                     newRow = activatedRow - count
                     newIndex = self.index(newRow, activatedColumn, parent)
                 self.setActivatedIndex(newIndex)
+            self.endRemoveRows()
             return True
-
-        elif not parent.parent().isValid() and parent.row() == self.ROW_COATPATHS:
+        elif (
+            not parent.parent().parent().isValid()
+            and parent.row() == self.ROW_COATPATHS
+        ):
             self.beginRemoveRows(parent, row, row + count - 1)
             dataItem = parent.internalPointer()
             for _ in range(count):
                 dataItem.remove(row)
             self.endRemoveRows()
             return True
-
         return False
 
     def activatedIndex(self) -> QModelIndex:
         return self._activatedIndex
 
     def setActivatedIndex(self, index: QModelIndex):
+        if index.parent().isValid():
+            index = QModelIndex()
         self._activatedIndex = index
         self.activatedIndexChanged.emit(index)

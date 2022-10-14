@@ -26,13 +26,13 @@ from typing import Optional
 
 
 __all__ = [
-    "ExperimentListDelegate",
-    "ExperimentListWidget",
+    "ExperimentNameDelegate",
+    "ExperimentListView",
 ]
 
 
-class ExperimentListDelegate(QStyledItemDelegate):
-    """Delegate to mark activated item."""
+class ExperimentNameDelegate(QStyledItemDelegate):
+    """Delegate to mark activated experiment."""
 
     ACTIVATED_INDENT = 10
     ACTIVATED_MARKER_RADIUS = 2
@@ -64,19 +64,20 @@ class ExperimentListDelegate(QStyledItemDelegate):
                 painter.restore()
 
 
-class ExperimentListWidget(QWidget):
+class ExperimentListView(QWidget):
     """
-    Widget to display the list of experiments.
+    Widget to display the list of experiment data.
 
     >>> from PySide6.QtWidgets import QApplication
     >>> import sys
     >>> from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
-    >>> from dipcoatimage.finitedepth_gui.views import ExperimentListWidget
+    >>> from dipcoatimage.finitedepth_gui.views import ExperimentListView
     >>> def runGUI():
     ...     app = QApplication(sys.argv)
-    ...     window = ExperimentListWidget()
-    ...     window.setModel(ExperimentDataModel())
-    ...     window.show()
+    ...     model = ExperimentDataModel()
+    ...     exptListWidget = ExperimentListView()
+    ...     exptListWidget.setModel(model)
+    ...     exptListWidget.show()
     ...     app.exec()
     ...     app.quit()
     >>> runGUI() # doctest: +SKIP
@@ -86,13 +87,14 @@ class ExperimentListWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self._model = None
         self._listView = QListView()
         self._addButton = QToolButton()
         self._addButton.setMenu(QMenu(self))
         copyAction = self._addButton.menu().addAction("Copy selected items")
         self._deleteButton = QPushButton()
 
-        self._listView.setItemDelegate(ExperimentListDelegate())
+        self._listView.setItemDelegate(ExperimentNameDelegate())
         self._listView.setSelectionMode(QListView.ExtendedSelection)
         self._listView.activated.connect(self.onIndexActivated)
         self._addButton.clicked.connect(self.appendNewRow)
@@ -115,12 +117,13 @@ class ExperimentListWidget(QWidget):
         self.setLayout(layout)
 
     def model(self) -> Optional[ExperimentDataModel]:
-        return self._listView.model()
+        return self._model
 
     def setModel(self, model: Optional[ExperimentDataModel]):
         oldModel = self.model()
         if oldModel is not None:
             oldModel.activatedIndexChanged.disconnect(self._listView.viewport().update)
+        self._model = model
         self._listView.setModel(model)
         if model is not None:
             model.activatedIndexChanged.connect(self._listView.viewport().update)
@@ -130,7 +133,7 @@ class ExperimentListWidget(QWidget):
         model = self.model()
         if model is not None:
             rowNum = model.rowCount()
-            success = model.insertRow(model.rowCount())
+            success = model.insertRow(rowNum)
             if success:
                 index = model.index(rowNum, 0)
                 model.setData(index, "New Experiment", role=Qt.DisplayRole)
