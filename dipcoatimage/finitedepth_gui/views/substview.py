@@ -70,8 +70,12 @@ class SubstrateView(QWidget):
 
         self._substArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._importView.editingFinished.connect(self._substArgsMapper.submit)
-        self._paramStackWidget.currentDataValueChanged.connect(self._substArgsMapper.submit)
-        self._drawOptStackWidget.currentDataValueChanged.connect(self._substArgsMapper.submit)
+        self._paramStackWidget.currentDataValueChanged.connect(
+            self._substArgsMapper.submit
+        )
+        self._drawOptStackWidget.currentDataValueChanged.connect(
+            self._substArgsMapper.submit
+        )
         self._substArgsMapper.setItemDelegate(self._substArgsDelegate)
 
         self._importView.setTitle("Substrate type")
@@ -134,20 +138,11 @@ class SubstrateView(QWidget):
             self._drawOptStackWidget.setCurrentIndex(0)
             self._substArgsMapper.setCurrentModelIndex(QModelIndex())
 
-    def indexOfParameterType(self, paramType: Type[DataclassProtocol]) -> int:
-        return self._paramStackWidget.indexOfDataclass(paramType)
-
     def addParameterType(self, paramType: Type[DataclassProtocol]) -> int:
         widget = dawiq.dataclass2Widget(paramType)
         widget.setTitle("Parameters")
         index = self._paramStackWidget.addDataWidget(widget, paramType)
         return index
-
-    def setCurrentParameterIndex(self, index: int):
-        self._paramStackWidget.setCurrentIndex(index)
-
-    def indexOfDrawOptionsType(self, drawOptType: Type[DataclassProtocol]) -> int:
-        return self._drawOptStackWidget.indexOfDataclass(drawOptType)
 
     def addDrawOptionsType(self, drawOptType: Type[DataclassProtocol]) -> int:
         widget = dawiq.dataclass2Widget(drawOptType)
@@ -186,15 +181,17 @@ class SubstrateArgsDelegate(dawiq.DataclassDelegate):
             typeVar, _ = Importer(data.type.name, data.type.module).try_import()
             if isinstance(typeVar, type) and issubclass(typeVar, SubstrateBase):
                 paramType = typeVar.Parameters
-                paramIdx = editor.indexOfParameterType(paramType)
+                paramIdx = editor.parametersStackedWidget().indexOfDataclass(paramType)
                 if paramIdx == -1:
                     paramIdx = editor.addParameterType(paramType)
                 drawOptType = typeVar.DrawOptions
-                drawOptIdx = editor.indexOfDrawOptionsType(drawOptType)
+                drawOptIdx = editor.drawOptionsStackedWidget().indexOfDataclass(
+                    drawOptType
+                )
                 if drawOptIdx == -1:
                     drawOptIdx = editor.addDrawOptionsType(drawOptType)
-                editor.setCurrentParameterIndex(paramIdx)
-                editor.setCurrentDrawOptionsIndex(drawOptIdx)
+                editor.parametersStackedWidget().setCurrentIndex(paramIdx)
+                editor.drawOptionsStackedWidget().setCurrentIndex(drawOptIdx)
 
                 self.setEditorDataclassData(
                     editor.parametersStackedWidget().currentWidget(),
@@ -207,6 +204,6 @@ class SubstrateArgsDelegate(dawiq.DataclassDelegate):
                     data.draw_options,
                 )
             else:
-                editor.setCurrentParameterIndex(0)
-                editor.setCurrentDrawOptionsIndex(0)
+                editor.parametersStackedWidget().setCurrentIndex(0)
+                editor.drawOptionsStackedWidget().setCurrentIndex(0)
         super().setEditorData(editor, index)
