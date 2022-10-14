@@ -15,14 +15,17 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QGroupBox,
+    QStyledItemDelegate,
 )
+from dipcoatimage.finitedepth.analysis import ImportArgs, ExperimentArgs
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
-from .importview import ImportDataView, ImportDataDelegate
+from .importview import ImportDataView
 from typing import Optional
 
 
 __all__ = [
     "ExperimentView",
+    "ExperimentArgsDelegate",
 ]
 
 
@@ -64,19 +67,19 @@ class ExperimentView(QWidget):
         self._nameLineEdit = QLineEdit()
         self._nameMapper = QDataWidgetMapper()
         self._importView = ImportDataView()
-        self._importDataDelegate = ImportDataDelegate()
-        self._importArgsMapper = QDataWidgetMapper()
         self._pathsListView = QListView()
         self._addButton = QPushButton("Add")
         self._deleteButton = QPushButton("Delete")
+        self._exptArgsDelegate = ExperimentArgsDelegate()
+        self._exptArgsMapper = QDataWidgetMapper()
 
-        self._importView.editingFinished.connect(self._importArgsMapper.submit)
-        self._importArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
-        self._importArgsMapper.setItemDelegate(self._importDataDelegate)
         self._pathsListView.setSelectionMode(QListView.ExtendedSelection)
         self._pathsListView.setEditTriggers(QListView.SelectedClicked)
         self._addButton.clicked.connect(self.appendNewPath)
         self._deleteButton.clicked.connect(self.deleteSelectedPaths)
+        self._exptArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
+        self._importView.editingFinished.connect(self._exptArgsMapper.submit)
+        self._exptArgsMapper.setItemDelegate(self._exptArgsDelegate)
 
         self._nameLineEdit.setPlaceholderText("Experiment name")
         self._importView.setTitle("Experiment type")
@@ -110,18 +113,29 @@ class ExperimentView(QWidget):
     def setActivatedIndex(self, index: QModelIndex):
         model = index.model()
         self._nameMapper.setModel(model)
-        self._importArgsMapper.setModel(model)
         self._pathsListView.setModel(model)
+        self._exptArgsMapper.setModel(model)
         if isinstance(model, ExperimentDataModel):
             self._nameMapper.addMapping(self._nameLineEdit, 0)
             self._nameMapper.setCurrentModelIndex(index)
-            exptIndex = model.index(model.ROW_EXPERIMENT, 0, index)
-            exptTypeIndex = model.index(0, 0, exptIndex)
-            self._importArgsMapper.setRootIndex(exptIndex)
-            self._importArgsMapper.addMapping(self._importView, 0)
-            self._importArgsMapper.setCurrentModelIndex(exptTypeIndex)
             coatPathIndex = model.index(model.ROW_COATPATHS, 0, index)
             self._pathsListView.setRootIndex(coatPathIndex)
+            self._exptArgsMapper.setRootIndex(index)
+            self._exptArgsMapper.addMapping(self, 0)
+            exptIndex = model.index(model.ROW_EXPERIMENT, 0, index)
+            self._exptArgsMapper.setCurrentModelIndex(exptIndex)
+
+    def variableName(self) -> str:
+        return self._importView.variableName()
+
+    def setVariableName(self, name: str):
+        self._importView.setVariableName(name)
+
+    def moduleName(self) -> str:
+        return self._importView.moduleName()
+
+    def setModuleName(self, name: str):
+        self._importView.setModuleName(name)
 
     @Slot()
     def appendNewPath(self):
@@ -141,3 +155,19 @@ class ExperimentView(QWidget):
             rows = [idx.row() for idx in self._pathsListView.selectedIndexes()]
             for i in reversed(sorted(rows)):
                 model.removeRow(i, self._pathsListView.rootIndex())
+
+
+class ExperimentArgsDelegate(QStyledItemDelegate):
+    def setModelData(self, editor, model, index):
+        if isinstance(editor, ExperimentView):
+            importArgs = ImportArgs(editor.variableName(), editor.moduleName())
+            exptArgs = ExperimentArgs(importArgs)
+            model.setData(index, exptArgs, Qt.UserRole)
+        super().setModelData(editor, model, index)
+
+    def setEditorData(self, editor, index):
+        data = index.data(Qt.UserRole)
+        if isinstance(editor, ExperimentView) and isinstance(data, ExperimentArgs):
+            editor.setVariableName(data.type.name)
+            editor.setModuleName(data.type.module)
+        super().setEditorData(editor, index)

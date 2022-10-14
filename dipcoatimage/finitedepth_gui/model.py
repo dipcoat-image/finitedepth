@@ -140,14 +140,9 @@ class ExperimentDataItem(object):
         layerDataItem.setParent(inst)
 
         exptArgs = exptData.experiment
-        exptDataItem = cls()
-        for val in (
-            getattr(exptArgs, field.name) for field in dataclasses.fields(exptArgs)
-        ):
-            exptArgItem = cls()
-            exptArgItem.setData(Qt.UserRole, val)
-            exptArgItem.setParent(exptDataItem)
-        exptDataItem.setParent(inst)
+        exptArgsItem = cls()
+        exptArgsItem.setData(Qt.UserRole, exptArgs)
+        exptArgsItem.setParent(inst)
 
         analysisArgs = exptData.analysis
         analysisDataItem = cls()
