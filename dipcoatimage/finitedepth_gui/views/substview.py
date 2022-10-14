@@ -70,24 +70,20 @@ class SubstrateView(QWidget):
 
         self._substArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._importView.editingFinished.connect(self._substArgsMapper.submit)
-        self._parametersView.addWidget(QWidget())  # default empty widget
-        self._drawOptionsView.addWidget(QWidget())  # default empty widget
         self._substArgsMapper.setItemDelegate(self._substArgsDelegate)
 
         self._importView.setTitle("Substrate type")
+        self._parametersView.addWidget(
+            QGroupBox("Parameters")  # default empty widget
+        )
+        self._drawOptionsView.addWidget(
+            QGroupBox("Draw options")  # default empty widget
+        )
 
         layout = QVBoxLayout()
         layout.addWidget(self._importView)
-        paramsGroupBox = QGroupBox("Parameters")
-        paramsLayout = QVBoxLayout()
-        paramsLayout.addWidget(self._parametersView)
-        paramsGroupBox.setLayout(paramsLayout)
-        layout.addWidget(paramsGroupBox)
-        drawOptGroupBox = QGroupBox("Drawing options")
-        drawOptLayout = QVBoxLayout()
-        drawOptLayout.addWidget(self._drawOptionsView)
-        drawOptGroupBox.setLayout(drawOptLayout)
-        layout.addWidget(drawOptGroupBox)
+        layout.addWidget(self._parametersView)
+        layout.addWidget(self._drawOptionsView)
         self.setLayout(layout)
 
     def model(self) -> Optional[ExperimentDataModel]:
@@ -132,10 +128,9 @@ class SubstrateView(QWidget):
         return self._parametersView.indexOfDataclass(paramType)
 
     def addParameterType(self, paramType: Type[DataclassProtocol]) -> int:
-        index = self._parametersView.addDataWidget(
-            dawiq.dataclass2Widget(paramType),
-            paramType,
-        )
+        widget = dawiq.dataclass2Widget(paramType)
+        widget.setTitle("Parameters")
+        index = self._parametersView.addDataWidget(widget, paramType)
         return index
 
     def setCurrentParameterIndex(self, index: int):
@@ -145,10 +140,9 @@ class SubstrateView(QWidget):
         return self._drawOptionsView.indexOfDataclass(drawOptType)
 
     def addDrawOptionsType(self, drawOptType: Type[DataclassProtocol]) -> int:
-        index = self._drawOptionsView.addDataWidget(
-            dawiq.dataclass2Widget(drawOptType),
-            drawOptType,
-        )
+        widget = dawiq.dataclass2Widget(drawOptType)
+        widget.setTitle("Draw options")
+        index = self._drawOptionsView.addDataWidget(widget, drawOptType)
         return index
 
     def setCurrentDrawOptionsIndex(self, index: int):

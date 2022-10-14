@@ -83,11 +83,11 @@ class ExperimentView(QWidget):
         self._deleteButton.clicked.connect(self.deleteSelectedPaths)
         self._exptArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._importView.editingFinished.connect(self._exptArgsMapper.submit)
-        self._parametersView.addWidget(QWidget())  # default empty widget
         self._exptArgsMapper.setItemDelegate(self._exptArgsDelegate)
 
         self._nameLineEdit.setPlaceholderText("Experiment name")
         self._importView.setTitle("Experiment type")
+        self._parametersView.addWidget(QGroupBox("Parameters"))  # default empty widget
 
         layout = QVBoxLayout()
         layout.addWidget(self._nameLineEdit)
@@ -101,11 +101,7 @@ class ExperimentView(QWidget):
         pathsLayout.addLayout(buttonsLayout)
         pathsGroupBox.setLayout(pathsLayout)
         layout.addWidget(pathsGroupBox)
-        paramsGroupBox = QGroupBox("Parameters")
-        paramsLayout = QVBoxLayout()
-        paramsLayout.addWidget(self._parametersView)
-        paramsGroupBox.setLayout(paramsLayout)
-        layout.addWidget(paramsGroupBox)
+        layout.addWidget(self._parametersView)
         self.setLayout(layout)
 
     def model(self) -> Optional[ExperimentDataModel]:
@@ -178,10 +174,9 @@ class ExperimentView(QWidget):
         return self._parametersView.indexOfDataclass(paramType)
 
     def addParameterType(self, paramType: Type[DataclassProtocol]) -> int:
-        index = self._parametersView.addDataWidget(
-            dawiq.dataclass2Widget(paramType),
-            paramType,
-        )
+        widget = dawiq.dataclass2Widget(paramType)
+        widget.setTitle("Parameters")
+        index = self._parametersView.addDataWidget(widget, paramType)
         return index
 
     def setCurrentParameterIndex(self, index: int):
