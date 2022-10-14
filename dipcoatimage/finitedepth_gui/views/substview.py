@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QStyledItemDelegate,
 )
-from dipcoatimage.finitedepth import Substrate
+from dipcoatimage.finitedepth import SubstrateBase
 from dipcoatimage.finitedepth.analysis import ImportArgs, SubstrateArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
@@ -170,7 +170,7 @@ class SubstrateArgsDelegate(QStyledItemDelegate):
             editor.setModuleName(data.type.module)
 
             typeVar, _ = Importer(data.type.name, data.type.module).try_import()
-            if isinstance(typeVar, type) and issubclass(typeVar, Substrate):
+            if isinstance(typeVar, type) and issubclass(typeVar, SubstrateBase):
                 paramType = typeVar.Parameters
                 paramIdx = editor.indexOfParameterType(paramType)
                 if paramIdx == -1:
