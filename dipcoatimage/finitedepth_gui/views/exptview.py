@@ -5,6 +5,7 @@ Experiment view
 V2 for controlwidgets/exptwidget.py
 """
 
+import dawiq
 from PySide6.QtCore import Qt, Slot, QModelIndex
 from PySide6.QtWidgets import (
     QWidget,
@@ -70,6 +71,7 @@ class ExperimentView(QWidget):
         self._pathsListView = QListView()
         self._addButton = QPushButton("Add")
         self._deleteButton = QPushButton("Delete")
+        self._parametersView = dawiq.DataclassStackedWidget()
         self._exptArgsDelegate = ExperimentArgsDelegate()
         self._exptArgsMapper = QDataWidgetMapper()
 
@@ -96,6 +98,11 @@ class ExperimentView(QWidget):
         pathsLayout.addLayout(buttonsLayout)
         pathsGroupBox.setLayout(pathsLayout)
         layout.addWidget(pathsGroupBox)
+        paramsGroupBox = QGroupBox("Parameters")
+        paramsLayout = QVBoxLayout()
+        paramsLayout.addWidget(self._parametersView)
+        paramsGroupBox.setLayout(paramsLayout)
+        layout.addWidget(paramsGroupBox)
         self.setLayout(layout)
 
     def model(self) -> Optional[ExperimentDataModel]:
