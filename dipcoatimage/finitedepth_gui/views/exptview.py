@@ -18,10 +18,12 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QStyledItemDelegate,
 )
+from dipcoatimage.finitedepth import Experiment
 from dipcoatimage.finitedepth.analysis import ImportArgs, ExperimentArgs
+from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from .importview import ImportDataView
-from typing import Optional
+from typing import Optional, Type
 
 
 __all__ = [
@@ -81,6 +83,7 @@ class ExperimentView(QWidget):
         self._deleteButton.clicked.connect(self.deleteSelectedPaths)
         self._exptArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._importView.editingFinished.connect(self._exptArgsMapper.submit)
+        self._parametersView.addWidget(QWidget())  # default empty widget
         self._exptArgsMapper.setItemDelegate(self._exptArgsDelegate)
 
         self._nameLineEdit.setPlaceholderText("Experiment name")
@@ -137,6 +140,7 @@ class ExperimentView(QWidget):
             self._importView.clear()
             self._nameMapper.setCurrentModelIndex(QModelIndex())
             self._pathsListView.setModel(None)
+            self._parametersView.setCurrentIndex(0)
             self._exptArgsMapper.setCurrentModelIndex(QModelIndex())
 
     def variableName(self) -> str:
@@ -170,6 +174,19 @@ class ExperimentView(QWidget):
             for i in reversed(sorted(rows)):
                 model.removeRow(i, self._pathsListView.rootIndex())
 
+    def indexOfParameterType(self, paramType: Type[DataclassProtocol]) -> int:
+        return self._parametersView.indexOfDataclass(paramType)
+
+    def addParameterType(self, paramType: Type[DataclassProtocol]) -> int:
+        index = self._parametersView.addDataWidget(
+            dawiq.dataclass2Widget(paramType),
+            paramType,
+        )
+        return index
+
+    def setCurrentParameterIndex(self, index: int):
+        self._parametersView.setCurrentIndex(index)
+
 
 class ExperimentArgsDelegate(QStyledItemDelegate):
     def setModelData(self, editor, model, index):
@@ -184,4 +201,15 @@ class ExperimentArgsDelegate(QStyledItemDelegate):
         if isinstance(editor, ExperimentView) and isinstance(data, ExperimentArgs):
             editor.setVariableName(data.type.name)
             editor.setModuleName(data.type.module)
+
+            typeVar, _ = Importer(data.type.name, data.type.module).try_import()
+            if isinstance(typeVar, type) and issubclass(typeVar, Experiment):
+                paramType = typeVar.Parameters
+                paramIdx = editor.indexOfParameterType(paramType)
+                if paramIdx == -1:
+                    paramIdx = editor.addParameterType(paramType)
+            else:
+                paramIdx = 0
+            editor.setCurrentParameterIndex(paramIdx)
+
         super().setEditorData(editor, index)
