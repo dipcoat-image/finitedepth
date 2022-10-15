@@ -155,6 +155,9 @@ class SubstrateView(QWidget):
 
 
 class SubstrateArgsDelegate(dawiq.DataclassDelegate):
+    def ignoreMissing(self) -> bool:
+        return False
+
     def setModelData(self, editor, model, index):
         if isinstance(editor, SubstrateView):
             importArgs = ImportArgs(editor.typeName(), editor.moduleName())
@@ -172,8 +175,12 @@ class SubstrateArgsDelegate(dawiq.DataclassDelegate):
             if isinstance(typeVar, type) and issubclass(typeVar, SubstrateBase):
                 paramType = typeVar.Parameters
                 drawOptType = typeVar.DrawOptions
-                parameters = dawiq.convertFromQt(paramType, parameters)
-                drawOptType = dawiq.convertFromQt(drawOptType, drawOpt)
+                parameters = dawiq.convertFromQt(
+                    paramType, parameters, self.ignoreMissing()
+                )
+                drawOptType = dawiq.convertFromQt(
+                    drawOptType, drawOpt, self.ignoreMissing()
+                )
             substArgs = SubstrateArgs(importArgs, parameters, drawOpt)
             model.setData(index, substArgs, Qt.UserRole)
         super().setModelData(editor, model, index)

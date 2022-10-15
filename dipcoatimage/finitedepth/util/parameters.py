@@ -36,9 +36,9 @@ class HoughLinesParameters:
     rho: float
     theta: float
     threshold: int
-    srn: float = 0
-    stn: float = 0
-    min_theta: float = 0
+    srn: float = 0.0
+    stn: float = 0.0
+    min_theta: float = 0.0
     max_theta: float = np.pi
 
 
