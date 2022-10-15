@@ -150,9 +150,6 @@ class SubstrateView(QWidget):
         index = self._drawOptStackWidget.addDataWidget(widget, drawOptType)
         return index
 
-    def setCurrentDrawOptionsIndex(self, index: int):
-        self._drawOptStackWidget.setCurrentIndex(index)
-
 
 class SubstrateArgsDelegate(dawiq.DataclassDelegate):
     def ignoreMissing(self) -> bool:
