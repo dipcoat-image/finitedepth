@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QStyledItemDelegate,
 )
-from dipcoatimage.finitedepth import Experiment
+from dipcoatimage.finitedepth import ExperimentBase
 from dipcoatimage.finitedepth.analysis import ImportArgs, ExperimentArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
@@ -83,11 +83,11 @@ class ExperimentView(QWidget):
         self._deleteButton.clicked.connect(self.deleteSelectedPaths)
         self._exptArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._importView.editingFinished.connect(self._exptArgsMapper.submit)
-        self._parametersView.addWidget(QWidget())  # default empty widget
         self._exptArgsMapper.setItemDelegate(self._exptArgsDelegate)
 
         self._nameLineEdit.setPlaceholderText("Experiment name")
         self._importView.setTitle("Experiment type")
+        self._parametersView.addWidget(QGroupBox("Parameters"))  # default empty widget
 
         layout = QVBoxLayout()
         layout.addWidget(self._nameLineEdit)
@@ -101,11 +101,7 @@ class ExperimentView(QWidget):
         pathsLayout.addLayout(buttonsLayout)
         pathsGroupBox.setLayout(pathsLayout)
         layout.addWidget(pathsGroupBox)
-        paramsGroupBox = QGroupBox("Parameters")
-        paramsLayout = QVBoxLayout()
-        paramsLayout.addWidget(self._parametersView)
-        paramsGroupBox.setLayout(paramsLayout)
-        layout.addWidget(paramsGroupBox)
+        layout.addWidget(self._parametersView)
         self.setLayout(layout)
 
     def model(self) -> Optional[ExperimentDataModel]:
@@ -123,6 +119,18 @@ class ExperimentView(QWidget):
         self._exptArgsMapper.addMapping(self, 0)
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
+
+    def typeName(self) -> str:
+        return self._importView.variableName()
+
+    def setTypeName(self, name: str):
+        self._importView.setVariableName(name)
+
+    def moduleName(self) -> str:
+        return self._importView.moduleName()
+
+    def setModuleName(self, name: str):
+        self._importView.setModuleName(name)
 
     @Slot(QModelIndex)
     def setActivatedIndex(self, index: QModelIndex):
@@ -142,18 +150,6 @@ class ExperimentView(QWidget):
             self._pathsListView.setModel(None)
             self._parametersView.setCurrentIndex(0)
             self._exptArgsMapper.setCurrentModelIndex(QModelIndex())
-
-    def variableName(self) -> str:
-        return self._importView.variableName()
-
-    def setVariableName(self, name: str):
-        self._importView.setVariableName(name)
-
-    def moduleName(self) -> str:
-        return self._importView.moduleName()
-
-    def setModuleName(self, name: str):
-        self._importView.setModuleName(name)
 
     @Slot()
     def appendNewPath(self):
@@ -178,10 +174,9 @@ class ExperimentView(QWidget):
         return self._parametersView.indexOfDataclass(paramType)
 
     def addParameterType(self, paramType: Type[DataclassProtocol]) -> int:
-        index = self._parametersView.addDataWidget(
-            dawiq.dataclass2Widget(paramType),
-            paramType,
-        )
+        widget = dawiq.dataclass2Widget(paramType)
+        widget.setTitle("Parameters")
+        index = self._parametersView.addDataWidget(widget, paramType)
         return index
 
     def setCurrentParameterIndex(self, index: int):
@@ -191,7 +186,7 @@ class ExperimentView(QWidget):
 class ExperimentArgsDelegate(QStyledItemDelegate):
     def setModelData(self, editor, model, index):
         if isinstance(editor, ExperimentView):
-            importArgs = ImportArgs(editor.variableName(), editor.moduleName())
+            importArgs = ImportArgs(editor.typeName(), editor.moduleName())
             exptArgs = ExperimentArgs(importArgs)
             model.setData(index, exptArgs, Qt.UserRole)
         super().setModelData(editor, model, index)
@@ -199,11 +194,11 @@ class ExperimentArgsDelegate(QStyledItemDelegate):
     def setEditorData(self, editor, index):
         data = index.data(Qt.UserRole)
         if isinstance(editor, ExperimentView) and isinstance(data, ExperimentArgs):
-            editor.setVariableName(data.type.name)
+            editor.setTypeName(data.type.name)
             editor.setModuleName(data.type.module)
 
             typeVar, _ = Importer(data.type.name, data.type.module).try_import()
-            if isinstance(typeVar, type) and issubclass(typeVar, Experiment):
+            if isinstance(typeVar, type) and issubclass(typeVar, ExperimentBase):
                 paramType = typeVar.Parameters
                 paramIdx = editor.indexOfParameterType(paramType)
                 if paramIdx == -1:
