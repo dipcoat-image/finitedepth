@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QVBoxLayout,
     QHBoxLayout,
+    QFileDialog,
     QStyledItemDelegate,
 )
 from dipcoatimage.finitedepth import SubstrateReferenceBase
@@ -83,6 +84,7 @@ class ReferenceView(QWidget):
 
         self._refPathMapper.setItemDelegate(ReferencePathDelegate())
         self._refPathMapper.itemDelegate().roiMaximumChanged.connect(self.setROIMaximum)
+        self._browseButton.clicked.connect(self.browseReferenceImage)
         self._refArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._importView.editingFinished.connect(self._refArgsMapper.submit)
         self._tempROIView.editingFinished.connect(self._refArgsMapper.submit)
@@ -147,6 +149,18 @@ class ReferenceView(QWidget):
         self._refArgsMapper.addMapping(self, 0)
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
+
+    @Slot()
+    def browseReferenceImage(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select reference image file",
+            "./",
+            options=QFileDialog.DontUseNativeDialog,
+        )
+        if path:
+            self._refPathLineEdit.setText(path)
+            self._refPathMapper.submit()
 
     def typeName(self) -> str:
         return self._importView.variableName()
