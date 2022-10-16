@@ -16,7 +16,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QGroupBox,
-    QStyledItemDelegate,
 )
 from dipcoatimage.finitedepth import ExperimentBase
 from dipcoatimage.finitedepth.analysis import ImportArgs, ExperimentArgs
@@ -73,7 +72,7 @@ class ExperimentView(QWidget):
         self._pathsListView = QListView()
         self._addButton = QPushButton("Add")
         self._deleteButton = QPushButton("Delete")
-        self._parametersView = dawiq.DataclassStackedWidget()
+        self._paramStackWidget = dawiq.DataclassStackedWidget()
         self._exptArgsDelegate = ExperimentArgsDelegate()
         self._exptArgsMapper = QDataWidgetMapper()
 
@@ -83,11 +82,16 @@ class ExperimentView(QWidget):
         self._deleteButton.clicked.connect(self.deleteSelectedPaths)
         self._exptArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._importView.editingFinished.connect(self._exptArgsMapper.submit)
+        self._paramStackWidget.currentDataValueChanged.connect(
+            self._exptArgsMapper.submit
+        )
         self._exptArgsMapper.setItemDelegate(self._exptArgsDelegate)
 
         self._nameLineEdit.setPlaceholderText("Experiment name")
         self._importView.setTitle("Experiment type")
-        self._parametersView.addWidget(QGroupBox("Parameters"))  # default empty widget
+        self._paramStackWidget.addWidget(
+            QGroupBox("Parameters")
+        )  # default empty widget
 
         layout = QVBoxLayout()
         layout.addWidget(self._nameLineEdit)
@@ -101,7 +105,7 @@ class ExperimentView(QWidget):
         pathsLayout.addLayout(buttonsLayout)
         pathsGroupBox.setLayout(pathsLayout)
         layout.addWidget(pathsGroupBox)
-        layout.addWidget(self._parametersView)
+        layout.addWidget(self._paramStackWidget)
         self.setLayout(layout)
 
     def model(self) -> Optional[ExperimentDataModel]:
@@ -119,6 +123,9 @@ class ExperimentView(QWidget):
         self._exptArgsMapper.addMapping(self, 0)
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
+
+    def parametersStackedWidget(self) -> dawiq.DataclassStackedWidget:
+        return self._paramStackWidget
 
     def typeName(self) -> str:
         return self._importView.variableName()
@@ -148,7 +155,7 @@ class ExperimentView(QWidget):
             self._importView.clear()
             self._nameMapper.setCurrentModelIndex(QModelIndex())
             self._pathsListView.setModel(None)
-            self._parametersView.setCurrentIndex(0)
+            self._paramStackWidget.setCurrentIndex(0)
             self._exptArgsMapper.setCurrentModelIndex(QModelIndex())
 
     @Slot()
@@ -170,24 +177,32 @@ class ExperimentView(QWidget):
             for i in reversed(sorted(rows)):
                 model.removeRow(i, self._pathsListView.rootIndex())
 
-    def indexOfParameterType(self, paramType: Type[DataclassProtocol]) -> int:
-        return self._parametersView.indexOfDataclass(paramType)
-
     def addParameterType(self, paramType: Type[DataclassProtocol]) -> int:
         widget = dawiq.dataclass2Widget(paramType)
         widget.setTitle("Parameters")
-        index = self._parametersView.addDataWidget(widget, paramType)
+        index = self._paramStackWidget.addDataWidget(widget, paramType)
         return index
 
-    def setCurrentParameterIndex(self, index: int):
-        self._parametersView.setCurrentIndex(index)
 
+class ExperimentArgsDelegate(dawiq.DataclassDelegate):
+    def ignoreMissing(self) -> bool:
+        return False
 
-class ExperimentArgsDelegate(QStyledItemDelegate):
     def setModelData(self, editor, model, index):
         if isinstance(editor, ExperimentView):
             importArgs = ImportArgs(editor.typeName(), editor.moduleName())
-            exptArgs = ExperimentArgs(importArgs)
+            paramWidget = editor.parametersStackedWidget().currentWidget()
+            if isinstance(paramWidget, dawiq.DataWidget):
+                parameters = paramWidget.dataValue()
+            else:
+                parameters = {}
+            typeVar, _ = Importer(importArgs.name, importArgs.module).try_import()
+            if isinstance(typeVar, type) and issubclass(typeVar, ExperimentBase):
+                paramType = typeVar.Parameters
+                parameters = dawiq.convertFromQt(
+                    paramType, parameters, self.ignoreMissing()
+                )
+            exptArgs = ExperimentArgs(importArgs, parameters)
             model.setData(index, exptArgs, Qt.UserRole)
         super().setModelData(editor, model, index)
 
@@ -200,11 +215,15 @@ class ExperimentArgsDelegate(QStyledItemDelegate):
             typeVar, _ = Importer(data.type.name, data.type.module).try_import()
             if isinstance(typeVar, type) and issubclass(typeVar, ExperimentBase):
                 paramType = typeVar.Parameters
-                paramIdx = editor.indexOfParameterType(paramType)
+                paramIdx = editor.parametersStackedWidget().indexOfDataclass(paramType)
                 if paramIdx == -1:
                     paramIdx = editor.addParameterType(paramType)
+                editor.parametersStackedWidget().setCurrentIndex(paramIdx)
+                self.setEditorDataclassData(
+                    editor.parametersStackedWidget().currentWidget(),
+                    paramType,
+                    data.parameters,
+                )
             else:
-                paramIdx = 0
-            editor.setCurrentParameterIndex(paramIdx)
-
+                editor.parametersStackedWidget().setCurrentIndex(0)
         super().setEditorData(editor, index)
