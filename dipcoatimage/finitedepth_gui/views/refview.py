@@ -21,7 +21,10 @@ from .importview import ImportDataView
 from typing import Optional
 
 
-__all__ = ["ReferenceView", "ReferenceArgsDelegate"]
+__all__ = [
+    "ReferenceView",
+    "ReferenceArgsDelegate",
+]
 
 
 class ReferenceView(QWidget):
@@ -58,7 +61,7 @@ class ReferenceView(QWidget):
         super().__init__(parent)
 
         self._model = None
-        self._refPathEdit = QLineEdit()
+        self._refPathLineEdit = QLineEdit()
         self._refPathMapper = QDataWidgetMapper()
         self._browseButton = QPushButton()
         self._importView = ImportDataView()
@@ -67,7 +70,7 @@ class ReferenceView(QWidget):
         self._refArgsDelegate = ReferenceArgsDelegate()
         self._refArgsMapper = QDataWidgetMapper()
 
-        self._refPathEdit.setPlaceholderText("Path for the reference image file")
+        self._refPathLineEdit.setPlaceholderText("Path for the reference image file")
         self._browseButton.setText("Browse")
         self._importView.setTitle("Reference type")
         self._paramStackWidget.addWidget(
@@ -79,7 +82,7 @@ class ReferenceView(QWidget):
 
         layout = QVBoxLayout()
         pathLayout = QHBoxLayout()
-        pathLayout.addWidget(self._refPathEdit)
+        pathLayout.addWidget(self._refPathLineEdit)
         pathLayout.addWidget(self._browseButton)
         layout.addLayout(pathLayout)
         layout.addWidget(self._importView)
@@ -97,6 +100,8 @@ class ReferenceView(QWidget):
         if oldModel is not None:
             oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
         self._model = model
+        self._refPathMapper.setModel(model)
+        self._refPathMapper.addMapping(self._refPathLineEdit, 0)
         self._refArgsMapper.setModel(model)
         self._refArgsMapper.addMapping(self, 0)
         if model is not None:
@@ -106,11 +111,16 @@ class ReferenceView(QWidget):
     def setActivatedIndex(self, index: QModelIndex):
         model = index.model()
         if isinstance(model, ExperimentDataModel):
+            self._refPathMapper.setRootIndex(index)
+            refPathIndex = model.index(model.ROW_REFPATH, 0, index)
+            self._refPathMapper.setCurrentModelIndex(refPathIndex)
             self._refArgsMapper.setRootIndex(index)
             refIndex = model.index(model.ROW_REFERENCE, 0, index)
             self._refArgsMapper.setCurrentModelIndex(refIndex)
         else:
+            self._refPathLineEdit.clear()
             self._importView.clear()
+            self._refPathMapper.setCurrentModelIndex(QModelIndex())
             self._paramStackWidget.setCurrentIndex(0)
             self._drawOptStackWidget.setCurrentIndex(0)
             self._refArgsMapper.setCurrentModelIndex(QModelIndex())
