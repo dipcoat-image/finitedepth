@@ -5,7 +5,7 @@ Reference view
 V2 for controlwidgets/refwidget.py
 """
 
-import cv2
+import cv2  # type: ignore
 import dawiq
 from PySide6.QtCore import Qt, Signal, Slot, QModelIndex
 from PySide6.QtWidgets import (
@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 )
 from dipcoatimage.finitedepth import SubstrateReferenceBase
 from dipcoatimage.finitedepth.analysis import ImportArgs, ReferenceArgs
-from dipcoatimage.finitedepth.util import DataclassProtocol, Importer, IntROI
+from dipcoatimage.finitedepth.util import DataclassProtocol, Importer, OptionalROI
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from .importview import ImportDataView
 from .roiview import ROIView
@@ -171,11 +171,17 @@ class ReferenceView(QWidget):
         self._tempROIView.setROIMaximum(w, h)
         self._substROIView.setROIMaximum(w, h)
 
-    def templateROI(self) -> IntROI:
+    def templateROI(self) -> OptionalROI:
         return self._tempROIView.roi()
 
-    def substrateROI(self) -> IntROI:
+    def setTemplateROI(self, roi: OptionalROI):
+        self._tempROIView.setROI(roi)
+
+    def substrateROI(self) -> OptionalROI:
         return self._substROIView.roi()
+
+    def setSubstrateROI(self, roi: OptionalROI):
+        self._substROIView.setROI(roi)
 
     @Slot(QModelIndex)
     def setActivatedIndex(self, index: QModelIndex):
@@ -220,7 +226,9 @@ class ReferencePathDelegate(QStyledItemDelegate):
         img = cv2.imread(path)
         if img is not None:
             w, h = (img.shape[1], img.shape[0])
-            self.roiMaximumChanged.emit(w, h)
+        else:
+            w, h = (0, 0)
+        self.roiMaximumChanged.emit(w, h)
 
 
 class ReferenceArgsDelegate(dawiq.DataclassDelegate):
@@ -261,10 +269,14 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
     def setEditorData(self, editor, index):
         data = index.data(Qt.UserRole)
         if isinstance(editor, ReferenceView) and isinstance(data, ReferenceArgs):
-            editor.setTypeName(data.type.name)
-            editor.setModuleName(data.type.module)
+            refArgs = data
+            editor.setTypeName(refArgs.type.name)
+            editor.setModuleName(refArgs.type.module)
 
-            typeVar, _ = Importer(data.type.name, data.type.module).try_import()
+            editor.setTemplateROI(refArgs.templateROI)
+            editor.setSubstrateROI(refArgs.substrateROI)
+
+            typeVar, _ = Importer(refArgs.type.name, refArgs.type.module).try_import()
             if isinstance(typeVar, type) and issubclass(
                 typeVar, SubstrateReferenceBase
             ):
@@ -284,12 +296,12 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
                 self.setEditorDataclassData(
                     editor.parametersStackedWidget().currentWidget(),
                     paramType,
-                    data.parameters,
+                    refArgs.parameters,
                 )
                 self.setEditorDataclassData(
                     editor.drawOptionsStackedWidget().currentWidget(),
                     drawOptType,
-                    data.draw_options,
+                    refArgs.draw_options,
                 )
             else:
                 editor.parametersStackedWidget().setCurrentIndex(0)

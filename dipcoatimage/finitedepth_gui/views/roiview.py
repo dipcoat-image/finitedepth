@@ -5,8 +5,8 @@ ROI view
 V2 for roimodel.py
 """
 
-from dipcoatimage.finitedepth.util import IntROI, OptionalROI
-from PySide6.QtCore import Signal
+from dipcoatimage.finitedepth.util import OptionalROI
+from PySide6.QtCore import Signal, Slot
 from PySide6.QtWidgets import QSpinBox, QWidget, QHBoxLayout
 
 __all__ = [
@@ -28,6 +28,7 @@ class ROIView(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self._roi = (0, 0, None, None)
         self._x1_spinbox = ROISpinBox()
         self._y1_spinbox = ROISpinBox()
         self._x2_spinbox = ROISpinBox()
@@ -38,10 +39,10 @@ class ROIView(QWidget):
         self._x2_spinbox.setMinimum(0)
         self._y2_spinbox.setMinimum(0)
         self.setROIMaximum(0, 0)
-        self._x1_spinbox.editingFinished.connect(self.editingFinished)
-        self._y1_spinbox.editingFinished.connect(self.editingFinished)
-        self._x2_spinbox.editingFinished.connect(self.editingFinished)
-        self._y2_spinbox.editingFinished.connect(self.editingFinished)
+        self._x1_spinbox.editingFinished.connect(self.onEditingFinish)
+        self._y1_spinbox.editingFinished.connect(self.onEditingFinish)
+        self._x2_spinbox.editingFinished.connect(self.onEditingFinish)
+        self._y2_spinbox.editingFinished.connect(self.onEditingFinish)
 
         self._x1_spinbox.setPrefix("x1 : ")
         self._y1_spinbox.setPrefix("y1 : ")
@@ -56,6 +57,7 @@ class ROIView(QWidget):
         self.setLayout(layout)
 
     def clear(self):
+        self.setROI((0, 0, None, None))
         self.setROIMaximum(0, 0)
 
     def setROIMaximum(self, w: int, h: int):
@@ -63,15 +65,13 @@ class ROIView(QWidget):
         self._y1_spinbox.setMaximum(h)
         self._x2_spinbox.setMaximum(w)
         self._y2_spinbox.setMaximum(h)
+        self.setROI(self._roi)
 
-    def roi(self) -> IntROI:
-        x1 = self._x1_spinbox.value()
-        y1 = self._y1_spinbox.value()
-        x2 = self._x2_spinbox.value()
-        y2 = self._y2_spinbox.value()
-        return (x1, y1, x2, y2)
+    def roi(self) -> OptionalROI:
+        return self._roi
 
     def setROI(self, roi: OptionalROI):
+        self._roi = roi
         W, H = self._x1_spinbox.maximum(), self._y1_spinbox.maximum()
         x1, y1, x2, y2 = roi
         if x2 is None:
@@ -82,3 +82,12 @@ class ROIView(QWidget):
         self._y1_spinbox.setValue(y1)
         self._x2_spinbox.setValue(x2)
         self._y2_spinbox.setValue(y2)
+
+    @Slot()
+    def onEditingFinish(self):
+        x1 = self._x1_spinbox.value()
+        y1 = self._y1_spinbox.value()
+        x2 = self._x2_spinbox.value()
+        y2 = self._y2_spinbox.value()
+        self._roi = (x1, y1, x2, y2)
+        self.editingFinished.emit()
