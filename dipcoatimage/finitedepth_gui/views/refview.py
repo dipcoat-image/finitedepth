@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 )
 from dipcoatimage.finitedepth import SubstrateReferenceBase
 from dipcoatimage.finitedepth.analysis import ImportArgs, ReferenceArgs
-from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
+from dipcoatimage.finitedepth.util import DataclassProtocol, Importer, IntROI
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from .importview import ImportDataView
 from .roiview import ROIView
@@ -85,6 +85,8 @@ class ReferenceView(QWidget):
         self._refPathMapper.itemDelegate().roiMaximumChanged.connect(self.setROIMaximum)
         self._refArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._importView.editingFinished.connect(self._refArgsMapper.submit)
+        self._tempROIView.editingFinished.connect(self._refArgsMapper.submit)
+        self._substROIView.editingFinished.connect(self._refArgsMapper.submit)
         self._paramStackWidget.currentDataValueChanged.connect(
             self._refArgsMapper.submit
         )
@@ -169,6 +171,12 @@ class ReferenceView(QWidget):
         self._tempROIView.setROIMaximum(w, h)
         self._substROIView.setROIMaximum(w, h)
 
+    def templateROI(self) -> IntROI:
+        return self._tempROIView.roi()
+
+    def substrateROI(self) -> IntROI:
+        return self._substROIView.roi()
+
     @Slot(QModelIndex)
     def setActivatedIndex(self, index: QModelIndex):
         model = index.model()
@@ -222,6 +230,8 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
     def setModelData(self, editor, model, index):
         if isinstance(editor, ReferenceView):
             importArgs = ImportArgs(editor.typeName(), editor.moduleName())
+            tempROI = editor.templateROI()
+            substROI = editor.substrateROI()
             paramWidget = editor.parametersStackedWidget().currentWidget()
             if isinstance(paramWidget, dawiq.DataWidget):
                 parameters = paramWidget.dataValue()
@@ -244,7 +254,7 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
                 drawOptType = dawiq.convertFromQt(
                     drawOptType, drawOpt, self.ignoreMissing()
                 )
-            refArgs = ReferenceArgs(importArgs, parameters, drawOpt)
+            refArgs = ReferenceArgs(importArgs, tempROI, substROI, parameters, drawOpt)
             model.setData(index, refArgs, Qt.UserRole)
         super().setModelData(editor, model, index)
 
