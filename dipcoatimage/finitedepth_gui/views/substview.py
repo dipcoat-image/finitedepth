@@ -186,7 +186,7 @@ class SubstrateArgsDelegate(dawiq.DataclassDelegate):
                 parameters = dawiq.convertFromQt(
                     paramType, parameters, self.ignoreMissing()
                 )
-                drawOptType = dawiq.convertFromQt(
+                drawOpt = dawiq.convertFromQt(
                     drawOptType, drawOpt, self.ignoreMissing()
                 )
             substArgs = SubstrateArgs(importArgs, parameters, drawOpt)
@@ -205,11 +205,11 @@ class SubstrateArgsDelegate(dawiq.DataclassDelegate):
                 paramIdx = editor.indexOfParameterType(paramType)
                 if paramIdx == -1:
                     paramIdx = editor.addParameterType(paramType)
+                editor.setCurrentParametersIndex(paramIdx)
                 drawOptType = typeVar.DrawOptions
                 drawOptIdx = editor.indexOfDrawOptionsType(drawOptType)
                 if drawOptIdx == -1:
                     drawOptIdx = editor.addDrawOptionsType(drawOptType)
-                editor.setCurrentParametersIndex(paramIdx)
                 editor.setCurrentDrawOptionsIndex(drawOptIdx)
 
                 self.setEditorDataclassData(

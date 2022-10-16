@@ -120,14 +120,9 @@ class ExperimentDataItem(object):
         substArgsItem.setParent(inst)
 
         layerArgs = exptData.coatinglayer
-        layerDataItem = cls()
-        for val in (
-            getattr(layerArgs, field.name) for field in dataclasses.fields(layerArgs)
-        ):
-            layerArgItem = cls()
-            layerArgItem.setData(Qt.UserRole, val)
-            layerArgItem.setParent(layerDataItem)
-        layerDataItem.setParent(inst)
+        layerArgsItem = cls()
+        layerArgsItem.setData(Qt.UserRole, layerArgs)
+        layerArgsItem.setParent(inst)
 
         exptArgs = exptData.experiment
         exptArgsItem = cls()
@@ -173,6 +168,7 @@ class ExperimentDataModel(QAbstractItemModel):
     ROW_COATPATHS = 1
     ROW_REFERENCE = 2
     ROW_SUBSTRATE = 3
+    ROW_COATINGLAYER = 4
     ROW_EXPERIMENT = 5
 
     activatedIndexChanged = Signal(QModelIndex)
