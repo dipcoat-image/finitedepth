@@ -11,6 +11,7 @@ from .roiview import ROISpinBox, ROIView
 from .exptview import ExperimentView, ExperimentArgsDelegate
 from .refview import ReferenceView, ReferencePathDelegate, ReferenceArgsDelegate
 from .substview import SubstrateView, SubstrateArgsDelegate
+from .layerview import CoatingLayerView, CoatingLayerArgsDelegate
 
 __all__ = [
     "ExperimentNameDelegate",
@@ -25,4 +26,6 @@ __all__ = [
     "ReferenceArgsDelegate",
     "SubstrateView",
     "SubstrateArgsDelegate",
+    "CoatingLayerView",
+    "CoatingLayerArgsDelegate",
 ]

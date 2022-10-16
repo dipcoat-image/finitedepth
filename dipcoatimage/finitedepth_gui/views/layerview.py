@@ -1,51 +1,43 @@
 """
-Reference view
-==============
+Coating layer view
+==================
 
-V2 for controlwidgets/refwidget.py
+V2 for controlwidgets/layerwidget.py
 """
 
-import cv2  # type: ignore
 import dawiq
-from PySide6.QtCore import Qt, Signal, Slot, QModelIndex
+from PySide6.QtCore import Qt, Slot, QModelIndex
 from PySide6.QtWidgets import (
     QWidget,
-    QLineEdit,
-    QPushButton,
     QDataWidgetMapper,
-    QSizePolicy,
     QGroupBox,
     QVBoxLayout,
     QHBoxLayout,
-    QFileDialog,
-    QStyledItemDelegate,
 )
-from dipcoatimage.finitedepth import SubstrateReferenceBase
-from dipcoatimage.finitedepth.analysis import ImportArgs, ReferenceArgs
-from dipcoatimage.finitedepth.util import DataclassProtocol, Importer, OptionalROI
+from dipcoatimage.finitedepth import CoatingLayerBase
+from dipcoatimage.finitedepth.analysis import ImportArgs, CoatingLayerArgs
+from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from .importview import ImportDataView
-from .roiview import ROIView
 from typing import Optional, Type, Union
 
 
 __all__ = [
-    "ReferenceView",
-    "ReferencePathDelegate",
-    "ReferenceArgsDelegate",
+    "CoatingLayerView",
+    "CoatingLayerArgsDelegate",
 ]
 
 
-class ReferenceView(QWidget):
+class CoatingLayerView(QWidget):
     """
-    Widget to display reference file path and :class:`ReferenceArgs`.
+    Widget to :class:`CoatingLayerArgs`.
 
     >>> from PySide6.QtWidgets import QApplication, QWidget, QHBoxLayout
     >>> import sys
     >>> from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
     >>> from dipcoatimage.finitedepth_gui.views import (
     ...     ExperimentListView,
-    ...     ReferenceView,
+    ...     CoatingLayerView,
     ... )
     >>> def runGUI():
     ...     app = QApplication(sys.argv)
@@ -55,9 +47,9 @@ class ReferenceView(QWidget):
     ...     exptListWidget = ExperimentListView()
     ...     exptListWidget.setModel(model)
     ...     layout.addWidget(exptListWidget)
-    ...     refWidget = ReferenceView()
-    ...     refWidget.setModel(model)
-    ...     layout.addWidget(refWidget)
+    ...     layerWidget = CoatingLayerView()
+    ...     layerWidget.setModel(model)
+    ...     layout.addWidget(layerWidget)
     ...     window.setLayout(layout)
     ...     window.show()
     ...     app.exec()
@@ -70,68 +62,42 @@ class ReferenceView(QWidget):
         super().__init__(parent)
 
         self._model = None
-        self._refPathLineEdit = QLineEdit()
-        self._refPathMapper = QDataWidgetMapper()
-        self._browseButton = QPushButton()
         self._importView = ImportDataView()
-        self._tempROIView = ROIView()
-        self._tempROIDrawButton = QPushButton()
-        self._substROIView = ROIView()
-        self._substROIDrawButton = QPushButton()
         self._paramStackWidget = dawiq.DataclassStackedWidget()
         self._drawOptStackWidget = dawiq.DataclassStackedWidget()
-        self._refArgsMapper = QDataWidgetMapper()
+        self._decoOptStackWidget = dawiq.DataclassStackedWidget()
+        self._layerArgsMapper = QDataWidgetMapper()
 
-        self._refPathMapper.setItemDelegate(ReferencePathDelegate())
-        self._refPathMapper.itemDelegate().roiMaximumChanged.connect(self.setROIMaximum)
-        self._browseButton.clicked.connect(self.browseReferenceImage)
-        self._refArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
-        self._importView.editingFinished.connect(self._refArgsMapper.submit)
-        self._tempROIView.editingFinished.connect(self._refArgsMapper.submit)
-        self._substROIView.editingFinished.connect(self._refArgsMapper.submit)
+        self._layerArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
+        self._importView.editingFinished.connect(self._layerArgsMapper.submit)
         self._paramStackWidget.currentDataValueChanged.connect(
-            self._refArgsMapper.submit
+            self._layerArgsMapper.submit
         )
         self._drawOptStackWidget.currentDataValueChanged.connect(
-            self._refArgsMapper.submit
+            self._layerArgsMapper.submit
         )
-        self._refArgsMapper.setItemDelegate(ReferenceArgsDelegate())
+        self._decoOptStackWidget.currentDataValueChanged.connect(
+            self._layerArgsMapper.submit
+        )
+        self._layerArgsMapper.setItemDelegate(CoatingLayerArgsDelegate())
 
-        self._refPathLineEdit.setPlaceholderText("Path for the reference image file")
-        self._browseButton.setText("Browse")
-        self._importView.setTitle("Reference type")
-        self._tempROIDrawButton.setText("Draw template ROI")
-        self._tempROIDrawButton.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        self._substROIDrawButton.setText("Draw substrate ROI")
-        self._substROIDrawButton.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self._importView.setTitle("CoatingLayer type")
         self._paramStackWidget.addWidget(
             QGroupBox("Parameters")  # default empty widget
         )
         self._drawOptStackWidget.addWidget(
             QGroupBox("Draw options")  # default empty widget
         )
+        self._decoOptStackWidget.addWidget(
+            QGroupBox("Decorate options")  # default empty widget
+        )
 
         layout = QVBoxLayout()
-        pathLayout = QHBoxLayout()
-        pathLayout.addWidget(self._refPathLineEdit)
-        pathLayout.addWidget(self._browseButton)
-        layout.addLayout(pathLayout)
         layout.addWidget(self._importView)
-        tempROIGroupBox = QGroupBox("Template ROI")
-        tempROILayout = QHBoxLayout()
-        tempROILayout.addWidget(self._tempROIView)
-        tempROILayout.addWidget(self._tempROIDrawButton)
-        tempROIGroupBox.setLayout(tempROILayout)
-        layout.addWidget(tempROIGroupBox)
-        substROIGroupBox = QGroupBox("Substrate ROI")
-        substROILayout = QHBoxLayout()
-        substROILayout.addWidget(self._substROIView)
-        substROILayout.addWidget(self._substROIDrawButton)
-        substROIGroupBox.setLayout(substROILayout)
-        layout.addWidget(substROIGroupBox)
+        layout.addWidget(self._paramStackWidget)
         dataLayout = QHBoxLayout()
-        dataLayout.addWidget(self._paramStackWidget)
         dataLayout.addWidget(self._drawOptStackWidget)
+        dataLayout.addWidget(self._decoOptStackWidget)
         layout.addLayout(dataLayout)
         self.setLayout(layout)
 
@@ -143,24 +109,10 @@ class ReferenceView(QWidget):
         if oldModel is not None:
             oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
         self._model = model
-        self._refPathMapper.setModel(model)
-        self._refPathMapper.addMapping(self._refPathLineEdit, 0)
-        self._refArgsMapper.setModel(model)
-        self._refArgsMapper.addMapping(self, 0)
+        self._layerArgsMapper.setModel(model)
+        self._layerArgsMapper.addMapping(self, 0)
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
-
-    @Slot()
-    def browseReferenceImage(self):
-        path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Select reference image file",
-            "./",
-            options=QFileDialog.DontUseNativeDialog,
-        )
-        if path:
-            self._refPathLineEdit.setText(path)
-            self._refPathMapper.submit()
 
     def typeName(self) -> str:
         return self._importView.variableName()
@@ -173,23 +125,6 @@ class ReferenceView(QWidget):
 
     def setModuleName(self, name: str):
         self._importView.setModuleName(name)
-
-    @Slot(int, int)
-    def setROIMaximum(self, w: int, h: int):
-        self._tempROIView.setROIMaximum(w, h)
-        self._substROIView.setROIMaximum(w, h)
-
-    def templateROI(self) -> OptionalROI:
-        return self._tempROIView.roi()
-
-    def setTemplateROI(self, roi: OptionalROI):
-        self._tempROIView.setROI(roi)
-
-    def substrateROI(self) -> OptionalROI:
-        return self._substROIView.roi()
-
-    def setSubstrateROI(self, roi: OptionalROI):
-        self._substROIView.setROI(roi)
 
     def currentParametersWidget(self) -> Union[dawiq.DataWidget, QGroupBox]:
         return self._paramStackWidget.currentWidget()
@@ -221,51 +156,43 @@ class ReferenceView(QWidget):
     def setCurrentDrawOptionsIndex(self, index: int):
         self._drawOptStackWidget.setCurrentIndex(index)
 
+    def currentDecoOptionsWidget(self) -> Union[dawiq.DataWidget, QGroupBox]:
+        return self._decoOptStackWidget.currentWidget()
+
+    def indexOfDecoOptionsType(self, decoOptType: Type[DataclassProtocol]) -> int:
+        return self._decoOptStackWidget.indexOfDataclass(decoOptType)
+
+    def addDecoOptionsType(self, decoOptType: Type[DataclassProtocol]) -> int:
+        widget = dawiq.dataclass2Widget(decoOptType)
+        widget.setTitle("Decorate options")
+        index = self._decoOptStackWidget.addDataWidget(widget, decoOptType)
+        return index
+
+    def setCurrentDecoOptionsIndex(self, index: int):
+        self._decoOptStackWidget.setCurrentIndex(index)
+
     @Slot(QModelIndex)
     def setActivatedIndex(self, index: QModelIndex):
         model = index.model()
         if isinstance(model, ExperimentDataModel):
-            self._refPathMapper.setRootIndex(index)
-            refPathIndex = model.index(model.ROW_REFPATH, 0, index)
-            self._refPathMapper.setCurrentModelIndex(refPathIndex)
-            self._refArgsMapper.setRootIndex(index)
-            refIndex = model.index(model.ROW_REFERENCE, 0, index)
-            self._refArgsMapper.setCurrentModelIndex(refIndex)
+            self._layerArgsMapper.setRootIndex(index)
+            layerIndex = model.index(model.ROW_COATINGLAYER, 0, index)
+            self._layerArgsMapper.setCurrentModelIndex(layerIndex)
         else:
-            self._refPathLineEdit.clear()
             self._importView.clear()
-            self._tempROIView.clear()
-            self._substROIView.clear()
-            self._refPathMapper.setCurrentModelIndex(QModelIndex())
             self._paramStackWidget.setCurrentIndex(0)
             self._drawOptStackWidget.setCurrentIndex(0)
-            self._refArgsMapper.setCurrentModelIndex(QModelIndex())
+            self._decoOptStackWidget.setCurrentIndex(0)
+            self._layerArgsMapper.setCurrentModelIndex(QModelIndex())
 
 
-class ReferencePathDelegate(QStyledItemDelegate):
-
-    roiMaximumChanged = Signal(int, int)
-
-    def setEditorData(self, editor, index):
-        super().setEditorData(editor, index)
-        path = index.data(Qt.DisplayRole)
-        img = cv2.imread(path)
-        if img is not None:
-            w, h = (img.shape[1], img.shape[0])
-        else:
-            w, h = (0, 0)
-        self.roiMaximumChanged.emit(w, h)
-
-
-class ReferenceArgsDelegate(dawiq.DataclassDelegate):
+class CoatingLayerArgsDelegate(dawiq.DataclassDelegate):
     def ignoreMissing(self) -> bool:
         return False
 
     def setModelData(self, editor, model, index):
-        if isinstance(editor, ReferenceView):
+        if isinstance(editor, CoatingLayerView):
             importArgs = ImportArgs(editor.typeName(), editor.moduleName())
-            tempROI = editor.templateROI()
-            substROI = editor.substrateROI()
             paramWidget = editor.currentParametersWidget()
             if isinstance(paramWidget, dawiq.DataWidget):
                 parameters = paramWidget.dataValue()
@@ -276,36 +203,37 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
                 drawOpt = drawOptWidget.dataValue()
             else:
                 drawOpt = {}
+            decoOptWidget = editor.currentDecoOptionsWidget()
+            if isinstance(decoOptWidget, dawiq.DataWidget):
+                decoOpt = decoOptWidget.dataValue()
+            else:
+                decoOpt = {}
             typeVar, _ = Importer(importArgs.name, importArgs.module).try_import()
-            if isinstance(typeVar, type) and issubclass(
-                typeVar, SubstrateReferenceBase
-            ):
+            if isinstance(typeVar, type) and issubclass(typeVar, CoatingLayerBase):
                 paramType = typeVar.Parameters
                 drawOptType = typeVar.DrawOptions
+                decoOptType = typeVar.DecoOptions
                 parameters = dawiq.convertFromQt(
                     paramType, parameters, self.ignoreMissing()
                 )
                 drawOpt = dawiq.convertFromQt(
                     drawOptType, drawOpt, self.ignoreMissing()
                 )
-            refArgs = ReferenceArgs(importArgs, tempROI, substROI, parameters, drawOpt)
-            model.setData(index, refArgs, Qt.UserRole)
+                decoOpt = dawiq.convertFromQt(
+                    decoOptType, decoOpt, self.ignoreMissing()
+                )
+            layerArgs = CoatingLayerArgs(importArgs, parameters, drawOpt, decoOpt)
+            model.setData(index, layerArgs, Qt.UserRole)
         super().setModelData(editor, model, index)
 
     def setEditorData(self, editor, index):
         data = index.data(Qt.UserRole)
-        if isinstance(editor, ReferenceView) and isinstance(data, ReferenceArgs):
-            refArgs = data
-            editor.setTypeName(refArgs.type.name)
-            editor.setModuleName(refArgs.type.module)
+        if isinstance(editor, CoatingLayerView) and isinstance(data, CoatingLayerArgs):
+            editor.setTypeName(data.type.name)
+            editor.setModuleName(data.type.module)
 
-            editor.setTemplateROI(refArgs.templateROI)
-            editor.setSubstrateROI(refArgs.substrateROI)
-
-            typeVar, _ = Importer(refArgs.type.name, refArgs.type.module).try_import()
-            if isinstance(typeVar, type) and issubclass(
-                typeVar, SubstrateReferenceBase
-            ):
+            typeVar, _ = Importer(data.type.name, data.type.module).try_import()
+            if isinstance(typeVar, type) and issubclass(typeVar, CoatingLayerBase):
                 paramType = typeVar.Parameters
                 paramIdx = editor.indexOfParameterType(paramType)
                 if paramIdx == -1:
@@ -316,18 +244,29 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
                 if drawOptIdx == -1:
                     drawOptIdx = editor.addDrawOptionsType(drawOptType)
                 editor.setCurrentDrawOptionsIndex(drawOptIdx)
+                decoOptType = typeVar.DecoOptions
+                decoOptIdx = editor.indexOfDecoOptionsType(decoOptType)
+                if decoOptIdx == -1:
+                    decoOptIdx = editor.addDecoOptionsType(decoOptType)
+                editor.setCurrentDecoOptionsIndex(decoOptIdx)
 
                 self.setEditorDataclassData(
                     editor.currentParametersWidget(),
                     paramType,
-                    refArgs.parameters,
+                    data.parameters,
                 )
                 self.setEditorDataclassData(
                     editor.currentDrawOptionsWidget(),
                     drawOptType,
-                    refArgs.draw_options,
+                    data.draw_options,
+                )
+                self.setEditorDataclassData(
+                    editor.currentDecoOptionsWidget(),
+                    decoOptType,
+                    data.deco_options,
                 )
             else:
                 editor.setCurrentParametersIndex(0)
                 editor.setCurrentDrawOptionsIndex(0)
+                editor.setCurrentDecoOptionsIndex(0)
         super().setEditorData(editor, index)
