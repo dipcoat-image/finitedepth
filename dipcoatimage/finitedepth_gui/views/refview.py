@@ -6,7 +6,7 @@ V2 for controlwidgets/refwidget.py
 """
 
 import dawiq
-from PySide6.QtCore import Slot, QModelIndex
+from PySide6.QtCore import Qt, Slot, QModelIndex
 from PySide6.QtWidgets import (
     QWidget,
     QLineEdit,
@@ -16,9 +16,12 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
 )
+from dipcoatimage.finitedepth import ReferenceBase
+from dipcoatimage.finitedepth.analysis import ImportArgs, ReferenceArgs
+from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from .importview import ImportDataView
-from typing import Optional
+from typing import Optional, Type
 
 
 __all__ = [
@@ -70,6 +73,16 @@ class ReferenceView(QWidget):
         self._refArgsDelegate = ReferenceArgsDelegate()
         self._refArgsMapper = QDataWidgetMapper()
 
+        self._refArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
+        self._importView.editingFinished.connect(self._refArgsMapper.submit)
+        self._paramStackWidget.currentDataValueChanged.connect(
+            self._refArgsMapper.submit
+        )
+        self._drawOptStackWidget.currentDataValueChanged.connect(
+            self._refArgsMapper.submit
+        )
+        self._refArgsMapper.setItemDelegate(self._refArgsDelegate)
+
         self._refPathLineEdit.setPlaceholderText("Path for the reference image file")
         self._browseButton.setText("Browse")
         self._importView.setTitle("Reference type")
@@ -107,6 +120,24 @@ class ReferenceView(QWidget):
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
 
+    def parametersStackedWidget(self) -> dawiq.DataclassStackedWidget:
+        return self._paramStackWidget
+
+    def drawOptionsStackedWidget(self) -> dawiq.DataclassStackedWidget:
+        return self._drawOptStackWidget
+
+    def typeName(self) -> str:
+        return self._importView.variableName()
+
+    def setTypeName(self, name: str):
+        self._importView.setVariableName(name)
+
+    def moduleName(self) -> str:
+        return self._importView.moduleName()
+
+    def setModuleName(self, name: str):
+        self._importView.setModuleName(name)
+
     @Slot(QModelIndex)
     def setActivatedIndex(self, index: QModelIndex):
         model = index.model()
@@ -125,7 +156,82 @@ class ReferenceView(QWidget):
             self._drawOptStackWidget.setCurrentIndex(0)
             self._refArgsMapper.setCurrentModelIndex(QModelIndex())
 
+    def addParameterType(self, paramType: Type[DataclassProtocol]) -> int:
+        widget = dawiq.dataclass2Widget(paramType)
+        widget.setTitle("Parameters")
+        index = self._paramStackWidget.addDataWidget(widget, paramType)
+        return index
+
+    def addDrawOptionsType(self, drawOptType: Type[DataclassProtocol]) -> int:
+        widget = dawiq.dataclass2Widget(drawOptType)
+        widget.setTitle("Draw options")
+        index = self._drawOptStackWidget.addDataWidget(widget, drawOptType)
+        return index
+
 
 class ReferenceArgsDelegate(dawiq.DataclassDelegate):
     def ignoreMissing(self) -> bool:
         return False
+
+    def setModelData(self, editor, model, index):
+        if isinstance(editor, ReferenceView):
+            importArgs = ImportArgs(editor.typeName(), editor.moduleName())
+            paramWidget = editor.parametersStackedWidget().currentWidget()
+            if isinstance(paramWidget, dawiq.DataWidget):
+                parameters = paramWidget.dataValue()
+            else:
+                parameters = {}
+            drawOptWidget = editor.drawOptionsStackedWidget().currentWidget()
+            if isinstance(drawOptWidget, dawiq.DataWidget):
+                drawOpt = drawOptWidget.dataValue()
+            else:
+                drawOpt = {}
+            typeVar, _ = Importer(importArgs.name, importArgs.module).try_import()
+            if isinstance(typeVar, type) and issubclass(typeVar, ReferenceBase):
+                paramType = typeVar.Parameters
+                drawOptType = typeVar.DrawOptions
+                parameters = dawiq.convertFromQt(
+                    paramType, parameters, self.ignoreMissing()
+                )
+                drawOptType = dawiq.convertFromQt(
+                    drawOptType, drawOpt, self.ignoreMissing()
+                )
+            refArgs = ReferenceArgs(importArgs, parameters, drawOpt)
+            model.setData(index, refArgs, Qt.UserRole)
+        super().setModelData(editor, model, index)
+
+    def setEditorData(self, editor, index):
+        data = index.data(Qt.UserRole)
+        if isinstance(editor, ReferenceView) and isinstance(data, ReferenceArgs):
+            editor.setTypeName(data.type.name)
+            editor.setModuleName(data.type.module)
+
+            typeVar, _ = Importer(data.type.name, data.type.module).try_import()
+            if isinstance(typeVar, type) and issubclass(typeVar, ReferenceBase):
+                paramType = typeVar.Parameters
+                paramIdx = editor.parametersStackedWidget().indexOfDataclass(paramType)
+                if paramIdx == -1:
+                    paramIdx = editor.addParameterType(paramType)
+                drawOptType = typeVar.DrawOptions
+                drawOptIdx = editor.drawOptionsStackedWidget().indexOfDataclass(
+                    drawOptType
+                )
+                if drawOptIdx == -1:
+                    drawOptIdx = editor.addDrawOptionsType(drawOptType)
+                editor.parametersStackedWidget().setCurrentIndex(paramIdx)
+                editor.drawOptionsStackedWidget().setCurrentIndex(drawOptIdx)
+
+                self.setEditorDataclassData(
+                    editor.parametersStackedWidget().currentWidget(),
+                    paramType,
+                    data.parameters,
+                )
+                self.setEditorDataclassData(
+                    editor.drawOptionsStackedWidget().currentWidget(),
+                    drawOptType,
+                    data.draw_options,
+                )
+            else:
+                editor.parametersStackedWidget().setCurrentIndex(0)
+                editor.drawOptionsStackedWidget().setCurrentIndex(0)
+        super().setEditorData(editor, index)
