@@ -174,7 +174,9 @@ class ExperimentDataModel(QAbstractItemModel):
 
     # https://stackoverflow.com/a/57129496/11501976
 
+    ROW_REFPATH = 0
     ROW_COATPATHS = 1
+    ROW_REFERENCE = 2
     ROW_SUBSTRATE = 3
     ROW_EXPERIMENT = 5
 
