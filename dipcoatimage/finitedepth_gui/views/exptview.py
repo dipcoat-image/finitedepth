@@ -89,7 +89,9 @@ class ExperimentView(QWidget):
 
         self._nameLineEdit.setPlaceholderText("Experiment name")
         self._importView.setTitle("Experiment type")
-        self._paramStackWidget.addWidget(QGroupBox("Parameters"))  # default empty widget
+        self._paramStackWidget.addWidget(
+            QGroupBox("Parameters")
+        )  # default empty widget
 
         layout = QVBoxLayout()
         layout.addWidget(self._nameLineEdit)
