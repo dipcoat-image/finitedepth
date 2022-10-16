@@ -6,7 +6,6 @@ V2 for inventory.py
 """
 
 import copy
-import dataclasses
 from dipcoatimage.finitedepth import ExperimentData
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
 from typing import Optional, Any, Union
