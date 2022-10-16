@@ -65,7 +65,6 @@ class SubstrateView(QWidget):
         self._importView = ImportDataView()
         self._paramStackWidget = dawiq.DataclassStackedWidget()
         self._drawOptStackWidget = dawiq.DataclassStackedWidget()
-        self._substArgsDelegate = SubstrateArgsDelegate()
         self._substArgsMapper = QDataWidgetMapper()
 
         self._substArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
@@ -76,7 +75,7 @@ class SubstrateView(QWidget):
         self._drawOptStackWidget.currentDataValueChanged.connect(
             self._substArgsMapper.submit
         )
-        self._substArgsMapper.setItemDelegate(self._substArgsDelegate)
+        self._substArgsMapper.setItemDelegate(SubstrateArgsDelegate())
 
         self._importView.setTitle("Substrate type")
         self._paramStackWidget.addWidget(

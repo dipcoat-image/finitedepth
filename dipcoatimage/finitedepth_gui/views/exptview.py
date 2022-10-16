@@ -73,7 +73,6 @@ class ExperimentView(QWidget):
         self._addButton = QPushButton("Add")
         self._deleteButton = QPushButton("Delete")
         self._paramStackWidget = dawiq.DataclassStackedWidget()
-        self._exptArgsDelegate = ExperimentArgsDelegate()
         self._exptArgsMapper = QDataWidgetMapper()
 
         self._pathsListView.setSelectionMode(QListView.ExtendedSelection)
@@ -85,7 +84,7 @@ class ExperimentView(QWidget):
         self._paramStackWidget.currentDataValueChanged.connect(
             self._exptArgsMapper.submit
         )
-        self._exptArgsMapper.setItemDelegate(self._exptArgsDelegate)
+        self._exptArgsMapper.setItemDelegate(ExperimentArgsDelegate())
 
         self._nameLineEdit.setPlaceholderText("Experiment name")
         self._importView.setTitle("Experiment type")

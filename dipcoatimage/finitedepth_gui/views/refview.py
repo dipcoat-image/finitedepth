@@ -5,8 +5,9 @@ Reference view
 V2 for controlwidgets/refwidget.py
 """
 
+import cv2
 import dawiq
-from PySide6.QtCore import Qt, Slot, QModelIndex
+from PySide6.QtCore import Qt, Signal, Slot, QModelIndex
 from PySide6.QtWidgets import (
     QWidget,
     QLineEdit,
@@ -16,6 +17,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QVBoxLayout,
     QHBoxLayout,
+    QStyledItemDelegate,
 )
 from dipcoatimage.finitedepth import SubstrateReferenceBase
 from dipcoatimage.finitedepth.analysis import ImportArgs, ReferenceArgs
@@ -28,6 +30,7 @@ from typing import Optional, Type
 
 __all__ = [
     "ReferenceView",
+    "ReferencePathDelegate",
     "ReferenceArgsDelegate",
 ]
 
@@ -76,9 +79,10 @@ class ReferenceView(QWidget):
         self._substROIDrawButton = QPushButton()
         self._paramStackWidget = dawiq.DataclassStackedWidget()
         self._drawOptStackWidget = dawiq.DataclassStackedWidget()
-        self._refArgsDelegate = ReferenceArgsDelegate()
         self._refArgsMapper = QDataWidgetMapper()
 
+        self._refPathMapper.setItemDelegate(ReferencePathDelegate())
+        self._refPathMapper.itemDelegate().roiMaximumChanged.connect(self.setROIMaximum)
         self._refArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._importView.editingFinished.connect(self._refArgsMapper.submit)
         self._paramStackWidget.currentDataValueChanged.connect(
@@ -87,7 +91,7 @@ class ReferenceView(QWidget):
         self._drawOptStackWidget.currentDataValueChanged.connect(
             self._refArgsMapper.submit
         )
-        self._refArgsMapper.setItemDelegate(self._refArgsDelegate)
+        self._refArgsMapper.setItemDelegate(ReferenceArgsDelegate())
 
         self._refPathLineEdit.setPlaceholderText("Path for the reference image file")
         self._browseButton.setText("Browse")
@@ -160,6 +164,11 @@ class ReferenceView(QWidget):
     def setModuleName(self, name: str):
         self._importView.setModuleName(name)
 
+    @Slot(int, int)
+    def setROIMaximum(self, w: int, h: int):
+        self._tempROIView.setROIMaximum(w, h)
+        self._substROIView.setROIMaximum(w, h)
+
     @Slot(QModelIndex)
     def setActivatedIndex(self, index: QModelIndex):
         model = index.model()
@@ -191,6 +200,19 @@ class ReferenceView(QWidget):
         widget.setTitle("Draw options")
         index = self._drawOptStackWidget.addDataWidget(widget, drawOptType)
         return index
+
+
+class ReferencePathDelegate(QStyledItemDelegate):
+
+    roiMaximumChanged = Signal(int, int)
+
+    def setEditorData(self, editor, index):
+        super().setEditorData(editor, index)
+        path = index.data(Qt.DisplayRole)
+        img = cv2.imread(path)
+        if img is not None:
+            w, h = (img.shape[1], img.shape[0])
+            self.roiMaximumChanged.emit(w, h)
 
 
 class ReferenceArgsDelegate(dawiq.DataclassDelegate):
