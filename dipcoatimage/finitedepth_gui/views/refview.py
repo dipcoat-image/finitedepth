@@ -173,6 +173,8 @@ class ReferenceView(QWidget):
         else:
             self._refPathLineEdit.clear()
             self._importView.clear()
+            self._tempROIView.clear()
+            self._substROIView.clear()
             self._refPathMapper.setCurrentModelIndex(QModelIndex())
             self._paramStackWidget.setCurrentIndex(0)
             self._drawOptStackWidget.setCurrentIndex(0)

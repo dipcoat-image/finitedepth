@@ -21,6 +21,12 @@ class ROIView(QWidget):
         self._x2_spinbox = QSpinBox()
         self._y2_spinbox = QSpinBox()
 
+        self._x1_spinbox.setMinimum(0)
+        self._y1_spinbox.setMinimum(0)
+        self._x2_spinbox.setMinimum(0)
+        self._y2_spinbox.setMinimum(0)
+        self.setROIMaximum(0, 0)
+
         self._x1_spinbox.setPrefix("x1 : ")
         self._y1_spinbox.setPrefix("y1 : ")
         self._x2_spinbox.setPrefix("x2 : ")
@@ -32,3 +38,12 @@ class ROIView(QWidget):
         layout.addWidget(self._x2_spinbox)
         layout.addWidget(self._y2_spinbox)
         self.setLayout(layout)
+
+    def clear(self):
+        self.setROIMaximum(0, 0)
+
+    def setROIMaximum(self, w: int, h: int):
+        self._x1_spinbox.setMaximum(w)
+        self._y1_spinbox.setMaximum(h)
+        self._x2_spinbox.setMaximum(w)
+        self._y2_spinbox.setMaximum(h)
