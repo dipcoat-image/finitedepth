@@ -12,15 +12,17 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QDataWidgetMapper,
+    QSizePolicy,
     QGroupBox,
     QVBoxLayout,
     QHBoxLayout,
 )
-from dipcoatimage.finitedepth import ReferenceBase
+from dipcoatimage.finitedepth import SubstrateReferenceBase
 from dipcoatimage.finitedepth.analysis import ImportArgs, ReferenceArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from .importview import ImportDataView
+from .roiview import ROIView
 from typing import Optional, Type
 
 
@@ -68,6 +70,10 @@ class ReferenceView(QWidget):
         self._refPathMapper = QDataWidgetMapper()
         self._browseButton = QPushButton()
         self._importView = ImportDataView()
+        self._tempROIView = ROIView()
+        self._tempROIDrawButton = QPushButton()
+        self._substROIView = ROIView()
+        self._substROIDrawButton = QPushButton()
         self._paramStackWidget = dawiq.DataclassStackedWidget()
         self._drawOptStackWidget = dawiq.DataclassStackedWidget()
         self._refArgsDelegate = ReferenceArgsDelegate()
@@ -86,6 +92,10 @@ class ReferenceView(QWidget):
         self._refPathLineEdit.setPlaceholderText("Path for the reference image file")
         self._browseButton.setText("Browse")
         self._importView.setTitle("Reference type")
+        self._tempROIDrawButton.setText("Draw template ROI")
+        self._tempROIDrawButton.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self._substROIDrawButton.setText("Draw substrate ROI")
+        self._substROIDrawButton.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self._paramStackWidget.addWidget(
             QGroupBox("Parameters")  # default empty widget
         )
@@ -99,6 +109,18 @@ class ReferenceView(QWidget):
         pathLayout.addWidget(self._browseButton)
         layout.addLayout(pathLayout)
         layout.addWidget(self._importView)
+        tempROIGroupBox = QGroupBox("Template ROI")
+        tempROILayout = QHBoxLayout()
+        tempROILayout.addWidget(self._tempROIView)
+        tempROILayout.addWidget(self._tempROIDrawButton)
+        tempROIGroupBox.setLayout(tempROILayout)
+        layout.addWidget(tempROIGroupBox)
+        substROIGroupBox = QGroupBox("Substrate ROI")
+        substROILayout = QHBoxLayout()
+        substROILayout.addWidget(self._substROIView)
+        substROILayout.addWidget(self._substROIDrawButton)
+        substROIGroupBox.setLayout(substROILayout)
+        layout.addWidget(substROIGroupBox)
         dataLayout = QHBoxLayout()
         dataLayout.addWidget(self._paramStackWidget)
         dataLayout.addWidget(self._drawOptStackWidget)
@@ -187,7 +209,9 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
             else:
                 drawOpt = {}
             typeVar, _ = Importer(importArgs.name, importArgs.module).try_import()
-            if isinstance(typeVar, type) and issubclass(typeVar, ReferenceBase):
+            if isinstance(typeVar, type) and issubclass(
+                typeVar, SubstrateReferenceBase
+            ):
                 paramType = typeVar.Parameters
                 drawOptType = typeVar.DrawOptions
                 parameters = dawiq.convertFromQt(
@@ -207,7 +231,9 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
             editor.setModuleName(data.type.module)
 
             typeVar, _ = Importer(data.type.name, data.type.module).try_import()
-            if isinstance(typeVar, type) and issubclass(typeVar, ReferenceBase):
+            if isinstance(typeVar, type) and issubclass(
+                typeVar, SubstrateReferenceBase
+            ):
                 paramType = typeVar.Parameters
                 paramIdx = editor.parametersStackedWidget().indexOfDataclass(paramType)
                 if paramIdx == -1:
