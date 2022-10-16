@@ -110,14 +110,9 @@ class ExperimentDataItem(object):
         coatPathsItem.setParent(inst)
 
         refArgs = exptData.reference
-        refDataItem = cls()
-        for val in (
-            getattr(refArgs, field.name) for field in dataclasses.fields(refArgs)
-        ):
-            refArgItem = cls()
-            refArgItem.setData(Qt.UserRole, val)
-            refArgItem.setParent(refDataItem)
-        refDataItem.setParent(inst)
+        refArgsItem = cls()
+        refArgsItem.setData(Qt.UserRole, refArgs)
+        refArgsItem.setParent(inst)
 
         substArgs = exptData.substrate
         substArgsItem = cls()
