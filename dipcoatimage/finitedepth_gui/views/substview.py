@@ -19,7 +19,7 @@ from dipcoatimage.finitedepth.analysis import ImportArgs, SubstrateArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from .importview import ImportDataView
-from typing import Optional, Type
+from typing import Optional, Type, Union
 
 
 __all__ = [
@@ -106,12 +106,6 @@ class SubstrateView(QWidget):
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
 
-    def parametersStackedWidget(self) -> dawiq.DataclassStackedWidget:
-        return self._paramStackWidget
-
-    def drawOptionsStackedWidget(self) -> dawiq.DataclassStackedWidget:
-        return self._drawOptStackWidget
-
     def typeName(self) -> str:
         return self._importView.variableName()
 
@@ -123,6 +117,36 @@ class SubstrateView(QWidget):
 
     def setModuleName(self, name: str):
         self._importView.setModuleName(name)
+
+    def currentParametersWidget(self) -> Union[dawiq.DataWidget, QGroupBox]:
+        return self._paramStackWidget.currentWidget()
+
+    def indexOfParameterType(self, paramType: Type[DataclassProtocol]) -> int:
+        return self._paramStackWidget.indexOfDataclass(paramType)
+
+    def addParameterType(self, paramType: Type[DataclassProtocol]) -> int:
+        widget = dawiq.dataclass2Widget(paramType)
+        widget.setTitle("Parameters")
+        index = self._paramStackWidget.addDataWidget(widget, paramType)
+        return index
+
+    def setCurrentParametersIndex(self, index: int):
+        self._paramStackWidget.setCurrentIndex(index)
+
+    def currentDrawOptionsWidget(self) -> Union[dawiq.DataWidget, QGroupBox]:
+        return self._drawOptStackWidget.currentWidget()
+
+    def indexOfDrawOptionsType(self, drawOptType: Type[DataclassProtocol]) -> int:
+        return self._drawOptStackWidget.indexOfDataclass(drawOptType)
+
+    def addDrawOptionsType(self, drawOptType: Type[DataclassProtocol]) -> int:
+        widget = dawiq.dataclass2Widget(drawOptType)
+        widget.setTitle("Draw options")
+        index = self._drawOptStackWidget.addDataWidget(widget, drawOptType)
+        return index
+
+    def setCurrentDrawOptionsIndex(self, index: int):
+        self._drawOptStackWidget.setCurrentIndex(index)
 
     @Slot(QModelIndex)
     def setActivatedIndex(self, index: QModelIndex):
@@ -137,18 +161,6 @@ class SubstrateView(QWidget):
             self._drawOptStackWidget.setCurrentIndex(0)
             self._substArgsMapper.setCurrentModelIndex(QModelIndex())
 
-    def addParameterType(self, paramType: Type[DataclassProtocol]) -> int:
-        widget = dawiq.dataclass2Widget(paramType)
-        widget.setTitle("Parameters")
-        index = self._paramStackWidget.addDataWidget(widget, paramType)
-        return index
-
-    def addDrawOptionsType(self, drawOptType: Type[DataclassProtocol]) -> int:
-        widget = dawiq.dataclass2Widget(drawOptType)
-        widget.setTitle("Draw options")
-        index = self._drawOptStackWidget.addDataWidget(widget, drawOptType)
-        return index
-
 
 class SubstrateArgsDelegate(dawiq.DataclassDelegate):
     def ignoreMissing(self) -> bool:
@@ -157,12 +169,12 @@ class SubstrateArgsDelegate(dawiq.DataclassDelegate):
     def setModelData(self, editor, model, index):
         if isinstance(editor, SubstrateView):
             importArgs = ImportArgs(editor.typeName(), editor.moduleName())
-            paramWidget = editor.parametersStackedWidget().currentWidget()
+            paramWidget = editor.currentParametersWidget()
             if isinstance(paramWidget, dawiq.DataWidget):
                 parameters = paramWidget.dataValue()
             else:
                 parameters = {}
-            drawOptWidget = editor.drawOptionsStackedWidget().currentWidget()
+            drawOptWidget = editor.currentDrawOptionsWidget()
             if isinstance(drawOptWidget, dawiq.DataWidget):
                 drawOpt = drawOptWidget.dataValue()
             else:
@@ -190,29 +202,27 @@ class SubstrateArgsDelegate(dawiq.DataclassDelegate):
             typeVar, _ = Importer(data.type.name, data.type.module).try_import()
             if isinstance(typeVar, type) and issubclass(typeVar, SubstrateBase):
                 paramType = typeVar.Parameters
-                paramIdx = editor.parametersStackedWidget().indexOfDataclass(paramType)
+                paramIdx = editor.indexOfParameterType(paramType)
                 if paramIdx == -1:
                     paramIdx = editor.addParameterType(paramType)
                 drawOptType = typeVar.DrawOptions
-                drawOptIdx = editor.drawOptionsStackedWidget().indexOfDataclass(
-                    drawOptType
-                )
+                drawOptIdx = editor.indexOfDrawOptionsType(drawOptType)
                 if drawOptIdx == -1:
                     drawOptIdx = editor.addDrawOptionsType(drawOptType)
-                editor.parametersStackedWidget().setCurrentIndex(paramIdx)
-                editor.drawOptionsStackedWidget().setCurrentIndex(drawOptIdx)
+                editor.setCurrentParametersIndex(paramIdx)
+                editor.setCurrentDrawOptionsIndex(drawOptIdx)
 
                 self.setEditorDataclassData(
-                    editor.parametersStackedWidget().currentWidget(),
+                    editor.currentParametersWidget(),
                     paramType,
                     data.parameters,
                 )
                 self.setEditorDataclassData(
-                    editor.drawOptionsStackedWidget().currentWidget(),
+                    editor.currentDrawOptionsWidget(),
                     drawOptType,
                     data.draw_options,
                 )
             else:
-                editor.parametersStackedWidget().setCurrentIndex(0)
-                editor.drawOptionsStackedWidget().setCurrentIndex(0)
+                editor.setCurrentParametersIndex(0)
+                editor.setCurrentDrawOptionsIndex(0)
         super().setEditorData(editor, index)
