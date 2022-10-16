@@ -22,7 +22,7 @@ from dipcoatimage.finitedepth.analysis import ImportArgs, ExperimentArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from .importview import ImportDataView
-from typing import Optional, Type
+from typing import Optional, Type, Union
 
 
 __all__ = [
@@ -73,7 +73,6 @@ class ExperimentView(QWidget):
         self._addButton = QPushButton("Add")
         self._deleteButton = QPushButton("Delete")
         self._paramStackWidget = dawiq.DataclassStackedWidget()
-        self._exptArgsDelegate = ExperimentArgsDelegate()
         self._exptArgsMapper = QDataWidgetMapper()
 
         self._pathsListView.setSelectionMode(QListView.ExtendedSelection)
@@ -85,7 +84,7 @@ class ExperimentView(QWidget):
         self._paramStackWidget.currentDataValueChanged.connect(
             self._exptArgsMapper.submit
         )
-        self._exptArgsMapper.setItemDelegate(self._exptArgsDelegate)
+        self._exptArgsMapper.setItemDelegate(ExperimentArgsDelegate())
 
         self._nameLineEdit.setPlaceholderText("Experiment name")
         self._importView.setTitle("Experiment type")
@@ -124,9 +123,6 @@ class ExperimentView(QWidget):
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
 
-    def parametersStackedWidget(self) -> dawiq.DataclassStackedWidget:
-        return self._paramStackWidget
-
     def typeName(self) -> str:
         return self._importView.variableName()
 
@@ -138,25 +134,6 @@ class ExperimentView(QWidget):
 
     def setModuleName(self, name: str):
         self._importView.setModuleName(name)
-
-    @Slot(QModelIndex)
-    def setActivatedIndex(self, index: QModelIndex):
-        model = index.model()
-        if isinstance(model, ExperimentDataModel):
-            self._nameMapper.setCurrentModelIndex(index)
-            self._pathsListView.setModel(model)
-            coatPathIndex = model.index(model.ROW_COATPATHS, 0, index)
-            self._pathsListView.setRootIndex(coatPathIndex)
-            self._exptArgsMapper.setRootIndex(index)
-            exptIndex = model.index(model.ROW_EXPERIMENT, 0, index)
-            self._exptArgsMapper.setCurrentModelIndex(exptIndex)
-        else:
-            self._nameLineEdit.clear()
-            self._importView.clear()
-            self._nameMapper.setCurrentModelIndex(QModelIndex())
-            self._pathsListView.setModel(None)
-            self._paramStackWidget.setCurrentIndex(0)
-            self._exptArgsMapper.setCurrentModelIndex(QModelIndex())
 
     @Slot()
     def appendNewPath(self):
@@ -177,11 +154,39 @@ class ExperimentView(QWidget):
             for i in reversed(sorted(rows)):
                 model.removeRow(i, self._pathsListView.rootIndex())
 
+    def currentParametersWidget(self) -> Union[dawiq.DataWidget, QGroupBox]:
+        return self._paramStackWidget.currentWidget()
+
+    def indexOfParameterType(self, paramType: Type[DataclassProtocol]) -> int:
+        return self._paramStackWidget.indexOfDataclass(paramType)
+
     def addParameterType(self, paramType: Type[DataclassProtocol]) -> int:
         widget = dawiq.dataclass2Widget(paramType)
         widget.setTitle("Parameters")
         index = self._paramStackWidget.addDataWidget(widget, paramType)
         return index
+
+    def setCurrentParametersIndex(self, index: int):
+        self._paramStackWidget.setCurrentIndex(index)
+
+    @Slot(QModelIndex)
+    def setActivatedIndex(self, index: QModelIndex):
+        model = index.model()
+        if isinstance(model, ExperimentDataModel):
+            self._nameMapper.setCurrentModelIndex(index)
+            self._pathsListView.setModel(model)
+            coatPathIndex = model.index(model.ROW_COATPATHS, 0, index)
+            self._pathsListView.setRootIndex(coatPathIndex)
+            self._exptArgsMapper.setRootIndex(index)
+            exptIndex = model.index(model.ROW_EXPERIMENT, 0, index)
+            self._exptArgsMapper.setCurrentModelIndex(exptIndex)
+        else:
+            self._nameLineEdit.clear()
+            self._importView.clear()
+            self._nameMapper.setCurrentModelIndex(QModelIndex())
+            self._pathsListView.setModel(None)
+            self._paramStackWidget.setCurrentIndex(0)
+            self._exptArgsMapper.setCurrentModelIndex(QModelIndex())
 
 
 class ExperimentArgsDelegate(dawiq.DataclassDelegate):
@@ -191,7 +196,7 @@ class ExperimentArgsDelegate(dawiq.DataclassDelegate):
     def setModelData(self, editor, model, index):
         if isinstance(editor, ExperimentView):
             importArgs = ImportArgs(editor.typeName(), editor.moduleName())
-            paramWidget = editor.parametersStackedWidget().currentWidget()
+            paramWidget = editor.currentParametersWidget()
             if isinstance(paramWidget, dawiq.DataWidget):
                 parameters = paramWidget.dataValue()
             else:
@@ -215,15 +220,15 @@ class ExperimentArgsDelegate(dawiq.DataclassDelegate):
             typeVar, _ = Importer(data.type.name, data.type.module).try_import()
             if isinstance(typeVar, type) and issubclass(typeVar, ExperimentBase):
                 paramType = typeVar.Parameters
-                paramIdx = editor.parametersStackedWidget().indexOfDataclass(paramType)
+                paramIdx = editor.indexOfParameterType(paramType)
                 if paramIdx == -1:
                     paramIdx = editor.addParameterType(paramType)
-                editor.parametersStackedWidget().setCurrentIndex(paramIdx)
+                editor.setCurrentParametersIndex(paramIdx)
                 self.setEditorDataclassData(
-                    editor.parametersStackedWidget().currentWidget(),
+                    editor.currentParametersWidget(),
                     paramType,
                     data.parameters,
                 )
             else:
-                editor.parametersStackedWidget().setCurrentIndex(0)
+                editor.setCurrentParametersIndex(0)
         super().setEditorData(editor, index)

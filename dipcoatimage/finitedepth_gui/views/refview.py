@@ -1,43 +1,51 @@
 """
-Substrate view
+Reference view
 ==============
 
-V2 for controlwidgets/substwidget.py
+V2 for controlwidgets/refwidget.py
 """
 
+import cv2  # type: ignore
 import dawiq
-from PySide6.QtCore import Qt, Slot, QModelIndex
+from PySide6.QtCore import Qt, Signal, Slot, QModelIndex
 from PySide6.QtWidgets import (
     QWidget,
+    QLineEdit,
+    QPushButton,
     QDataWidgetMapper,
+    QSizePolicy,
     QGroupBox,
     QVBoxLayout,
     QHBoxLayout,
+    QFileDialog,
+    QStyledItemDelegate,
 )
-from dipcoatimage.finitedepth import SubstrateBase
-from dipcoatimage.finitedepth.analysis import ImportArgs, SubstrateArgs
-from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
+from dipcoatimage.finitedepth import SubstrateReferenceBase
+from dipcoatimage.finitedepth.analysis import ImportArgs, ReferenceArgs
+from dipcoatimage.finitedepth.util import DataclassProtocol, Importer, OptionalROI
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from .importview import ImportDataView
+from .roiview import ROIView
 from typing import Optional, Type, Union
 
 
 __all__ = [
-    "SubstrateView",
-    "SubstrateArgsDelegate",
+    "ReferenceView",
+    "ReferencePathDelegate",
+    "ReferenceArgsDelegate",
 ]
 
 
-class SubstrateView(QWidget):
+class ReferenceView(QWidget):
     """
-    Widget to :class:`SubstrateArgs`.
+    Widget to display reference file path and :class:`ReferenceArgs`.
 
     >>> from PySide6.QtWidgets import QApplication, QWidget, QHBoxLayout
     >>> import sys
     >>> from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
     >>> from dipcoatimage.finitedepth_gui.views import (
     ...     ExperimentListView,
-    ...     SubstrateView,
+    ...     ReferenceView,
     ... )
     >>> def runGUI():
     ...     app = QApplication(sys.argv)
@@ -47,9 +55,9 @@ class SubstrateView(QWidget):
     ...     exptListWidget = ExperimentListView()
     ...     exptListWidget.setModel(model)
     ...     layout.addWidget(exptListWidget)
-    ...     substWidget = SubstrateView()
-    ...     substWidget.setModel(model)
-    ...     layout.addWidget(substWidget)
+    ...     refWidget = ReferenceView()
+    ...     refWidget.setModel(model)
+    ...     layout.addWidget(refWidget)
     ...     window.setLayout(layout)
     ...     window.show()
     ...     app.exec()
@@ -62,22 +70,40 @@ class SubstrateView(QWidget):
         super().__init__(parent)
 
         self._model = None
+        self._refPathLineEdit = QLineEdit()
+        self._refPathMapper = QDataWidgetMapper()
+        self._browseButton = QPushButton()
         self._importView = ImportDataView()
+        self._tempROIView = ROIView()
+        self._tempROIDrawButton = QPushButton()
+        self._substROIView = ROIView()
+        self._substROIDrawButton = QPushButton()
         self._paramStackWidget = dawiq.DataclassStackedWidget()
         self._drawOptStackWidget = dawiq.DataclassStackedWidget()
-        self._substArgsMapper = QDataWidgetMapper()
+        self._refArgsMapper = QDataWidgetMapper()
 
-        self._substArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
-        self._importView.editingFinished.connect(self._substArgsMapper.submit)
+        self._refPathMapper.setItemDelegate(ReferencePathDelegate())
+        self._refPathMapper.itemDelegate().roiMaximumChanged.connect(self.setROIMaximum)
+        self._browseButton.clicked.connect(self.browseReferenceImage)
+        self._refArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
+        self._importView.editingFinished.connect(self._refArgsMapper.submit)
+        self._tempROIView.editingFinished.connect(self._refArgsMapper.submit)
+        self._substROIView.editingFinished.connect(self._refArgsMapper.submit)
         self._paramStackWidget.currentDataValueChanged.connect(
-            self._substArgsMapper.submit
+            self._refArgsMapper.submit
         )
         self._drawOptStackWidget.currentDataValueChanged.connect(
-            self._substArgsMapper.submit
+            self._refArgsMapper.submit
         )
-        self._substArgsMapper.setItemDelegate(SubstrateArgsDelegate())
+        self._refArgsMapper.setItemDelegate(ReferenceArgsDelegate())
 
-        self._importView.setTitle("Substrate type")
+        self._refPathLineEdit.setPlaceholderText("Path for the reference image file")
+        self._browseButton.setText("Browse")
+        self._importView.setTitle("Reference type")
+        self._tempROIDrawButton.setText("Draw template ROI")
+        self._tempROIDrawButton.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self._substROIDrawButton.setText("Draw substrate ROI")
+        self._substROIDrawButton.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self._paramStackWidget.addWidget(
             QGroupBox("Parameters")  # default empty widget
         )
@@ -86,7 +112,23 @@ class SubstrateView(QWidget):
         )
 
         layout = QVBoxLayout()
+        pathLayout = QHBoxLayout()
+        pathLayout.addWidget(self._refPathLineEdit)
+        pathLayout.addWidget(self._browseButton)
+        layout.addLayout(pathLayout)
         layout.addWidget(self._importView)
+        tempROIGroupBox = QGroupBox("Template ROI")
+        tempROILayout = QHBoxLayout()
+        tempROILayout.addWidget(self._tempROIView)
+        tempROILayout.addWidget(self._tempROIDrawButton)
+        tempROIGroupBox.setLayout(tempROILayout)
+        layout.addWidget(tempROIGroupBox)
+        substROIGroupBox = QGroupBox("Substrate ROI")
+        substROILayout = QHBoxLayout()
+        substROILayout.addWidget(self._substROIView)
+        substROILayout.addWidget(self._substROIDrawButton)
+        substROIGroupBox.setLayout(substROILayout)
+        layout.addWidget(substROIGroupBox)
         dataLayout = QHBoxLayout()
         dataLayout.addWidget(self._paramStackWidget)
         dataLayout.addWidget(self._drawOptStackWidget)
@@ -101,10 +143,24 @@ class SubstrateView(QWidget):
         if oldModel is not None:
             oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
         self._model = model
-        self._substArgsMapper.setModel(model)
-        self._substArgsMapper.addMapping(self, 0)
+        self._refPathMapper.setModel(model)
+        self._refPathMapper.addMapping(self._refPathLineEdit, 0)
+        self._refArgsMapper.setModel(model)
+        self._refArgsMapper.addMapping(self, 0)
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
+
+    @Slot()
+    def browseReferenceImage(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select reference image file",
+            "./",
+            options=QFileDialog.DontUseNativeDialog,
+        )
+        if path:
+            self._refPathLineEdit.setText(path)
+            self._refPathMapper.submit()
 
     def typeName(self) -> str:
         return self._importView.variableName()
@@ -117,6 +173,23 @@ class SubstrateView(QWidget):
 
     def setModuleName(self, name: str):
         self._importView.setModuleName(name)
+
+    @Slot(int, int)
+    def setROIMaximum(self, w: int, h: int):
+        self._tempROIView.setROIMaximum(w, h)
+        self._substROIView.setROIMaximum(w, h)
+
+    def templateROI(self) -> OptionalROI:
+        return self._tempROIView.roi()
+
+    def setTemplateROI(self, roi: OptionalROI):
+        self._tempROIView.setROI(roi)
+
+    def substrateROI(self) -> OptionalROI:
+        return self._substROIView.roi()
+
+    def setSubstrateROI(self, roi: OptionalROI):
+        self._substROIView.setROI(roi)
 
     def currentParametersWidget(self) -> Union[dawiq.DataWidget, QGroupBox]:
         return self._paramStackWidget.currentWidget()
@@ -152,23 +225,47 @@ class SubstrateView(QWidget):
     def setActivatedIndex(self, index: QModelIndex):
         model = index.model()
         if isinstance(model, ExperimentDataModel):
-            self._substArgsMapper.setRootIndex(index)
-            substIndex = model.index(model.ROW_SUBSTRATE, 0, index)
-            self._substArgsMapper.setCurrentModelIndex(substIndex)
+            self._refPathMapper.setRootIndex(index)
+            refPathIndex = model.index(model.ROW_REFPATH, 0, index)
+            self._refPathMapper.setCurrentModelIndex(refPathIndex)
+            self._refArgsMapper.setRootIndex(index)
+            refIndex = model.index(model.ROW_REFERENCE, 0, index)
+            self._refArgsMapper.setCurrentModelIndex(refIndex)
         else:
+            self._refPathLineEdit.clear()
             self._importView.clear()
+            self._tempROIView.clear()
+            self._substROIView.clear()
+            self._refPathMapper.setCurrentModelIndex(QModelIndex())
             self._paramStackWidget.setCurrentIndex(0)
             self._drawOptStackWidget.setCurrentIndex(0)
-            self._substArgsMapper.setCurrentModelIndex(QModelIndex())
+            self._refArgsMapper.setCurrentModelIndex(QModelIndex())
 
 
-class SubstrateArgsDelegate(dawiq.DataclassDelegate):
+class ReferencePathDelegate(QStyledItemDelegate):
+
+    roiMaximumChanged = Signal(int, int)
+
+    def setEditorData(self, editor, index):
+        super().setEditorData(editor, index)
+        path = index.data(Qt.DisplayRole)
+        img = cv2.imread(path)
+        if img is not None:
+            w, h = (img.shape[1], img.shape[0])
+        else:
+            w, h = (0, 0)
+        self.roiMaximumChanged.emit(w, h)
+
+
+class ReferenceArgsDelegate(dawiq.DataclassDelegate):
     def ignoreMissing(self) -> bool:
         return False
 
     def setModelData(self, editor, model, index):
-        if isinstance(editor, SubstrateView):
+        if isinstance(editor, ReferenceView):
             importArgs = ImportArgs(editor.typeName(), editor.moduleName())
+            tempROI = editor.templateROI()
+            substROI = editor.substrateROI()
             paramWidget = editor.currentParametersWidget()
             if isinstance(paramWidget, dawiq.DataWidget):
                 parameters = paramWidget.dataValue()
@@ -180,7 +277,9 @@ class SubstrateArgsDelegate(dawiq.DataclassDelegate):
             else:
                 drawOpt = {}
             typeVar, _ = Importer(importArgs.name, importArgs.module).try_import()
-            if isinstance(typeVar, type) and issubclass(typeVar, SubstrateBase):
+            if isinstance(typeVar, type) and issubclass(
+                typeVar, SubstrateReferenceBase
+            ):
                 paramType = typeVar.Parameters
                 drawOptType = typeVar.DrawOptions
                 parameters = dawiq.convertFromQt(
@@ -189,18 +288,24 @@ class SubstrateArgsDelegate(dawiq.DataclassDelegate):
                 drawOptType = dawiq.convertFromQt(
                     drawOptType, drawOpt, self.ignoreMissing()
                 )
-            substArgs = SubstrateArgs(importArgs, parameters, drawOpt)
-            model.setData(index, substArgs, Qt.UserRole)
+            refArgs = ReferenceArgs(importArgs, tempROI, substROI, parameters, drawOpt)
+            model.setData(index, refArgs, Qt.UserRole)
         super().setModelData(editor, model, index)
 
     def setEditorData(self, editor, index):
         data = index.data(Qt.UserRole)
-        if isinstance(editor, SubstrateView) and isinstance(data, SubstrateArgs):
-            editor.setTypeName(data.type.name)
-            editor.setModuleName(data.type.module)
+        if isinstance(editor, ReferenceView) and isinstance(data, ReferenceArgs):
+            refArgs = data
+            editor.setTypeName(refArgs.type.name)
+            editor.setModuleName(refArgs.type.module)
 
-            typeVar, _ = Importer(data.type.name, data.type.module).try_import()
-            if isinstance(typeVar, type) and issubclass(typeVar, SubstrateBase):
+            editor.setTemplateROI(refArgs.templateROI)
+            editor.setSubstrateROI(refArgs.substrateROI)
+
+            typeVar, _ = Importer(refArgs.type.name, refArgs.type.module).try_import()
+            if isinstance(typeVar, type) and issubclass(
+                typeVar, SubstrateReferenceBase
+            ):
                 paramType = typeVar.Parameters
                 paramIdx = editor.indexOfParameterType(paramType)
                 if paramIdx == -1:
@@ -215,12 +320,12 @@ class SubstrateArgsDelegate(dawiq.DataclassDelegate):
                 self.setEditorDataclassData(
                     editor.currentParametersWidget(),
                     paramType,
-                    data.parameters,
+                    refArgs.parameters,
                 )
                 self.setEditorDataclassData(
                     editor.currentDrawOptionsWidget(),
                     drawOptType,
-                    data.draw_options,
+                    refArgs.draw_options,
                 )
             else:
                 editor.setCurrentParametersIndex(0)
