@@ -1,8 +1,9 @@
 from araviq6 import NDArrayLabel
-from PySide6.QtCore import Signal, QSize, QRect, QPoint, Qt
+from PySide6.QtCore import Signal, Slot, QSize, QRect, QPoint, Qt
 from PySide6.QtGui import QPaintEvent, QMouseEvent, QPainter, QBrush, QColor
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
+from dipcoatimage.finitedepth_gui.view import ROIDrawFlag
 from typing import Union, Tuple, List, Optional
 
 
@@ -223,12 +224,21 @@ class NDArrayROILabel_V2(NDArrayLabel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._model = None
+        self._roiDrawFlag = ROIDrawFlag.NONE
 
     def model(self) -> Optional[ExperimentDataModel]:
         return self._model
 
     def setModel(self, model: Optional[ExperimentDataModel]):
         self._model = model
+
+    def roiDrawFlag(self) -> ROIDrawFlag:
+        return self._roiDrawFlag
+
+    @Slot(ROIDrawFlag)
+    def setROIDrawFlag(self, flag: ROIDrawFlag):
+        self._roiDrawFlag = flag
+        self.update()
 
     def _labelROI2OriginalROI(self, roi: ROI) -> ROI:
         # convert to roi of scaled pixmap
