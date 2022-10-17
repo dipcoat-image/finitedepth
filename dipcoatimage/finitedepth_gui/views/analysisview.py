@@ -6,17 +6,20 @@ V2 for controlwidgets/analysiswidget.py
 """
 
 import dawiq
+import os
+from PySide6.QtCore import Qt, Signal, Slot, QModelIndex
 from PySide6.QtWidgets import (
     QWidget,
     QLineEdit,
     QComboBox,
+    QDataWidgetMapper,
     QPushButton,
     QProgressBar,
     QVBoxLayout,
     QHBoxLayout,
     QStyledItemDelegate,
 )
-from dipcoatimage.finitedepth.analysis import Analyzer
+from dipcoatimage.finitedepth.analysis import Analyzer, AnalysisArgs
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from typing import Optional
 
@@ -56,6 +59,8 @@ class AnalysisView(QWidget):
 
     """
 
+    analysisRequested = Signal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -67,34 +72,39 @@ class AnalysisView(QWidget):
         self._vidPathLineEdit = QLineEdit()
         self._vidExtComboBox = QComboBox()
         self._fpsLineEdit = QLineEdit()
+        self._analyzeArgsMapper = QDataWidgetMapper()
         self._analyzeButton = QPushButton()
         self._progressBar = QProgressBar()
 
+        self._dataPathLineEdit.editingFinished.connect(self._analyzeArgsMapper.submit)
         for ext in Analyzer.data_writers.keys():
             self._dataExtComboBox.addItem(f".{ext}")
+        self._dataExtComboBox.activated.connect(self._analyzeArgsMapper.submit)
+        self._imgPathLineEdit.editingFinished.connect(self._analyzeArgsMapper.submit)
         for ext in ["png", "jpg"]:
             self._imgExtComboBox.addItem(f".{ext}")
+        self._imgExtComboBox.activated.connect(self._analyzeArgsMapper.submit)
+        self._vidPathLineEdit.editingFinished.connect(self._analyzeArgsMapper.submit)
         for ext in Analyzer.video_codecs.keys():
             self._vidExtComboBox.addItem(f".{ext}")
+        self._vidExtComboBox.activated.connect(self._analyzeArgsMapper.submit)
+        self._fpsLineEdit.editingFinished.connect(self._analyzeArgsMapper.submit)
         self._fpsLineEdit.setValidator(dawiq.EmptyFloatValidator())
+        self._analyzeArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
+        self._analyzeArgsMapper.setItemDelegate(AnalysisArgsDelegate())
+        self._analyzeButton.clicked.connect(self.analysisRequested)
 
         self._dataPathLineEdit.setPlaceholderText("Data file path")
-        self._dataPathLineEdit.setToolTip(
-            "Path for quantitative analysis result."
-        )
+        self._dataPathLineEdit.setToolTip("Path for quantitative analysis result.")
         self._imgPathLineEdit.setPlaceholderText("Image file path")
         self._imgPathLineEdit.setToolTip(
             "Path for visualized image file.\n"
             "For multiple images, pass paths with format (e.g. img_%02d.jpg)."
         )
         self._vidPathLineEdit.setPlaceholderText("Video file path")
-        self._vidPathLineEdit.setToolTip(
-            "Path for visualized video file."
-        )
-        self._fpsLineEdit.setPlaceholderText("(Optional) fps for image experiment")
-        self._fpsLineEdit.setToolTip(
-            "FPS value for multi-image experiment."
-        )
+        self._vidPathLineEdit.setToolTip("Path for visualized video file.")
+        self._fpsLineEdit.setPlaceholderText("(Optional) image FPS")
+        self._fpsLineEdit.setToolTip("FPS value for multi-image experiment.")
         self._analyzeButton.setText("Analyze")
 
         layout = QVBoxLayout()
@@ -119,8 +129,122 @@ class AnalysisView(QWidget):
         return self._model
 
     def setModel(self, model: Optional[ExperimentDataModel]):
-        ...
+        oldModel = self.model()
+        if oldModel is not None:
+            oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
+        self._model = model
+        self._analyzeArgsMapper.setModel(model)
+        self._analyzeArgsMapper.addMapping(self, 0)
+        if model is not None:
+            model.activatedIndexChanged.connect(self.setActivatedIndex)
+
+    def dataPathName(self) -> str:
+        return self._dataPathLineEdit.text()
+
+    def setDataPathName(self, name: str):
+        self._dataPathLineEdit.setText(name)
+
+    def dataPathExtension(self) -> str:
+        return self._dataExtComboBox.currentText()
+
+    def setDataPathExtension(self, extension: str):
+        self._dataExtComboBox.setCurrentText(extension)
+
+    def imagePathName(self) -> str:
+        return self._imgPathLineEdit.text()
+
+    def setImagePathName(self, name: str):
+        self._imgPathLineEdit.setText(name)
+
+    def imagePathExtension(self) -> str:
+        return self._imgExtComboBox.currentText()
+
+    def setImagePathExtension(self, extension: str):
+        self._imgExtComboBox.setCurrentText(extension)
+
+    def videoPathName(self) -> str:
+        return self._vidPathLineEdit.text()
+
+    def setVideoPathName(self, name: str):
+        self._vidPathLineEdit.setText(name)
+
+    def videoPathExtension(self) -> str:
+        return self._vidExtComboBox.currentText()
+
+    def setVideoPathExtension(self, extension: str):
+        self._vidExtComboBox.setCurrentText(extension)
+
+    def fps(self) -> Optional[float]:
+        fpsText = self._fpsLineEdit.text()
+        return None if not fpsText else float(fpsText)
+
+    def setFPS(self, fps: Optional[float]):
+        fpsText = "" if fps is None else str(fps)
+        self._fpsLineEdit.setText(fpsText)
+
+    @Slot(QModelIndex)
+    def setActivatedIndex(self, index: QModelIndex):
+        model = index.model()
+        if isinstance(model, ExperimentDataModel):
+            self._analyzeArgsMapper.setRootIndex(index)
+            analysisIndex = model.index(model.ROW_ANALYSIS, 0, index)
+            self._analyzeArgsMapper.setCurrentModelIndex(analysisIndex)
+        else:
+            self._dataPathLineEdit.clear()
+            self._imgPathLineEdit.clear()
+            self._vidPathLineEdit.clear()
+            self._fpsLineEdit.clear()
+            self._analyzeArgsMapper.setCurrentModelIndex(QModelIndex())
 
 
 class AnalysisArgsDelegate(QStyledItemDelegate):
-    ...
+    def setModelData(self, editor, model, index):
+        if isinstance(editor, AnalysisView):
+            dataPathName = editor.dataPathName()
+            dataPathExt = editor.dataPathExtension()
+            if not dataPathName:
+                dataPath = ""
+            else:
+                dataPath = dataPathName + dataPathExt
+
+            imgPathName = editor.imagePathName()
+            imgPathExt = editor.imagePathExtension()
+            if not imgPathName:
+                imgPath = ""
+            else:
+                imgPath = imgPathName + imgPathExt
+
+            vidPathName = editor.videoPathName()
+            vidPathExt = editor.videoPathExtension()
+            if not vidPathName:
+                vidPath = ""
+            else:
+                vidPath = vidPathName + vidPathExt
+
+            fps = editor.fps()
+
+            analysisArgs = AnalysisArgs(dataPath, imgPath, vidPath, fps)
+            model.setData(index, analysisArgs, Qt.UserRole)
+
+        super().setModelData(editor, model, index)
+
+    def setEditorData(self, editor, index):
+        data = index.data(Qt.UserRole)
+        if isinstance(editor, AnalysisView) and isinstance(data, AnalysisArgs):
+            analysisArgs = data
+
+            dataPathName, dataPathExt = os.path.splitext(analysisArgs.data_path)
+            editor.setDataPathName(dataPathName)
+            editor.setDataPathExtension(dataPathExt)
+
+            imgPathName, imgPathExt = os.path.splitext(analysisArgs.image_path)
+            editor.setImagePathName(imgPathName)
+            editor.setImagePathExtension(imgPathExt)
+
+            vidPathName, vidPathExt = os.path.splitext(analysisArgs.video_path)
+            editor.setVideoPathName(vidPathName)
+            editor.setVideoPathExtension(vidPathExt)
+
+            editor.setFPS(analysisArgs.fps)
+
+        super().setEditorData(editor, index)
