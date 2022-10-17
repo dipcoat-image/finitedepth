@@ -12,6 +12,7 @@ from .exptview import ExperimentView, ExperimentArgsDelegate
 from .refview import ReferenceView, ReferencePathDelegate, ReferenceArgsDelegate
 from .substview import SubstrateView, SubstrateArgsDelegate
 from .layerview import CoatingLayerView, CoatingLayerArgsDelegate
+from .analysisview import AnalysisView, AnalysisArgsDelegate
 
 __all__ = [
     "ExperimentNameDelegate",
@@ -28,4 +29,6 @@ __all__ = [
     "SubstrateArgsDelegate",
     "CoatingLayerView",
     "CoatingLayerArgsDelegate",
+    "AnalysisView",
+    "AnalysisArgsDelegate",
 ]

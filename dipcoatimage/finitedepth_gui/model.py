@@ -6,7 +6,6 @@ V2 for inventory.py
 """
 
 import copy
-import dataclasses
 from dipcoatimage.finitedepth import ExperimentData
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
 from typing import Optional, Any, Union
@@ -130,15 +129,9 @@ class ExperimentDataItem(object):
         exptArgsItem.setParent(inst)
 
         analysisArgs = exptData.analysis
-        analysisDataItem = cls()
-        for val in (
-            getattr(analysisArgs, field.name)
-            for field in dataclasses.fields(analysisArgs)
-        ):
-            analysisArgItem = cls()
-            analysisArgItem.setData(Qt.UserRole, val)
-            analysisArgItem.setParent(analysisDataItem)
-        analysisDataItem.setParent(inst)
+        analysisArgsItem = cls()
+        analysisArgsItem.setData(Qt.UserRole, analysisArgs)
+        analysisArgsItem.setParent(inst)
 
         return inst
 
@@ -170,6 +163,7 @@ class ExperimentDataModel(QAbstractItemModel):
     ROW_SUBSTRATE = 3
     ROW_COATINGLAYER = 4
     ROW_EXPERIMENT = 5
+    ROW_ANALYSIS = 6
 
     activatedIndexChanged = Signal(QModelIndex)
 
