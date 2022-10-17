@@ -40,8 +40,8 @@ __all__ = [
 
 class ROIDrawFlag(enum.IntFlag):
     NONE = 0
-    SUBSTRATE = 1
-    TEMPLATE = 2
+    TEMPLATE = 1
+    SUBSTRATE = 2
 
 
 class ReferenceView(QWidget):
