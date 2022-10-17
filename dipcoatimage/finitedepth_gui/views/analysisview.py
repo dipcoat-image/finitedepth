@@ -70,23 +70,30 @@ class AnalysisView(QWidget):
         self._analyzeButton = QPushButton()
         self._progressBar = QProgressBar()
 
+        for ext in Analyzer.data_writers.keys():
+            self._dataExtComboBox.addItem(f".{ext}")
+        for ext in ["png", "jpg"]:
+            self._imgExtComboBox.addItem(f".{ext}")
+        for ext in Analyzer.video_codecs.keys():
+            self._vidExtComboBox.addItem(f".{ext}")
         self._fpsLineEdit.setValidator(dawiq.EmptyFloatValidator())
 
         self._dataPathLineEdit.setPlaceholderText("Data file path")
-        for ext in Analyzer.data_writers.keys():
-            self._dataExtComboBox.addItem(f".{ext}")
+        self._dataPathLineEdit.setToolTip(
+            "Path for quantitative analysis result."
+        )
         self._imgPathLineEdit.setPlaceholderText("Image file path")
         self._imgPathLineEdit.setToolTip(
-            "Pass paths with format (e.g. img_%02d.jpg) to save multiple images."
+            "Path for visualized image file.\n"
+            "For multiple images, pass paths with format (e.g. img_%02d.jpg)."
         )
-        for ext in ["png", "jpg"]:
-            self._imgExtComboBox.addItem(f".{ext}")
         self._vidPathLineEdit.setPlaceholderText("Video file path")
-        for ext in Analyzer.video_codecs.keys():
-            self._vidExtComboBox.addItem(f".{ext}")
+        self._vidPathLineEdit.setToolTip(
+            "Path for visualized video file."
+        )
         self._fpsLineEdit.setPlaceholderText("(Optional) fps for image experiment")
         self._fpsLineEdit.setToolTip(
-            "Set FPS value for analysis data and video of image experiment."
+            "FPS value for multi-image experiment."
         )
         self._analyzeButton.setText("Analyze")
 
