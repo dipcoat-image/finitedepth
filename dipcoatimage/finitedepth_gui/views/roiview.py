@@ -6,7 +6,7 @@ V2 for roimodel.py
 """
 
 from dipcoatimage.finitedepth.util import OptionalROI
-from PySide6.QtCore import Signal, Slot
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QSpinBox, QWidget, QHBoxLayout
 
 __all__ = [
@@ -39,10 +39,10 @@ class ROIView(QWidget):
         self._x2_spinbox.setMinimum(0)
         self._y2_spinbox.setMinimum(0)
         self.setROIMaximum(0, 0)
-        self._x1_spinbox.editingFinished.connect(self.onEditingFinish)
-        self._y1_spinbox.editingFinished.connect(self.onEditingFinish)
-        self._x2_spinbox.editingFinished.connect(self.onEditingFinish)
-        self._y2_spinbox.editingFinished.connect(self.onEditingFinish)
+        self._x1_spinbox.editingFinished.connect(self._onEditingFinish)
+        self._y1_spinbox.editingFinished.connect(self._onEditingFinish)
+        self._x2_spinbox.editingFinished.connect(self._onEditingFinish)
+        self._y2_spinbox.editingFinished.connect(self._onEditingFinish)
 
         self._x1_spinbox.setPrefix("x1 : ")
         self._y1_spinbox.setPrefix("y1 : ")
@@ -83,8 +83,7 @@ class ROIView(QWidget):
         self._x2_spinbox.setValue(x2)
         self._y2_spinbox.setValue(y2)
 
-    @Slot()
-    def onEditingFinish(self):
+    def _onEditingFinish(self):
         x1 = self._x1_spinbox.value()
         y1 = self._y1_spinbox.value()
         x2 = self._x2_spinbox.value()
