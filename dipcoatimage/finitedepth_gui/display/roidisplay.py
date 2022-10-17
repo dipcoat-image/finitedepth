@@ -1,18 +1,21 @@
 from araviq6 import NDArrayLabel
 from PySide6.QtCore import Signal, QSize, QRect, QPoint, Qt
 from PySide6.QtGui import QPaintEvent, QMouseEvent, QPainter, QBrush, QColor
-from typing import Union, Tuple, List
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
+from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
+from typing import Union, Tuple, List, Optional
 
 
 __all__ = [
     "NDArrayROILabel",
+    "NDArrayROILabel_V2",
     "coords_label2pixmap",
     "coords_pixmap2label",
 ]
 
 
 Number = Union[int, float]
+ROI = Tuple[Number, Number, Number, Number]
 
 
 class NDArrayROILabel(NDArrayLabel):
@@ -214,6 +217,62 @@ class NDArrayROILabel(NDArrayLabel):
             model.setROI(*map(int, self._temp_roi))
         self._drawing = False
         self.update()
+
+
+class NDArrayROILabel_V2(NDArrayLabel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._model = None
+
+    def model(self) -> Optional[ExperimentDataModel]:
+        return self._model
+
+    def setModel(self, model: Optional[ExperimentDataModel]):
+        self._model = model
+
+    def _labelROI2OriginalROI(self, roi: ROI) -> ROI:
+        # convert to roi of scaled pixmap
+        x1, y1, x2, y2 = roi
+        pixmap_size = self.pixmap().size()
+        px1, py1 = coords_label2pixmap(
+            (x1, y1), self.size(), pixmap_size, self.alignment()
+        )
+        px2, py2 = coords_label2pixmap(
+            (x2, y2), self.size(), pixmap_size, self.alignment()
+        )
+        # convert to roi of original pixmap
+        w, h = pixmap_size.width(), pixmap_size.height()
+        original_size = self._original_pixmap.size()
+        W, H = original_size.width(), original_size.height()
+        if W == 0 or H == 0:
+            ret = (0, 0, 0, 0)
+        else:
+            x1 = max(px1 / w * W, 0)
+            y1 = max(py1 / h * H, 0)
+            x2 = min(px2 / w * W, W)
+            y2 = min(py2 / h * H, H)
+            ret = (x1, y1, x2, y2)  # type: ignore[assignment]
+        return ret
+
+    def _originalROI2LabelROI(self, roi: ROI) -> ROI:
+        # convert to roi of scaled pixmap
+        x1, y1, x2, y2 = roi
+        pixmap_size = self.pixmap().size()
+        w, h = pixmap_size.width(), pixmap_size.height()
+        original_size = self._original_pixmap.size()
+        W, H = original_size.width(), original_size.height()
+        if w == 0 or h == 0:
+            px1, py1, px2, py2 = (0, 0, 0, 0)
+        else:
+            px1, py1, px2, py2 = (x1 / W * w, y1 / H * h, x2 / W * w, y2 / H * h)
+        # convert to roi of label
+        lx1, ly1 = coords_pixmap2label(
+            (px1, py1), pixmap_size, self.size(), self.alignment()
+        )
+        lx2, ly2 = coords_pixmap2label(
+            (px2, py2), pixmap_size, self.size(), self.alignment()
+        )
+        return (lx1, ly1, lx2, ly2)
 
 
 def coords_label2pixmap(
