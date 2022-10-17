@@ -5,8 +5,8 @@ Reference view
 V2 for controlwidgets/refwidget.py
 """
 
-import cv2  # type: ignore
 import dawiq
+import imagesize  # type: ignore
 from PySide6.QtCore import Qt, Signal, Slot, QModelIndex
 from PySide6.QtWidgets import (
     QWidget,
@@ -249,11 +249,10 @@ class ReferencePathDelegate(QStyledItemDelegate):
     def setEditorData(self, editor, index):
         super().setEditorData(editor, index)
         path = index.data(Qt.DisplayRole)
-        img = cv2.imread(path)
-        if img is not None:
-            w, h = (img.shape[1], img.shape[0])
-        else:
-            w, h = (0, 0)
+        try:
+            w, h = imagesize.get(path)
+        except (FileNotFoundError, PermissionError):
+            w, h = (-1, -1)
         self.roiMaximumChanged.emit(w, h)
 
 
