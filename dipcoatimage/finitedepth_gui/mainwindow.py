@@ -40,6 +40,7 @@ class MainWindow(QMainWindow):
     ...     app.quit()
     >>> runGUI() # doctest: +SKIP
     """
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
