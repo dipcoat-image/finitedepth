@@ -29,6 +29,7 @@ __all__ = [
     "StructuredSubstrateArgs",
     "StructuredCoatingLayerArgs",
     "ClassSelection",
+    "TypeFlag",
     "VisualizationMode",
 ]
 
@@ -162,6 +163,15 @@ class ClassSelection(enum.IntFlag):
     SUBSTRATE = 2
     EXPERIMENT = 4
     ANALYSIS = 8
+
+
+class TypeFlag(enum.IntFlag):
+    UNKNOWN = 0
+    REFERENCE = 1
+    SUBSTRATE = 2
+    COATINGLAYER = 4
+    EXPERIMENT = 8
+    ANALYSIS = 16
 
 
 class VisualizationMode(enum.IntEnum):

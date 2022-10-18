@@ -5,10 +5,12 @@ Data view tab
 V2 for controlwidgets/controlwidget.py
 """
 
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QTabWidget, QScrollArea
+from dipcoatimage.finitedepth_gui.core import TypeFlag
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from .exptview import ExperimentView
-from .refview import ReferenceView
+from .refview import ReferenceView, ROIDrawFlag
 from .substview import SubstrateView
 from .layerview import CoatingLayerView
 from .analysisview import AnalysisView
@@ -56,6 +58,10 @@ class DataViewTab(QTabWidget):
 
     """
 
+    currentTypeChanged = Signal(TypeFlag)
+    roiDrawFlagChanged = Signal(ROIDrawFlag)
+    analysisRequested = Signal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -64,6 +70,10 @@ class DataViewTab(QTabWidget):
         self._substView = SubstrateView()
         self._layerView = CoatingLayerView()
         self._analysisView = AnalysisView()
+
+        self.currentChanged.connect(self._onCurrentChange)
+        self._refView.roiDrawFlagChanged.connect(self.roiDrawFlagChanged)
+        self._analysisView.analysisRequested.connect(self.analysisRequested)
 
         exptScroll = QScrollArea()
         exptScroll.setWidgetResizable(True)
@@ -92,3 +102,25 @@ class DataViewTab(QTabWidget):
         self._substView.setModel(model)
         self._layerView.setModel(model)
         self._analysisView.setModel(model)
+
+    def _onCurrentChange(self, index):
+        self._refView._tempROIDrawButton.setChecked(False)
+        self._refView._substROIDrawButton.setChecked(False)
+        self.roiDrawFlagChanged.emit(ROIDrawFlag.NONE)
+
+        widget = self.widget(index)
+        if not isinstance(widget, QScrollArea):
+            typeFlag = TypeFlag.UNKNOWN
+        elif widget.widget() is self._exptView:
+            typeFlag = TypeFlag.EXPERIMENT
+        elif widget.widget() is self._refView:
+            typeFlag = TypeFlag.REFERENCE
+        elif widget.widget() is self._substView:
+            typeFlag = TypeFlag.SUBSTRATE
+        elif widget.widget() is self._layerView:
+            typeFlag = TypeFlag.COATINGLAYER
+        elif widget.widget() is self._analysisView:
+            typeFlag = TypeFlag.ANALYSIS
+        else:
+            typeFlag = TypeFlag.UNKNOWN
+        self.currentTypeChanged.emit(typeFlag)
