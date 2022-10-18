@@ -333,7 +333,7 @@ class ExperimentDataModel(QAbstractItemModel):
                 self.setActivatedIndex(newIndex)
             self.endInsertRows()
             return True
-        elif self.whatsThisIndex(parent) == IndexRole.COATPATHS:
+        elif self.whatsThisIndex(sourceParent) == IndexRole.COATPATHS:
             parentDataItem = destinationParent.internalPointer()
             if not isinstance(parentDataItem, ExperimentDataItem):
                 return False
