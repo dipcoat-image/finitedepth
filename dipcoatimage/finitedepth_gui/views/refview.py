@@ -6,6 +6,7 @@ V2 for controlwidgets/refwidget.py
 """
 
 import dawiq
+import enum
 import imagesize  # type: ignore
 from PySide6.QtCore import Qt, Signal, Slot, QModelIndex
 from PySide6.QtWidgets import (
@@ -30,10 +31,17 @@ from typing import Optional, Type, Union
 
 
 __all__ = [
+    "ROIDrawFlag",
     "ReferenceView",
     "ReferencePathDelegate",
     "ReferenceArgsDelegate",
 ]
+
+
+class ROIDrawFlag(enum.IntFlag):
+    NONE = 0
+    TEMPLATE = 1
+    SUBSTRATE = 2
 
 
 class ReferenceView(QWidget):
@@ -66,6 +74,8 @@ class ReferenceView(QWidget):
 
     """
 
+    roiDrawFlagChanged = Signal(ROIDrawFlag)
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -88,7 +98,11 @@ class ReferenceView(QWidget):
         self._refArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._importView.editingFinished.connect(self._refArgsMapper.submit)
         self._tempROIView.editingFinished.connect(self._refArgsMapper.submit)
+        self._tempROIDrawButton.setCheckable(True)
+        self._tempROIDrawButton.clicked.connect(self._onTempROIDrawClick)
         self._substROIView.editingFinished.connect(self._refArgsMapper.submit)
+        self._substROIDrawButton.setCheckable(True)
+        self._substROIDrawButton.clicked.connect(self._onSubstROIDrawClick)
         self._paramStackWidget.currentDataValueChanged.connect(
             self._refArgsMapper.submit
         )
@@ -185,11 +199,25 @@ class ReferenceView(QWidget):
     def setTemplateROI(self, roi: OptionalROI):
         self._tempROIView.setROI(roi)
 
+    def _onTempROIDrawClick(self, checked: bool):
+        if checked:
+            self._substROIDrawButton.setChecked(False)
+            self.roiDrawFlagChanged.emit(ROIDrawFlag.TEMPLATE)
+        else:
+            self.roiDrawFlagChanged.emit(ROIDrawFlag.NONE)
+
     def substrateROI(self) -> OptionalROI:
         return self._substROIView.roi()
 
     def setSubstrateROI(self, roi: OptionalROI):
         self._substROIView.setROI(roi)
+
+    def _onSubstROIDrawClick(self, checked: bool):
+        if checked:
+            self._tempROIDrawButton.setChecked(False)
+            self.roiDrawFlagChanged.emit(ROIDrawFlag.SUBSTRATE)
+        else:
+            self.roiDrawFlagChanged.emit(ROIDrawFlag.NONE)
 
     def currentParametersWidget(self) -> Union[dawiq.DataWidget, QGroupBox]:
         return self._paramStackWidget.currentWidget()

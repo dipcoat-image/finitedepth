@@ -9,7 +9,12 @@ from .listview import ExperimentNameDelegate, ExperimentListView
 from .importview import ImportDataView
 from .roiview import ROISpinBox, ROIView
 from .exptview import ExperimentView, ExperimentArgsDelegate
-from .refview import ReferenceView, ReferencePathDelegate, ReferenceArgsDelegate
+from .refview import (
+    ROIDrawFlag,
+    ReferenceView,
+    ReferencePathDelegate,
+    ReferenceArgsDelegate,
+)
 from .substview import SubstrateView, SubstrateArgsDelegate
 from .layerview import CoatingLayerView, CoatingLayerArgsDelegate
 from .analysisview import AnalysisView, AnalysisArgsDelegate
@@ -22,6 +27,7 @@ __all__ = [
     "ROIView",
     "ExperimentView",
     "ExperimentArgsDelegate",
+    "ROIDrawFlag",
     "ReferenceView",
     "ReferencePathDelegate",
     "ReferenceArgsDelegate",

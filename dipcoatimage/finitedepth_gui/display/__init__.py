@@ -12,6 +12,7 @@ from .maindisplay import (
 )
 from .roidisplay import (
     NDArrayROILabel,
+    NDArrayROILabel_V2,
     coords_label2pixmap,
     coords_pixmap2label,
 )
@@ -29,6 +30,7 @@ __all__ = [
     "PreviewableNDArrayVideoPlayer",
     "VisualizeProcessor",
     "NDArrayROILabel",
+    "NDArrayROILabel_V2",
     "coords_label2pixmap",
     "coords_pixmap2label",
     "DisplayWidgetToolBar",

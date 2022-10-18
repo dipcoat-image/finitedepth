@@ -1,18 +1,24 @@
 from araviq6 import NDArrayLabel
-from PySide6.QtCore import Signal, QSize, QRect, QPoint, Qt
+import dataclasses
+from PySide6.QtCore import Signal, Slot, QSize, QRect, QPoint, Qt, QModelIndex
 from PySide6.QtGui import QPaintEvent, QMouseEvent, QPainter, QBrush, QColor
-from typing import Union, Tuple, List
+from dipcoatimage.finitedepth.analysis import ReferenceArgs
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
+from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
+from dipcoatimage.finitedepth_gui.views import ROIDrawFlag
+from typing import Union, Tuple, List, Optional
 
 
 __all__ = [
     "NDArrayROILabel",
+    "NDArrayROILabel_V2",
     "coords_label2pixmap",
     "coords_pixmap2label",
 ]
 
 
 Number = Union[int, float]
+ROI = Tuple[Number, Number, Number, Number]
 
 
 class NDArrayROILabel(NDArrayLabel):
@@ -214,6 +220,175 @@ class NDArrayROILabel(NDArrayLabel):
             model.setROI(*map(int, self._temp_roi))
         self._drawing = False
         self.update()
+
+
+class NDArrayROILabel_V2(NDArrayLabel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._model = None
+        self._currentModelIndex = QModelIndex()
+        self._roiDrawFlag = ROIDrawFlag.NONE
+        self._drawnROI = (-1, -1, -1, -1)
+
+    def model(self) -> Optional[ExperimentDataModel]:
+        return self._model
+
+    def setModel(self, model: Optional[ExperimentDataModel]):
+        oldModel = self.model()
+        if oldModel is not None:
+            oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
+        self._model = model
+        if model is not None:
+            model.activatedIndexChanged.connect(self.setActivatedIndex)
+
+    @Slot(QModelIndex)
+    def setActivatedIndex(self, index: QModelIndex):
+        model = index.model()
+        if isinstance(model, ExperimentDataModel):
+            self._currentModelIndex = model.index(model.ROW_REFERENCE, 0, index)
+        else:
+            self._currentModelIndex = QModelIndex()
+
+    def roiDrawFlag(self) -> ROIDrawFlag:
+        return self._roiDrawFlag
+
+    @Slot(ROIDrawFlag)
+    def setROIDrawFlag(self, flag: ROIDrawFlag):
+        self._roiDrawFlag = flag
+        self.update()
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        index = self._currentModelIndex
+        if not index.isValid():
+            return
+        refArgs = index.data(Qt.UserRole)
+        if not isinstance(refArgs, ReferenceArgs):
+            return
+        drawFlag = self._roiDrawFlag
+        if drawFlag is ROIDrawFlag.TEMPLATE:
+            roi = refArgs.templateROI
+        elif drawFlag is ROIDrawFlag.SUBSTRATE:
+            roi = refArgs.substrateROI
+        else:
+            return
+
+        qp = QPainter(self)
+        if not self._drawing:
+            originalSize = self._original_pixmap.size()
+            W, H = originalSize.width(), originalSize.height()
+            x1, y1, x2, y2 = roi
+            if x2 is None:
+                x2 = W
+            if y2 is None:
+                y2 = H
+            x1, y1, x2, y2 = map(int, self._originalROI2LabelROI((x1, y1, x2, y2)))
+            br = QBrush(QColor(255, 0, 0, 50))
+            qp.setBrush(br)
+            qp.drawRect(QRect(QPoint(x1, y1), QPoint(x2, y2)))
+        else:
+            x1, y1, x2, y2 = map(int, self._originalROI2LabelROI(self._drawnROI))
+            br = QBrush(QColor(255, 0, 0, 50))
+            qp.setBrush(br)
+            qp.drawRect(QRect(QPoint(x1, y1), QPoint(x2, y2)))
+
+    def mousePressEvent(self, event):
+        super().mousePressEvent(event)
+        self._drawing = True
+        pos = event.position()
+        x, y = pos.x(), pos.y()
+        roi = self._labelROI2OriginalROI((x, y, x, y))
+        self._drawnROI = roi
+        self.update()
+
+    def mouseMoveEvent(self, event):
+        super().mouseMoveEvent(event)
+        if self._drawing:
+            x1, y1, _, _ = self._originalROI2LabelROI(self._drawnROI)
+            pos = event.position()
+            x2, y2 = pos.x(), pos.y()
+            roi = self._labelROI2OriginalROI((x1, y1, x2, y2))
+            self._drawnROI = roi
+            self.update()
+
+    def mouseReleaseEvent(self, event):
+        super().mouseReleaseEvent(event)
+        x1, y1, _, _ = self._originalROI2LabelROI(self._drawnROI)
+        pos = event.position()
+        x2, y2 = pos.x(), pos.y()
+        if x1 > x2:
+            x1, x2 = x2, x1
+        if y1 > y2:
+            y1, y2 = y2, y1
+        roi = self._labelROI2OriginalROI((x1, y1, x2, y2))
+        self._drawnROI = roi
+
+        index = self._currentModelIndex
+        if not index.isValid():
+            return
+        refArgs = index.data(Qt.UserRole)
+        if not isinstance(refArgs, ReferenceArgs):
+            return
+        drawFlag = self._roiDrawFlag
+        if drawFlag is ROIDrawFlag.TEMPLATE:
+            refArgs = dataclasses.replace(
+                refArgs, templateROI=tuple(map(int, self._drawnROI))
+            )
+            index.setData(refArgs, Qt.UserRole)
+        elif drawFlag is ROIDrawFlag.TEMPLATE:
+            refArgs = dataclasses.replace(
+                refArgs, substrateROI=tuple(map(int, self._drawnROI))
+            )
+            index.setData(refArgs, Qt.UserRole)
+        else:
+            return
+
+        self._drawing = False
+        self.update()
+
+    def _labelROI2OriginalROI(self, roi: ROI) -> ROI:
+        # convert to roi of scaled pixmap
+        x1, y1, x2, y2 = roi
+        pixmap_size = self.pixmap().size()
+        px1, py1 = coords_label2pixmap(
+            (x1, y1), self.size(), pixmap_size, self.alignment()
+        )
+        px2, py2 = coords_label2pixmap(
+            (x2, y2), self.size(), pixmap_size, self.alignment()
+        )
+        # convert to roi of original pixmap
+        w, h = pixmap_size.width(), pixmap_size.height()
+        original_size = self._original_pixmap.size()
+        W, H = original_size.width(), original_size.height()
+        if W == 0 or H == 0:
+            ret = (0, 0, 0, 0)
+        else:
+            x1 = max(px1 / w * W, 0)
+            y1 = max(py1 / h * H, 0)
+            x2 = min(px2 / w * W, W)
+            y2 = min(py2 / h * H, H)
+            ret = (x1, y1, x2, y2)  # type: ignore[assignment]
+        return ret
+
+    def _originalROI2LabelROI(self, roi: ROI) -> ROI:
+        # convert to roi of scaled pixmap
+        x1, y1, x2, y2 = roi
+        pixmap_size = self.pixmap().size()
+        w, h = pixmap_size.width(), pixmap_size.height()
+        original_size = self._original_pixmap.size()
+        W, H = original_size.width(), original_size.height()
+        if w == 0 or h == 0:
+            px1, py1, px2, py2 = (0, 0, 0, 0)
+        else:
+            px1, py1, px2, py2 = (x1 / W * w, y1 / H * h, x2 / W * w, y2 / H * h)
+        # convert to roi of label
+        lx1, ly1 = coords_pixmap2label(
+            (px1, py1), pixmap_size, self.size(), self.alignment()
+        )
+        lx2, ly2 = coords_pixmap2label(
+            (px2, py2), pixmap_size, self.size(), self.alignment()
+        )
+        return (lx1, ly1, lx2, ly2)
 
 
 def coords_label2pixmap(
