@@ -6,6 +6,7 @@ V2 for inventory.py
 """
 
 import copy
+import enum
 from dipcoatimage.finitedepth import ExperimentData
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
 from typing import Optional, Any, Union
@@ -13,6 +14,7 @@ from typing import Optional, Any, Union
 
 __all__ = [
     "ExperimentDataItem",
+    "IndexRole",
     "ExperimentDataModel",
 ]
 
@@ -99,6 +101,19 @@ class ExperimentDataItem(object):
         other._data = copy.deepcopy(self._data)
         for (subSelf, subOther) in zip(self._children, other._children):
             subSelf.copyDataTo(subOther)
+
+
+class IndexRole(enum.Enum):
+    UNKNOWN = 0
+    EXPTDATA = 1
+    REFPATH = 2
+    COATPATHS = 3
+    COATPATH = 4
+    REFARGS = 5
+    SUBSTARGS = 6
+    LAYERARGS = 7
+    EXPTARGS = 8
+    ANALYSISARGS = 9
 
 
 class ExperimentDataModel(QAbstractItemModel):
@@ -374,3 +389,41 @@ class ExperimentDataModel(QAbstractItemModel):
             index = QModelIndex()
         self._activatedIndex = index
         self.activatedIndexChanged.emit(index)
+
+    @classmethod
+    def whatsThisIndex(cls, index: QModelIndex) -> IndexRole:
+        if not isinstance(index.model(), cls):
+            return IndexRole.UNKNOWN
+
+        indexLevel = -1
+        _index = index
+        while _index.isValid():
+            _index = _index.parent()
+            indexLevel += 1
+        row, col = index.row(), index.column()
+
+        if indexLevel == 0 and col == 0:
+            return IndexRole.EXPTDATA
+        if indexLevel == 1 and col == 0:
+            row = index.row()
+            if row == cls.Row_RefPath:
+                return IndexRole.REFPATH
+            if row == cls.Row_CoatPaths:
+                return IndexRole.COATPATHS
+            if row == cls.Row_RefArgs:
+                return IndexRole.REFARGS
+            if row == cls.Row_SubstArgs:
+                return IndexRole.SUBSTARGS
+            if row == cls.Row_LayerArgs:
+                return IndexRole.LAYERARGS
+            if row == cls.Row_ExptArgs:
+                return IndexRole.EXPTARGS
+            if row == cls.Row_AnalysisArgs:
+                return IndexRole.ANALYSISARGS
+        if (
+            indexLevel == 2
+            and col == 0
+            and cls.whatsThisIndex(index.parent()) is IndexRole.COATPATHS
+        ):
+            return IndexRole.COATPATH
+        return IndexRole.UNKNOWN
