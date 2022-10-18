@@ -63,7 +63,7 @@ class ExperimentDataItem(object):
             return self._children[index]
         return None
 
-    def childIndex(self, child: ExperimentDataItem) -> Tuple[int, int]:
+    def childIndex(self, child: "ExperimentDataItem") -> Tuple[int, int]:
         """
         Return the row and the column (which is always 0) of *child* in *self*.
         """
