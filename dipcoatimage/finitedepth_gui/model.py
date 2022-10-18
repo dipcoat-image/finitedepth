@@ -92,49 +92,6 @@ class ExperimentDataItem(object):
             while orphan._children:
                 orphan.remove(0)
 
-    @classmethod
-    def fromExperimentData(cls, exptData: ExperimentData):
-        """Construct the tree structure from *exptData*."""
-        inst = cls()
-
-        refPathItem = cls()
-        refPathItem.setData(Qt.DisplayRole, exptData.ref_path)
-        refPathItem.setParent(inst)
-
-        coatPathsItem = cls()
-        for path in exptData.coat_paths:
-            coatPathItem = cls()
-            coatPathItem.setData(Qt.DisplayRole, path)
-            coatPathItem.setParent(coatPathsItem)
-        coatPathsItem.setParent(inst)
-
-        refArgs = exptData.reference
-        refArgsItem = cls()
-        refArgsItem.setData(Qt.UserRole, refArgs)
-        refArgsItem.setParent(inst)
-
-        substArgs = exptData.substrate
-        substArgsItem = cls()
-        substArgsItem.setData(Qt.UserRole, substArgs)
-        substArgsItem.setParent(inst)
-
-        layerArgs = exptData.coatinglayer
-        layerArgsItem = cls()
-        layerArgsItem.setData(Qt.UserRole, layerArgs)
-        layerArgsItem.setParent(inst)
-
-        exptArgs = exptData.experiment
-        exptArgsItem = cls()
-        exptArgsItem.setData(Qt.UserRole, exptArgs)
-        exptArgsItem.setParent(inst)
-
-        analysisArgs = exptData.analysis
-        analysisArgsItem = cls()
-        analysisArgsItem.setData(Qt.UserRole, analysisArgs)
-        analysisArgsItem.setParent(inst)
-
-        return inst
-
     def copyDataTo(self, other: "ExperimentDataItem"):
         """
         Copy the data of *self* and its children to *other* and its children.
@@ -157,6 +114,14 @@ class ExperimentDataModel(QAbstractItemModel):
 
     # https://stackoverflow.com/a/57129496/11501976
 
+    Role_RefPath = Qt.DisplayRole
+    Role_CoatPath = Qt.DisplayRole
+    Role_RefArgs = Qt.UserRole
+    Role_SubstArgs = Qt.UserRole
+    Role_LayerArgs = Qt.UserRole
+    Role_ExptArgs = Qt.UserRole
+    Role_AnalysisArgs = Qt.UserRole
+
     ROW_REFPATH = 0
     ROW_COATPATHS = 1
     ROW_REFERENCE = 2
@@ -171,6 +136,48 @@ class ExperimentDataModel(QAbstractItemModel):
         super().__init__(parent)
         self._rootItem = ExperimentDataItem()
         self._activatedIndex = QModelIndex()
+
+    @classmethod
+    def _itemFromExperimentData(cls, exptData: ExperimentData) -> ExperimentDataItem:
+        item = ExperimentDataItem()
+
+        refPathItem = ExperimentDataItem()
+        refPathItem.setData(cls.Role_RefPath, exptData.ref_path)
+        refPathItem.setParent(item)
+
+        coatPathsItem = ExperimentDataItem()
+        for path in exptData.coat_paths:
+            coatPathItem = ExperimentDataItem()
+            coatPathItem.setData(cls.Role_CoatPath, path)
+            coatPathItem.setParent(coatPathsItem)
+        coatPathsItem.setParent(item)
+
+        refArgs = exptData.reference
+        refArgsItem = ExperimentDataItem()
+        refArgsItem.setData(cls.Role_RefArgs, refArgs)
+        refArgsItem.setParent(item)
+
+        substArgs = exptData.substrate
+        substArgsItem = ExperimentDataItem()
+        substArgsItem.setData(cls.Role_SubstArgs, substArgs)
+        substArgsItem.setParent(item)
+
+        layerArgs = exptData.coatinglayer
+        layerArgsItem = ExperimentDataItem()
+        layerArgsItem.setData(cls.Role_LayerArgs, layerArgs)
+        layerArgsItem.setParent(item)
+
+        exptArgs = exptData.experiment
+        exptArgsItem = ExperimentDataItem()
+        exptArgsItem.setData(cls.Role_ExptArgs, exptArgs)
+        exptArgsItem.setParent(item)
+
+        analysisArgs = exptData.analysis
+        analysisArgsItem = ExperimentDataItem()
+        analysisArgsItem.setData(cls.Role_AnalysisArgs, analysisArgs)
+        analysisArgsItem.setParent(item)
+
+        return item
 
     def columnCount(self, index=QModelIndex()):
         if not index.isValid():
@@ -240,7 +247,7 @@ class ExperimentDataModel(QAbstractItemModel):
 
             self.beginInsertRows(parent, row, row + count - 1)
             for _ in range(count):
-                newItem = ExperimentDataItem.fromExperimentData(ExperimentData())
+                newItem = self._itemFromExperimentData(ExperimentData())
                 newItem.setParent(self._rootItem)
 
             if reactivate:
@@ -291,7 +298,7 @@ class ExperimentDataModel(QAbstractItemModel):
             newItems = []
             for i in range(count):
                 oldItem = self.index(sourceRow + i, 0, sourceParent).internalPointer()
-                newItem = ExperimentDataItem.fromExperimentData(ExperimentData())
+                newItem = self._itemFromExperimentData(ExperimentData())
                 oldItem.copyDataTo(newItem)
                 newItems.append(newItem)
             self.beginInsertRows(
