@@ -18,6 +18,7 @@ from .refview import (
 from .substview import SubstrateView, SubstrateArgsDelegate
 from .layerview import CoatingLayerView, CoatingLayerArgsDelegate
 from .analysisview import AnalysisView, AnalysisArgsDelegate
+from .dataviewtab import DataViewTab
 
 __all__ = [
     "ExperimentNameDelegate",
@@ -37,4 +38,5 @@ __all__ = [
     "CoatingLayerArgsDelegate",
     "AnalysisView",
     "AnalysisArgsDelegate",
+    "DataViewTab",
 ]
