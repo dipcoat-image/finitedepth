@@ -9,7 +9,7 @@ import copy
 import enum
 from dipcoatimage.finitedepth import ExperimentData
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
-from typing import Optional, Any, Union
+from typing import Optional, Any, Union, Tuple
 
 
 __all__ = [
@@ -62,6 +62,14 @@ class ExperimentDataItem(object):
         if len(self._children) > index:
             return self._children[index]
         return None
+
+    def childIndex(self, child: ExperimentDataItem) -> Tuple[int, int]:
+        """
+        Return the row and the column (which is always 0) of *child* in *self*.
+        """
+        row = self._children.index(child)
+        col = 0
+        return (row, col)
 
     def parent(self) -> Optional["ExperimentDataItem"]:
         return self._parent
@@ -218,8 +226,8 @@ class ExperimentDataModel(QAbstractItemModel):
         grandparentDataItem = parentDataItem.parent()
         if grandparentDataItem is None:
             return QModelIndex()
-        row = grandparentDataItem._children.index(parentDataItem)
-        return self.createIndex(row, 0, parentDataItem)
+        row, col = grandparentDataItem.childIndex(parentDataItem)
+        return self.createIndex(row, col, parentDataItem)
 
     def index(self, row, column, parent=QModelIndex()):
         if not self.hasIndex(row, column, parent):
