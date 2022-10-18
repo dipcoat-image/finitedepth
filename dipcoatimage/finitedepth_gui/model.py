@@ -243,7 +243,7 @@ class ExperimentDataModel(QAbstractItemModel):
 
     def flags(self, index):
         ret = Qt.ItemIsSelectable | Qt.ItemIsEnabled
-        if index.parent().isValid():
+        if self.whatsThisIndex(index) != IndexRole.EXPTDATA:
             ret |= Qt.ItemIsEditable
         return ret
 
@@ -279,10 +279,7 @@ class ExperimentDataModel(QAbstractItemModel):
                 self.setActivatedIndex(newIndex)
             self.endInsertRows()
             return True
-        elif (
-            not parent.parent().parent().isValid()
-            and parent.row() == self.Row_CoatPaths
-        ):
+        elif self.whatsThisIndex(parent) == IndexRole.COATPATHS:
             self.beginInsertRows(parent, row, row + count - 1)
             for _ in range(count):
                 newItem = ExperimentDataItem()
@@ -336,10 +333,10 @@ class ExperimentDataModel(QAbstractItemModel):
                 self.setActivatedIndex(newIndex)
             self.endInsertRows()
             return True
-        elif (
-            not sourceParent.parent().parent().isValid()
-            and sourceParent.row() == self.Row_CoatPaths
-        ):
+        elif self.whatsThisIndex(parent) == IndexRole.COATPATHS:
+            parentDataItem = destinationParent.internalPointer()
+            if not isinstance(parentDataItem, ExperimentDataItem):
+                return False
             newItems = []
             for i in range(count):
                 oldItem = self.index(sourceRow + i, 0, sourceParent).internalPointer()
@@ -349,9 +346,8 @@ class ExperimentDataModel(QAbstractItemModel):
             self.beginInsertRows(
                 sourceParent, destinationChild, destinationChild + count - 1
             )
-            parentDataItem = destinationParent.internalPointer()
             for item in reversed(newItems):
-                item.setParent(parentDataItem, destinationChild)
+                item.setParent(parentDataItem)
             self.endInsertRows()
         return False
 
@@ -377,10 +373,7 @@ class ExperimentDataModel(QAbstractItemModel):
                 self.setActivatedIndex(newIndex)
             self.endRemoveRows()
             return True
-        elif (
-            not parent.parent().parent().isValid()
-            and parent.row() == self.Row_CoatPaths
-        ):
+        elif self.whatsThisIndex(parent) == IndexRole.COATPATHS:
             self.beginRemoveRows(parent, row, row + count - 1)
             dataItem = parent.internalPointer()
             for _ in range(count):
@@ -393,7 +386,7 @@ class ExperimentDataModel(QAbstractItemModel):
         return self._activatedIndex
 
     def setActivatedIndex(self, index: QModelIndex):
-        if index.parent().isValid():
+        if self.whatsThisIndex(index) != IndexRole.EXPTDATA:
             index = QModelIndex()
         self._activatedIndex = index
         self.activatedIndexChanged.emit(index)
