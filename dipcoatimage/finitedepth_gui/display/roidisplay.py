@@ -245,7 +245,7 @@ class NDArrayROILabel_V2(NDArrayLabel):
     def setActivatedIndex(self, index: QModelIndex):
         model = index.model()
         if isinstance(model, ExperimentDataModel):
-            self._currentModelIndex = model.index(model.ROW_REFERENCE, 0, index)
+            self._currentModelIndex = model.index(model.Row_RefArgs, 0, index)
         else:
             self._currentModelIndex = QModelIndex()
 

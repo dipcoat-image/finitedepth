@@ -122,13 +122,13 @@ class ExperimentDataModel(QAbstractItemModel):
     Role_ExptArgs = Qt.UserRole
     Role_AnalysisArgs = Qt.UserRole
 
-    ROW_REFPATH = 0
-    ROW_COATPATHS = 1
-    ROW_REFERENCE = 2
-    ROW_SUBSTRATE = 3
-    ROW_COATINGLAYER = 4
-    ROW_EXPERIMENT = 5
-    ROW_ANALYSIS = 6
+    Row_RefPath = 0
+    Row_CoatPaths = 1
+    Row_RefArgs = 2
+    Row_SubstArgs = 3
+    Row_LayerArgs = 4
+    Row_ExptArgs = 5
+    Row_AnalysisArgs = 6
 
     activatedIndexChanged = Signal(QModelIndex)
 
@@ -258,7 +258,7 @@ class ExperimentDataModel(QAbstractItemModel):
             return True
         elif (
             not parent.parent().parent().isValid()
-            and parent.row() == self.ROW_COATPATHS
+            and parent.row() == self.Row_CoatPaths
         ):
             self.beginInsertRows(parent, row, row + count - 1)
             for _ in range(count):
@@ -315,7 +315,7 @@ class ExperimentDataModel(QAbstractItemModel):
             return True
         elif (
             not sourceParent.parent().parent().isValid()
-            and sourceParent.row() == self.ROW_COATPATHS
+            and sourceParent.row() == self.Row_CoatPaths
         ):
             newItems = []
             for i in range(count):
@@ -356,7 +356,7 @@ class ExperimentDataModel(QAbstractItemModel):
             return True
         elif (
             not parent.parent().parent().isValid()
-            and parent.row() == self.ROW_COATPATHS
+            and parent.row() == self.Row_CoatPaths
         ):
             self.beginRemoveRows(parent, row, row + count - 1)
             dataItem = parent.internalPointer()

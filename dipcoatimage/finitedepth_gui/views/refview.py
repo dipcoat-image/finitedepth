@@ -254,10 +254,10 @@ class ReferenceView(QWidget):
         model = index.model()
         if isinstance(model, ExperimentDataModel):
             self._refPathMapper.setRootIndex(index)
-            refPathIndex = model.index(model.ROW_REFPATH, 0, index)
+            refPathIndex = model.index(model.Row_RefPath, 0, index)
             self._refPathMapper.setCurrentModelIndex(refPathIndex)
             self._refArgsMapper.setRootIndex(index)
-            refIndex = model.index(model.ROW_REFERENCE, 0, index)
+            refIndex = model.index(model.Row_RefArgs, 0, index)
             self._refArgsMapper.setCurrentModelIndex(refIndex)
         else:
             self._refPathLineEdit.clear()

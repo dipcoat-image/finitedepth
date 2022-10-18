@@ -175,10 +175,10 @@ class ExperimentView(QWidget):
         if isinstance(model, ExperimentDataModel):
             self._nameMapper.setCurrentModelIndex(index)
             self._pathsListView.setModel(model)
-            coatPathIndex = model.index(model.ROW_COATPATHS, 0, index)
+            coatPathIndex = model.index(model.Row_CoatPaths, 0, index)
             self._pathsListView.setRootIndex(coatPathIndex)
             self._exptArgsMapper.setRootIndex(index)
-            exptIndex = model.index(model.ROW_EXPERIMENT, 0, index)
+            exptIndex = model.index(model.Row_ExptArgs, 0, index)
             self._exptArgsMapper.setCurrentModelIndex(exptIndex)
         else:
             self._nameLineEdit.clear()

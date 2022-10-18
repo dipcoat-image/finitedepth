@@ -176,7 +176,7 @@ class CoatingLayerView(QWidget):
         model = index.model()
         if isinstance(model, ExperimentDataModel):
             self._layerArgsMapper.setRootIndex(index)
-            layerIndex = model.index(model.ROW_COATINGLAYER, 0, index)
+            layerIndex = model.index(model.Row_LayerArgs, 0, index)
             self._layerArgsMapper.setCurrentModelIndex(layerIndex)
         else:
             self._importView.clear()

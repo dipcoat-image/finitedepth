@@ -187,7 +187,7 @@ class AnalysisView(QWidget):
         model = index.model()
         if isinstance(model, ExperimentDataModel):
             self._analyzeArgsMapper.setRootIndex(index)
-            analysisIndex = model.index(model.ROW_ANALYSIS, 0, index)
+            analysisIndex = model.index(model.Row_AnalysisArgs, 0, index)
             self._analyzeArgsMapper.setCurrentModelIndex(analysisIndex)
         else:
             self._dataPathLineEdit.clear()

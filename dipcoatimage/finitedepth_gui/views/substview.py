@@ -153,7 +153,7 @@ class SubstrateView(QWidget):
         model = index.model()
         if isinstance(model, ExperimentDataModel):
             self._substArgsMapper.setRootIndex(index)
-            substIndex = model.index(model.ROW_SUBSTRATE, 0, index)
+            substIndex = model.index(model.Row_SubstArgs, 0, index)
             self._substArgsMapper.setCurrentModelIndex(substIndex)
         else:
             self._importView.clear()
