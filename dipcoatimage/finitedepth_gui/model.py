@@ -112,6 +112,10 @@ class ExperimentDataItem(object):
 
 
 class IndexRole(enum.Enum):
+    """
+    Role of the ``QModelIndex`` of :class:`ExperimentDataModel`.
+    """
+
     UNKNOWN = 0
     EXPTDATA = 1
     REFPATH = 2
@@ -128,11 +132,13 @@ class ExperimentDataModel(QAbstractItemModel):
     """
     Model to store the data for :class:`ExperimentData`.
 
-    Each row on the top level has vertical tree structure which can be used to
-    construct :class:`ExperimentData`.
+    Structure of the model is strictly defined. Each row on the top level
+    represents a single :class:`ExperimentData` instance, whose arguments are
+    stored in the subtree structure beneath it. To check which argument an index
+    represents, use :meth:`whatIsThisIndex` method.
 
-    Subtree structure under each top-level row is not modifiable, except the rows
-    which represents the coating layer image paths.
+    Item structure can be modified for the indices with :obj:`IndexRole.EXPTDATA`
+    or :obj:`IndexRole.COATPATH`. Other indices cannot be modified.
     """
 
     # https://stackoverflow.com/a/57129496/11501976
@@ -428,3 +434,23 @@ class ExperimentDataModel(QAbstractItemModel):
         ):
             return IndexRole.COATPATH
         return IndexRole.UNKNOWN
+
+    def getIndexFor(self, indexRole: IndexRole, parent: QModelIndex) -> QModelIndex:
+        if not self.whatsThisIndex(parent) == IndexRole.EXPTDATA:
+            return QModelIndex()
+
+        if indexRole == IndexRole.REFPATH:
+            return self.index(self.Row_RefPath, 0, parent)
+        elif indexRole == IndexRole.COATPATHS:
+            return self.index(self.Row_CoatPaths, 0, parent)
+        elif indexRole == IndexRole.REFARGS:
+            return self.index(self.Row_RefArgs, 0, parent)
+        elif indexRole == IndexRole.SUBSTARGS:
+            return self.index(self.Row_SubstArgs, 0, parent)
+        elif indexRole == IndexRole.LAYERARGS:
+            return self.index(self.Row_LayerArgs, 0, parent)
+        elif indexRole == IndexRole.EXPTARGS:
+            return self.index(self.Row_ExptArgs, 0, parent)
+        elif indexRole == IndexRole.ANALYSISARGS:
+            return self.index(self.Row_AnalysisArgs, 0, parent)
+        return QModelIndex()
