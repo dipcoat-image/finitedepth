@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 from dipcoatimage.finitedepth import SubstrateBase
 from dipcoatimage.finitedepth.analysis import ImportArgs, SubstrateArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
-from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
+from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
 from .importview import ImportDataView
 from typing import Optional, Type, Union
 
@@ -153,7 +153,7 @@ class SubstrateView(QWidget):
         model = index.model()
         if isinstance(model, ExperimentDataModel):
             self._substArgsMapper.setRootIndex(index)
-            substIndex = model.index(model.Row_SubstArgs, 0, index)
+            substIndex = model.getIndexFor(IndexRole.SUBSTARGS, index)
             self._substArgsMapper.setCurrentModelIndex(substIndex)
         else:
             self._importView.clear()

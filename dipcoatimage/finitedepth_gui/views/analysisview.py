@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QStyledItemDelegate,
 )
 from dipcoatimage.finitedepth.analysis import Analyzer, AnalysisArgs
-from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
+from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
 from typing import Optional
 
 __all__ = [
@@ -187,7 +187,7 @@ class AnalysisView(QWidget):
         model = index.model()
         if isinstance(model, ExperimentDataModel):
             self._analyzeArgsMapper.setRootIndex(index)
-            analysisIndex = model.index(model.Row_AnalysisArgs, 0, index)
+            analysisIndex = model.getIndexFor(IndexRole.ANALYSISARGS, index)
             self._analyzeArgsMapper.setCurrentModelIndex(analysisIndex)
         else:
             self._dataPathLineEdit.clear()

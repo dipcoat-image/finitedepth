@@ -458,10 +458,12 @@ class ExperimentDataModel(QAbstractItemModel):
 
         If no index has *indexRole*, returns an invalid index.
         """
-        if not self.whatsThisIndex(parent) == IndexRole.EXPTDATA:
-            return parent
+        if self.whatsThisIndex(parent) != IndexRole.EXPTDATA:
+            return QModelIndex()
 
-        if indexRole == IndexRole.REFPATH:
+        if indexRole == IndexRole.EXPTDATA:
+            return parent
+        elif indexRole == IndexRole.REFPATH:
             return self.index(self.Row_RefPath, 0, parent)
         elif indexRole == IndexRole.COATPATHS:
             return self.index(self.Row_CoatPaths, 0, parent)
