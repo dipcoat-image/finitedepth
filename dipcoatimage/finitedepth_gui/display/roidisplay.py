@@ -4,7 +4,7 @@ from PySide6.QtCore import Signal, Slot, QSize, QRect, QPoint, Qt, QModelIndex
 from PySide6.QtGui import QPaintEvent, QMouseEvent, QPainter, QBrush, QColor
 from dipcoatimage.finitedepth.analysis import ReferenceArgs
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
-from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
+from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
 from dipcoatimage.finitedepth_gui.views import ROIDrawFlag
 from typing import Union, Tuple, List, Optional
 
@@ -245,7 +245,7 @@ class NDArrayROILabel_V2(NDArrayLabel):
     def setActivatedIndex(self, index: QModelIndex):
         model = index.model()
         if isinstance(model, ExperimentDataModel):
-            self._currentModelIndex = model.index(model.ROW_REFERENCE, 0, index)
+            self._currentModelIndex = model.getIndexFor(IndexRole.REFARGS, index)
         else:
             self._currentModelIndex = QModelIndex()
 

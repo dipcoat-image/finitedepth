@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 from dipcoatimage.finitedepth import ExperimentBase
 from dipcoatimage.finitedepth.analysis import ImportArgs, ExperimentArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
-from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
+from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
 from .importview import ImportDataView
 from typing import Optional, Type, Union
 
@@ -175,10 +175,10 @@ class ExperimentView(QWidget):
         if isinstance(model, ExperimentDataModel):
             self._nameMapper.setCurrentModelIndex(index)
             self._pathsListView.setModel(model)
-            coatPathIndex = model.index(model.ROW_COATPATHS, 0, index)
+            coatPathIndex = model.getIndexFor(IndexRole.COATPATHS, index)
             self._pathsListView.setRootIndex(coatPathIndex)
             self._exptArgsMapper.setRootIndex(index)
-            exptIndex = model.index(model.ROW_EXPERIMENT, 0, index)
+            exptIndex = model.getIndexFor(IndexRole.EXPTARGS, index)
             self._exptArgsMapper.setCurrentModelIndex(exptIndex)
         else:
             self._nameLineEdit.clear()

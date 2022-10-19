@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
 from dipcoatimage.finitedepth import SubstrateReferenceBase
 from dipcoatimage.finitedepth.analysis import ImportArgs, ReferenceArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer, OptionalROI
-from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
+from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
 from .importview import ImportDataView
 from .roiview import ROIView
 from typing import Optional, Type, Union
@@ -254,10 +254,10 @@ class ReferenceView(QWidget):
         model = index.model()
         if isinstance(model, ExperimentDataModel):
             self._refPathMapper.setRootIndex(index)
-            refPathIndex = model.index(model.ROW_REFPATH, 0, index)
+            refPathIndex = model.getIndexFor(IndexRole.REFPATH, index)
             self._refPathMapper.setCurrentModelIndex(refPathIndex)
             self._refArgsMapper.setRootIndex(index)
-            refIndex = model.index(model.ROW_REFERENCE, 0, index)
+            refIndex = model.getIndexFor(IndexRole.REFARGS, index)
             self._refArgsMapper.setCurrentModelIndex(refIndex)
         else:
             self._refPathLineEdit.clear()

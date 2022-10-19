@@ -6,13 +6,15 @@ V2 for inventory.py
 """
 
 import copy
+import enum
 from dipcoatimage.finitedepth import ExperimentData
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
-from typing import Optional, Any, Union
+from typing import Optional, Any, Union, Tuple
 
 
 __all__ = [
     "ExperimentDataItem",
+    "IndexRole",
     "ExperimentDataModel",
 ]
 
@@ -61,6 +63,14 @@ class ExperimentDataItem(object):
             return self._children[index]
         return None
 
+    def childIndex(self, child: "ExperimentDataItem") -> Tuple[int, int]:
+        """
+        Return the row and the column (which is always 0) of *child* in *self*.
+        """
+        row = self._children.index(child)
+        col = 0
+        return (row, col)
+
     def parent(self) -> Optional["ExperimentDataItem"]:
         return self._parent
 
@@ -92,49 +102,6 @@ class ExperimentDataItem(object):
             while orphan._children:
                 orphan.remove(0)
 
-    @classmethod
-    def fromExperimentData(cls, exptData: ExperimentData):
-        """Construct the tree structure from *exptData*."""
-        inst = cls()
-
-        refPathItem = cls()
-        refPathItem.setData(Qt.DisplayRole, exptData.ref_path)
-        refPathItem.setParent(inst)
-
-        coatPathsItem = cls()
-        for path in exptData.coat_paths:
-            coatPathItem = cls()
-            coatPathItem.setData(Qt.DisplayRole, path)
-            coatPathItem.setParent(coatPathsItem)
-        coatPathsItem.setParent(inst)
-
-        refArgs = exptData.reference
-        refArgsItem = cls()
-        refArgsItem.setData(Qt.UserRole, refArgs)
-        refArgsItem.setParent(inst)
-
-        substArgs = exptData.substrate
-        substArgsItem = cls()
-        substArgsItem.setData(Qt.UserRole, substArgs)
-        substArgsItem.setParent(inst)
-
-        layerArgs = exptData.coatinglayer
-        layerArgsItem = cls()
-        layerArgsItem.setData(Qt.UserRole, layerArgs)
-        layerArgsItem.setParent(inst)
-
-        exptArgs = exptData.experiment
-        exptArgsItem = cls()
-        exptArgsItem.setData(Qt.UserRole, exptArgs)
-        exptArgsItem.setParent(inst)
-
-        analysisArgs = exptData.analysis
-        analysisArgsItem = cls()
-        analysisArgsItem.setData(Qt.UserRole, analysisArgs)
-        analysisArgsItem.setParent(inst)
-
-        return inst
-
     def copyDataTo(self, other: "ExperimentDataItem"):
         """
         Copy the data of *self* and its children to *other* and its children.
@@ -144,26 +111,57 @@ class ExperimentDataItem(object):
             subSelf.copyDataTo(subOther)
 
 
+class IndexRole(enum.Enum):
+    """Role of the ``QModelIndex`` of :class:`ExperimentDataModel`."""
+
+    UNKNOWN = 0
+    EXPTDATA = 1
+    REFPATH = 2
+    COATPATHS = 3
+    COATPATH = 4
+    REFARGS = 5
+    SUBSTARGS = 6
+    LAYERARGS = 7
+    EXPTARGS = 8
+    ANALYSISARGS = 9
+
+
 class ExperimentDataModel(QAbstractItemModel):
     """
     Model to store the data for :class:`ExperimentData`.
 
-    Each row on the top level has vertical tree structure which can be used to
-    construct :class:`ExperimentData`.
+    Structure of the model is strictly defined. Each row on the top level
+    represents a single :class:`ExperimentData` instance, whose arguments are
+    stored in the subtree structure beneath it. To check which argument an index
+    represents, use :meth:`whatIsThisIndex` method. To get the subitem with
+    given index role, use :meth:`getIndexFor` method.
 
-    Subtree structure under each top-level row is not modifiable, except the rows
-    which represents the coating layer image paths.
+    Item structure can be modified for the indices with :obj:`IndexRole.EXPTDATA`
+    or :obj:`IndexRole.COATPATH`. Other indices cannot be modified. If a new item
+    with :obj:`IndexRole.EXPTDATA` is created by inserting the row, the subtree
+    structure is automatically constructed.
+
+    Among the top level items, a single index can be activated to be visualized.
+    See :meth:`activatedIndex` and :meth:`setActivatedIndex`.
     """
 
     # https://stackoverflow.com/a/57129496/11501976
 
-    ROW_REFPATH = 0
-    ROW_COATPATHS = 1
-    ROW_REFERENCE = 2
-    ROW_SUBSTRATE = 3
-    ROW_COATINGLAYER = 4
-    ROW_EXPERIMENT = 5
-    ROW_ANALYSIS = 6
+    Role_RefPath = Qt.DisplayRole
+    Role_CoatPath = Qt.DisplayRole
+    Role_RefArgs = Qt.UserRole
+    Role_SubstArgs = Qt.UserRole
+    Role_LayerArgs = Qt.UserRole
+    Role_ExptArgs = Qt.UserRole
+    Role_AnalysisArgs = Qt.UserRole
+
+    Row_RefPath = 0
+    Row_CoatPaths = 1
+    Row_RefArgs = 2
+    Row_SubstArgs = 3
+    Row_LayerArgs = 4
+    Row_ExptArgs = 5
+    Row_AnalysisArgs = 6
 
     activatedIndexChanged = Signal(QModelIndex)
 
@@ -171,6 +169,48 @@ class ExperimentDataModel(QAbstractItemModel):
         super().__init__(parent)
         self._rootItem = ExperimentDataItem()
         self._activatedIndex = QModelIndex()
+
+    @classmethod
+    def _itemFromExperimentData(cls, exptData: ExperimentData) -> ExperimentDataItem:
+        item = ExperimentDataItem()
+
+        refPathItem = ExperimentDataItem()
+        refPathItem.setData(cls.Role_RefPath, exptData.ref_path)
+        refPathItem.setParent(item)
+
+        coatPathsItem = ExperimentDataItem()
+        for path in exptData.coat_paths:
+            coatPathItem = ExperimentDataItem()
+            coatPathItem.setData(cls.Role_CoatPath, path)
+            coatPathItem.setParent(coatPathsItem)
+        coatPathsItem.setParent(item)
+
+        refArgs = exptData.reference
+        refArgsItem = ExperimentDataItem()
+        refArgsItem.setData(cls.Role_RefArgs, refArgs)
+        refArgsItem.setParent(item)
+
+        substArgs = exptData.substrate
+        substArgsItem = ExperimentDataItem()
+        substArgsItem.setData(cls.Role_SubstArgs, substArgs)
+        substArgsItem.setParent(item)
+
+        layerArgs = exptData.coatinglayer
+        layerArgsItem = ExperimentDataItem()
+        layerArgsItem.setData(cls.Role_LayerArgs, layerArgs)
+        layerArgsItem.setParent(item)
+
+        exptArgs = exptData.experiment
+        exptArgsItem = ExperimentDataItem()
+        exptArgsItem.setData(cls.Role_ExptArgs, exptArgs)
+        exptArgsItem.setParent(item)
+
+        analysisArgs = exptData.analysis
+        analysisArgsItem = ExperimentDataItem()
+        analysisArgsItem.setData(cls.Role_AnalysisArgs, analysisArgs)
+        analysisArgsItem.setParent(item)
+
+        return item
 
     def columnCount(self, index=QModelIndex()):
         if not index.isValid():
@@ -196,8 +236,8 @@ class ExperimentDataModel(QAbstractItemModel):
         grandparentDataItem = parentDataItem.parent()
         if grandparentDataItem is None:
             return QModelIndex()
-        row = grandparentDataItem._children.index(parentDataItem)
-        return self.createIndex(row, 0, parentDataItem)
+        row, col = grandparentDataItem.childIndex(parentDataItem)
+        return self.createIndex(row, col, parentDataItem)
 
     def index(self, row, column, parent=QModelIndex()):
         if not self.hasIndex(row, column, parent):
@@ -213,7 +253,7 @@ class ExperimentDataModel(QAbstractItemModel):
 
     def flags(self, index):
         ret = Qt.ItemIsSelectable | Qt.ItemIsEnabled
-        if index.parent().isValid():
+        if self.whatsThisIndex(index) != IndexRole.EXPTDATA:
             ret |= Qt.ItemIsEditable
         return ret
 
@@ -240,7 +280,7 @@ class ExperimentDataModel(QAbstractItemModel):
 
             self.beginInsertRows(parent, row, row + count - 1)
             for _ in range(count):
-                newItem = ExperimentDataItem.fromExperimentData(ExperimentData())
+                newItem = self._itemFromExperimentData(ExperimentData())
                 newItem.setParent(self._rootItem)
 
             if reactivate:
@@ -249,10 +289,7 @@ class ExperimentDataModel(QAbstractItemModel):
                 self.setActivatedIndex(newIndex)
             self.endInsertRows()
             return True
-        elif (
-            not parent.parent().parent().isValid()
-            and parent.row() == self.ROW_COATPATHS
-        ):
+        elif self.whatsThisIndex(parent) == IndexRole.COATPATHS:
             self.beginInsertRows(parent, row, row + count - 1)
             for _ in range(count):
                 newItem = ExperimentDataItem()
@@ -291,7 +328,7 @@ class ExperimentDataModel(QAbstractItemModel):
             newItems = []
             for i in range(count):
                 oldItem = self.index(sourceRow + i, 0, sourceParent).internalPointer()
-                newItem = ExperimentDataItem.fromExperimentData(ExperimentData())
+                newItem = self._itemFromExperimentData(ExperimentData())
                 oldItem.copyDataTo(newItem)
                 newItems.append(newItem)
             self.beginInsertRows(
@@ -306,10 +343,10 @@ class ExperimentDataModel(QAbstractItemModel):
                 self.setActivatedIndex(newIndex)
             self.endInsertRows()
             return True
-        elif (
-            not sourceParent.parent().parent().isValid()
-            and sourceParent.row() == self.ROW_COATPATHS
-        ):
+        elif self.whatsThisIndex(sourceParent) == IndexRole.COATPATHS:
+            parentDataItem = destinationParent.internalPointer()
+            if not isinstance(parentDataItem, ExperimentDataItem):
+                return False
             newItems = []
             for i in range(count):
                 oldItem = self.index(sourceRow + i, 0, sourceParent).internalPointer()
@@ -319,9 +356,8 @@ class ExperimentDataModel(QAbstractItemModel):
             self.beginInsertRows(
                 sourceParent, destinationChild, destinationChild + count - 1
             )
-            parentDataItem = destinationParent.internalPointer()
             for item in reversed(newItems):
-                item.setParent(parentDataItem, destinationChild)
+                item.setParent(parentDataItem)
             self.endInsertRows()
         return False
 
@@ -347,10 +383,7 @@ class ExperimentDataModel(QAbstractItemModel):
                 self.setActivatedIndex(newIndex)
             self.endRemoveRows()
             return True
-        elif (
-            not parent.parent().parent().isValid()
-            and parent.row() == self.ROW_COATPATHS
-        ):
+        elif self.whatsThisIndex(parent) == IndexRole.COATPATHS:
             self.beginRemoveRows(parent, row, row + count - 1)
             dataItem = parent.internalPointer()
             for _ in range(count):
@@ -360,10 +393,88 @@ class ExperimentDataModel(QAbstractItemModel):
         return False
 
     def activatedIndex(self) -> QModelIndex:
+        """
+        Currently activated item, or invalid index if no item is activated.
+
+        Only the item with :obj:`IndexRole.EXPTDATA` can be activated.
+        """
         return self._activatedIndex
 
     def setActivatedIndex(self, index: QModelIndex):
-        if index.parent().isValid():
+        """
+        Changes the activated index.
+
+        If *index* cannot be activated, an invalid index is set instead.
+
+        Emits :attr:`activatedIndexChanged` signal.
+        """
+        if self.whatsThisIndex(index) != IndexRole.EXPTDATA:
             index = QModelIndex()
         self._activatedIndex = index
         self.activatedIndexChanged.emit(index)
+
+    @classmethod
+    def whatsThisIndex(cls, index: QModelIndex) -> IndexRole:
+        """Return the role of *index* in the model."""
+        if not isinstance(index.model(), cls):
+            return IndexRole.UNKNOWN
+
+        indexLevel = -1
+        _index = index
+        while _index.isValid():
+            _index = _index.parent()
+            indexLevel += 1
+        row, col = index.row(), index.column()
+
+        if indexLevel == 0 and col == 0:
+            return IndexRole.EXPTDATA
+        if indexLevel == 1 and col == 0:
+            row = index.row()
+            if row == cls.Row_RefPath:
+                return IndexRole.REFPATH
+            if row == cls.Row_CoatPaths:
+                return IndexRole.COATPATHS
+            if row == cls.Row_RefArgs:
+                return IndexRole.REFARGS
+            if row == cls.Row_SubstArgs:
+                return IndexRole.SUBSTARGS
+            if row == cls.Row_LayerArgs:
+                return IndexRole.LAYERARGS
+            if row == cls.Row_ExptArgs:
+                return IndexRole.EXPTARGS
+            if row == cls.Row_AnalysisArgs:
+                return IndexRole.ANALYSISARGS
+        if (
+            indexLevel == 2
+            and col == 0
+            and cls.whatsThisIndex(index.parent()) is IndexRole.COATPATHS
+        ):
+            return IndexRole.COATPATH
+        return IndexRole.UNKNOWN
+
+    def getIndexFor(self, indexRole: IndexRole, parent: QModelIndex) -> QModelIndex:
+        """
+        Return the index with *indexRole* under *parent*.
+
+        If no index has *indexRole*, returns an invalid index.
+        """
+        if self.whatsThisIndex(parent) != IndexRole.EXPTDATA:
+            return QModelIndex()
+
+        if indexRole == IndexRole.EXPTDATA:
+            return parent
+        elif indexRole == IndexRole.REFPATH:
+            return self.index(self.Row_RefPath, 0, parent)
+        elif indexRole == IndexRole.COATPATHS:
+            return self.index(self.Row_CoatPaths, 0, parent)
+        elif indexRole == IndexRole.REFARGS:
+            return self.index(self.Row_RefArgs, 0, parent)
+        elif indexRole == IndexRole.SUBSTARGS:
+            return self.index(self.Row_SubstArgs, 0, parent)
+        elif indexRole == IndexRole.LAYERARGS:
+            return self.index(self.Row_LayerArgs, 0, parent)
+        elif indexRole == IndexRole.EXPTARGS:
+            return self.index(self.Row_ExptArgs, 0, parent)
+        elif indexRole == IndexRole.ANALYSISARGS:
+            return self.index(self.Row_AnalysisArgs, 0, parent)
+        return QModelIndex()

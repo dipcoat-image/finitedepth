@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 from dipcoatimage.finitedepth import CoatingLayerBase
 from dipcoatimage.finitedepth.analysis import ImportArgs, CoatingLayerArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
-from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
+from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
 from .importview import ImportDataView
 from typing import Optional, Type, Union
 
@@ -176,7 +176,7 @@ class CoatingLayerView(QWidget):
         model = index.model()
         if isinstance(model, ExperimentDataModel):
             self._layerArgsMapper.setRootIndex(index)
-            layerIndex = model.index(model.ROW_COATINGLAYER, 0, index)
+            layerIndex = model.getIndexFor(IndexRole.LAYERARGS, index)
             self._layerArgsMapper.setCurrentModelIndex(layerIndex)
         else:
             self._importView.clear()
