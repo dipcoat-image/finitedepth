@@ -112,9 +112,7 @@ class ExperimentDataItem(object):
 
 
 class IndexRole(enum.Enum):
-    """
-    Role of the ``QModelIndex`` of :class:`ExperimentDataModel`.
-    """
+    """Role of the ``QModelIndex`` of :class:`ExperimentDataModel`."""
 
     UNKNOWN = 0
     EXPTDATA = 1
@@ -135,10 +133,16 @@ class ExperimentDataModel(QAbstractItemModel):
     Structure of the model is strictly defined. Each row on the top level
     represents a single :class:`ExperimentData` instance, whose arguments are
     stored in the subtree structure beneath it. To check which argument an index
-    represents, use :meth:`whatIsThisIndex` method.
+    represents, use :meth:`whatIsThisIndex` method. To get the subitem with
+    given index role, use :meth:`getIndexFor` method.
 
     Item structure can be modified for the indices with :obj:`IndexRole.EXPTDATA`
-    or :obj:`IndexRole.COATPATH`. Other indices cannot be modified.
+    or :obj:`IndexRole.COATPATH`. Other indices cannot be modified. If a new item
+    with :obj:`IndexRole.EXPTDATA` is created by inserting the row, the subtree
+    structure is automatically constructed.
+
+    Among the top level items, a single index can be activated to be visualized.
+    See :meth:`activatedIndex` and :meth:`setActivatedIndex`.
     """
 
     # https://stackoverflow.com/a/57129496/11501976
@@ -389,9 +393,21 @@ class ExperimentDataModel(QAbstractItemModel):
         return False
 
     def activatedIndex(self) -> QModelIndex:
+        """
+        Currently activated item, or invalid index if no item is activated.
+
+        Only the item with :obj:`IndexRole.EXPTDATA` can be activated.
+        """
         return self._activatedIndex
 
     def setActivatedIndex(self, index: QModelIndex):
+        """
+        Changes the activated index.
+
+        If *index* cannot be activated, an invalid index is set instead.
+
+        Emits :attr:`activatedIndexChanged` signal.
+        """
         if self.whatsThisIndex(index) != IndexRole.EXPTDATA:
             index = QModelIndex()
         self._activatedIndex = index
@@ -399,6 +415,7 @@ class ExperimentDataModel(QAbstractItemModel):
 
     @classmethod
     def whatsThisIndex(cls, index: QModelIndex) -> IndexRole:
+        """Return the role of *index* in the model."""
         if not isinstance(index.model(), cls):
             return IndexRole.UNKNOWN
 
@@ -436,8 +453,13 @@ class ExperimentDataModel(QAbstractItemModel):
         return IndexRole.UNKNOWN
 
     def getIndexFor(self, indexRole: IndexRole, parent: QModelIndex) -> QModelIndex:
+        """
+        Return the index with *indexRole* under *parent*.
+
+        If no index has *indexRole*, returns an invalid index.
+        """
         if not self.whatsThisIndex(parent) == IndexRole.EXPTDATA:
-            return QModelIndex()
+            return parent
 
         if indexRole == IndexRole.REFPATH:
             return self.index(self.Row_RefPath, 0, parent)
