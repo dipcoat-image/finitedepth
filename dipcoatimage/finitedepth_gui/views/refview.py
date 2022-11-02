@@ -342,9 +342,7 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
                 model.setData(drawOptIndex, drawOptType, role=self.TypeRole)
 
                 # set dataclasses data to model
-                self.setModelData(
-                    editor.currentParametersWidget(), model, paramIndex
-                )
+                self.setModelData(editor.currentParametersWidget(), model, paramIndex)
                 self.setModelData(
                     editor.currentDrawOptionsWidget(), model, drawOptIndex
                 )
@@ -379,17 +377,30 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
                 paramIndex = model.getIndexFor(IndexRole.REF_PARAMETERS, index)
                 paramType = model.data(paramIndex, role=self.TypeRole)
                 if isinstance(paramType, type) and dataclasses.is_dataclass(paramType):
-                    paramIdx = editor.indexOfParametersType(paramType)
-                    if paramIdx == -1:
-                        editor.addParametersType(paramType)
+                    paramWidgetIdx = editor.indexOfParametersType(paramType)
+                    if paramWidgetIdx == -1:
+                        paramWidgetIdx = editor.addParametersType(paramType)
+                else:
+                    paramWidgetIdx = -1
                 drawOptIndex = model.getIndexFor(IndexRole.REF_DRAWOPTIONS, index)
                 drawOptType = model.data(drawOptIndex, role=self.TypeRole)
-                if isinstance(drawOptType, type) and dataclasses.is_dataclass(drawOptType):
-                    drawOptIdx = editor.indexOfDrawOptionsType(drawOptType)
-                    if drawOptIdx == -1:
-                        editor.addDrawOptionsType(drawOptType)
+                if isinstance(drawOptType, type) and dataclasses.is_dataclass(
+                    drawOptType
+                ):
+                    drawOptWidgetIdx = editor.indexOfDrawOptionsType(drawOptType)
+                    if drawOptWidgetIdx == -1:
+                        drawOptWidgetIdx = editor.addDrawOptionsType(drawOptType)
+                else:
+                    drawOptWidgetIdx = -1
 
                 # set dataclasses type and data to editor
                 self.setEditorData(editor.parametersStackedWidget(), paramIndex)
                 self.setEditorData(editor.drawOptionsStackedWidget(), drawOptIndex)
+
+                # show default widget for invalid index
+                if paramWidgetIdx == -1:
+                    editor.setCurrentParametersIndex(0)
+                if drawOptWidgetIdx == -1:
+                    editor.setCurrentDrawOptionsIndex(0)
+
         super().setEditorData(editor, index)

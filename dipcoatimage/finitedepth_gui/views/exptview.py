@@ -244,14 +244,20 @@ class ExperimentArgsDelegate(dawiq.DataclassDelegate):
                 paramIndex = model.getIndexFor(IndexRole.EXPT_PARAMETERS, index)
                 paramType = model.data(paramIndex, role=self.TypeRole)
                 if isinstance(paramType, type) and dataclasses.is_dataclass(paramType):
-                    paramIdx = editor.indexOfParametersType(paramType)
-                    if paramIdx == -1:
-                        editor.addParametersType(paramType)
+                    paramWidgetIdx = editor.indexOfParametersType(paramType)
+                    if paramWidgetIdx == -1:
+                        paramWidgetIdx = editor.addParametersType(paramType)
+                else:
+                    paramWidgetIdx = -1
 
                 # set dataclass type and data to editor
                 self.setEditorData(
                     editor.parametersStackedWidget(),
                     model.getIndexFor(IndexRole.EXPT_PARAMETERS, index),
                 )
+
+                # show default widget for invalid index
+                if paramWidgetIdx == -1:
+                    editor.setCurrentParametersIndex(0)
 
         super().setEditorData(editor, index)
