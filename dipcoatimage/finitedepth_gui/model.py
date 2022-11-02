@@ -24,7 +24,9 @@ class ExperimentDataItem(object):
     Internal data node for :class:`ExperimentDataModel` which represents tree
     structure with one column.
 
-    Data for the node can be get and set by :meth:`data` and :meth:`setData`.
+    Data for the node can be get and set by :meth:`data` and :meth:`setData` with
+    ``Qt.ItemDataRole``.
+
     Tree structure can be accessed by :meth:`child` and :meth:`parent`, which
     are modified by :meth:`setParent` and :meth:`remove`.
 
@@ -38,6 +40,11 @@ class ExperimentDataItem(object):
         self._parent = None
 
     def data(self, role: Union[Qt.ItemDataRole, int]) -> Any:
+        """
+        Get the data stored with *role*.
+
+        ``EditRole`` and ``DisplayRole`` are treated as identical keys.
+        """
         if isinstance(role, int):
             role = Qt.ItemDataRole(role)
         if role == Qt.EditRole:
@@ -45,6 +52,11 @@ class ExperimentDataItem(object):
         return self._data.get(role, None)
 
     def setData(self, role: Union[Qt.ItemDataRole, int], data: Any):
+        """
+        Set the data with *role*.
+
+        ``EditRole`` and ``DisplayRole`` are treated as identical keys.
+        """
         if isinstance(role, int):
             role = Qt.ItemDataRole(role)
         if role == Qt.EditRole:
@@ -52,20 +64,24 @@ class ExperimentDataItem(object):
         self._data[role] = data
 
     def columnCount(self) -> int:
+        """Get the number of sub-columns, which is always 1."""
         return 1
 
     def rowCount(self) -> int:
+        """Get the number of sub-rows, which is the number of children."""
         return len(self._children)
 
     def child(self, index: int) -> Optional["ExperimentDataItem"]:
-        """Get *index*-th subitem, or None if the index is invalid."""
+        """Get *index*-th subitem, or ``None`` if the index is invalid."""
         if len(self._children) > index:
             return self._children[index]
         return None
 
     def childIndex(self, child: "ExperimentDataItem") -> Tuple[int, int]:
         """
-        Return the row and the column (which is always 0) of *child* in *self*.
+        Return the row and the column of *child* in *self*.
+
+        Column value is always 0 because the tree structure is one-dimensional.
         """
         row = self._children.index(child)
         col = 0
@@ -130,19 +146,39 @@ class ExperimentDataModel(QAbstractItemModel):
     """
     Model to store the data for :class:`ExperimentData`.
 
-    Structure of the model is strictly defined. Each row on the top level
-    represents a single :class:`ExperimentData` instance, whose arguments are
-    stored in the subtree structure beneath it. To check which argument an index
-    represents, use :meth:`whatIsThisIndex` method. To get the subitem with
-    given index role, use :meth:`getIndexFor` method.
+    This model has row-based tree structure. Every level has only one column.
 
-    Item structure can be modified for the indices with :obj:`IndexRole.EXPTDATA`
-    or :obj:`IndexRole.COATPATH`. Other indices cannot be modified. If a new item
-    with :obj:`IndexRole.EXPTDATA` is created by inserting the row, the subtree
-    structure is automatically constructed.
+    Structure of the model is strictly defined and each index has its role to
+    store certain data. The roles are defined in :class:`IndexRole` and can be
+    queried by :meth:`whatsThisIndex`. To get the index with certain role, use
+    :meth:`getIndexFor`.
 
-    Among the top level items, a single index can be activated to be visualized.
-    See :meth:`activatedIndex` and :meth:`setActivatedIndex`.
+    There can be multiple indices with :obj:`IndexRole.EXPTDATA`, each storing
+    the data for a single :class:`ExperimentData` instance under its children.
+    The structure is defined as follows:
+
+    * EXPTDATA (can be inserted/removed)
+        * REFPATH
+        * COATPATHS
+            * COATPATH (can be inserted/removed)
+        * REFARGS
+        * SUBSTARGS
+        * LAYERARGS
+        * EXPTARGS
+        * ANALYSISARGS
+
+    Only the rows with :obj:`IndexRole.EXPTDATA` and :obj:`IndexRole.COATPATH`
+    can be inserted/removed. In other words, number of rows under the index with
+    :obj:`IndexRole.EXPTDATA` is always 7.
+
+    Class attributes with ``Role_[...]`` represents the item data role which is
+    used to store the data. Therefore the data can be successfully retrieved by
+    using :class:`IndexRole` and ``Role_[...]``. For example, the reference path
+    is stored in the index with :obj:`IndexRole.REFPATH` by :attr:`Role_RefPath`.
+
+    A single index with :obj:`IndexRole.EXPTDATA` can be activated to be shown
+    by the views. Currently activated index can be get by :meth:`activatedIndex`.
+
     """
 
     # https://stackoverflow.com/a/57129496/11501976
@@ -394,9 +430,12 @@ class ExperimentDataModel(QAbstractItemModel):
 
     def activatedIndex(self) -> QModelIndex:
         """
-        Currently activated item, or invalid index if no item is activated.
+        Currently activated item.
 
-        Only the item with :obj:`IndexRole.EXPTDATA` can be activated.
+        Only the item with :obj:`IndexRole.EXPTDATA` can be activated. If no item
+        is activated, returns invalid index.
+
+        Can be set by :meth:`setActivatedIndex`.
         """
         return self._activatedIndex
 
@@ -404,7 +443,8 @@ class ExperimentDataModel(QAbstractItemModel):
         """
         Changes the activated index.
 
-        If *index* cannot be activated, an invalid index is set instead.
+        Only the item with :obj:`IndexRole.EXPTDATA` can be activated. If *index*
+        cannot be activated, an invalid index is set instead.
 
         Emits :attr:`activatedIndexChanged` signal.
         """
@@ -456,7 +496,7 @@ class ExperimentDataModel(QAbstractItemModel):
         """
         Return the index with *indexRole* under *parent*.
 
-        If no index has *indexRole*, returns an invalid index.
+        If the index cannot be specified, returns an invalid index.
         """
         if self.whatsThisIndex(parent) != IndexRole.EXPTDATA:
             return QModelIndex()
