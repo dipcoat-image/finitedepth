@@ -14,6 +14,7 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
+autodoc_mock_imports = ["PySide6"]
 
 # -- Project information -----------------------------------------------------
 
@@ -34,8 +35,11 @@ extensions = [
     "numpydoc",
 ]
 
-numpydoc_show_class_members = False
-numpydoc_use_plots = True
+autodoc_member_order = "bysource"
+
+autodoc_default_options = {
+    "show-inheritance": True,
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = []  # type: ignore
