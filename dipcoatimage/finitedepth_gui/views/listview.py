@@ -96,7 +96,7 @@ class ExperimentListView(QWidget):
 
         self._listView.setItemDelegate(ExperimentNameDelegate())
         self._listView.setSelectionMode(QListView.ExtendedSelection)
-        self._listView.activated.connect(self.onIndexActivated)
+        self._listView.activated.connect(self._onIndexActivated)
         self._addButton.clicked.connect(self.appendNewRow)
         copyAction.triggered.connect(self.copySelectedRows)
         self._deleteButton.clicked.connect(self.deleteSelectedRows)
@@ -154,8 +154,7 @@ class ExperimentListView(QWidget):
             for i in reversed(sorted(rows)):
                 model.removeRow(i)
 
-    @Slot(QModelIndex)
-    def onIndexActivated(self, index: QModelIndex):
+    def _onIndexActivated(self, index: QModelIndex):
         model = self.model()
         if model is not None:
             model.setActivatedIndex(index)
