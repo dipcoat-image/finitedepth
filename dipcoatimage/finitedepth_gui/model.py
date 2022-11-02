@@ -11,6 +11,7 @@ from dipcoatimage.finitedepth import (
     ExperimentData,
     SubstrateReferenceBase,
     SubstrateBase,
+    CoatingLayerBase,
     ExperimentBase,
 )
 from dipcoatimage.finitedepth.util import Importer
@@ -158,8 +159,13 @@ class IndexRole(enum.Enum):
     SUBST_PARAMETERS = 16
     SUBST_DRAWOPTIONS = 17
 
-    EXPT_TYPE = 18
-    EXPT_PARAMETERS = 19
+    LAYER_TYPE = 18
+    LAYER_PARAMETERS = 19
+    LAYER_DRAWOPTIONS = 20
+    LAYER_DECOOPTIONS = 21
+
+    EXPT_TYPE = 22
+    EXPT_PARAMETERS = 23
 
 
 class ExperimentDataModel(QAbstractItemModel):
@@ -192,6 +198,10 @@ class ExperimentDataModel(QAbstractItemModel):
             * SUBST_PARAMETERS
             * SUBST_DRAWOPTIONS
         * LAYERARGS
+            * LAYER_TYPE
+            * LAYER_PARAMETERS
+            * LAYER_DRAWOPTIONS
+            * LAYER_DECOOPTIONS
         * EXPTARGS
             * EXPT_TYPE
             * EXPT_PARAMETERS
@@ -215,7 +225,6 @@ class ExperimentDataModel(QAbstractItemModel):
 
     Role_RefPath = Qt.DisplayRole
     Role_CoatPath = Qt.DisplayRole
-    Role_LayerArgs = Qt.UserRole
     Role_AnalysisArgs = Qt.UserRole
 
     Role_ImportArgs = Qt.UserRole
@@ -240,6 +249,11 @@ class ExperimentDataModel(QAbstractItemModel):
     Row_SubstType = 0
     Row_SubstParameters = 1
     Row_SubstDrawOptions = 2
+
+    Row_LayerType = 0
+    Row_LayerParameters = 1
+    Row_LayerDrawOptions = 2
+    Row_LayerDecoOptions = 3
 
     Row_ExptType = 0
     Row_ExptParameters = 1
@@ -308,8 +322,24 @@ class ExperimentDataModel(QAbstractItemModel):
 
         layerArgs = exptData.coatinglayer
         layerArgsItem = ExperimentDataItem()
-        layerArgsItem.setData(cls.Role_LayerArgs, layerArgs)
         layerArgsItem.setParent(item)
+        layerTypeItem = ExperimentDataItem()
+        layerTypeItem.setData(cls.Role_ImportArgs, layerArgs.type)
+        layerTypeItem.setParent(layerArgsItem)
+        layerType, _ = Importer(layerArgs.type.name, layerArgs.type.module).try_import()
+        layerParametersItem = ExperimentDataItem()
+        layerDrawOptionsItem = ExperimentDataItem()
+        layerDecoOptionsItem = ExperimentDataItem()
+        if isinstance(layerType, type) and issubclass(layerType, CoatingLayerBase):
+            layerParametersItem.setData(cls.Role_DataclassType, layerType.Parameters)
+            layerDrawOptionsItem.setData(cls.Role_DataclassType, layerType.DrawOptions)
+            layerDecoOptionsItem.setData(cls.Role_DataclassType, layerType.DecoOptions)
+        layerParametersItem.setData(cls.Role_DataclassData, layerArgs.parameters)
+        layerParametersItem.setParent(layerArgsItem)
+        layerDrawOptionsItem.setData(cls.Role_DataclassData, layerArgs.draw_options)
+        layerDrawOptionsItem.setParent(layerArgsItem)
+        layerDecoOptionsItem.setData(cls.Role_DataclassData, layerArgs.deco_options)
+        layerDecoOptionsItem.setParent(layerArgsItem)
 
         exptArgs = exptData.experiment
         exptArgsItem = ExperimentDataItem()
@@ -586,6 +616,16 @@ class ExperimentDataModel(QAbstractItemModel):
             if row == cls.Row_SubstDrawOptions:
                 return IndexRole.SUBST_DRAWOPTIONS
 
+        if parentRole == IndexRole.LAYERARGS:
+            if row == cls.Row_LayerType:
+                return IndexRole.LAYER_TYPE
+            if row == cls.Row_LayerParameters:
+                return IndexRole.LAYER_PARAMETERS
+            if row == cls.Row_LayerDrawOptions:
+                return IndexRole.LAYER_DRAWOPTIONS
+            if row == cls.Row_LayerDecoOptions:
+                return IndexRole.LAYER_DECOOPTIONS
+
         if parentRole == IndexRole.EXPTARGS:
             if row == cls.Row_ExptType:
                 return IndexRole.EXPT_TYPE
@@ -637,6 +677,16 @@ class ExperimentDataModel(QAbstractItemModel):
                 return self.index(self.Row_SubstParameters, 0, parent)
             if indexRole == IndexRole.SUBST_DRAWOPTIONS:
                 return self.index(self.Row_SubstDrawOptions, 0, parent)
+
+        if parentRole == IndexRole.LAYERARGS:
+            if indexRole == IndexRole.LAYER_TYPE:
+                return self.index(self.Row_LayerType, 0, parent)
+            if indexRole == IndexRole.LAYER_PARAMETERS:
+                return self.index(self.Row_LayerParameters, 0, parent)
+            if indexRole == IndexRole.LAYER_DRAWOPTIONS:
+                return self.index(self.Row_LayerDrawOptions, 0, parent)
+            if indexRole == IndexRole.LAYER_DECOOPTIONS:
+                return self.index(self.Row_LayerDecoOptions, 0, parent)
 
         if parentRole == IndexRole.EXPTARGS:
             if indexRole == IndexRole.EXPT_TYPE:

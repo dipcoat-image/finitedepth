@@ -342,9 +342,7 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
                 model.setData(drawOptIndex, drawOptType, role=self.TypeRole)
 
                 # set dataclasses data to model
-                self.setModelData(
-                    editor.currentParametersWidget(), model, paramIndex
-                )
+                self.setModelData(editor.currentParametersWidget(), model, paramIndex)
                 self.setModelData(
                     editor.currentDrawOptionsWidget(), model, drawOptIndex
                 )

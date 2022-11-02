@@ -71,12 +71,8 @@ class SubstrateView(QWidget):
         self._substArgsMapper = QDataWidgetMapper()
 
         self._importView.editingFinished.connect(self._substArgsMapper.submit)
-        self._paramStackWidget.currentDataEdited.connect(
-            self._substArgsMapper.submit
-        )
-        self._drawOptStackWidget.currentDataEdited.connect(
-            self._substArgsMapper.submit
-        )
+        self._paramStackWidget.currentDataEdited.connect(self._substArgsMapper.submit)
+        self._drawOptStackWidget.currentDataEdited.connect(self._substArgsMapper.submit)
         self._substArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._substArgsMapper.setItemDelegate(SubstrateArgsDelegate())
 
@@ -205,9 +201,7 @@ class SubstrateArgsDelegate(dawiq.DataclassDelegate):
                 model.setData(drawOptIndex, drawOptType, role=self.TypeRole)
 
                 # set dataclasses data to model
-                self.setModelData(
-                    editor.currentParametersWidget(), model, paramIndex
-                )
+                self.setModelData(editor.currentParametersWidget(), model, paramIndex)
                 self.setModelData(
                     editor.currentDrawOptionsWidget(), model, drawOptIndex
                 )
