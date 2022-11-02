@@ -9,6 +9,7 @@ import copy
 import enum
 from dipcoatimage.finitedepth import (
     ExperimentData,
+    SubstrateReferenceBase,
     ExperimentBase,
 )
 from dipcoatimage.finitedepth.util import Importer
@@ -138,15 +139,22 @@ class IndexRole(enum.Enum):
     EXPTDATA = 1
     REFPATH = 2
     COATPATHS = 3
-    COATPATH = 4
-    REFARGS = 5
-    SUBSTARGS = 6
-    LAYERARGS = 7
-    EXPTARGS = 8
-    ANALYSISARGS = 9
+    REFARGS = 4
+    SUBSTARGS = 5
+    LAYERARGS = 6
+    EXPTARGS = 7
+    ANALYSISARGS = 8
 
-    EXPT_TYPE = 10
-    EXPT_PARAMETERS = 11
+    COATPATH = 9
+
+    REF_TYPE = 10
+    REF_TEMPLATEROI = 11
+    REF_SUBSTRATEROI = 12
+    REF_PARAMETERS = 13
+    REF_DRAWOPTIONS = 14
+
+    EXPT_TYPE = 15
+    EXPT_PARAMETERS = 16
 
 
 class ExperimentDataModel(QAbstractItemModel):
@@ -169,6 +177,11 @@ class ExperimentDataModel(QAbstractItemModel):
         * COATPATHS
             * COATPATH (can be inserted/removed)
         * REFARGS
+            * REF_TYPE
+            * REF_TEMPLATEROI
+            * REF_SUBSTRATEROI
+            * REF_PARAMETERS
+            * REF_DRAWOPTIONS
         * SUBSTARGS
         * LAYERARGS
         * EXPTARGS
@@ -194,7 +207,6 @@ class ExperimentDataModel(QAbstractItemModel):
 
     Role_RefPath = Qt.DisplayRole
     Role_CoatPath = Qt.DisplayRole
-    Role_RefArgs = Qt.UserRole
     Role_SubstArgs = Qt.UserRole
     Role_LayerArgs = Qt.UserRole
     Role_AnalysisArgs = Qt.UserRole
@@ -202,6 +214,7 @@ class ExperimentDataModel(QAbstractItemModel):
     Role_ImportArgs = Qt.UserRole
     Role_DataclassType = Qt.UserRole
     Role_DataclassData = Qt.UserRole + 1  # type: ignore[operator]
+    Role_ROI = Qt.UserRole
 
     Row_RefPath = 0
     Row_CoatPaths = 1
@@ -210,6 +223,12 @@ class ExperimentDataModel(QAbstractItemModel):
     Row_LayerArgs = 4
     Row_ExptArgs = 5
     Row_AnalysisArgs = 6
+
+    Row_RefType = 0
+    Row_RefTemplateROI = 1
+    Row_RefSubstrateROI = 2
+    Row_Parameters = 3
+    Row_DrawOptions = 4
 
     Row_ExptType = 0
     Row_ExptParameters = 1
@@ -238,8 +257,26 @@ class ExperimentDataModel(QAbstractItemModel):
 
         refArgs = exptData.reference
         refArgsItem = ExperimentDataItem()
-        refArgsItem.setData(cls.Role_RefArgs, refArgs)
         refArgsItem.setParent(item)
+        refTypeItem = ExperimentDataItem()
+        refTypeItem.setData(cls.Role_ImportArgs, refArgs.type)
+        refTypeItem.setParent(refArgsItem)
+        templateROIItem = ExperimentDataItem()
+        templateROIItem.setData(cls.Role_ROI, refArgs.templateROI)
+        templateROIItem.setParent(refArgsItem)
+        substrateROIItem = ExperimentDataItem()
+        substrateROIItem.setData(cls.Role_ROI, refArgs.substrateROI)
+        substrateROIItem.setParent(refArgsItem)
+        refType, _ = Importer(refArgs.type.name, refArgs.type.module).try_import()
+        refParametersItem = ExperimentDataItem()
+        refDrawOptionsItem = ExperimentDataItem()
+        if isinstance(refType, type) and issubclass(refType, SubstrateReferenceBase):
+            refParametersItem.setData(cls.Role_DataclassType, refType.Parameters)
+            refDrawOptionsItem.setData(cls.Role_DataclassType, refType.DrawOptions)
+        refParametersItem.setData(cls.Role_DataclassData, refArgs.parameters)
+        refParametersItem.setParent(refArgsItem)
+        refDrawOptionsItem.setData(cls.Role_DataclassData, refArgs.draw_options)
+        refDrawOptionsItem.setParent(refArgsItem)
 
         substArgs = exptData.substrate
         substArgsItem = ExperimentDataItem()
@@ -257,8 +294,8 @@ class ExperimentDataModel(QAbstractItemModel):
         exptTypeItem = ExperimentDataItem()
         exptTypeItem.setData(cls.Role_ImportArgs, exptArgs.type)
         exptTypeItem.setParent(exptArgsItem)
-        exptParametersItem = ExperimentDataItem()
         exptType, _ = Importer(exptArgs.type.name, exptArgs.type.module).try_import()
+        exptParametersItem = ExperimentDataItem()
         if isinstance(exptType, type) and issubclass(exptType, ExperimentBase):
             exptParametersItem.setData(cls.Role_DataclassType, exptType.Parameters)
         exptParametersItem.setData(cls.Role_DataclassData, exptArgs.parameters)
@@ -506,6 +543,18 @@ class ExperimentDataModel(QAbstractItemModel):
         if parentRole == IndexRole.COATPATHS:
             return IndexRole.COATPATH
 
+        if parentRole == IndexRole.REFARGS:
+            if row == cls.Row_RefType:
+                return IndexRole.REF_TYPE
+            if row == cls.Row_RefTemplateROI:
+                return IndexRole.REF_TEMPLATEROI
+            if row == cls.Row_RefSubstrateROI:
+                return IndexRole.REF_SUBSTRATEROI
+            if row == cls.Row_Parameters:
+                return IndexRole.REF_PARAMETERS
+            if row == cls.Row_DrawOptions:
+                return IndexRole.REF_DRAWOPTIONS
+
         if parentRole == IndexRole.EXPTARGS:
             if row == cls.Row_ExptType:
                 return IndexRole.EXPT_TYPE
@@ -537,6 +586,18 @@ class ExperimentDataModel(QAbstractItemModel):
                 return self.index(self.Row_ExptArgs, 0, parent)
             if indexRole == IndexRole.ANALYSISARGS:
                 return self.index(self.Row_AnalysisArgs, 0, parent)
+
+        if parentRole == IndexRole.REFARGS:
+            if indexRole == IndexRole.REF_TYPE:
+                return self.index(self.Row_RefType, 0, parent)
+            if indexRole == IndexRole.REF_TEMPLATEROI:
+                return self.index(self.Row_RefTemplateROI, 0, parent)
+            if indexRole == IndexRole.REF_SUBSTRATEROI:
+                return self.index(self.Row_RefSubstrateROI, 0, parent)
+            if indexRole == IndexRole.REF_PARAMETERS:
+                return self.index(self.Row_Parameters, 0, parent)
+            if indexRole == IndexRole.REF_DRAWOPTIONS:
+                return self.index(self.Row_DrawOptions, 0, parent)
 
         if parentRole == IndexRole.EXPTARGS:
             if indexRole == IndexRole.EXPT_TYPE:

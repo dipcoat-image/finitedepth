@@ -212,7 +212,7 @@ class ExperimentArgsDelegate(dawiq.DataclassDelegate):
                     role=model.Role_ImportArgs,
                 )
 
-                # set experiment parameters type to model
+                # set dataclass type to model
                 paramIndex = model.getIndexFor(IndexRole.EXPT_PARAMETERS, index)
                 exptType, _ = Importer(importArgs.name, importArgs.module).try_import()
                 if isinstance(exptType, type) and issubclass(exptType, ExperimentBase):
@@ -221,7 +221,7 @@ class ExperimentArgsDelegate(dawiq.DataclassDelegate):
                     paramType = None
                 model.setData(paramIndex, paramType, role=self.TypeRole)
 
-                # set experiment parameters data to model
+                # set dataclass data to model
                 self.setModelData(editor.currentParametersWidget(), model, paramIndex)
 
         super().setModelData(editor, model, index)
@@ -239,7 +239,7 @@ class ExperimentArgsDelegate(dawiq.DataclassDelegate):
                 editor.setTypeName(importArgs.name)
                 editor.setModuleName(importArgs.module)
 
-                # set parameters type and data to editor
+                # set dataclass type and data to editor
                 self.setEditorData(
                     editor.parametersStackedWidget(),
                     model.getIndexFor(IndexRole.EXPT_PARAMETERS, index),
