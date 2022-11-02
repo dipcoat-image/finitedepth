@@ -6,7 +6,7 @@ V2 for controlwidgets/exptwidget.py
 """
 
 import dawiq
-from PySide6.QtCore import Qt, Slot, QModelIndex
+from PySide6.QtCore import Slot, QModelIndex
 from PySide6.QtWidgets import (
     QWidget,
     QLineEdit,
@@ -66,24 +66,24 @@ class ExperimentView(QWidget):
         super().__init__(parent)
 
         self._model = None
+
         self._nameLineEdit = QLineEdit()
-        self._nameMapper = QDataWidgetMapper()
         self._importView = ImportDataView()
         self._pathsListView = QListView()
         self._addButton = QPushButton("Add")
         self._deleteButton = QPushButton("Delete")
         self._paramStackWidget = dawiq.DataclassStackedWidget()
+
+        self._nameMapper = QDataWidgetMapper()
         self._exptArgsMapper = QDataWidgetMapper()
 
+        self._importView.editingFinished.connect(self._exptArgsMapper.submit)
         self._pathsListView.setSelectionMode(QListView.ExtendedSelection)
         self._pathsListView.setEditTriggers(QListView.SelectedClicked)
         self._addButton.clicked.connect(self.appendNewPath)
         self._deleteButton.clicked.connect(self.deleteSelectedPaths)
+        self._paramStackWidget.currentDataEdited.connect(self._exptArgsMapper.submit)
         self._exptArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
-        self._importView.editingFinished.connect(self._exptArgsMapper.submit)
-        self._paramStackWidget.currentDataValueChanged.connect(
-            self._exptArgsMapper.submit
-        )
         self._exptArgsMapper.setItemDelegate(ExperimentArgsDelegate())
 
         self._nameLineEdit.setPlaceholderText("Experiment name")
@@ -139,12 +139,12 @@ class ExperimentView(QWidget):
     def appendNewPath(self):
         model = self._pathsListView.model()
         parent = self._pathsListView.rootIndex()
-        if model is not None and parent.isValid():
+        if isinstance(model, ExperimentDataModel) and parent.isValid():
             rowNum = model.rowCount(parent)
             success = model.insertRow(rowNum, parent)
             if success:
                 index = model.index(rowNum, 0, parent)
-                model.setData(index, "New path", role=Qt.DisplayRole)
+                model.setData(index, "New path", role=model.Role_CoatPath)
 
     @Slot()
     def deleteSelectedPaths(self):
@@ -185,7 +185,7 @@ class ExperimentView(QWidget):
             self._importView.clear()
             self._nameMapper.setCurrentModelIndex(QModelIndex())
             self._pathsListView.setModel(None)
-            self._paramStackWidget.setCurrentIndex(0)
+            self.setCurrentParametersIndex(0)
             self._exptArgsMapper.setCurrentModelIndex(QModelIndex())
 
 
@@ -194,41 +194,54 @@ class ExperimentArgsDelegate(dawiq.DataclassDelegate):
         return False
 
     def setModelData(self, editor, model, index):
-        if isinstance(editor, ExperimentView):
+        if isinstance(editor, ExperimentView) and isinstance(
+            model, ExperimentDataModel
+        ):
             importArgs = ImportArgs(editor.typeName(), editor.moduleName())
             paramWidget = editor.currentParametersWidget()
             if isinstance(paramWidget, dawiq.DataWidget):
                 parameters = paramWidget.dataValue()
             else:
                 parameters = {}
+
             typeVar, _ = Importer(importArgs.name, importArgs.module).try_import()
             if isinstance(typeVar, type) and issubclass(typeVar, ExperimentBase):
-                paramType = typeVar.Parameters
                 parameters = dawiq.convertFromQt(
-                    paramType, parameters, self.ignoreMissing()
+                    typeVar.Parameters, parameters, self.ignoreMissing()
                 )
+
             exptArgs = ExperimentArgs(importArgs, parameters)
-            model.setData(index, exptArgs, Qt.UserRole)
+            model.setData(index, exptArgs, model.Role_ExptArgs)
         super().setModelData(editor, model, index)
 
     def setEditorData(self, editor, index):
-        data = index.data(Qt.UserRole)
-        if isinstance(editor, ExperimentView) and isinstance(data, ExperimentArgs):
-            editor.setTypeName(data.type.name)
-            editor.setModuleName(data.type.module)
+        model = index.model()
+        if isinstance(model, ExperimentDataModel):
+            data = index.data(model.Role_ExptArgs)
+            if isinstance(editor, ExperimentView) and isinstance(data, ExperimentArgs):
+                editor.setTypeName(data.type.name)
+                editor.setModuleName(data.type.module)
 
-            typeVar, _ = Importer(data.type.name, data.type.module).try_import()
-            if isinstance(typeVar, type) and issubclass(typeVar, ExperimentBase):
-                paramType = typeVar.Parameters
-                paramIdx = editor.indexOfParameterType(paramType)
-                if paramIdx == -1:
-                    paramIdx = editor.addParameterType(paramType)
-                editor.setCurrentParametersIndex(paramIdx)
-                self.setEditorDataclassData(
-                    editor.currentParametersWidget(),
-                    paramType,
-                    data.parameters,
-                )
-            else:
-                editor.setCurrentParametersIndex(0)
+                typeVar, _ = Importer(data.type.name, data.type.module).try_import()
+                if isinstance(typeVar, type) and issubclass(typeVar, ExperimentBase):
+                    paramType = typeVar.Parameters
+                    paramIdx = editor.indexOfParameterType(paramType)
+                    if paramIdx == -1:
+                        paramIdx = editor.addParameterType(paramType)
+                    editor.setCurrentParametersIndex(paramIdx)
+
+                    params = data.parameters
+                    if params is None:
+                        params = {}
+                    if paramType is not None:
+                        params = dawiq.convertToQt(
+                            paramType, params, self.ignoreMissing()
+                        )
+                        editor.currentParametersWidget().setDataValue(params)
+                        dawiq.highlightEmptyField(
+                            editor.currentParametersWidget(), paramType
+                        )
+
+                else:
+                    editor.setCurrentParametersIndex(0)
         super().setEditorData(editor, index)
