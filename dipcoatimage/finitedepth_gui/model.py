@@ -10,6 +10,7 @@ import enum
 from dipcoatimage.finitedepth import (
     ExperimentData,
     SubstrateReferenceBase,
+    SubstrateBase,
     ExperimentBase,
 )
 from dipcoatimage.finitedepth.util import Importer
@@ -153,8 +154,12 @@ class IndexRole(enum.Enum):
     REF_PARAMETERS = 13
     REF_DRAWOPTIONS = 14
 
-    EXPT_TYPE = 15
-    EXPT_PARAMETERS = 16
+    SUBST_TYPE = 15
+    SUBST_PARAMETERS = 16
+    SUBST_DRAWOPTIONS = 17
+
+    EXPT_TYPE = 18
+    EXPT_PARAMETERS = 19
 
 
 class ExperimentDataModel(QAbstractItemModel):
@@ -183,6 +188,9 @@ class ExperimentDataModel(QAbstractItemModel):
             * REF_PARAMETERS
             * REF_DRAWOPTIONS
         * SUBSTARGS
+            * SUBST_TYPE
+            * SUBST_PARAMETERS
+            * SUBST_DRAWOPTIONS
         * LAYERARGS
         * EXPTARGS
             * EXPT_TYPE
@@ -207,7 +215,6 @@ class ExperimentDataModel(QAbstractItemModel):
 
     Role_RefPath = Qt.DisplayRole
     Role_CoatPath = Qt.DisplayRole
-    Role_SubstArgs = Qt.UserRole
     Role_LayerArgs = Qt.UserRole
     Role_AnalysisArgs = Qt.UserRole
 
@@ -227,8 +234,12 @@ class ExperimentDataModel(QAbstractItemModel):
     Row_RefType = 0
     Row_RefTemplateROI = 1
     Row_RefSubstrateROI = 2
-    Row_Parameters = 3
-    Row_DrawOptions = 4
+    Row_RefParameters = 3
+    Row_RefDrawOptions = 4
+
+    Row_SubstType = 0
+    Row_SubstParameters = 1
+    Row_SubstDrawOptions = 2
 
     Row_ExptType = 0
     Row_ExptParameters = 1
@@ -280,8 +291,20 @@ class ExperimentDataModel(QAbstractItemModel):
 
         substArgs = exptData.substrate
         substArgsItem = ExperimentDataItem()
-        substArgsItem.setData(cls.Role_SubstArgs, substArgs)
         substArgsItem.setParent(item)
+        substTypeItem = ExperimentDataItem()
+        substTypeItem.setData(cls.Role_ImportArgs, substArgs.type)
+        substTypeItem.setParent(substArgsItem)
+        substType, _ = Importer(substArgs.type.name, substArgs.type.module).try_import()
+        substParametersItem = ExperimentDataItem()
+        substDrawOptionsItem = ExperimentDataItem()
+        if isinstance(substType, type) and issubclass(substType, SubstrateBase):
+            substParametersItem.setData(cls.Role_DataclassType, substType.Parameters)
+            substDrawOptionsItem.setData(cls.Role_DataclassType, substType.DrawOptions)
+        substParametersItem.setData(cls.Role_DataclassData, substArgs.parameters)
+        substParametersItem.setParent(substArgsItem)
+        substDrawOptionsItem.setData(cls.Role_DataclassData, substArgs.draw_options)
+        substDrawOptionsItem.setParent(substArgsItem)
 
         layerArgs = exptData.coatinglayer
         layerArgsItem = ExperimentDataItem()
@@ -550,10 +573,18 @@ class ExperimentDataModel(QAbstractItemModel):
                 return IndexRole.REF_TEMPLATEROI
             if row == cls.Row_RefSubstrateROI:
                 return IndexRole.REF_SUBSTRATEROI
-            if row == cls.Row_Parameters:
+            if row == cls.Row_RefParameters:
                 return IndexRole.REF_PARAMETERS
-            if row == cls.Row_DrawOptions:
+            if row == cls.Row_RefDrawOptions:
                 return IndexRole.REF_DRAWOPTIONS
+
+        if parentRole == IndexRole.SUBSTARGS:
+            if row == cls.Row_SubstType:
+                return IndexRole.SUBST_TYPE
+            if row == cls.Row_SubstParameters:
+                return IndexRole.SUBST_PARAMETERS
+            if row == cls.Row_SubstDrawOptions:
+                return IndexRole.SUBST_DRAWOPTIONS
 
         if parentRole == IndexRole.EXPTARGS:
             if row == cls.Row_ExptType:
@@ -595,9 +626,17 @@ class ExperimentDataModel(QAbstractItemModel):
             if indexRole == IndexRole.REF_SUBSTRATEROI:
                 return self.index(self.Row_RefSubstrateROI, 0, parent)
             if indexRole == IndexRole.REF_PARAMETERS:
-                return self.index(self.Row_Parameters, 0, parent)
+                return self.index(self.Row_RefParameters, 0, parent)
             if indexRole == IndexRole.REF_DRAWOPTIONS:
-                return self.index(self.Row_DrawOptions, 0, parent)
+                return self.index(self.Row_RefDrawOptions, 0, parent)
+
+        if parentRole == IndexRole.SUBSTARGS:
+            if indexRole == IndexRole.SUBST_TYPE:
+                return self.index(self.Row_SubstType, 0, parent)
+            if indexRole == IndexRole.SUBST_PARAMETERS:
+                return self.index(self.Row_SubstParameters, 0, parent)
+            if indexRole == IndexRole.SUBST_DRAWOPTIONS:
+                return self.index(self.Row_SubstDrawOptions, 0, parent)
 
         if parentRole == IndexRole.EXPTARGS:
             if indexRole == IndexRole.EXPT_TYPE:
