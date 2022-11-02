@@ -5,6 +5,7 @@ Experiment view
 V2 for controlwidgets/exptwidget.py
 """
 
+import dataclasses
 import dawiq
 from PySide6.QtCore import Slot, QModelIndex
 from PySide6.QtWidgets import (
@@ -160,10 +161,10 @@ class ExperimentView(QWidget):
     def currentParametersWidget(self) -> Union[dawiq.DataWidget, QGroupBox]:
         return self._paramStackWidget.currentWidget()
 
-    def indexOfParameterType(self, paramType: Type[DataclassProtocol]) -> int:
+    def indexOfParametersType(self, paramType: Type[DataclassProtocol]) -> int:
         return self._paramStackWidget.indexOfDataclass(paramType)
 
-    def addParameterType(self, paramType: Type[DataclassProtocol]) -> int:
+    def addParametersType(self, paramType: Type[DataclassProtocol]) -> int:
         widget = dawiq.dataclass2Widget(paramType)
         widget.setTitle("Parameters")
         index = self._paramStackWidget.addDataWidget(widget, paramType)
@@ -238,6 +239,14 @@ class ExperimentArgsDelegate(dawiq.DataclassDelegate):
                 )
                 editor.setTypeName(importArgs.name)
                 editor.setModuleName(importArgs.module)
+
+                # add data widget if absent
+                paramIndex = model.getIndexFor(IndexRole.EXPT_PARAMETERS, index)
+                paramType = model.data(paramIndex, role=self.TypeRole)
+                if isinstance(paramType, type) and dataclasses.is_dataclass(paramType):
+                    paramIdx = editor.indexOfParametersType(paramType)
+                    if paramIdx == -1:
+                        editor.addParametersType(paramType)
 
                 # set dataclass type and data to editor
                 self.setEditorData(

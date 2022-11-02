@@ -375,6 +375,7 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
                 )
                 editor.setSubstrateROI(substrateROI)
 
+                # add data widget if absent
                 paramIndex = model.getIndexFor(IndexRole.REF_PARAMETERS, index)
                 paramType = model.data(paramIndex, role=self.TypeRole)
                 if isinstance(paramType, type) and dataclasses.is_dataclass(paramType):
