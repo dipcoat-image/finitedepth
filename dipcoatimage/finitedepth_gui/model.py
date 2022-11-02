@@ -7,7 +7,11 @@ V2 for inventory.py
 
 import copy
 import enum
-from dipcoatimage.finitedepth import ExperimentData
+from dipcoatimage.finitedepth import (
+    ExperimentData,
+    ExperimentBase,
+)
+from dipcoatimage.finitedepth.util import Importer
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
 from typing import Optional, Any, Union, Tuple
 
@@ -141,6 +145,9 @@ class IndexRole(enum.Enum):
     EXPTARGS = 8
     ANALYSISARGS = 9
 
+    EXPT_TYPE = 10
+    EXPT_PARAMETERS = 11
+
 
 class ExperimentDataModel(QAbstractItemModel):
     """
@@ -165,6 +172,8 @@ class ExperimentDataModel(QAbstractItemModel):
         * SUBSTARGS
         * LAYERARGS
         * EXPTARGS
+            * EXPT_TYPE
+            * EXPT_PARAMETERS
         * ANALYSISARGS
 
     Only the rows with :obj:`IndexRole.EXPTDATA` and :obj:`IndexRole.COATPATH`
@@ -188,8 +197,11 @@ class ExperimentDataModel(QAbstractItemModel):
     Role_RefArgs = Qt.UserRole
     Role_SubstArgs = Qt.UserRole
     Role_LayerArgs = Qt.UserRole
-    Role_ExptArgs = Qt.UserRole
     Role_AnalysisArgs = Qt.UserRole
+
+    Role_ImportArgs = Qt.UserRole
+    Role_DataclassType = Qt.UserRole
+    Role_DataclassData = Qt.UserRole + 1  # type: ignore[operator]
 
     Row_RefPath = 0
     Row_CoatPaths = 1
@@ -198,6 +210,9 @@ class ExperimentDataModel(QAbstractItemModel):
     Row_LayerArgs = 4
     Row_ExptArgs = 5
     Row_AnalysisArgs = 6
+
+    Row_ExptType = 0
+    Row_ExptParameters = 1
 
     activatedIndexChanged = Signal(QModelIndex)
 
@@ -215,11 +230,11 @@ class ExperimentDataModel(QAbstractItemModel):
         refPathItem.setParent(item)
 
         coatPathsItem = ExperimentDataItem()
+        coatPathsItem.setParent(item)
         for path in exptData.coat_paths:
             coatPathItem = ExperimentDataItem()
             coatPathItem.setData(cls.Role_CoatPath, path)
             coatPathItem.setParent(coatPathsItem)
-        coatPathsItem.setParent(item)
 
         refArgs = exptData.reference
         refArgsItem = ExperimentDataItem()
@@ -238,8 +253,16 @@ class ExperimentDataModel(QAbstractItemModel):
 
         exptArgs = exptData.experiment
         exptArgsItem = ExperimentDataItem()
-        exptArgsItem.setData(cls.Role_ExptArgs, exptArgs)
         exptArgsItem.setParent(item)
+        exptTypeItem = ExperimentDataItem()
+        exptTypeItem.setData(cls.Role_ImportArgs, exptArgs.type)
+        exptTypeItem.setParent(exptArgsItem)
+        exptParametersItem = ExperimentDataItem()
+        exptType, _ = Importer(exptArgs.type.name, exptArgs.type.module).try_import()
+        if isinstance(exptType, type) and issubclass(exptType, ExperimentBase):
+            exptParametersItem.setData(cls.Role_DataclassType, exptType.Parameters)
+        exptParametersItem.setData(cls.Role_DataclassData, exptArgs.parameters)
+        exptParametersItem.setParent(exptArgsItem)
 
         analysisArgs = exptData.analysis
         analysisArgsItem = ExperimentDataItem()
@@ -458,18 +481,13 @@ class ExperimentDataModel(QAbstractItemModel):
         """Return the role of *index* in the model."""
         if not isinstance(index.model(), cls):
             return IndexRole.UNKNOWN
-
-        indexLevel = -1
-        _index = index
-        while _index.isValid():
-            _index = _index.parent()
-            indexLevel += 1
-        row, col = index.row(), index.column()
-
-        if indexLevel == 0 and col == 0:
+        if not index.parent().isValid():
             return IndexRole.EXPTDATA
-        if indexLevel == 1 and col == 0:
-            row = index.row()
+
+        parentRole = cls.whatsThisIndex(index.parent())
+        row = index.row()
+
+        if parentRole == IndexRole.EXPTDATA:
             if row == cls.Row_RefPath:
                 return IndexRole.REFPATH
             if row == cls.Row_CoatPaths:
@@ -484,12 +502,16 @@ class ExperimentDataModel(QAbstractItemModel):
                 return IndexRole.EXPTARGS
             if row == cls.Row_AnalysisArgs:
                 return IndexRole.ANALYSISARGS
-        if (
-            indexLevel == 2
-            and col == 0
-            and cls.whatsThisIndex(index.parent()) is IndexRole.COATPATHS
-        ):
+
+        if parentRole == IndexRole.COATPATHS:
             return IndexRole.COATPATH
+
+        if parentRole == IndexRole.EXPTARGS:
+            if row == cls.Row_ExptType:
+                return IndexRole.EXPT_TYPE
+            if row == cls.Row_ExptParameters:
+                return IndexRole.EXPT_PARAMETERS
+
         return IndexRole.UNKNOWN
 
     def getIndexFor(self, indexRole: IndexRole, parent: QModelIndex) -> QModelIndex:
@@ -498,23 +520,28 @@ class ExperimentDataModel(QAbstractItemModel):
 
         If the index cannot be specified, returns an invalid index.
         """
-        if self.whatsThisIndex(parent) != IndexRole.EXPTDATA:
-            return QModelIndex()
+        parentRole = self.whatsThisIndex(parent)
 
-        if indexRole == IndexRole.EXPTDATA:
-            return parent
-        elif indexRole == IndexRole.REFPATH:
-            return self.index(self.Row_RefPath, 0, parent)
-        elif indexRole == IndexRole.COATPATHS:
-            return self.index(self.Row_CoatPaths, 0, parent)
-        elif indexRole == IndexRole.REFARGS:
-            return self.index(self.Row_RefArgs, 0, parent)
-        elif indexRole == IndexRole.SUBSTARGS:
-            return self.index(self.Row_SubstArgs, 0, parent)
-        elif indexRole == IndexRole.LAYERARGS:
-            return self.index(self.Row_LayerArgs, 0, parent)
-        elif indexRole == IndexRole.EXPTARGS:
-            return self.index(self.Row_ExptArgs, 0, parent)
-        elif indexRole == IndexRole.ANALYSISARGS:
-            return self.index(self.Row_AnalysisArgs, 0, parent)
+        if parentRole == IndexRole.EXPTDATA:
+            if indexRole == IndexRole.REFPATH:
+                return self.index(self.Row_RefPath, 0, parent)
+            if indexRole == IndexRole.COATPATHS:
+                return self.index(self.Row_CoatPaths, 0, parent)
+            if indexRole == IndexRole.REFARGS:
+                return self.index(self.Row_RefArgs, 0, parent)
+            if indexRole == IndexRole.SUBSTARGS:
+                return self.index(self.Row_SubstArgs, 0, parent)
+            if indexRole == IndexRole.LAYERARGS:
+                return self.index(self.Row_LayerArgs, 0, parent)
+            if indexRole == IndexRole.EXPTARGS:
+                return self.index(self.Row_ExptArgs, 0, parent)
+            if indexRole == IndexRole.ANALYSISARGS:
+                return self.index(self.Row_AnalysisArgs, 0, parent)
+
+        if parentRole == IndexRole.EXPTARGS:
+            if indexRole == IndexRole.EXPT_TYPE:
+                return self.index(self.Row_ExptType, 0, parent)
+            if indexRole == IndexRole.EXPT_PARAMETERS:
+                return self.index(self.Row_ExptParameters, 0, parent)
+
         return QModelIndex()

@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
 )
 from dipcoatimage.finitedepth import ExperimentBase
-from dipcoatimage.finitedepth.analysis import ImportArgs, ExperimentArgs
+from dipcoatimage.finitedepth.analysis import ImportArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
 from .importview import ImportDataView
@@ -154,6 +154,9 @@ class ExperimentView(QWidget):
             for i in reversed(sorted(rows)):
                 model.removeRow(i, self._pathsListView.rootIndex())
 
+    def parametersStackedWidget(self) -> dawiq.DataclassStackedWidget:
+        return self._paramStackWidget
+
     def currentParametersWidget(self) -> Union[dawiq.DataWidget, QGroupBox]:
         return self._paramStackWidget.currentWidget()
 
@@ -190,58 +193,56 @@ class ExperimentView(QWidget):
 
 
 class ExperimentArgsDelegate(dawiq.DataclassDelegate):
+
+    TypeRole = ExperimentDataModel.Role_DataclassType
+    DataRole = ExperimentDataModel.Role_DataclassData
+
     def ignoreMissing(self) -> bool:
         return False
 
     def setModelData(self, editor, model, index):
-        if isinstance(editor, ExperimentView) and isinstance(
-            model, ExperimentDataModel
-        ):
-            importArgs = ImportArgs(editor.typeName(), editor.moduleName())
-            paramWidget = editor.currentParametersWidget()
-            if isinstance(paramWidget, dawiq.DataWidget):
-                parameters = paramWidget.dataValue()
-            else:
-                parameters = {}
-
-            typeVar, _ = Importer(importArgs.name, importArgs.module).try_import()
-            if isinstance(typeVar, type) and issubclass(typeVar, ExperimentBase):
-                parameters = dawiq.convertFromQt(
-                    typeVar.Parameters, parameters, self.ignoreMissing()
+        if isinstance(model, ExperimentDataModel):
+            indexRole = model.whatsThisIndex(index)
+            if indexRole == IndexRole.EXPTARGS and isinstance(editor, ExperimentView):
+                # set ImportArgs for experiment type to model
+                importArgs = ImportArgs(editor.typeName(), editor.moduleName())
+                model.setData(
+                    model.getIndexFor(IndexRole.EXPT_TYPE, index),
+                    importArgs,
+                    role=model.Role_ImportArgs,
                 )
 
-            exptArgs = ExperimentArgs(importArgs, parameters)
-            model.setData(index, exptArgs, model.Role_ExptArgs)
+                # set experiment parameters type to model
+                paramIndex = model.getIndexFor(IndexRole.EXPT_PARAMETERS, index)
+                exptType, _ = Importer(importArgs.name, importArgs.module).try_import()
+                if isinstance(exptType, type) and issubclass(exptType, ExperimentBase):
+                    paramType = exptType.Parameters
+                else:
+                    paramType = None
+                model.setData(paramIndex, paramType, role=self.TypeRole)
+
+                # set experiment parameters data to model
+                self.setModelData(editor.currentParametersWidget(), model, paramIndex)
+
         super().setModelData(editor, model, index)
 
     def setEditorData(self, editor, index):
         model = index.model()
         if isinstance(model, ExperimentDataModel):
-            data = index.data(model.Role_ExptArgs)
-            if isinstance(editor, ExperimentView) and isinstance(data, ExperimentArgs):
-                editor.setTypeName(data.type.name)
-                editor.setModuleName(data.type.module)
+            indexRole = model.whatsThisIndex(index)
+            if indexRole == IndexRole.EXPTARGS and isinstance(editor, ExperimentView):
+                # set import args for experiment type to editor
+                importArgs = model.data(
+                    model.getIndexFor(IndexRole.EXPT_TYPE, index),
+                    role=model.Role_ImportArgs,
+                )
+                editor.setTypeName(importArgs.name)
+                editor.setModuleName(importArgs.module)
 
-                typeVar, _ = Importer(data.type.name, data.type.module).try_import()
-                if isinstance(typeVar, type) and issubclass(typeVar, ExperimentBase):
-                    paramType = typeVar.Parameters
-                    paramIdx = editor.indexOfParameterType(paramType)
-                    if paramIdx == -1:
-                        paramIdx = editor.addParameterType(paramType)
-                    editor.setCurrentParametersIndex(paramIdx)
+                # set parameters type and data to editor
+                self.setEditorData(
+                    editor.parametersStackedWidget(),
+                    model.getIndexFor(IndexRole.EXPT_PARAMETERS, index),
+                )
 
-                    params = data.parameters
-                    if params is None:
-                        params = {}
-                    if paramType is not None:
-                        params = dawiq.convertToQt(
-                            paramType, params, self.ignoreMissing()
-                        )
-                        editor.currentParametersWidget().setDataValue(params)
-                        dawiq.highlightEmptyField(
-                            editor.currentParametersWidget(), paramType
-                        )
-
-                else:
-                    editor.setCurrentParametersIndex(0)
         super().setEditorData(editor, index)
