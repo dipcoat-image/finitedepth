@@ -16,7 +16,6 @@ from dipcoatimage.finitedepth import (
 )
 from dipcoatimage.finitedepth.util import Importer
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
-from .qt_mock import TypeRole, DataRole
 from typing import Optional, Any, Union, Tuple
 
 
@@ -229,8 +228,8 @@ class ExperimentDataModel(QAbstractItemModel):
     Role_AnalysisArgs = Qt.ItemDataRole.UserRole
 
     Role_ImportArgs = Qt.ItemDataRole.UserRole
-    Role_DataclassType = TypeRole
-    Role_DataclassData = DataRole
+    Role_DataclassType = 256
+    Role_DataclassData = 257
     Role_ROI = Qt.ItemDataRole.UserRole
 
     Row_RefPath = 0
