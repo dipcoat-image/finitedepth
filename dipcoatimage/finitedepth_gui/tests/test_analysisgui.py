@@ -3,7 +3,7 @@ from dipcoatimage.finitedepth_gui import AnalysisGUI
 import pytest
 
 
-@pytest.mark.skip(reason="PySide6 6.4 breaks AnalysisGUI")
+@pytest.mark.skip(reason="PySide6 6.4 breaks this test")
 def test_issue65(qtbot):
     """Test that changing options does not stop video."""
     window = AnalysisGUI()

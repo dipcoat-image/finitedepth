@@ -211,7 +211,10 @@ class MainDisplayWindow(QMainWindow):
         if select == ClassSelection.ANALYSIS:
             select = ClassSelection.EXPERIMENT
         if select != self.selectedClass():
-            if self.videoPlayer().playbackState() == self.videoPlayer().PlayingState:
+            if (
+                self.videoPlayer().playbackState()
+                == self.videoPlayer().PlaybackState.PlayingState
+            ):
                 self.videoPlayer().pause()
             self._selectedClass = select
             self.updateControllerVisibility()
