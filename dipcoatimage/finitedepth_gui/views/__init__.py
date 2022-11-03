@@ -5,7 +5,7 @@ Experiment data view
 V2 for inventory.py and controlwidgets
 """
 
-from .listview import ExperimentNameDelegate, ExperimentListView
+from .exptlistview import ExperimentNameDelegate, ExperimentListView
 from .importview import ImportDataView
 from .roiview import ROISpinBox, ROIView
 from .exptview import ExperimentView, ExperimentArgsDelegate
