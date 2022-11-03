@@ -228,8 +228,8 @@ class ExperimentDataModel(QAbstractItemModel):
     Role_AnalysisArgs = Qt.ItemDataRole.UserRole
 
     Role_ImportArgs = Qt.ItemDataRole.UserRole
-    Role_DataclassType = 256
-    Role_DataclassData = 257
+    Role_DataclassType = Qt.ItemDataRole.UserRole
+    Role_DataclassData = Qt.ItemDataRole.UserRole + 1
     Role_ROI = Qt.ItemDataRole.UserRole
 
     Row_RefPath = 0
