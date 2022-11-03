@@ -5,6 +5,7 @@ Experiment data list view
 V2 for inventory.py
 """
 
+import enum
 from PySide6.QtCore import (
     QModelIndex,
     Qt,
@@ -20,48 +21,18 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QMenu,
     QSizePolicy,
+    QFileDialog,
 )
+from dipcoatimage.finitedepth import data_converter
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
-from typing import Optional
+from typing import Optional, List
 
 
 __all__ = [
-    "ExperimentNameDelegate",
     "ExperimentListView",
+    "ExperimentNameDelegate",
+    "DataFileTypeEnum",
 ]
-
-
-class ExperimentNameDelegate(QStyledItemDelegate):
-    """Delegate to mark activated experiment."""
-
-    ACTIVATED_INDENT = 10
-    ACTIVATED_MARKER_RADIUS = 2
-
-    def initStyleOption(self, option, index):
-        super().initStyleOption(option, index)
-        model = index.model()
-        if isinstance(model, ExperimentDataModel):
-            if index == model.activatedIndex():
-                option.font.setBold(True)
-                option.rect.adjust(self.ACTIVATED_INDENT, 0, 0, 0)
-
-    def paint(self, painter, option, index):
-        super().paint(painter, option, index)
-        model = index.model()
-        if isinstance(model, ExperimentDataModel):
-            if index == model.activatedIndex():
-                markerSpace = option.rect.adjusted(
-                    0, 0, -option.rect.width() + self.ACTIVATED_INDENT, 0
-                )
-                w, h = markerSpace.width(), markerSpace.height()
-                dx = w // 2 - self.ACTIVATED_MARKER_RADIUS
-                dy = h // 2 - self.ACTIVATED_MARKER_RADIUS
-                markerRect = markerSpace.adjusted(dx, dy, -dx, -dy)
-
-                painter.save()
-                painter.setBrush(Qt.black)
-                painter.drawEllipse(markerRect)
-                painter.restore()
 
 
 class ExperimentListView(QWidget):
@@ -93,6 +64,8 @@ class ExperimentListView(QWidget):
         self._addButton.setMenu(QMenu(self))
         copyAction = self._addButton.menu().addAction("Copy selected items")
         self._deleteButton = QPushButton()
+        self._importButton = QPushButton()
+        self._exportButton = QPushButton()
 
         self._listView.setItemDelegate(ExperimentNameDelegate())
         self._listView.setSelectionMode(QListView.ExtendedSelection)
@@ -100,6 +73,7 @@ class ExperimentListView(QWidget):
         self._addButton.clicked.connect(self.appendNewRow)
         copyAction.triggered.connect(self.copySelectedRows)
         self._deleteButton.clicked.connect(self.deleteSelectedRows)
+        self._importButton.clicked.connect(self.openImportDialog)
 
         self._addButton.setPopupMode(QToolButton.MenuButtonPopup)
         self._addButton.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
@@ -107,6 +81,8 @@ class ExperimentListView(QWidget):
 
         self._addButton.setText("Add")
         self._deleteButton.setText("Delete")
+        self._importButton.setText("Import")
+        self._exportButton.setText("Export")
 
         layout = QVBoxLayout()
         layout.addWidget(self._listView)
@@ -114,6 +90,8 @@ class ExperimentListView(QWidget):
         buttonLayout.addWidget(self._addButton)
         buttonLayout.addWidget(self._deleteButton)
         layout.addLayout(buttonLayout)
+        layout.addWidget(self._importButton)
+        layout.addWidget(self._exportButton)
         self.setLayout(layout)
 
     def model(self) -> Optional[ExperimentDataModel]:
@@ -158,3 +136,76 @@ class ExperimentListView(QWidget):
         model = self.model()
         if model is not None:
             model.setActivatedIndex(index)
+
+    @Slot()
+    def openImportDialog(self):
+        filters = ";;".join([e.value for e in DataFileTypeEnum])
+        fileNames, selectedFilter = QFileDialog.getOpenFileNames(
+            self,
+            "Select configuration files",
+            "./",
+            filters,
+            options=QFileDialog.Options.DontUseNativeDialog,
+        )
+        if fileNames:
+            self.importItems(fileNames, DataFileTypeEnum(selectedFilter))
+
+    def importItems(self, fileNames: List[str], selectedFilter: DataFileTypeEnum):
+        model = self.model()
+        if model is None:
+            return
+        for filename in fileNames:
+            with open(filename, "r") as f:
+                if selectedFilter == ConfigFileTypeEnum.JSON:
+                    dataDict = json.load(f)
+                elif selectedFilter == ConfigFileTypeEnum.YAML:
+                    dataDict = yaml.load(f, Loader=yaml.FullLoader)
+        ...
+
+
+class ExperimentNameDelegate(QStyledItemDelegate):
+    """Delegate to mark activated experiment."""
+
+    ACTIVATED_INDENT = 10
+    ACTIVATED_MARKER_RADIUS = 2
+
+    def initStyleOption(self, option, index):
+        super().initStyleOption(option, index)
+        model = index.model()
+        if isinstance(model, ExperimentDataModel):
+            if index == model.activatedIndex():
+                option.font.setBold(True)
+                option.rect.adjust(self.ACTIVATED_INDENT, 0, 0, 0)
+
+    def paint(self, painter, option, index):
+        super().paint(painter, option, index)
+        model = index.model()
+        if isinstance(model, ExperimentDataModel):
+            if index == model.activatedIndex():
+                markerSpace = option.rect.adjusted(
+                    0, 0, -option.rect.width() + self.ACTIVATED_INDENT, 0
+                )
+                w, h = markerSpace.width(), markerSpace.height()
+                dx = w // 2 - self.ACTIVATED_MARKER_RADIUS
+                dy = h // 2 - self.ACTIVATED_MARKER_RADIUS
+                markerRect = markerSpace.adjusted(dx, dy, -dx, -dy)
+
+                painter.save()
+                painter.setBrush(Qt.black)
+                painter.drawEllipse(markerRect)
+                painter.restore()
+
+
+class DataFileTypeEnum(enum.Enum):
+    """
+    Enum of supported file types for experiment data. Values are file filters.
+    """
+
+    JSON = "JSON (*.json)"
+    YAML = "YAML (*.yml)"
+
+    def asExtensions(self) -> List[str]:
+        s = self.value
+        patterns = s[s.find("(") + 1 : s.find(")")].split(" ")
+        exts = [p[p.find(".") + 1 :] for p in patterns]
+        return exts
