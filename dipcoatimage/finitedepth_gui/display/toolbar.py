@@ -238,9 +238,9 @@ class DisplayWidgetToolBar(QToolBar):
 
     @Slot(QMediaRecorder.RecorderState)
     def onRecorderStateChange(self, state: QMediaRecorder.RecorderState):
-        if state == QMediaRecorder.RecordingState:
+        if state == QMediaRecorder.RecorderState.RecordingState:
             self.recordButton().setChecked(True)
-            icon = self.style().standardIcon(QStyle.SP_MediaStop)
+            icon = self.style().standardIcon(QStyle.StandardPixmap.SP_MediaStop)
         else:
             self.recordButton().setChecked(False)
             icon = QIcon()

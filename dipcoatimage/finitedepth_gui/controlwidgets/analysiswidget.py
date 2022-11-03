@@ -27,7 +27,7 @@ class EmptyDoubleValidator(QDoubleValidator):
     def validate(self, input: str, pos: int) -> QDoubleValidator.State:
         ret = super().validate(input, pos)
         if not input:
-            ret = QDoubleValidator.Acceptable
+            ret = QDoubleValidator.State.Acceptable
         return ret  # type: ignore[return-value]
 
 

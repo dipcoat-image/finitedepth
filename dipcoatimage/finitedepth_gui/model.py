@@ -15,7 +15,6 @@ from dipcoatimage.finitedepth import (
     ExperimentBase,
 )
 from dipcoatimage.finitedepth.util import Importer
-from dipcoatimage.finitedepth_gui.qt_mock import TypeRole, DataRole
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
 from typing import Optional, Any, Union, Tuple
 
@@ -55,8 +54,8 @@ class ExperimentDataItem(object):
         """
         if isinstance(role, int):
             role = Qt.ItemDataRole(role)
-        if role == Qt.EditRole:
-            role = Qt.DisplayRole
+        if role == Qt.ItemDataRole.EditRole:
+            role = Qt.ItemDataRole.DisplayRole
         return self._data.get(role, None)
 
     def setData(self, role: Union[Qt.ItemDataRole, int], data: Any):
@@ -67,8 +66,8 @@ class ExperimentDataItem(object):
         """
         if isinstance(role, int):
             role = Qt.ItemDataRole(role)
-        if role == Qt.EditRole:
-            role = Qt.DisplayRole
+        if role == Qt.ItemDataRole.EditRole:
+            role = Qt.ItemDataRole.DisplayRole
         self._data[role] = data
 
     def columnCount(self) -> int:
@@ -224,14 +223,14 @@ class ExperimentDataModel(QAbstractItemModel):
 
     # https://stackoverflow.com/a/57129496/11501976
 
-    Role_RefPath = Qt.DisplayRole
-    Role_CoatPath = Qt.DisplayRole
-    Role_AnalysisArgs = Qt.UserRole
+    Role_RefPath = Qt.ItemDataRole.DisplayRole
+    Role_CoatPath = Qt.ItemDataRole.DisplayRole
+    Role_AnalysisArgs = Qt.ItemDataRole.UserRole
 
-    Role_ImportArgs = Qt.UserRole
-    Role_DataclassType = TypeRole
-    Role_DataclassData = DataRole
-    Role_ROI = Qt.UserRole
+    Role_ImportArgs = Qt.ItemDataRole.UserRole
+    Role_DataclassType = Qt.ItemDataRole.UserRole
+    Role_DataclassData = Qt.ItemDataRole.UserRole + 1
+    Role_ROI = Qt.ItemDataRole.UserRole
 
     Row_RefPath = 0
     Row_CoatPaths = 1
