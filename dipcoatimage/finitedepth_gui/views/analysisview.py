@@ -7,7 +7,7 @@ V2 for controlwidgets/analysiswidget.py
 
 import dawiq
 import os
-from PySide6.QtCore import Qt, Signal, Slot, QModelIndex
+from PySide6.QtCore import Signal, Slot, QModelIndex
 from PySide6.QtWidgets import (
     QWidget,
     QLineEdit,
@@ -65,6 +65,7 @@ class AnalysisView(QWidget):
         super().__init__(parent)
 
         self._model = None
+
         self._dataPathLineEdit = QLineEdit()
         self._dataExtComboBox = QComboBox()
         self._imgPathLineEdit = QLineEdit()
@@ -72,9 +73,10 @@ class AnalysisView(QWidget):
         self._vidPathLineEdit = QLineEdit()
         self._vidExtComboBox = QComboBox()
         self._fpsLineEdit = QLineEdit()
-        self._analyzeArgsMapper = QDataWidgetMapper()
         self._analyzeButton = QPushButton()
         self._progressBar = QProgressBar()
+
+        self._analyzeArgsMapper = QDataWidgetMapper()
 
         self._dataPathLineEdit.editingFinished.connect(self._analyzeArgsMapper.submit)
         for ext in Analyzer.data_writers.keys():
@@ -90,9 +92,9 @@ class AnalysisView(QWidget):
         self._vidExtComboBox.activated.connect(self._analyzeArgsMapper.submit)
         self._fpsLineEdit.editingFinished.connect(self._analyzeArgsMapper.submit)
         self._fpsLineEdit.setValidator(dawiq.EmptyFloatValidator())
+        self._analyzeButton.clicked.connect(self.analysisRequested)
         self._analyzeArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._analyzeArgsMapper.setItemDelegate(AnalysisArgsDelegate())
-        self._analyzeButton.clicked.connect(self.analysisRequested)
 
         self._dataPathLineEdit.setPlaceholderText("Data file path")
         self._dataPathLineEdit.setToolTip("Path for quantitative analysis result.")
@@ -199,52 +201,56 @@ class AnalysisView(QWidget):
 
 class AnalysisArgsDelegate(QStyledItemDelegate):
     def setModelData(self, editor, model, index):
-        if isinstance(editor, AnalysisView):
-            dataPathName = editor.dataPathName()
-            dataPathExt = editor.dataPathExtension()
-            if not dataPathName:
-                dataPath = ""
-            else:
-                dataPath = dataPathName + dataPathExt
+        if isinstance(model, ExperimentDataModel):
+            indexRole = model.whatsThisIndex(index)
+            if indexRole == IndexRole.ANALYSISARGS and isinstance(editor, AnalysisView):
+                dataPathName = editor.dataPathName()
+                dataPathExt = editor.dataPathExtension()
+                if not dataPathName:
+                    dataPath = ""
+                else:
+                    dataPath = dataPathName + dataPathExt
 
-            imgPathName = editor.imagePathName()
-            imgPathExt = editor.imagePathExtension()
-            if not imgPathName:
-                imgPath = ""
-            else:
-                imgPath = imgPathName + imgPathExt
+                imgPathName = editor.imagePathName()
+                imgPathExt = editor.imagePathExtension()
+                if not imgPathName:
+                    imgPath = ""
+                else:
+                    imgPath = imgPathName + imgPathExt
 
-            vidPathName = editor.videoPathName()
-            vidPathExt = editor.videoPathExtension()
-            if not vidPathName:
-                vidPath = ""
-            else:
-                vidPath = vidPathName + vidPathExt
+                vidPathName = editor.videoPathName()
+                vidPathExt = editor.videoPathExtension()
+                if not vidPathName:
+                    vidPath = ""
+                else:
+                    vidPath = vidPathName + vidPathExt
 
-            fps = editor.fps()
+                fps = editor.fps()
 
-            analysisArgs = AnalysisArgs(dataPath, imgPath, vidPath, fps)
-            model.setData(index, analysisArgs, Qt.UserRole)
+                analysisArgs = AnalysisArgs(dataPath, imgPath, vidPath, fps)
+                model.setData(index, analysisArgs, role=model.Role_AnalysisArgs)
 
         super().setModelData(editor, model, index)
 
     def setEditorData(self, editor, index):
-        data = index.data(Qt.UserRole)
-        if isinstance(editor, AnalysisView) and isinstance(data, AnalysisArgs):
-            analysisArgs = data
+        model = index.model()
+        if isinstance(model, ExperimentDataModel):
+            indexRole = model.whatsThisIndex(index)
+            if indexRole == IndexRole.ANALYSISARGS and isinstance(editor, AnalysisView):
+                analysisArgs = model.data(index, role=model.Role_AnalysisArgs)
 
-            dataPathName, dataPathExt = os.path.splitext(analysisArgs.data_path)
-            editor.setDataPathName(dataPathName)
-            editor.setDataPathExtension(dataPathExt)
+                dataPathName, dataPathExt = os.path.splitext(analysisArgs.data_path)
+                editor.setDataPathName(dataPathName)
+                editor.setDataPathExtension(dataPathExt)
 
-            imgPathName, imgPathExt = os.path.splitext(analysisArgs.image_path)
-            editor.setImagePathName(imgPathName)
-            editor.setImagePathExtension(imgPathExt)
+                imgPathName, imgPathExt = os.path.splitext(analysisArgs.image_path)
+                editor.setImagePathName(imgPathName)
+                editor.setImagePathExtension(imgPathExt)
 
-            vidPathName, vidPathExt = os.path.splitext(analysisArgs.video_path)
-            editor.setVideoPathName(vidPathName)
-            editor.setVideoPathExtension(vidPathExt)
+                vidPathName, vidPathExt = os.path.splitext(analysisArgs.video_path)
+                editor.setVideoPathName(vidPathName)
+                editor.setVideoPathExtension(vidPathExt)
 
-            editor.setFPS(analysisArgs.fps)
+                editor.setFPS(analysisArgs.fps)
 
-        super().setEditorData(editor, index)
+            super().setEditorData(editor, index)

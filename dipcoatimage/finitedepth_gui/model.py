@@ -7,7 +7,14 @@ V2 for inventory.py
 
 import copy
 import enum
-from dipcoatimage.finitedepth import ExperimentData
+from dipcoatimage.finitedepth import (
+    ExperimentData,
+    SubstrateReferenceBase,
+    SubstrateBase,
+    CoatingLayerBase,
+    ExperimentBase,
+)
+from dipcoatimage.finitedepth.util import Importer
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
 from typing import Optional, Any, Union, Tuple
 
@@ -24,7 +31,9 @@ class ExperimentDataItem(object):
     Internal data node for :class:`ExperimentDataModel` which represents tree
     structure with one column.
 
-    Data for the node can be get and set by :meth:`data` and :meth:`setData`.
+    Data for the node can be get and set by :meth:`data` and :meth:`setData` with
+    ``Qt.ItemDataRole``.
+
     Tree structure can be accessed by :meth:`child` and :meth:`parent`, which
     are modified by :meth:`setParent` and :meth:`remove`.
 
@@ -38,34 +47,48 @@ class ExperimentDataItem(object):
         self._parent = None
 
     def data(self, role: Union[Qt.ItemDataRole, int]) -> Any:
+        """
+        Get the data stored with *role*.
+
+        ``EditRole`` and ``DisplayRole`` are treated as identical keys.
+        """
         if isinstance(role, int):
             role = Qt.ItemDataRole(role)
-        if role == Qt.EditRole:
-            role = Qt.DisplayRole
+        if role == Qt.ItemDataRole.EditRole:
+            role = Qt.ItemDataRole.DisplayRole
         return self._data.get(role, None)
 
     def setData(self, role: Union[Qt.ItemDataRole, int], data: Any):
+        """
+        Set the data with *role*.
+
+        ``EditRole`` and ``DisplayRole`` are treated as identical keys.
+        """
         if isinstance(role, int):
             role = Qt.ItemDataRole(role)
-        if role == Qt.EditRole:
-            role = Qt.DisplayRole
+        if role == Qt.ItemDataRole.EditRole:
+            role = Qt.ItemDataRole.DisplayRole
         self._data[role] = data
 
     def columnCount(self) -> int:
+        """Get the number of sub-columns, which is always 1."""
         return 1
 
     def rowCount(self) -> int:
+        """Get the number of sub-rows, which is the number of children."""
         return len(self._children)
 
     def child(self, index: int) -> Optional["ExperimentDataItem"]:
-        """Get *index*-th subitem, or None if the index is invalid."""
+        """Get *index*-th subitem, or ``None`` if the index is invalid."""
         if len(self._children) > index:
             return self._children[index]
         return None
 
     def childIndex(self, child: "ExperimentDataItem") -> Tuple[int, int]:
         """
-        Return the row and the column (which is always 0) of *child* in *self*.
+        Return the row and the column of *child* in *self*.
+
+        Column value is always 0 because the tree structure is one-dimensional.
         """
         row = self._children.index(child)
         col = 0
@@ -118,42 +141,96 @@ class IndexRole(enum.Enum):
     EXPTDATA = 1
     REFPATH = 2
     COATPATHS = 3
-    COATPATH = 4
-    REFARGS = 5
-    SUBSTARGS = 6
-    LAYERARGS = 7
-    EXPTARGS = 8
-    ANALYSISARGS = 9
+    REFARGS = 4
+    SUBSTARGS = 5
+    LAYERARGS = 6
+    EXPTARGS = 7
+    ANALYSISARGS = 8
+
+    COATPATH = 9
+
+    REF_TYPE = 10
+    REF_TEMPLATEROI = 11
+    REF_SUBSTRATEROI = 12
+    REF_PARAMETERS = 13
+    REF_DRAWOPTIONS = 14
+
+    SUBST_TYPE = 15
+    SUBST_PARAMETERS = 16
+    SUBST_DRAWOPTIONS = 17
+
+    LAYER_TYPE = 18
+    LAYER_PARAMETERS = 19
+    LAYER_DRAWOPTIONS = 20
+    LAYER_DECOOPTIONS = 21
+
+    EXPT_TYPE = 22
+    EXPT_PARAMETERS = 23
 
 
 class ExperimentDataModel(QAbstractItemModel):
     """
     Model to store the data for :class:`ExperimentData`.
 
-    Structure of the model is strictly defined. Each row on the top level
-    represents a single :class:`ExperimentData` instance, whose arguments are
-    stored in the subtree structure beneath it. To check which argument an index
-    represents, use :meth:`whatIsThisIndex` method. To get the subitem with
-    given index role, use :meth:`getIndexFor` method.
+    This model has row-based tree structure. Every level has only one column.
 
-    Item structure can be modified for the indices with :obj:`IndexRole.EXPTDATA`
-    or :obj:`IndexRole.COATPATH`. Other indices cannot be modified. If a new item
-    with :obj:`IndexRole.EXPTDATA` is created by inserting the row, the subtree
-    structure is automatically constructed.
+    Structure of the model is strictly defined and each index has its role to
+    store certain data. The roles are defined in :class:`IndexRole` and can be
+    queried by :meth:`whatsThisIndex`. To get the index with certain role, use
+    :meth:`getIndexFor`.
 
-    Among the top level items, a single index can be activated to be visualized.
-    See :meth:`activatedIndex` and :meth:`setActivatedIndex`.
+    There can be multiple indices with :obj:`IndexRole.EXPTDATA`, each storing
+    the data for a single :class:`ExperimentData` instance under its children.
+    The structure is defined as follows:
+
+    * EXPTDATA (can be inserted/removed)
+        * REFPATH
+        * COATPATHS
+            * COATPATH (can be inserted/removed)
+        * REFARGS
+            * REF_TYPE
+            * REF_TEMPLATEROI
+            * REF_SUBSTRATEROI
+            * REF_PARAMETERS
+            * REF_DRAWOPTIONS
+        * SUBSTARGS
+            * SUBST_TYPE
+            * SUBST_PARAMETERS
+            * SUBST_DRAWOPTIONS
+        * LAYERARGS
+            * LAYER_TYPE
+            * LAYER_PARAMETERS
+            * LAYER_DRAWOPTIONS
+            * LAYER_DECOOPTIONS
+        * EXPTARGS
+            * EXPT_TYPE
+            * EXPT_PARAMETERS
+        * ANALYSISARGS
+
+    Only the rows with :obj:`IndexRole.EXPTDATA` and :obj:`IndexRole.COATPATH`
+    can be inserted/removed. In other words, number of rows under the index with
+    :obj:`IndexRole.EXPTDATA` is always 7.
+
+    Class attributes with ``Role_[...]`` represents the item data role which is
+    used to store the data. Therefore the data can be successfully retrieved by
+    using :class:`IndexRole` and ``Role_[...]``. For example, the reference path
+    is stored in the index with :obj:`IndexRole.REFPATH` by :attr:`Role_RefPath`.
+
+    A single index with :obj:`IndexRole.EXPTDATA` can be activated to be shown
+    by the views. Currently activated index can be get by :meth:`activatedIndex`.
+
     """
 
     # https://stackoverflow.com/a/57129496/11501976
 
-    Role_RefPath = Qt.DisplayRole
-    Role_CoatPath = Qt.DisplayRole
-    Role_RefArgs = Qt.UserRole
-    Role_SubstArgs = Qt.UserRole
-    Role_LayerArgs = Qt.UserRole
-    Role_ExptArgs = Qt.UserRole
-    Role_AnalysisArgs = Qt.UserRole
+    Role_RefPath = Qt.ItemDataRole.DisplayRole
+    Role_CoatPath = Qt.ItemDataRole.DisplayRole
+    Role_AnalysisArgs = Qt.ItemDataRole.UserRole
+
+    Role_ImportArgs = Qt.ItemDataRole.UserRole
+    Role_DataclassType = Qt.ItemDataRole.UserRole
+    Role_DataclassData = Qt.ItemDataRole.UserRole + 1
+    Role_ROI = Qt.ItemDataRole.UserRole
 
     Row_RefPath = 0
     Row_CoatPaths = 1
@@ -162,6 +239,24 @@ class ExperimentDataModel(QAbstractItemModel):
     Row_LayerArgs = 4
     Row_ExptArgs = 5
     Row_AnalysisArgs = 6
+
+    Row_RefType = 0
+    Row_RefTemplateROI = 1
+    Row_RefSubstrateROI = 2
+    Row_RefParameters = 3
+    Row_RefDrawOptions = 4
+
+    Row_SubstType = 0
+    Row_SubstParameters = 1
+    Row_SubstDrawOptions = 2
+
+    Row_LayerType = 0
+    Row_LayerParameters = 1
+    Row_LayerDrawOptions = 2
+    Row_LayerDecoOptions = 3
+
+    Row_ExptType = 0
+    Row_ExptParameters = 1
 
     activatedIndexChanged = Signal(QModelIndex)
 
@@ -179,31 +274,85 @@ class ExperimentDataModel(QAbstractItemModel):
         refPathItem.setParent(item)
 
         coatPathsItem = ExperimentDataItem()
+        coatPathsItem.setParent(item)
         for path in exptData.coat_paths:
             coatPathItem = ExperimentDataItem()
             coatPathItem.setData(cls.Role_CoatPath, path)
             coatPathItem.setParent(coatPathsItem)
-        coatPathsItem.setParent(item)
 
         refArgs = exptData.reference
         refArgsItem = ExperimentDataItem()
-        refArgsItem.setData(cls.Role_RefArgs, refArgs)
         refArgsItem.setParent(item)
+        refTypeItem = ExperimentDataItem()
+        refTypeItem.setData(cls.Role_ImportArgs, refArgs.type)
+        refTypeItem.setParent(refArgsItem)
+        templateROIItem = ExperimentDataItem()
+        templateROIItem.setData(cls.Role_ROI, refArgs.templateROI)
+        templateROIItem.setParent(refArgsItem)
+        substrateROIItem = ExperimentDataItem()
+        substrateROIItem.setData(cls.Role_ROI, refArgs.substrateROI)
+        substrateROIItem.setParent(refArgsItem)
+        refType, _ = Importer(refArgs.type.name, refArgs.type.module).try_import()
+        refParametersItem = ExperimentDataItem()
+        refDrawOptionsItem = ExperimentDataItem()
+        if isinstance(refType, type) and issubclass(refType, SubstrateReferenceBase):
+            refParametersItem.setData(cls.Role_DataclassType, refType.Parameters)
+            refDrawOptionsItem.setData(cls.Role_DataclassType, refType.DrawOptions)
+        refParametersItem.setData(cls.Role_DataclassData, refArgs.parameters)
+        refParametersItem.setParent(refArgsItem)
+        refDrawOptionsItem.setData(cls.Role_DataclassData, refArgs.draw_options)
+        refDrawOptionsItem.setParent(refArgsItem)
 
         substArgs = exptData.substrate
         substArgsItem = ExperimentDataItem()
-        substArgsItem.setData(cls.Role_SubstArgs, substArgs)
         substArgsItem.setParent(item)
+        substTypeItem = ExperimentDataItem()
+        substTypeItem.setData(cls.Role_ImportArgs, substArgs.type)
+        substTypeItem.setParent(substArgsItem)
+        substType, _ = Importer(substArgs.type.name, substArgs.type.module).try_import()
+        substParametersItem = ExperimentDataItem()
+        substDrawOptionsItem = ExperimentDataItem()
+        if isinstance(substType, type) and issubclass(substType, SubstrateBase):
+            substParametersItem.setData(cls.Role_DataclassType, substType.Parameters)
+            substDrawOptionsItem.setData(cls.Role_DataclassType, substType.DrawOptions)
+        substParametersItem.setData(cls.Role_DataclassData, substArgs.parameters)
+        substParametersItem.setParent(substArgsItem)
+        substDrawOptionsItem.setData(cls.Role_DataclassData, substArgs.draw_options)
+        substDrawOptionsItem.setParent(substArgsItem)
 
         layerArgs = exptData.coatinglayer
         layerArgsItem = ExperimentDataItem()
-        layerArgsItem.setData(cls.Role_LayerArgs, layerArgs)
         layerArgsItem.setParent(item)
+        layerTypeItem = ExperimentDataItem()
+        layerTypeItem.setData(cls.Role_ImportArgs, layerArgs.type)
+        layerTypeItem.setParent(layerArgsItem)
+        layerType, _ = Importer(layerArgs.type.name, layerArgs.type.module).try_import()
+        layerParametersItem = ExperimentDataItem()
+        layerDrawOptionsItem = ExperimentDataItem()
+        layerDecoOptionsItem = ExperimentDataItem()
+        if isinstance(layerType, type) and issubclass(layerType, CoatingLayerBase):
+            layerParametersItem.setData(cls.Role_DataclassType, layerType.Parameters)
+            layerDrawOptionsItem.setData(cls.Role_DataclassType, layerType.DrawOptions)
+            layerDecoOptionsItem.setData(cls.Role_DataclassType, layerType.DecoOptions)
+        layerParametersItem.setData(cls.Role_DataclassData, layerArgs.parameters)
+        layerParametersItem.setParent(layerArgsItem)
+        layerDrawOptionsItem.setData(cls.Role_DataclassData, layerArgs.draw_options)
+        layerDrawOptionsItem.setParent(layerArgsItem)
+        layerDecoOptionsItem.setData(cls.Role_DataclassData, layerArgs.deco_options)
+        layerDecoOptionsItem.setParent(layerArgsItem)
 
         exptArgs = exptData.experiment
         exptArgsItem = ExperimentDataItem()
-        exptArgsItem.setData(cls.Role_ExptArgs, exptArgs)
         exptArgsItem.setParent(item)
+        exptTypeItem = ExperimentDataItem()
+        exptTypeItem.setData(cls.Role_ImportArgs, exptArgs.type)
+        exptTypeItem.setParent(exptArgsItem)
+        exptType, _ = Importer(exptArgs.type.name, exptArgs.type.module).try_import()
+        exptParametersItem = ExperimentDataItem()
+        if isinstance(exptType, type) and issubclass(exptType, ExperimentBase):
+            exptParametersItem.setData(cls.Role_DataclassType, exptType.Parameters)
+        exptParametersItem.setData(cls.Role_DataclassData, exptArgs.parameters)
+        exptParametersItem.setParent(exptArgsItem)
 
         analysisArgs = exptData.analysis
         analysisArgsItem = ExperimentDataItem()
@@ -394,9 +543,12 @@ class ExperimentDataModel(QAbstractItemModel):
 
     def activatedIndex(self) -> QModelIndex:
         """
-        Currently activated item, or invalid index if no item is activated.
+        Currently activated item.
 
-        Only the item with :obj:`IndexRole.EXPTDATA` can be activated.
+        Only the item with :obj:`IndexRole.EXPTDATA` can be activated. If no item
+        is activated, returns invalid index.
+
+        Can be set by :meth:`setActivatedIndex`.
         """
         return self._activatedIndex
 
@@ -404,7 +556,8 @@ class ExperimentDataModel(QAbstractItemModel):
         """
         Changes the activated index.
 
-        If *index* cannot be activated, an invalid index is set instead.
+        Only the item with :obj:`IndexRole.EXPTDATA` can be activated. If *index*
+        cannot be activated, an invalid index is set instead.
 
         Emits :attr:`activatedIndexChanged` signal.
         """
@@ -418,18 +571,13 @@ class ExperimentDataModel(QAbstractItemModel):
         """Return the role of *index* in the model."""
         if not isinstance(index.model(), cls):
             return IndexRole.UNKNOWN
-
-        indexLevel = -1
-        _index = index
-        while _index.isValid():
-            _index = _index.parent()
-            indexLevel += 1
-        row, col = index.row(), index.column()
-
-        if indexLevel == 0 and col == 0:
+        if not index.parent().isValid():
             return IndexRole.EXPTDATA
-        if indexLevel == 1 and col == 0:
-            row = index.row()
+
+        parentRole = cls.whatsThisIndex(index.parent())
+        row = index.row()
+
+        if parentRole == IndexRole.EXPTDATA:
             if row == cls.Row_RefPath:
                 return IndexRole.REFPATH
             if row == cls.Row_CoatPaths:
@@ -444,37 +592,106 @@ class ExperimentDataModel(QAbstractItemModel):
                 return IndexRole.EXPTARGS
             if row == cls.Row_AnalysisArgs:
                 return IndexRole.ANALYSISARGS
-        if (
-            indexLevel == 2
-            and col == 0
-            and cls.whatsThisIndex(index.parent()) is IndexRole.COATPATHS
-        ):
+
+        if parentRole == IndexRole.COATPATHS:
             return IndexRole.COATPATH
+
+        if parentRole == IndexRole.REFARGS:
+            if row == cls.Row_RefType:
+                return IndexRole.REF_TYPE
+            if row == cls.Row_RefTemplateROI:
+                return IndexRole.REF_TEMPLATEROI
+            if row == cls.Row_RefSubstrateROI:
+                return IndexRole.REF_SUBSTRATEROI
+            if row == cls.Row_RefParameters:
+                return IndexRole.REF_PARAMETERS
+            if row == cls.Row_RefDrawOptions:
+                return IndexRole.REF_DRAWOPTIONS
+
+        if parentRole == IndexRole.SUBSTARGS:
+            if row == cls.Row_SubstType:
+                return IndexRole.SUBST_TYPE
+            if row == cls.Row_SubstParameters:
+                return IndexRole.SUBST_PARAMETERS
+            if row == cls.Row_SubstDrawOptions:
+                return IndexRole.SUBST_DRAWOPTIONS
+
+        if parentRole == IndexRole.LAYERARGS:
+            if row == cls.Row_LayerType:
+                return IndexRole.LAYER_TYPE
+            if row == cls.Row_LayerParameters:
+                return IndexRole.LAYER_PARAMETERS
+            if row == cls.Row_LayerDrawOptions:
+                return IndexRole.LAYER_DRAWOPTIONS
+            if row == cls.Row_LayerDecoOptions:
+                return IndexRole.LAYER_DECOOPTIONS
+
+        if parentRole == IndexRole.EXPTARGS:
+            if row == cls.Row_ExptType:
+                return IndexRole.EXPT_TYPE
+            if row == cls.Row_ExptParameters:
+                return IndexRole.EXPT_PARAMETERS
+
         return IndexRole.UNKNOWN
 
     def getIndexFor(self, indexRole: IndexRole, parent: QModelIndex) -> QModelIndex:
         """
         Return the index with *indexRole* under *parent*.
 
-        If no index has *indexRole*, returns an invalid index.
+        If the index cannot be specified, returns an invalid index.
         """
-        if self.whatsThisIndex(parent) != IndexRole.EXPTDATA:
-            return QModelIndex()
+        parentRole = self.whatsThisIndex(parent)
 
-        if indexRole == IndexRole.EXPTDATA:
-            return parent
-        elif indexRole == IndexRole.REFPATH:
-            return self.index(self.Row_RefPath, 0, parent)
-        elif indexRole == IndexRole.COATPATHS:
-            return self.index(self.Row_CoatPaths, 0, parent)
-        elif indexRole == IndexRole.REFARGS:
-            return self.index(self.Row_RefArgs, 0, parent)
-        elif indexRole == IndexRole.SUBSTARGS:
-            return self.index(self.Row_SubstArgs, 0, parent)
-        elif indexRole == IndexRole.LAYERARGS:
-            return self.index(self.Row_LayerArgs, 0, parent)
-        elif indexRole == IndexRole.EXPTARGS:
-            return self.index(self.Row_ExptArgs, 0, parent)
-        elif indexRole == IndexRole.ANALYSISARGS:
-            return self.index(self.Row_AnalysisArgs, 0, parent)
+        if parentRole == IndexRole.EXPTDATA:
+            if indexRole == IndexRole.REFPATH:
+                return self.index(self.Row_RefPath, 0, parent)
+            if indexRole == IndexRole.COATPATHS:
+                return self.index(self.Row_CoatPaths, 0, parent)
+            if indexRole == IndexRole.REFARGS:
+                return self.index(self.Row_RefArgs, 0, parent)
+            if indexRole == IndexRole.SUBSTARGS:
+                return self.index(self.Row_SubstArgs, 0, parent)
+            if indexRole == IndexRole.LAYERARGS:
+                return self.index(self.Row_LayerArgs, 0, parent)
+            if indexRole == IndexRole.EXPTARGS:
+                return self.index(self.Row_ExptArgs, 0, parent)
+            if indexRole == IndexRole.ANALYSISARGS:
+                return self.index(self.Row_AnalysisArgs, 0, parent)
+
+        if parentRole == IndexRole.REFARGS:
+            if indexRole == IndexRole.REF_TYPE:
+                return self.index(self.Row_RefType, 0, parent)
+            if indexRole == IndexRole.REF_TEMPLATEROI:
+                return self.index(self.Row_RefTemplateROI, 0, parent)
+            if indexRole == IndexRole.REF_SUBSTRATEROI:
+                return self.index(self.Row_RefSubstrateROI, 0, parent)
+            if indexRole == IndexRole.REF_PARAMETERS:
+                return self.index(self.Row_RefParameters, 0, parent)
+            if indexRole == IndexRole.REF_DRAWOPTIONS:
+                return self.index(self.Row_RefDrawOptions, 0, parent)
+
+        if parentRole == IndexRole.SUBSTARGS:
+            if indexRole == IndexRole.SUBST_TYPE:
+                return self.index(self.Row_SubstType, 0, parent)
+            if indexRole == IndexRole.SUBST_PARAMETERS:
+                return self.index(self.Row_SubstParameters, 0, parent)
+            if indexRole == IndexRole.SUBST_DRAWOPTIONS:
+                return self.index(self.Row_SubstDrawOptions, 0, parent)
+
+        if parentRole == IndexRole.LAYERARGS:
+            if indexRole == IndexRole.LAYER_TYPE:
+                return self.index(self.Row_LayerType, 0, parent)
+            if indexRole == IndexRole.LAYER_PARAMETERS:
+                return self.index(self.Row_LayerParameters, 0, parent)
+            if indexRole == IndexRole.LAYER_DRAWOPTIONS:
+                return self.index(self.Row_LayerDrawOptions, 0, parent)
+            if indexRole == IndexRole.LAYER_DECOOPTIONS:
+                return self.index(self.Row_LayerDecoOptions, 0, parent)
+
+        if parentRole == IndexRole.EXPTARGS:
+            if indexRole == IndexRole.EXPT_TYPE:
+                return self.index(self.Row_ExptType, 0, parent)
+            if indexRole == IndexRole.EXPT_PARAMETERS:
+                return self.index(self.Row_ExptParameters, 0, parent)
+
         return QModelIndex()

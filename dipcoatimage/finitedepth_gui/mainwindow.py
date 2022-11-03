@@ -21,7 +21,9 @@ class MainWindow(QMainWindow):
     >>> from dipcoatimage.finitedepth_gui import MainWindow
     >>> def runGUI():
     ...     app = QApplication(sys.argv)
-    ...     app.setStyleSheet("*[requiresFieldData=true]{border: 1px solid red}")
+    ...     app.setStyleSheet(
+    ...     "*[requiresFieldValue=true]{border: 1px solid red}"
+    ...     )
     ...     window = MainWindow()
     ...     window.show()
     ...     app.exec()

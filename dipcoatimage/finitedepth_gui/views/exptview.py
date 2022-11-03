@@ -5,8 +5,9 @@ Experiment view
 V2 for controlwidgets/exptwidget.py
 """
 
+import dataclasses
 import dawiq
-from PySide6.QtCore import Qt, Slot, QModelIndex
+from PySide6.QtCore import Slot, QModelIndex
 from PySide6.QtWidgets import (
     QWidget,
     QLineEdit,
@@ -18,7 +19,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
 )
 from dipcoatimage.finitedepth import ExperimentBase
-from dipcoatimage.finitedepth.analysis import ImportArgs, ExperimentArgs
+from dipcoatimage.finitedepth.analysis import ImportArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
 from .importview import ImportDataView
@@ -66,24 +67,24 @@ class ExperimentView(QWidget):
         super().__init__(parent)
 
         self._model = None
+
         self._nameLineEdit = QLineEdit()
-        self._nameMapper = QDataWidgetMapper()
         self._importView = ImportDataView()
         self._pathsListView = QListView()
         self._addButton = QPushButton("Add")
         self._deleteButton = QPushButton("Delete")
         self._paramStackWidget = dawiq.DataclassStackedWidget()
+
+        self._nameMapper = QDataWidgetMapper()
         self._exptArgsMapper = QDataWidgetMapper()
 
+        self._importView.editingFinished.connect(self._exptArgsMapper.submit)
         self._pathsListView.setSelectionMode(QListView.ExtendedSelection)
         self._pathsListView.setEditTriggers(QListView.SelectedClicked)
         self._addButton.clicked.connect(self.appendNewPath)
         self._deleteButton.clicked.connect(self.deleteSelectedPaths)
+        self._paramStackWidget.currentDataEdited.connect(self._exptArgsMapper.submit)
         self._exptArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
-        self._importView.editingFinished.connect(self._exptArgsMapper.submit)
-        self._paramStackWidget.currentDataValueChanged.connect(
-            self._exptArgsMapper.submit
-        )
         self._exptArgsMapper.setItemDelegate(ExperimentArgsDelegate())
 
         self._nameLineEdit.setPlaceholderText("Experiment name")
@@ -139,12 +140,12 @@ class ExperimentView(QWidget):
     def appendNewPath(self):
         model = self._pathsListView.model()
         parent = self._pathsListView.rootIndex()
-        if model is not None and parent.isValid():
+        if isinstance(model, ExperimentDataModel) and parent.isValid():
             rowNum = model.rowCount(parent)
             success = model.insertRow(rowNum, parent)
             if success:
                 index = model.index(rowNum, 0, parent)
-                model.setData(index, "New path", role=Qt.DisplayRole)
+                model.setData(index, "New path", role=model.Role_CoatPath)
 
     @Slot()
     def deleteSelectedPaths(self):
@@ -154,13 +155,16 @@ class ExperimentView(QWidget):
             for i in reversed(sorted(rows)):
                 model.removeRow(i, self._pathsListView.rootIndex())
 
+    def parametersStackedWidget(self) -> dawiq.DataclassStackedWidget:
+        return self._paramStackWidget
+
     def currentParametersWidget(self) -> Union[dawiq.DataWidget, QGroupBox]:
         return self._paramStackWidget.currentWidget()
 
-    def indexOfParameterType(self, paramType: Type[DataclassProtocol]) -> int:
+    def indexOfParametersType(self, paramType: Type[DataclassProtocol]) -> int:
         return self._paramStackWidget.indexOfDataclass(paramType)
 
-    def addParameterType(self, paramType: Type[DataclassProtocol]) -> int:
+    def addParametersType(self, paramType: Type[DataclassProtocol]) -> int:
         widget = dawiq.dataclass2Widget(paramType)
         widget.setTitle("Parameters")
         index = self._paramStackWidget.addDataWidget(widget, paramType)
@@ -185,50 +189,75 @@ class ExperimentView(QWidget):
             self._importView.clear()
             self._nameMapper.setCurrentModelIndex(QModelIndex())
             self._pathsListView.setModel(None)
-            self._paramStackWidget.setCurrentIndex(0)
+            self.setCurrentParametersIndex(0)
             self._exptArgsMapper.setCurrentModelIndex(QModelIndex())
 
 
 class ExperimentArgsDelegate(dawiq.DataclassDelegate):
+
+    TypeRole = ExperimentDataModel.Role_DataclassType
+    DataRole = ExperimentDataModel.Role_DataclassData
+
     def ignoreMissing(self) -> bool:
         return False
 
     def setModelData(self, editor, model, index):
-        if isinstance(editor, ExperimentView):
-            importArgs = ImportArgs(editor.typeName(), editor.moduleName())
-            paramWidget = editor.currentParametersWidget()
-            if isinstance(paramWidget, dawiq.DataWidget):
-                parameters = paramWidget.dataValue()
-            else:
-                parameters = {}
-            typeVar, _ = Importer(importArgs.name, importArgs.module).try_import()
-            if isinstance(typeVar, type) and issubclass(typeVar, ExperimentBase):
-                paramType = typeVar.Parameters
-                parameters = dawiq.convertFromQt(
-                    paramType, parameters, self.ignoreMissing()
+        if isinstance(model, ExperimentDataModel):
+            indexRole = model.whatsThisIndex(index)
+            if indexRole == IndexRole.EXPTARGS and isinstance(editor, ExperimentView):
+                # set ImportArgs for experiment type to model
+                importArgs = ImportArgs(editor.typeName(), editor.moduleName())
+                model.setData(
+                    model.getIndexFor(IndexRole.EXPT_TYPE, index),
+                    importArgs,
+                    role=model.Role_ImportArgs,
                 )
-            exptArgs = ExperimentArgs(importArgs, parameters)
-            model.setData(index, exptArgs, Qt.UserRole)
+
+                # set dataclass type to model
+                paramIndex = model.getIndexFor(IndexRole.EXPT_PARAMETERS, index)
+                exptType, _ = Importer(importArgs.name, importArgs.module).try_import()
+                if isinstance(exptType, type) and issubclass(exptType, ExperimentBase):
+                    paramType = exptType.Parameters
+                else:
+                    paramType = None
+                model.setData(paramIndex, paramType, role=self.TypeRole)
+
+                # set dataclass data to model
+                self.setModelData(editor.currentParametersWidget(), model, paramIndex)
+
         super().setModelData(editor, model, index)
 
     def setEditorData(self, editor, index):
-        data = index.data(Qt.UserRole)
-        if isinstance(editor, ExperimentView) and isinstance(data, ExperimentArgs):
-            editor.setTypeName(data.type.name)
-            editor.setModuleName(data.type.module)
-
-            typeVar, _ = Importer(data.type.name, data.type.module).try_import()
-            if isinstance(typeVar, type) and issubclass(typeVar, ExperimentBase):
-                paramType = typeVar.Parameters
-                paramIdx = editor.indexOfParameterType(paramType)
-                if paramIdx == -1:
-                    paramIdx = editor.addParameterType(paramType)
-                editor.setCurrentParametersIndex(paramIdx)
-                self.setEditorDataclassData(
-                    editor.currentParametersWidget(),
-                    paramType,
-                    data.parameters,
+        model = index.model()
+        if isinstance(model, ExperimentDataModel):
+            indexRole = model.whatsThisIndex(index)
+            if indexRole == IndexRole.EXPTARGS and isinstance(editor, ExperimentView):
+                # set import args for experiment type to editor
+                importArgs = model.data(
+                    model.getIndexFor(IndexRole.EXPT_TYPE, index),
+                    role=model.Role_ImportArgs,
                 )
-            else:
-                editor.setCurrentParametersIndex(0)
+                editor.setTypeName(importArgs.name)
+                editor.setModuleName(importArgs.module)
+
+                # add data widget if absent
+                paramIndex = model.getIndexFor(IndexRole.EXPT_PARAMETERS, index)
+                paramType = model.data(paramIndex, role=self.TypeRole)
+                if isinstance(paramType, type) and dataclasses.is_dataclass(paramType):
+                    paramWidgetIdx = editor.indexOfParametersType(paramType)
+                    if paramWidgetIdx == -1:
+                        paramWidgetIdx = editor.addParametersType(paramType)
+                else:
+                    paramWidgetIdx = -1
+
+                # set dataclass type and data to editor
+                self.setEditorData(
+                    editor.parametersStackedWidget(),
+                    model.getIndexFor(IndexRole.EXPT_PARAMETERS, index),
+                )
+
+                # show default widget for invalid index
+                if paramWidgetIdx == -1:
+                    editor.setCurrentParametersIndex(0)
+
         super().setEditorData(editor, index)

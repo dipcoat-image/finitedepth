@@ -5,10 +5,11 @@ Reference view
 V2 for controlwidgets/refwidget.py
 """
 
+import dataclasses
 import dawiq
 import enum
 import imagesize  # type: ignore
-from PySide6.QtCore import Qt, Signal, Slot, QModelIndex
+from PySide6.QtCore import Signal, Slot, QModelIndex
 from PySide6.QtWidgets import (
     QWidget,
     QLineEdit,
@@ -22,7 +23,7 @@ from PySide6.QtWidgets import (
     QStyledItemDelegate,
 )
 from dipcoatimage.finitedepth import SubstrateReferenceBase
-from dipcoatimage.finitedepth.analysis import ImportArgs, ReferenceArgs
+from dipcoatimage.finitedepth.analysis import ImportArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer, OptionalROI
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
 from .importview import ImportDataView
@@ -80,8 +81,8 @@ class ReferenceView(QWidget):
         super().__init__(parent)
 
         self._model = None
+
         self._refPathLineEdit = QLineEdit()
-        self._refPathMapper = QDataWidgetMapper()
         self._browseButton = QPushButton()
         self._importView = ImportDataView()
         self._tempROIView = ROIView()
@@ -90,12 +91,11 @@ class ReferenceView(QWidget):
         self._substROIDrawButton = QPushButton()
         self._paramStackWidget = dawiq.DataclassStackedWidget()
         self._drawOptStackWidget = dawiq.DataclassStackedWidget()
+
+        self._refPathMapper = QDataWidgetMapper()
         self._refArgsMapper = QDataWidgetMapper()
 
-        self._refPathMapper.setItemDelegate(ReferencePathDelegate())
-        self._refPathMapper.itemDelegate().roiMaximumChanged.connect(self.setROIMaximum)
         self._browseButton.clicked.connect(self.browseReferenceImage)
-        self._refArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._importView.editingFinished.connect(self._refArgsMapper.submit)
         self._tempROIView.editingFinished.connect(self._refArgsMapper.submit)
         self._tempROIDrawButton.setCheckable(True)
@@ -103,12 +103,12 @@ class ReferenceView(QWidget):
         self._substROIView.editingFinished.connect(self._refArgsMapper.submit)
         self._substROIDrawButton.setCheckable(True)
         self._substROIDrawButton.clicked.connect(self._onSubstROIDrawClick)
-        self._paramStackWidget.currentDataValueChanged.connect(
-            self._refArgsMapper.submit
-        )
-        self._drawOptStackWidget.currentDataValueChanged.connect(
-            self._refArgsMapper.submit
-        )
+        self._paramStackWidget.currentDataEdited.connect(self._refArgsMapper.submit)
+        self._drawOptStackWidget.currentDataEdited.connect(self._refArgsMapper.submit)
+        refPathDelegate = ReferencePathDelegate()
+        refPathDelegate.roiMaximumChanged.connect(self.setROIMaximum)
+        self._refPathMapper.setItemDelegate(refPathDelegate)
+        self._refArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._refArgsMapper.setItemDelegate(ReferenceArgsDelegate())
 
         self._refPathLineEdit.setPlaceholderText("Path for the reference image file")
@@ -219,13 +219,16 @@ class ReferenceView(QWidget):
         else:
             self.roiDrawFlagChanged.emit(ROIDrawFlag.NONE)
 
+    def parametersStackedWidget(self) -> dawiq.DataclassStackedWidget:
+        return self._paramStackWidget
+
     def currentParametersWidget(self) -> Union[dawiq.DataWidget, QGroupBox]:
         return self._paramStackWidget.currentWidget()
 
-    def indexOfParameterType(self, paramType: Type[DataclassProtocol]) -> int:
+    def indexOfParametersType(self, paramType: Type[DataclassProtocol]) -> int:
         return self._paramStackWidget.indexOfDataclass(paramType)
 
-    def addParameterType(self, paramType: Type[DataclassProtocol]) -> int:
+    def addParametersType(self, paramType: Type[DataclassProtocol]) -> int:
         widget = dawiq.dataclass2Widget(paramType)
         widget.setTitle("Parameters")
         index = self._paramStackWidget.addDataWidget(widget, paramType)
@@ -233,6 +236,9 @@ class ReferenceView(QWidget):
 
     def setCurrentParametersIndex(self, index: int):
         self._paramStackWidget.setCurrentIndex(index)
+
+    def drawOptionsStackedWidget(self) -> dawiq.DataclassStackedWidget:
+        return self._drawOptStackWidget
 
     def currentDrawOptionsWidget(self) -> Union[dawiq.DataWidget, QGroupBox]:
         return self._drawOptStackWidget.currentWidget()
@@ -275,86 +281,126 @@ class ReferencePathDelegate(QStyledItemDelegate):
     roiMaximumChanged = Signal(int, int)
 
     def setEditorData(self, editor, index):
+        model = index.model()
+        if isinstance(model, ExperimentDataModel):
+            indexRole = model.whatsThisIndex(index)
+            if indexRole == IndexRole.REFPATH:
+                path = model.data(index, role=model.Role_RefPath)
+                try:
+                    w, h = imagesize.get(path)
+                except (FileNotFoundError, PermissionError):
+                    w, h = (-1, -1)
+                self.roiMaximumChanged.emit(w, h)
         super().setEditorData(editor, index)
-        path = index.data(Qt.DisplayRole)
-        try:
-            w, h = imagesize.get(path)
-        except (FileNotFoundError, PermissionError):
-            w, h = (-1, -1)
-        self.roiMaximumChanged.emit(w, h)
 
 
 class ReferenceArgsDelegate(dawiq.DataclassDelegate):
+
+    TypeRole = ExperimentDataModel.Role_DataclassType
+    DataRole = ExperimentDataModel.Role_DataclassData
+
     def ignoreMissing(self) -> bool:
         return False
 
     def setModelData(self, editor, model, index):
-        if isinstance(editor, ReferenceView):
-            importArgs = ImportArgs(editor.typeName(), editor.moduleName())
-            tempROI = editor.templateROI()
-            substROI = editor.substrateROI()
-            paramWidget = editor.currentParametersWidget()
-            if isinstance(paramWidget, dawiq.DataWidget):
-                parameters = paramWidget.dataValue()
-            else:
-                parameters = {}
-            drawOptWidget = editor.currentDrawOptionsWidget()
-            if isinstance(drawOptWidget, dawiq.DataWidget):
-                drawOpt = drawOptWidget.dataValue()
-            else:
-                drawOpt = {}
-            typeVar, _ = Importer(importArgs.name, importArgs.module).try_import()
-            if isinstance(typeVar, type) and issubclass(
-                typeVar, SubstrateReferenceBase
-            ):
-                paramType = typeVar.Parameters
-                drawOptType = typeVar.DrawOptions
-                parameters = dawiq.convertFromQt(
-                    paramType, parameters, self.ignoreMissing()
+        if isinstance(model, ExperimentDataModel):
+            indexRole = model.whatsThisIndex(index)
+            if indexRole == IndexRole.REFARGS and isinstance(editor, ReferenceView):
+                # set ImportArgs for reference type to model
+                importArgs = ImportArgs(editor.typeName(), editor.moduleName())
+                model.setData(
+                    model.getIndexFor(IndexRole.REF_TYPE, index),
+                    importArgs,
+                    role=model.Role_ImportArgs,
                 )
-                drawOpt = dawiq.convertFromQt(
-                    drawOptType, drawOpt, self.ignoreMissing()
+
+                # set ROIs to model
+                model.setData(
+                    model.getIndexFor(IndexRole.REF_TEMPLATEROI, index),
+                    editor.templateROI(),
+                    role=model.Role_ROI,
                 )
-            refArgs = ReferenceArgs(importArgs, tempROI, substROI, parameters, drawOpt)
-            model.setData(index, refArgs, Qt.UserRole)
+                model.setData(
+                    model.getIndexFor(IndexRole.REF_SUBSTRATEROI, index),
+                    editor.substrateROI(),
+                    role=model.Role_ROI,
+                )
+
+                # set dataclasses types to model
+                paramIndex = model.getIndexFor(IndexRole.REF_PARAMETERS, index)
+                drawOptIndex = model.getIndexFor(IndexRole.REF_DRAWOPTIONS, index)
+                refType, _ = Importer(importArgs.name, importArgs.module).try_import()
+                if isinstance(refType, type) and issubclass(
+                    refType, SubstrateReferenceBase
+                ):
+                    paramType = refType.Parameters
+                    drawOptType = refType.DrawOptions
+                else:
+                    paramType = None
+                    drawOptType = None
+                model.setData(paramIndex, paramType, role=self.TypeRole)
+                model.setData(drawOptIndex, drawOptType, role=self.TypeRole)
+
+                # set dataclasses data to model
+                self.setModelData(editor.currentParametersWidget(), model, paramIndex)
+                self.setModelData(
+                    editor.currentDrawOptionsWidget(), model, drawOptIndex
+                )
         super().setModelData(editor, model, index)
 
     def setEditorData(self, editor, index):
-        data = index.data(Qt.UserRole)
-        if isinstance(editor, ReferenceView) and isinstance(data, ReferenceArgs):
-            refArgs = data
-            editor.setTypeName(refArgs.type.name)
-            editor.setModuleName(refArgs.type.module)
-
-            editor.setTemplateROI(refArgs.templateROI)
-            editor.setSubstrateROI(refArgs.substrateROI)
-
-            typeVar, _ = Importer(refArgs.type.name, refArgs.type.module).try_import()
-            if isinstance(typeVar, type) and issubclass(
-                typeVar, SubstrateReferenceBase
-            ):
-                paramType = typeVar.Parameters
-                paramIdx = editor.indexOfParameterType(paramType)
-                if paramIdx == -1:
-                    paramIdx = editor.addParameterType(paramType)
-                editor.setCurrentParametersIndex(paramIdx)
-                drawOptType = typeVar.DrawOptions
-                drawOptIdx = editor.indexOfDrawOptionsType(drawOptType)
-                if drawOptIdx == -1:
-                    drawOptIdx = editor.addDrawOptionsType(drawOptType)
-                editor.setCurrentDrawOptionsIndex(drawOptIdx)
-
-                self.setEditorDataclassData(
-                    editor.currentParametersWidget(),
-                    paramType,
-                    refArgs.parameters,
+        model = index.model()
+        if isinstance(model, ExperimentDataModel):
+            indexRole = model.whatsThisIndex(index)
+            if indexRole == IndexRole.REFARGS and isinstance(editor, ReferenceView):
+                # set import args for reference type to editor
+                importArgs = model.data(
+                    model.getIndexFor(IndexRole.REF_TYPE, index),
+                    role=model.Role_ImportArgs,
                 )
-                self.setEditorDataclassData(
-                    editor.currentDrawOptionsWidget(),
-                    drawOptType,
-                    refArgs.draw_options,
+                editor.setTypeName(importArgs.name)
+                editor.setModuleName(importArgs.module)
+
+                # set ROIs to editor
+                templateROI = model.data(
+                    model.getIndexFor(IndexRole.REF_TEMPLATEROI, index),
+                    role=model.Role_ROI,
                 )
-            else:
-                editor.setCurrentParametersIndex(0)
-                editor.setCurrentDrawOptionsIndex(0)
+                editor.setTemplateROI(templateROI)
+                substrateROI = model.data(
+                    model.getIndexFor(IndexRole.REF_SUBSTRATEROI, index),
+                    role=model.Role_ROI,
+                )
+                editor.setSubstrateROI(substrateROI)
+
+                # add data widget if absent
+                paramIndex = model.getIndexFor(IndexRole.REF_PARAMETERS, index)
+                paramType = model.data(paramIndex, role=self.TypeRole)
+                if isinstance(paramType, type) and dataclasses.is_dataclass(paramType):
+                    paramWidgetIdx = editor.indexOfParametersType(paramType)
+                    if paramWidgetIdx == -1:
+                        paramWidgetIdx = editor.addParametersType(paramType)
+                else:
+                    paramWidgetIdx = -1
+                drawOptIndex = model.getIndexFor(IndexRole.REF_DRAWOPTIONS, index)
+                drawOptType = model.data(drawOptIndex, role=self.TypeRole)
+                if isinstance(drawOptType, type) and dataclasses.is_dataclass(
+                    drawOptType
+                ):
+                    drawOptWidgetIdx = editor.indexOfDrawOptionsType(drawOptType)
+                    if drawOptWidgetIdx == -1:
+                        drawOptWidgetIdx = editor.addDrawOptionsType(drawOptType)
+                else:
+                    drawOptWidgetIdx = -1
+
+                # set dataclasses type and data to editor
+                self.setEditorData(editor.parametersStackedWidget(), paramIndex)
+                self.setEditorData(editor.drawOptionsStackedWidget(), drawOptIndex)
+
+                # show default widget for invalid index
+                if paramWidgetIdx == -1:
+                    editor.setCurrentParametersIndex(0)
+                if drawOptWidgetIdx == -1:
+                    editor.setCurrentDrawOptionsIndex(0)
+
         super().setEditorData(editor, index)

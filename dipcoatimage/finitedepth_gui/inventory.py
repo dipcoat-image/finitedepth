@@ -133,8 +133,8 @@ class ExperimentItemModel(QStandardItemModel):
     Col_Experiment = ExperimentItemModelColumns.EXPERIMENT
     Col_Analysis = ExperimentItemModelColumns.ANALYSIS
 
-    Role_Args = Qt.UserRole
-    Role_StructuredArgs = Qt.UserRole + 1  # type: ignore[operator]
+    Role_Args = Qt.ItemDataRole.UserRole
+    Role_StructuredArgs = Qt.ItemDataRole.UserRole
 
     experimentsRemoved = Signal(list)
     coatPathsChanged = Signal(int, list, ExperimentKind)
@@ -153,7 +153,7 @@ class ExperimentItemModel(QStandardItemModel):
         self.rowsMoved.connect(self.onRowsChange)  # type: ignore[attr-defined]
         self.rowsRemoved.connect(self.onRowsChange)  # type: ignore[attr-defined]
 
-    def data(self, index, role=Qt.DisplayRole):
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         ret = super().data(index, role)
         if ret is None and not index.parent().isValid():
             if index.column() == self.Col_CoatPaths:
@@ -300,16 +300,18 @@ class ExperimentItemModel(QStandardItemModel):
 
         args = data_converter.structure(data, ExperimentData)
         items[self.Col_ReferencePath].setData(
-            args.ref_path, role=Qt.DisplayRole  # type: ignore[arg-type]
+            args.ref_path, role=Qt.ItemDataRole.DisplayRole  # type: ignore[arg-type]
         )
         coat_paths = args.coat_paths
         for path in coat_paths:
             path_item = QStandardItem()
-            path_item.setData(path, role=Qt.DisplayRole)  # type: ignore[arg-type]
+            path_item.setData(
+                path, role=Qt.ItemDataRole.DisplayRole  # type: ignore[arg-type]
+            )
             items[self.Col_CoatPaths].appendRow(path_item)
         items[self.Col_CoatPaths].setData(
-            experiment_kind(coat_paths), role=Qt.DisplayRole  # type: ignore[arg-type]
-        )
+            experiment_kind(coat_paths), role=Qt.ItemDataRole.DisplayRole
+        )  # type: ignore[arg-type]
         items[self.Col_Reference].setData(
             args.reference, role=self.Role_Args  # type: ignore[arg-type]
         )

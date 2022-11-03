@@ -392,7 +392,7 @@ class NDArrayROILabel_V2(NDArrayLabel):
 
 
 def coords_label2pixmap(
-    p: Tuple[Number, Number], lsize: QSize, psize: QSize, alignment: Qt.Alignment
+    p: Tuple[Number, Number], lsize: QSize, psize: QSize, alignment: Qt.AlignmentFlag
 ) -> Tuple[Number, Number]:
     """
     Convert the coordinates in ``QLabel`` to the coordinates in
@@ -426,12 +426,20 @@ def coords_label2pixmap(
     (35.0, 35.0)
 
     """
-    for hflag in [Qt.AlignLeft, Qt.AlignRight, Qt.AlignHCenter]:
+    for hflag in [
+        Qt.AlignmentFlag.AlignLeft,
+        Qt.AlignmentFlag.AlignRight,
+        Qt.AlignmentFlag.AlignHCenter,
+    ]:
         if int(alignment & hflag) != 0:  # type: ignore[operator]
             break
     else:
         raise NotImplementedError("Unsupported horizontal alignment")
-    for vflag in [Qt.AlignTop, Qt.AlignBottom, Qt.AlignVCenter]:
+    for vflag in [
+        Qt.AlignmentFlag.AlignTop,
+        Qt.AlignmentFlag.AlignBottom,
+        Qt.AlignmentFlag.AlignVCenter,
+    ]:
         if int(alignment & vflag) != 0:  # type: ignore[operator]
             break
     else:
@@ -441,25 +449,25 @@ def coords_label2pixmap(
     w, h = psize.width(), psize.height()
     x, y = p
 
-    if hflag == Qt.AlignLeft:
+    if hflag == Qt.AlignmentFlag.AlignLeft:
         dx: Number = 0
-    elif hflag == Qt.AlignRight:
+    elif hflag == Qt.AlignmentFlag.AlignRight:
         dx = W - w
-    elif hflag == Qt.AlignHCenter:
+    elif hflag == Qt.AlignmentFlag.AlignHCenter:
         dx = (W - w) / 2
 
-    if vflag == Qt.AlignTop:
+    if vflag == Qt.AlignmentFlag.AlignTop:
         dy: Number = 0
-    elif vflag == Qt.AlignBottom:
+    elif vflag == Qt.AlignmentFlag.AlignBottom:
         dy = H - h
-    elif vflag == Qt.AlignVCenter:
+    elif vflag == Qt.AlignmentFlag.AlignVCenter:
         dy = (H - h) / 2
 
     return (x - dx, y - dy)
 
 
 def coords_pixmap2label(
-    p: Tuple[Number, Number], psize: QSize, lsize: QSize, alignment: Qt.Alignment
+    p: Tuple[Number, Number], psize: QSize, lsize: QSize, alignment: Qt.AlignmentFlag
 ) -> Tuple[Number, Number]:
     """
     Convert the coordinates in ``QPixmap`` to the coordinates in
@@ -493,12 +501,20 @@ def coords_pixmap2label(
     (60.0, 60.0)
 
     """
-    for hflag in [Qt.AlignLeft, Qt.AlignRight, Qt.AlignHCenter]:
+    for hflag in [
+        Qt.AlignmentFlag.AlignLeft,
+        Qt.AlignmentFlag.AlignRight,
+        Qt.AlignmentFlag.AlignHCenter,
+    ]:
         if int(alignment & hflag) != 0:  # type: ignore[operator]
             break
     else:
         raise NotImplementedError("Unsupported horizontal alignment")
-    for vflag in [Qt.AlignTop, Qt.AlignBottom, Qt.AlignVCenter]:
+    for vflag in [
+        Qt.AlignmentFlag.AlignTop,
+        Qt.AlignmentFlag.AlignBottom,
+        Qt.AlignmentFlag.AlignVCenter,
+    ]:
         if int(alignment & vflag) != 0:  # type: ignore[operator]
             break
     else:
@@ -508,18 +524,18 @@ def coords_pixmap2label(
     W, H = lsize.width(), lsize.height()
     x, y = p
 
-    if hflag == Qt.AlignLeft:
+    if hflag == Qt.AlignmentFlag.AlignLeft:
         dx: Number = 0
-    elif hflag == Qt.AlignRight:
+    elif hflag == Qt.AlignmentFlag.AlignRight:
         dx = W - w
-    elif hflag == Qt.AlignHCenter:
+    elif hflag == Qt.AlignmentFlag.AlignHCenter:
         dx = (W - w) / 2
 
-    if vflag == Qt.AlignTop:
+    if vflag == Qt.AlignmentFlag.AlignTop:
         dy: Number = 0
-    elif vflag == Qt.AlignBottom:
+    elif vflag == Qt.AlignmentFlag.AlignBottom:
         dy = H - h
-    elif vflag == Qt.AlignVCenter:
+    elif vflag == Qt.AlignmentFlag.AlignVCenter:
         dy = (H - h) / 2
 
     return (x + dx, y + dy)
