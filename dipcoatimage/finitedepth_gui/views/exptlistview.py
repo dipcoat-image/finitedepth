@@ -210,11 +210,11 @@ class ExperimentDataListView(QWidget):
         if model is None:
             return
         indices = self._listView.selectedIndexes()
-        ret = {}
+        data = {}
         for index in indices:
             name = model.data(index, model.Role_ExptName)
             exptData = model.indexToExperimentData(index)
-            ret[name] = data_converter.unstructure(exptData)
+            data[name] = data_converter.unstructure(exptData)
         with open(fileName, "w") as f:
             if selectedFilter == DataFileTypeEnum.JSON:
                 json.dump(data, f, indent=2)
