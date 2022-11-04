@@ -42,8 +42,8 @@ class DataFileTypeEnum(enum.Enum):
     Enum of supported file types for experiment data. Values are file filters.
     """
 
-    JSON = "JSON (*.json)"
     YAML = "YAML (*.yml)"
+    JSON = "JSON (*.json)"
 
     def asExtensions(self) -> List[str]:
         s = self.value
