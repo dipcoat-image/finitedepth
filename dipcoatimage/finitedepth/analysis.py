@@ -60,7 +60,7 @@ import numpy as np
 import numpy.typing as npt
 import os
 import tqdm  # type: ignore
-from typing import List, Type, Optional, Dict, Any, Tuple
+from typing import List, Type, Optional, Dict, Any, Tuple, Generator
 from .reference import SubstrateReferenceBase
 from .substrate import SubstrateBase
 from .coatinglayer import CoatingLayerBase
@@ -286,10 +286,6 @@ class Analyzer:
         Progress bar is printed. Pass *name* for the progress bar name.
 
         """
-        self.experiment.substrate.reference.verify()
-        self.experiment.substrate.verify()
-        self.experiment.verify()
-
         expt_kind = experiment_kind(self.paths)
 
         # make image generator
@@ -300,7 +296,6 @@ class Analyzer:
             img_gen = (cv2.imread(path) for path in self.paths)
             if fps is None:
                 fps = 0
-            h, w = cv2.imread(self.paths[0]).shape[:2]
 
             total = len(self.paths)
 
@@ -310,13 +305,39 @@ class Analyzer:
             fnum = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             img_gen = (cap.read()[1] for _ in range(fnum))
             fps = cap.get(cv2.CAP_PROP_FPS)
-            h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 
             total = fnum
 
         else:
             raise TypeError(f"Unsupported experiment kind: {expt_kind}")
+
+        analysis_gen = self.analysis_generator(
+            data_path, image_path, video_path, fps=fps
+        )
+        next(analysis_gen)
+        for img in tqdm.tqdm(img_gen, total=total, desc=name):
+            if img is None:
+                analysis_gen.send(None)
+                break
+            else:
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                analysis_gen.send(img)
+
+    def analysis_generator(
+        self,
+        data_path: str = "",
+        image_path: str = "",
+        video_path: str = "",
+        *,
+        fps: Optional[float] = None,
+    ) -> Generator[None, Optional[npt.NDArray[np.uint8]], None]:
+        """
+        Send the coating layer image to this generator to analyze it.
+        Sending ``None`` terminates the analysis.
+        """
+        self.experiment.substrate.reference.verify()
+        self.experiment.substrate.verify()
+        self.experiment.verify()
 
         # prepare for data writing
         if data_path:
@@ -369,17 +390,16 @@ class Analyzer:
             dirname, _ = os.path.split(video_path)
             if dirname:
                 os.makedirs(dirname, exist_ok=True)
-            videowriter = cv2.VideoWriter(video_path, fourcc, fps, (w, h))
         else:
             write_video = False
 
         layer_gen = self.experiment.layer_generator()
+        i = 0
         try:
-            for i, img in enumerate(tqdm.tqdm(img_gen, total=total, desc=name)):
+            while True:
+                img = yield  # type: ignore
                 if img is None:
-                    continue
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
+                    break
                 next(layer_gen)
                 layer = layer_gen.send(img)
                 valid = layer.valid()
@@ -408,7 +428,13 @@ class Analyzer:
                         cv2.imwrite(imgpath, visualized)
 
                     if write_video:
+                        if i == 0:
+                            h, w = img.shape[:2]
+                            videowriter = cv2.VideoWriter(
+                                video_path, fourcc, fps, (w, h)
+                            )
                         videowriter.write(visualized)
+                i += 1
         finally:
             if write_data:
                 datawriter.terminate()
