@@ -55,6 +55,7 @@ import csv
 import cv2  # type: ignore
 import dataclasses
 import enum
+import imagesize  # type: ignore
 import mimetypes
 import numpy as np
 import numpy.typing as npt
@@ -300,7 +301,7 @@ class Analyzer:
             img_gen = (cv2.imread(path) for path in self.paths)
             if fps is None:
                 fps = 0
-            h, w = cv2.imread(self.paths[0]).shape[:2]
+            w, h = imagesize.get(self.paths[0])
 
             total = len(self.paths)
 
