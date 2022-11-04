@@ -27,6 +27,7 @@ from dipcoatimage.finitedepth import data_converter, ExperimentData
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 import json
 import yaml  # type: ignore[import]
+import os
 from typing import Optional, List
 
 
@@ -91,6 +92,7 @@ class ExperimentDataListView(QWidget):
         copyAction.triggered.connect(self.copySelectedRows)
         self._deleteButton.clicked.connect(self.deleteSelectedRows)
         self._importButton.clicked.connect(self.openImportDialog)
+        self._exportButton.clicked.connect(self.openExportDialog)
 
         self._addButton.setPopupMode(QToolButton.MenuButtonPopup)
         self._addButton.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
@@ -185,6 +187,39 @@ class ExperimentDataListView(QWidget):
                 names.append(name)
                 exptData.append(data_converter.structure(data, ExperimentData))
         model.insertExperimentDataRows(model.rowCount(), count, names, exptData)
+
+    @Slot()
+    def openExportDialog(self):
+        filters = ";;".join([e.value for e in DataFileTypeEnum])
+        fileName, selectedFilter = QFileDialog.getSaveFileName(
+            self,
+            "Save as configuration file",
+            "./",
+            filters,
+            options=QFileDialog.Options.DontUseNativeDialog,
+        )
+        selectedFilter = DataFileTypeEnum(selectedFilter)
+        if fileName:
+            path, ext = os.path.splitext(fileName)
+            if not ext:
+                fileName = f"{path}{os.extsep}{selectedFilter.asExtensions()[0]}"
+            self.exportItems(fileName, selectedFilter)
+
+    def exportItems(self, fileName: str, selectedFilter: DataFileTypeEnum):
+        model = self.model()
+        if model is None:
+            return
+        indices = self._listView.selectedIndexes()
+        ret = {}
+        for index in indices:
+            name = model.data(index, model.Role_ExptName)
+            exptData = model.indexToExperimentData(index)
+            ret[name] = data_converter.unstructure(exptData)
+        with open(fileName, "w") as f:
+            if selectedFilter == DataFileTypeEnum.JSON:
+                json.dump(data, f, indent=2)
+            elif selectedFilter == DataFileTypeEnum.YAML:
+                yaml.dump(data, f)
 
 
 class ExperimentNameDelegate(QStyledItemDelegate):

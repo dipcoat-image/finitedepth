@@ -362,6 +362,77 @@ class ExperimentDataModel(QAbstractItemModel):
 
         return item
 
+    def indexToExperimentData(self, index: QModelIndex) -> ExperimentData:
+        data = ExperimentData()
+        if self.whatsThisIndex(index) != IndexRole.EXPTDATA:
+            return data
+
+        refPathIdx = self.getIndexFor(IndexRole.REFPATH, index)
+        refPath = refPathIdx.data(self.Role_RefPath)
+        data.ref_path = refPath
+
+        coatPathsIdx = self.getIndexFor(IndexRole.COATPATHS, index)
+        coatPaths = [
+            self.index(row, 0, coatPathsIdx).data(self.Role_CoatPath)
+            for row in range(self.rowCount(coatPathsIdx))
+        ]
+        data.coat_paths = coatPaths
+
+        refArgsIdx = self.getIndexFor(IndexRole.REFARGS, index)
+        refTypeIdx = self.getIndexFor(IndexRole.REF_TYPE, refArgsIdx)
+        refType = refTypeIdx.data(self.Role_ImportArgs)
+        data.reference.type = refType
+        tempROIIdx = self.getIndexFor(IndexRole.REF_TEMPLATEROI, refArgsIdx)
+        tempROI = tempROIIdx.data(self.Role_ROI)
+        data.reference.templateROI = tempROI
+        substROIIdx = self.getIndexFor(IndexRole.REF_SUBSTRATEROI, refArgsIdx)
+        substROI = substROIIdx.data(self.Role_ROI)
+        data.reference.substrateROI = substROI
+        refParamsIdx = self.getIndexFor(IndexRole.REF_PARAMETERS, refArgsIdx)
+        refParams = refParamsIdx.data(self.Role_DataclassData)
+        data.reference.parameters = refParams
+        refDrawOptIdx = self.getIndexFor(IndexRole.REF_DRAWOPTIONS, refArgsIdx)
+        refDrawOpts = refDrawOptIdx.data(self.Role_DataclassData)
+        data.reference.draw_options = refDrawOpts
+
+        substArgsIdx = self.getIndexFor(IndexRole.SUBSTARGS, index)
+        substTypeIdx = self.getIndexFor(IndexRole.SUBST_TYPE, substArgsIdx)
+        substType = substTypeIdx.data(self.Role_ImportArgs)
+        data.substrate.type = substType
+        substParamsIdx = self.getIndexFor(IndexRole.SUBST_PARAMETERS, substArgsIdx)
+        substParams = substParamsIdx.data(self.Role_DataclassData)
+        data.substrate.parameters = substParams
+        substDrawOptIdx = self.getIndexFor(IndexRole.SUBST_DRAWOPTIONS, substArgsIdx)
+        substDrawOpts = substDrawOptIdx.data(self.Role_DataclassData)
+        data.substrate.draw_options = substDrawOpts
+
+        layerArgsIdx = self.getIndexFor(IndexRole.LAYERARGS, index)
+        layerTypeIdx = self.getIndexFor(IndexRole.LAYER_TYPE, layerArgsIdx)
+        layerType = layerTypeIdx.data(self.Role_ImportArgs)
+        data.coatinglayer.type = layerType
+        layerParamsIdx = self.getIndexFor(IndexRole.LAYER_PARAMETERS, layerArgsIdx)
+        layerParams = layerParamsIdx.data(self.Role_DataclassData)
+        data.coatinglayer.parameters = layerParams
+        layerDrawOptIdx = self.getIndexFor(IndexRole.LAYER_DRAWOPTIONS, layerArgsIdx)
+        layerDrawOpts = layerDrawOptIdx.data(self.Role_DataclassData)
+        data.coatinglayer.draw_options = layerDrawOpts
+        layerDecoOptIdx = self.getIndexFor(IndexRole.LAYER_DECOOPTIONS, layerArgsIdx)
+        layerDecoOpts = layerDecoOptIdx.data(self.Role_DataclassData)
+        data.coatinglayer.deco_options = layerDecoOpts
+
+        exptArgsIdx = self.getIndexFor(IndexRole.EXPTARGS, index)
+        exptTypeIdx = self.getIndexFor(IndexRole.EXPT_TYPE, exptArgsIdx)
+        exptType = exptTypeIdx.data(self.Role_ImportArgs)
+        data.experiment.type = exptType
+        exptParamsIdx = self.getIndexFor(IndexRole.EXPT_PARAMETERS, exptArgsIdx)
+        exptParams = exptParamsIdx.data(self.Role_DataclassData)
+        data.experiment.parameters = exptParams
+
+        analysisArgsIdx = self.getIndexFor(IndexRole.ANALYSISARGS, index)
+        analysisArgs = analysisArgsIdx.data(self.Role_AnalysisArgs)
+        data.analysis = analysisArgs
+        return data
+
     def columnCount(self, index=QModelIndex()):
         if not index.isValid():
             dataItem = self._rootItem
