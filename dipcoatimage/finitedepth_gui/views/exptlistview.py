@@ -126,9 +126,8 @@ class ExperimentListView(QWidget):
     @Slot()
     def appendNewRow(self):
         model = self.model()
-        if model None:
+        if model is None:
             return
-        rowNum = model.rowCount()
         model.insertExperimentDataRows(
             model.rowCount(), 1, ["New Experiment"], [ExperimentData()]
         )
@@ -145,15 +144,17 @@ class ExperimentListView(QWidget):
     @Slot()
     def deleteSelectedRows(self):
         model = self.model()
-        if model is not None:
-            rows = [idx.row() for idx in self._listView.selectedIndexes()]
-            for i in reversed(sorted(rows)):
-                model.removeRow(i)
+        if model is None:
+            return
+        rows = [idx.row() for idx in self._listView.selectedIndexes()]
+        for i in reversed(sorted(rows)):
+            model.removeRow(i)
 
     def _onIndexActivated(self, index: QModelIndex):
         model = self.model()
-        if model is not None:
-            model.setActivatedIndex(index)
+        if model is None:
+            return
+        model.setActivatedIndex(index)
 
     @Slot()
     def openImportDialog(self):
