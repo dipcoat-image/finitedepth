@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
 from dipcoatimage.finitedepth import data_converter, ExperimentData
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 import json
-import yaml
+import yaml  # type: ignore[import]
 from typing import Optional, List
 
 
