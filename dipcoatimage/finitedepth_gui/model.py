@@ -23,6 +23,7 @@ __all__ = [
     "ExperimentDataItem",
     "IndexRole",
     "ExperimentDataModel",
+    "WorkersUpdateBlocker",
 ]
 
 
@@ -265,6 +266,7 @@ class ExperimentDataModel(QAbstractItemModel):
         super().__init__(parent)
         self._rootItem = ExperimentDataItem()
         self._activatedIndex = QModelIndex()
+        self._blockWorkersUpdate = False
 
     @classmethod
     def _itemFromExperimentData(cls, exptData: ExperimentData) -> ExperimentDataItem:
@@ -488,9 +490,57 @@ class ExperimentDataModel(QAbstractItemModel):
         dataItem = index.internalPointer()
         if isinstance(dataItem, ExperimentDataItem):
             dataItem.setData(role, value)
+            topLevelIndex = self.getTopLevelIndex(index)
+            if topLevelIndex == self.activatedIndex() and not self._blockWorkersUpdate:
+                # Update workers
+                indexRole = self.whatsThisIndex(index)
+                # TODO: specify TypeFlags for each case
+                if indexRole in [
+                    IndexRole.REFPATH,
+                    IndexRole.REF_TYPE,
+                    IndexRole.REF_TEMPLATEROI,
+                    IndexRole.REF_SUBSTRATEROI,
+                    IndexRole.REF_PARAMETERS,
+                ]:
+                    self.updateWorkers(topLevelIndex)
+                elif indexRole in [
+                    IndexRole.REF_DRAWOPTIONS,
+                ]:
+                    self.updateWorkers(topLevelIndex)
+                elif indexRole in [
+                    IndexRole.SUBST_TYPE,
+                    IndexRole.SUBST_PARAMETERS,
+                ]:
+                    self.updateWorkers(topLevelIndex)
+                elif indexRole in [
+                    IndexRole.SUBST_DRAWOPTIONS,
+                ]:
+                    self.updateWorkers(topLevelIndex)
+                elif indexRole in [
+                    IndexRole.COATPATH,
+                    IndexRole.LAYER_TYPE,
+                    IndexRole.LAYER_PARAMETERS,
+                    IndexRole.LAYER_DRAWOPTIONS,
+                    IndexRole.LAYER_DECOOPTIONS,
+                    IndexRole.EXPT_TYPE,
+                    IndexRole.EXPT_PARAMETERS,
+                ]:
+                    self.updateWorkers(topLevelIndex)
+                elif indexRole in [
+                    IndexRole.ANALYSISARGS,
+                ]:
+                    self.updateWorkers(topLevelIndex)
+                else:
+                    pass
             self.dataChanged.emit(index, index, [role])
             return True
         return False
+
+    def updateWorkers(self, index: QModelIndex) -> bool:
+        if self.whatsThisIndex(index) != IndexRole.EXPTDATA:
+            return False
+        ...
+        return True
 
     def insertRows(self, row, count, parent=QModelIndex()):
         if not parent.isValid():
@@ -788,3 +838,27 @@ class ExperimentDataModel(QAbstractItemModel):
                 return self.index(self.Row_ExptParameters, 0, parent)
 
         return QModelIndex()
+
+    def getTopLevelIndex(self, index: QModelIndex) -> QModelIndex:
+        """
+        Get the index with :obj:`IndexRole.EXPTDATA` that *index* belongs to.
+
+        If there is no top level index for *index*, return invalid index.
+        """
+        if not index.isValid():
+            return QModelIndex()
+        while index.parent().isValid():
+            index = index.parent()
+        return index
+
+
+class WorkersUpdateBlocker:
+    def __init__(self, model: ExperimentDataModel):
+        self.model = model
+
+    def __enter__(self):
+        self.model._blockWorkersUpdate = True
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.model._blockWorkersUpdate = False

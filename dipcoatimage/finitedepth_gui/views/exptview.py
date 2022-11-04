@@ -21,7 +21,11 @@ from PySide6.QtWidgets import (
 from dipcoatimage.finitedepth import ExperimentBase
 from dipcoatimage.finitedepth.analysis import ImportArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
-from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
+from dipcoatimage.finitedepth_gui.model import (
+    ExperimentDataModel,
+    IndexRole,
+    WorkersUpdateBlocker,
+)
 from .importview import ImportDataView
 from typing import Optional, Type, Union
 
@@ -145,7 +149,8 @@ class ExperimentView(QWidget):
             success = model.insertRow(rowNum, parent)
             if success:
                 index = model.index(rowNum, 0, parent)
-                model.setData(index, "New path", role=model.Role_CoatPath)
+                with WorkersUpdateBlocker(model):
+                    model.setData(index, "New path", role=model.Role_CoatPath)
 
     @Slot()
     def deleteSelectedPaths(self):
@@ -205,25 +210,34 @@ class ExperimentArgsDelegate(dawiq.DataclassDelegate):
         if isinstance(model, ExperimentDataModel):
             indexRole = model.whatsThisIndex(index)
             if indexRole == IndexRole.EXPTARGS and isinstance(editor, ExperimentView):
-                # set ImportArgs for experiment type to model
-                importArgs = ImportArgs(editor.typeName(), editor.moduleName())
-                model.setData(
-                    model.getIndexFor(IndexRole.EXPT_TYPE, index),
-                    importArgs,
-                    role=model.Role_ImportArgs,
-                )
+                with WorkersUpdateBlocker(model):
+                    # set ImportArgs for experiment type to model
+                    importArgs = ImportArgs(editor.typeName(), editor.moduleName())
+                    model.setData(
+                        model.getIndexFor(IndexRole.EXPT_TYPE, index),
+                        importArgs,
+                        role=model.Role_ImportArgs,
+                    )
 
-                # set dataclass type to model
-                paramIndex = model.getIndexFor(IndexRole.EXPT_PARAMETERS, index)
-                exptType, _ = Importer(importArgs.name, importArgs.module).try_import()
-                if isinstance(exptType, type) and issubclass(exptType, ExperimentBase):
-                    paramType = exptType.Parameters
-                else:
-                    paramType = None
-                model.setData(paramIndex, paramType, role=self.TypeRole)
+                    # set dataclass type to model
+                    paramIndex = model.getIndexFor(IndexRole.EXPT_PARAMETERS, index)
+                    exptType, _ = Importer(
+                        importArgs.name, importArgs.module
+                    ).try_import()
+                    if isinstance(exptType, type) and issubclass(
+                        exptType, ExperimentBase
+                    ):
+                        paramType = exptType.Parameters
+                    else:
+                        paramType = None
+                    model.setData(paramIndex, paramType, role=self.TypeRole)
 
-                # set dataclass data to model
-                self.setModelData(editor.currentParametersWidget(), model, paramIndex)
+                    # set dataclass data to model
+                    self.setModelData(
+                        editor.currentParametersWidget(), model, paramIndex
+                    )
+
+                model.updateWorkers(model.getTopLevelIndex(index))
 
         super().setModelData(editor, model, index)
 

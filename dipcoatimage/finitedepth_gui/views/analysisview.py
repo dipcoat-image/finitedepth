@@ -20,7 +20,11 @@ from PySide6.QtWidgets import (
     QStyledItemDelegate,
 )
 from dipcoatimage.finitedepth.analysis import Analyzer, AnalysisArgs
-from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
+from dipcoatimage.finitedepth_gui.model import (
+    ExperimentDataModel,
+    IndexRole,
+    WorkersUpdateBlocker,
+)
 from typing import Optional
 
 __all__ = [
@@ -204,31 +208,34 @@ class AnalysisArgsDelegate(QStyledItemDelegate):
         if isinstance(model, ExperimentDataModel):
             indexRole = model.whatsThisIndex(index)
             if indexRole == IndexRole.ANALYSISARGS and isinstance(editor, AnalysisView):
-                dataPathName = editor.dataPathName()
-                dataPathExt = editor.dataPathExtension()
-                if not dataPathName:
-                    dataPath = ""
-                else:
-                    dataPath = dataPathName + dataPathExt
+                with WorkersUpdateBlocker(model):
+                    dataPathName = editor.dataPathName()
+                    dataPathExt = editor.dataPathExtension()
+                    if not dataPathName:
+                        dataPath = ""
+                    else:
+                        dataPath = dataPathName + dataPathExt
 
-                imgPathName = editor.imagePathName()
-                imgPathExt = editor.imagePathExtension()
-                if not imgPathName:
-                    imgPath = ""
-                else:
-                    imgPath = imgPathName + imgPathExt
+                    imgPathName = editor.imagePathName()
+                    imgPathExt = editor.imagePathExtension()
+                    if not imgPathName:
+                        imgPath = ""
+                    else:
+                        imgPath = imgPathName + imgPathExt
 
-                vidPathName = editor.videoPathName()
-                vidPathExt = editor.videoPathExtension()
-                if not vidPathName:
-                    vidPath = ""
-                else:
-                    vidPath = vidPathName + vidPathExt
+                    vidPathName = editor.videoPathName()
+                    vidPathExt = editor.videoPathExtension()
+                    if not vidPathName:
+                        vidPath = ""
+                    else:
+                        vidPath = vidPathName + vidPathExt
 
-                fps = editor.fps()
+                    fps = editor.fps()
 
-                analysisArgs = AnalysisArgs(dataPath, imgPath, vidPath, fps)
-                model.setData(index, analysisArgs, role=model.Role_AnalysisArgs)
+                    analysisArgs = AnalysisArgs(dataPath, imgPath, vidPath, fps)
+                    model.setData(index, analysisArgs, role=model.Role_AnalysisArgs)
+
+                model.updateWorkers(model.getTopLevelIndex(index))
 
         super().setModelData(editor, model, index)
 

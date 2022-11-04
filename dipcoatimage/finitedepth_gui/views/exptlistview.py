@@ -140,6 +140,7 @@ class ExperimentDataListView(QWidget):
         if model is None:
             return
         for index in self._listView.selectedIndexes():
+            # TODO: copy consecutive rows in one-shot
             parent = index.parent()
             model.copyRows(parent, index.row(), 1, parent, model.rowCount(parent))
 
@@ -150,6 +151,7 @@ class ExperimentDataListView(QWidget):
             return
         rows = [idx.row() for idx in self._listView.selectedIndexes()]
         for i in reversed(sorted(rows)):
+            # TODO: remove consecutive rows in one-shot
             model.removeRow(i)
 
     def _onIndexActivated(self, index: QModelIndex):
