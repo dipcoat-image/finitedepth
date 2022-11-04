@@ -37,7 +37,7 @@ class CoatingLayerView(QWidget):
     >>> import sys
     >>> from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
     >>> from dipcoatimage.finitedepth_gui.views import (
-    ...     ExperimentListView,
+    ...     ExperimentDataListView,
     ...     CoatingLayerView,
     ... )
     >>> def runGUI():
@@ -45,7 +45,7 @@ class CoatingLayerView(QWidget):
     ...     model = ExperimentDataModel()
     ...     window = QWidget()
     ...     layout = QHBoxLayout()
-    ...     exptListWidget = ExperimentListView()
+    ...     exptListWidget = ExperimentDataListView()
     ...     exptListWidget.setModel(model)
     ...     layout.addWidget(exptListWidget)
     ...     layerWidget = CoatingLayerView()

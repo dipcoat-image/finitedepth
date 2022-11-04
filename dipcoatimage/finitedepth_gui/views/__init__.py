@@ -7,7 +7,7 @@ V2 for inventory.py and controlwidgets
 
 from .exptlistview import (
     DataFileTypeEnum,
-    ExperimentListView,
+    ExperimentDataListView,
     ExperimentNameDelegate,
 )
 from .importview import ImportDataView
@@ -25,7 +25,7 @@ from .analysisview import AnalysisView, AnalysisArgsDelegate
 from .dataviewtab import DataViewTab
 
 __all__ = [
-    "ExperimentListView",
+    "ExperimentDataListView",
     "ExperimentNameDelegate",
     "DataFileTypeEnum",
     "ImportDataView",

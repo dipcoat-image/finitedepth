@@ -8,7 +8,7 @@ V2 for analysisgui.py
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMainWindow, QDockWidget
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
-from dipcoatimage.finitedepth_gui.views import ExperimentListView, DataViewTab
+from dipcoatimage.finitedepth_gui.views import ExperimentDataListView, DataViewTab
 
 
 __all__ = ["MainWindow"]
@@ -35,7 +35,7 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
 
         self._model = ExperimentDataModel()
-        self._listView = ExperimentListView()
+        self._listView = ExperimentDataListView()
         self._dataViewTab = DataViewTab()
 
         self._listView.setModel(self._model)

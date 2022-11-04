@@ -32,7 +32,7 @@ from typing import Optional, List
 
 __all__ = [
     "DataFileTypeEnum",
-    "ExperimentListView",
+    "ExperimentDataListView",
     "ExperimentNameDelegate",
 ]
 
@@ -52,18 +52,18 @@ class DataFileTypeEnum(enum.Enum):
         return exts
 
 
-class ExperimentListView(QWidget):
+class ExperimentDataListView(QWidget):
     """
     Widget to display the list of experiment data.
 
     >>> from PySide6.QtWidgets import QApplication
     >>> import sys
     >>> from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
-    >>> from dipcoatimage.finitedepth_gui.views import ExperimentListView
+    >>> from dipcoatimage.finitedepth_gui.views import ExperimentDataListView
     >>> def runGUI():
     ...     app = QApplication(sys.argv)
     ...     model = ExperimentDataModel()
-    ...     exptListWidget = ExperimentListView()
+    ...     exptListWidget = ExperimentDataListView()
     ...     exptListWidget.setModel(model)
     ...     exptListWidget.show()
     ...     app.exec()
