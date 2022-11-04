@@ -16,7 +16,7 @@ from dipcoatimage.finitedepth import (
 )
 from dipcoatimage.finitedepth.util import Importer
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
-from typing import Optional, Any, Union, Tuple
+from typing import Optional, Any, Union, Tuple, List
 
 
 __all__ = [
@@ -223,6 +223,7 @@ class ExperimentDataModel(QAbstractItemModel):
 
     # https://stackoverflow.com/a/57129496/11501976
 
+    Role_ExptName = Qt.ItemDataRole.DisplayRole
     Role_RefPath = Qt.ItemDataRole.DisplayRole
     Role_CoatPath = Qt.ItemDataRole.DisplayRole
     Role_AnalysisArgs = Qt.ItemDataRole.UserRole
@@ -446,6 +447,27 @@ class ExperimentDataModel(QAbstractItemModel):
             self.endInsertRows()
             return True
         return False
+
+    def insertExperimentDataRows(
+        self, row: int, count: int, names: List[str], exptData: List[ExperimentData]
+    ) -> bool:
+        activatedIndex = self.activatedIndex()
+        activatedRow = activatedIndex.row()
+        activatedColumn = activatedIndex.column()
+        reactivate = row <= activatedRow
+
+        self.beginInsertRows(QModelIndex(), row, row + count - 1)
+        for i in range(count):
+            newItem = self._itemFromExperimentData(exptData[i])
+            newItem.setData(self.Role_ExptName, names[i])
+            newItem.setParent(self._rootItem)
+
+        if reactivate:
+            newRow = activatedRow + count
+            newIndex = self.index(newRow, activatedColumn, QModelIndex())
+            self.setActivatedIndex(newIndex)
+        self.endInsertRows()
+        return True
 
     def copyRows(
         self,

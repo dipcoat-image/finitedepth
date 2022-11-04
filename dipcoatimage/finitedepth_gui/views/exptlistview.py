@@ -23,16 +23,33 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QFileDialog,
 )
-from dipcoatimage.finitedepth import data_converter
+from dipcoatimage.finitedepth import data_converter, ExperimentData
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
+import json
+import yaml
 from typing import Optional, List
 
 
 __all__ = [
+    "DataFileTypeEnum",
     "ExperimentListView",
     "ExperimentNameDelegate",
-    "DataFileTypeEnum",
 ]
+
+
+class DataFileTypeEnum(enum.Enum):
+    """
+    Enum of supported file types for experiment data. Values are file filters.
+    """
+
+    JSON = "JSON (*.json)"
+    YAML = "YAML (*.yml)"
+
+    def asExtensions(self) -> List[str]:
+        s = self.value
+        patterns = s[s.find("(") + 1 : s.find(")")].split(" ")
+        exts = [p[p.find(".") + 1 :] for p in patterns]
+        return exts
 
 
 class ExperimentListView(QWidget):
@@ -109,20 +126,21 @@ class ExperimentListView(QWidget):
     @Slot()
     def appendNewRow(self):
         model = self.model()
-        if model is not None:
-            rowNum = model.rowCount()
-            success = model.insertRow(rowNum)
-            if success:
-                index = model.index(rowNum, 0)
-                model.setData(index, "New Experiment", role=Qt.DisplayRole)
+        if model None:
+            return
+        rowNum = model.rowCount()
+        model.insertExperimentDataRows(
+            model.rowCount(), 1, ["New Experiment"], [ExperimentData()]
+        )
 
     @Slot()
     def copySelectedRows(self):
         model = self.model()
-        if model is not None:
-            for index in self._listView.selectedIndexes():
-                parent = index.parent()
-                model.copyRows(parent, index.row(), 1, parent, model.rowCount(parent))
+        if model is None:
+            return
+        for index in self._listView.selectedIndexes():
+            parent = index.parent()
+            model.copyRows(parent, index.row(), 1, parent, model.rowCount(parent))
 
     @Slot()
     def deleteSelectedRows(self):
@@ -154,13 +172,18 @@ class ExperimentListView(QWidget):
         model = self.model()
         if model is None:
             return
+        count, names, exptData = 0, [], []
         for filename in fileNames:
             with open(filename, "r") as f:
-                if selectedFilter == ConfigFileTypeEnum.JSON:
+                if selectedFilter == DataFileTypeEnum.JSON:
                     dataDict = json.load(f)
-                elif selectedFilter == ConfigFileTypeEnum.YAML:
+                elif selectedFilter == DataFileTypeEnum.YAML:
                     dataDict = yaml.load(f, Loader=yaml.FullLoader)
-        ...
+            for name, data in dataDict.items():
+                count += 1
+                names.append(name)
+                exptData.append(data_converter.structure(data, ExperimentData))
+        model.insertExperimentDataRows(model.rowCount(), count, names, exptData)
 
 
 class ExperimentNameDelegate(QStyledItemDelegate):
@@ -194,18 +217,3 @@ class ExperimentNameDelegate(QStyledItemDelegate):
                 painter.setBrush(Qt.black)
                 painter.drawEllipse(markerRect)
                 painter.restore()
-
-
-class DataFileTypeEnum(enum.Enum):
-    """
-    Enum of supported file types for experiment data. Values are file filters.
-    """
-
-    JSON = "JSON (*.json)"
-    YAML = "YAML (*.yml)"
-
-    def asExtensions(self) -> List[str]:
-        s = self.value
-        patterns = s[s.find("(") + 1 : s.find(")")].split(" ")
-        exts = [p[p.find(".") + 1 :] for p in patterns]
-        return exts

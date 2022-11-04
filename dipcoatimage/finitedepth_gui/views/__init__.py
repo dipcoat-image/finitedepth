@@ -6,9 +6,9 @@ V2 for inventory.py and controlwidgets
 """
 
 from .exptlistview import (
+    DataFileTypeEnum,
     ExperimentListView,
     ExperimentNameDelegate,
-    DataFileTypeEnum,
 )
 from .importview import ImportDataView
 from .roiview import ROISpinBox, ROIView
