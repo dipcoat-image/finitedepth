@@ -41,7 +41,7 @@ class ExperimentView(QWidget):
     >>> import sys
     >>> from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
     >>> from dipcoatimage.finitedepth_gui.views import (
-    ...     ExperimentListView,
+    ...     ExperimentDataListView,
     ...     ExperimentView
     ... )
     >>> def runGUI():
@@ -49,7 +49,7 @@ class ExperimentView(QWidget):
     ...     model = ExperimentDataModel()
     ...     window = QWidget()
     ...     layout = QHBoxLayout()
-    ...     exptListWidget = ExperimentListView()
+    ...     exptListWidget = ExperimentDataListView()
     ...     exptListWidget.setModel(model)
     ...     layout.addWidget(exptListWidget)
     ...     exptWidget = ExperimentView()

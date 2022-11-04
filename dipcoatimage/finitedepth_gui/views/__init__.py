@@ -5,7 +5,11 @@ Experiment data view
 V2 for inventory.py and controlwidgets
 """
 
-from .listview import ExperimentNameDelegate, ExperimentListView
+from .exptlistview import (
+    DataFileTypeEnum,
+    ExperimentDataListView,
+    ExperimentNameDelegate,
+)
 from .importview import ImportDataView
 from .roiview import ROISpinBox, ROIView
 from .exptview import ExperimentView, ExperimentArgsDelegate
@@ -21,8 +25,9 @@ from .analysisview import AnalysisView, AnalysisArgsDelegate
 from .dataviewtab import DataViewTab
 
 __all__ = [
+    "ExperimentDataListView",
     "ExperimentNameDelegate",
-    "ExperimentListView",
+    "DataFileTypeEnum",
     "ImportDataView",
     "ROISpinBox",
     "ROIView",

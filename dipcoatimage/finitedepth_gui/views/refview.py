@@ -53,7 +53,7 @@ class ReferenceView(QWidget):
     >>> import sys
     >>> from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
     >>> from dipcoatimage.finitedepth_gui.views import (
-    ...     ExperimentListView,
+    ...     ExperimentDataListView,
     ...     ReferenceView,
     ... )
     >>> def runGUI():
@@ -61,7 +61,7 @@ class ReferenceView(QWidget):
     ...     model = ExperimentDataModel()
     ...     window = QWidget()
     ...     layout = QHBoxLayout()
-    ...     exptListWidget = ExperimentListView()
+    ...     exptListWidget = ExperimentDataListView()
     ...     exptListWidget.setModel(model)
     ...     layout.addWidget(exptListWidget)
     ...     refWidget = ReferenceView()

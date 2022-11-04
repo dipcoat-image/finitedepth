@@ -36,7 +36,7 @@ class DataViewTab(QTabWidget):
     >>> import sys
     >>> from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
     >>> from dipcoatimage.finitedepth_gui.views import (
-    ...     ExperimentListView,
+    ...     ExperimentDataListView,
     ...     DataViewTab,
     ... )
     >>> def runGUI():
@@ -44,7 +44,7 @@ class DataViewTab(QTabWidget):
     ...     model = ExperimentDataModel()
     ...     window = QWidget()
     ...     layout = QHBoxLayout()
-    ...     exptListWidget = ExperimentListView()
+    ...     exptListWidget = ExperimentDataListView()
     ...     exptListWidget.setModel(model)
     ...     layout.addWidget(exptListWidget)
     ...     tab = DataViewTab()
