@@ -61,7 +61,7 @@ import numpy as np
 import numpy.typing as npt
 import os
 import tqdm  # type: ignore
-from typing import List, Type, Optional, Dict, Any, Tuple
+from typing import List, Type, Optional, Dict, Any, Tuple, Generator
 from .reference import SubstrateReferenceBase
 from .substrate import SubstrateBase
 from .coatinglayer import CoatingLayerBase
@@ -416,6 +416,106 @@ class Analyzer:
 
             if write_video:
                 videowriter.release()
+
+    def analysis_generator(
+        self,
+        data_path: str = "",
+        image_path: str = "",
+        video_path: str = "",
+        *,
+        fps: Optional[float] = None,
+    ) -> Generator[None, npt.NDArray[np.uint8], None]:
+        # prepare for data writing
+        if data_path:
+            write_data = True
+
+            dirname, _ = os.path.split(data_path)
+            if dirname:
+                os.makedirs(dirname, exist_ok=True)
+
+            _, data_ext = os.path.splitext(data_path)
+            data_ext = data_ext.lstrip(os.path.extsep).lower()
+            writercls = self.data_writers.get(data_ext, None)
+            if writercls is None:
+                raise TypeError(f"Unsupported extension: {data_ext}")
+            headers = [
+                f.name for f in dataclasses.fields(self.experiment.layer_type.Data)
+            ]
+            if fps:
+                headers = ["time (s)"] + headers
+            datawriter = writercls(data_path, headers)
+            datawriter.prepare()
+        else:
+            write_data = False
+
+        # prepare for image writing
+        if image_path:
+            write_image = True
+
+            dirname, _ = os.path.split(image_path)
+            if dirname:
+                os.makedirs(dirname, exist_ok=True)
+            try:
+                image_path % 0
+                image_path_formattable = True
+            except (TypeError, ValueError):
+                image_path_formattable = False
+        else:
+            write_image = False
+
+        # prepare for video writing
+        if video_path:
+            write_video = True
+
+            _, video_ext = os.path.splitext(video_path)
+            video_ext = video_ext.lstrip(os.path.extsep).lower()
+            fourcc = self.video_codecs.get(video_ext, None)
+            if fourcc is None:
+                raise TypeError(f"Unsupported extension: {video_ext}")
+
+            dirname, _ = os.path.split(video_path)
+            if dirname:
+                os.makedirs(dirname, exist_ok=True)
+        else:
+            write_video = False
+
+        layer_gen = self.experiment.layer_generator()
+        i = 0
+        while True:
+            img = yield  # type: ignore
+            next(layer_gen)
+            layer = layer_gen.send(img)
+            valid = layer.valid()
+
+            if write_data:
+                if valid:
+                    data = list(dataclasses.astuple(layer.analyze()))
+                    if fps:
+                        data = [i / fps] + data
+                else:
+                    data = []
+                datawriter.write_data(data)
+
+            if write_image or write_video:
+                if valid:
+                    visualized = layer.draw()
+                else:
+                    visualized = img
+                visualized = cv2.cvtColor(visualized, cv2.COLOR_RGB2BGR)
+
+                if write_image:
+                    if image_path_formattable:
+                        imgpath = image_path % i
+                    else:
+                        imgpath = image_path
+                    cv2.imwrite(imgpath, visualized)
+
+                if write_video:
+                    if i == 0:
+                        h, w = img.shape[:2]
+                        videowriter = cv2.VideoWriter(video_path, fourcc, fps, (w, h))
+                    videowriter.write(visualized)
+            i += 1
 
 
 @dataclasses.dataclass
