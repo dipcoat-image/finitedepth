@@ -21,7 +21,7 @@ from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
     IndexRole,
-    WorkersUpdateBlocker,
+    WorkerUpdateBlocker,
 )
 from .importview import ImportDataView
 from typing import Optional, Type, Union
@@ -209,7 +209,7 @@ class CoatingLayerArgsDelegate(dawiq.DataclassDelegate):
             if indexRole == IndexRole.LAYERARGS and isinstance(
                 editor, CoatingLayerView
             ):
-                with WorkersUpdateBlocker(model):
+                with WorkerUpdateBlocker(model):
                     # set ImportArgs for layer type to model
                     importArgs = ImportArgs(editor.typeName(), editor.moduleName())
                     model.setData(
@@ -250,7 +250,7 @@ class CoatingLayerArgsDelegate(dawiq.DataclassDelegate):
                         editor.currentDecoOptionsWidget(), model, decoOptIndex
                     )
 
-                model.updateWorkers(model.getTopLevelIndex(index))
+                model.updateWorker(model.getTopLevelIndex(index))
 
         super().setModelData(editor, model, index)
 

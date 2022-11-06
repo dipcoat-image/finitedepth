@@ -23,7 +23,7 @@ from dipcoatimage.finitedepth.analysis import Analyzer, AnalysisArgs
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
     IndexRole,
-    WorkersUpdateBlocker,
+    WorkerUpdateBlocker,
 )
 from typing import Optional
 
@@ -208,7 +208,7 @@ class AnalysisArgsDelegate(QStyledItemDelegate):
         if isinstance(model, ExperimentDataModel):
             indexRole = model.whatsThisIndex(index)
             if indexRole == IndexRole.ANALYSISARGS and isinstance(editor, AnalysisView):
-                with WorkersUpdateBlocker(model):
+                with WorkerUpdateBlocker(model):
                     dataPathName = editor.dataPathName()
                     dataPathExt = editor.dataPathExtension()
                     if not dataPathName:
@@ -235,7 +235,7 @@ class AnalysisArgsDelegate(QStyledItemDelegate):
                     analysisArgs = AnalysisArgs(dataPath, imgPath, vidPath, fps)
                     model.setData(index, analysisArgs, role=model.Role_AnalysisArgs)
 
-                model.updateWorkers(model.getTopLevelIndex(index))
+                model.updateWorker(model.getTopLevelIndex(index))
 
         super().setModelData(editor, model, index)
 

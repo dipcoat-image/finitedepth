@@ -21,7 +21,7 @@ from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
     IndexRole,
-    WorkersUpdateBlocker,
+    WorkerUpdateBlocker,
 )
 from .importview import ImportDataView
 from typing import Optional, Type, Union
@@ -183,7 +183,7 @@ class SubstrateArgsDelegate(dawiq.DataclassDelegate):
         if isinstance(model, ExperimentDataModel):
             indexRole = model.whatsThisIndex(index)
             if indexRole == IndexRole.SUBSTARGS and isinstance(editor, SubstrateView):
-                with WorkersUpdateBlocker(model):
+                with WorkerUpdateBlocker(model):
                     # set ImportArgs for substtrate type to model
                     importArgs = ImportArgs(editor.typeName(), editor.moduleName())
                     model.setData(
@@ -217,7 +217,7 @@ class SubstrateArgsDelegate(dawiq.DataclassDelegate):
                         editor.currentDrawOptionsWidget(), model, drawOptIndex
                     )
 
-                model.updateWorkers(model.getTopLevelIndex(index))
+                model.updateWorker(model.getTopLevelIndex(index))
 
         super().setModelData(editor, model, index)
 

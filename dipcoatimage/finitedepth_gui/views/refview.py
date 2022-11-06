@@ -28,7 +28,7 @@ from dipcoatimage.finitedepth.util import DataclassProtocol, Importer, OptionalR
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
     IndexRole,
-    WorkersUpdateBlocker,
+    WorkerUpdateBlocker,
 )
 from .importview import ImportDataView
 from .roiview import ROIView
@@ -310,7 +310,7 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
         if isinstance(model, ExperimentDataModel):
             indexRole = model.whatsThisIndex(index)
             if indexRole == IndexRole.REFARGS and isinstance(editor, ReferenceView):
-                with WorkersUpdateBlocker(model):
+                with WorkerUpdateBlocker(model):
                     # set ImportArgs for reference type to model
                     importArgs = ImportArgs(editor.typeName(), editor.moduleName())
                     model.setData(
@@ -356,7 +356,7 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
                         editor.currentDrawOptionsWidget(), model, drawOptIndex
                     )
 
-                model.updateWorkers(model.getTopLevelIndex(index))
+                model.updateWorker(model.getTopLevelIndex(index))
 
         super().setModelData(editor, model, index)
 

@@ -24,7 +24,7 @@ from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
     IndexRole,
-    WorkersUpdateBlocker,
+    WorkerUpdateBlocker,
 )
 from .importview import ImportDataView
 from typing import Optional, Type, Union
@@ -149,7 +149,7 @@ class ExperimentView(QWidget):
             success = model.insertRow(rowNum, parent)
             if success:
                 index = model.index(rowNum, 0, parent)
-                with WorkersUpdateBlocker(model):
+                with WorkerUpdateBlocker(model):
                     model.setData(index, "New path", role=model.Role_CoatPath)
 
     @Slot()
@@ -210,7 +210,7 @@ class ExperimentArgsDelegate(dawiq.DataclassDelegate):
         if isinstance(model, ExperimentDataModel):
             indexRole = model.whatsThisIndex(index)
             if indexRole == IndexRole.EXPTARGS and isinstance(editor, ExperimentView):
-                with WorkersUpdateBlocker(model):
+                with WorkerUpdateBlocker(model):
                     # set ImportArgs for experiment type to model
                     importArgs = ImportArgs(editor.typeName(), editor.moduleName())
                     model.setData(
@@ -237,7 +237,7 @@ class ExperimentArgsDelegate(dawiq.DataclassDelegate):
                         editor.currentParametersWidget(), model, paramIndex
                     )
 
-                model.updateWorkers(model.getTopLevelIndex(index))
+                model.updateWorker(model.getTopLevelIndex(index))
 
         super().setModelData(editor, model, index)
 
