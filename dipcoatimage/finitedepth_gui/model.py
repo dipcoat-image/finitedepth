@@ -653,7 +653,7 @@ class ExperimentDataModel(QAbstractItemModel):
             for item in reversed(newItems):
                 item.setParent(parentDataItem)
             self.endInsertRows()
-            self.updateWorker(self.getTopLevelIndex(parent))
+            self.updateWorker(self.getTopLevelIndex(sourceParent))
         return False
 
     def removeRows(self, row, count, parent=QModelIndex()):
