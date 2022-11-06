@@ -146,11 +146,7 @@ class ExperimentView(QWidget):
         parent = self._pathsListView.rootIndex()
         if isinstance(model, ExperimentDataModel) and parent.isValid():
             rowNum = model.rowCount(parent)
-            success = model.insertRow(rowNum, parent)
-            if success:
-                index = model.index(rowNum, 0, parent)
-                with WorkerUpdateBlocker(model):
-                    model.setData(index, "New path", role=model.Role_CoatPath)
+            model.insertRow(rowNum, parent)
 
     @Slot()
     def deleteSelectedPaths(self):

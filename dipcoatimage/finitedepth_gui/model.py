@@ -564,8 +564,10 @@ class ExperimentDataModel(QAbstractItemModel):
             self.beginInsertRows(parent, row, row + count - 1)
             for _ in range(count):
                 newItem = ExperimentDataItem()
+                newItem.setData(self.Role_CoatPath, "New path")
                 newItem.setParent(parent.internalPointer())
             self.endInsertRows()
+            self.updateWorker(self.getTopLevelIndex(parent))
             return True
         return False
 
@@ -651,6 +653,7 @@ class ExperimentDataModel(QAbstractItemModel):
             for item in reversed(newItems):
                 item.setParent(parentDataItem)
             self.endInsertRows()
+            self.updateWorker(self.getTopLevelIndex(parent))
         return False
 
     def removeRows(self, row, count, parent=QModelIndex()):
@@ -681,6 +684,7 @@ class ExperimentDataModel(QAbstractItemModel):
             for _ in range(count):
                 dataItem.remove(row)
             self.endRemoveRows()
+            self.updateWorker(self.getTopLevelIndex(parent))
             return True
         return False
 
