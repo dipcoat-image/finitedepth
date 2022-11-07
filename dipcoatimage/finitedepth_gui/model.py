@@ -16,6 +16,7 @@ from dipcoatimage.finitedepth import (
 )
 from dipcoatimage.finitedepth.util import Importer
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
+from .worker import ExperimentWorker
 from typing import Optional, Any, Union, Tuple, List
 
 
@@ -267,6 +268,7 @@ class ExperimentDataModel(QAbstractItemModel):
         self._rootItem = ExperimentDataItem()
         self._activatedIndex = QModelIndex()
         self._blockWorkerUpdate = False
+        self._workers: List[ExperimentWorker] = []
 
     @classmethod
     def _itemFromExperimentData(cls, exptData: ExperimentData) -> ExperimentDataItem:
@@ -536,8 +538,17 @@ class ExperimentDataModel(QAbstractItemModel):
             return True
         return False
 
-    def updateWorker(self, index: QModelIndex) -> bool:
+    def worker(self, index: QModelIndex) -> Optional[ExperimentWorker]:
         if self.whatsThisIndex(index) != IndexRole.EXPTDATA:
+            return None
+        row = index.row()
+        if row + 1 > len(self._workers):
+            return None
+        return self._workers[row]
+
+    def updateWorker(self, index: QModelIndex) -> bool:
+        worker = self.worker(index)
+        if worker is None:
             return False
         ...
         return True
@@ -550,9 +561,10 @@ class ExperimentDataModel(QAbstractItemModel):
             reactivate = (parent == activatedIndex.parent()) and row <= activatedRow
 
             self.beginInsertRows(parent, row, row + count - 1)
-            for _ in range(count):
+            for _ in reversed(range(count)):
                 newItem = self._itemFromExperimentData(ExperimentData())
-                newItem.setParent(self._rootItem)
+                newItem.setParent(self._rootItem, row)
+                self._workers.insert(row, ExperimentWorker(self))
 
             if reactivate:
                 newRow = activatedRow + count
@@ -562,10 +574,10 @@ class ExperimentDataModel(QAbstractItemModel):
             return True
         elif self.whatsThisIndex(parent) == IndexRole.COATPATHS:
             self.beginInsertRows(parent, row, row + count - 1)
-            for _ in range(count):
+            for _ in reversed(range(count)):
                 newItem = ExperimentDataItem()
                 newItem.setData(self.Role_CoatPath, "New path")
-                newItem.setParent(parent.internalPointer())
+                newItem.setParent(parent.internalPointer(), row)
             self.endInsertRows()
             self.updateWorker(self.getTopLevelIndex(parent))
             return True
@@ -580,10 +592,11 @@ class ExperimentDataModel(QAbstractItemModel):
         reactivate = row <= activatedRow
 
         self.beginInsertRows(QModelIndex(), row, row + count - 1)
-        for i in range(count):
+        for i in reversed(range(count)):
             newItem = self._itemFromExperimentData(exptData[i])
             newItem.setData(self.Role_ExptName, names[i])
-            newItem.setParent(self._rootItem)
+            newItem.setParent(self._rootItem, row)
+            self._workers.insert(row, ExperimentWorker(self))
 
         if reactivate:
             newRow = activatedRow + count
@@ -620,16 +633,19 @@ class ExperimentDataModel(QAbstractItemModel):
             ) and destinationChild <= activatedRow
 
             newItems = []
+            newWorkers = []
             for i in range(count):
                 oldItem = self.index(sourceRow + i, 0, sourceParent).internalPointer()
                 newItem = self._itemFromExperimentData(ExperimentData())
                 oldItem.copyDataTo(newItem)
                 newItems.append(newItem)
+                newWorkers.append(ExperimentWorker(self))
             self.beginInsertRows(
                 sourceParent, destinationChild, destinationChild + count - 1
             )
-            for item in reversed(newItems):
+            for item, worker in zip(reversed(newItems), reversed(newWorkers)):
                 item.setParent(self._rootItem, destinationChild)
+                self._workers.insert(destinationChild, worker)
 
             if reactivate:
                 newRow = activatedRow + count
@@ -651,7 +667,7 @@ class ExperimentDataModel(QAbstractItemModel):
                 sourceParent, destinationChild, destinationChild + count - 1
             )
             for item in reversed(newItems):
-                item.setParent(parentDataItem)
+                item.setParent(parentDataItem, destinationChild)
             self.endInsertRows()
             self.updateWorker(self.getTopLevelIndex(sourceParent))
         return False
@@ -668,6 +684,7 @@ class ExperimentDataModel(QAbstractItemModel):
             self.beginRemoveRows(parent, row, row + count - 1)
             for _ in range(count):
                 self._rootItem.remove(row)
+                self._workers.pop(row)
 
             if reactivate:
                 if activatedRow < row + count:
