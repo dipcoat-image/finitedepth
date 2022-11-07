@@ -127,14 +127,6 @@ class ExperimentDataItem(object):
             while orphan._children:
                 orphan.remove(0)
 
-    def copyDataTo(self, other: "ExperimentDataItem"):
-        """
-        Copy the data of *self* and its children to *other* and its children.
-        """
-        other._data = copy.deepcopy(self._data)
-        for (subSelf, subOther) in zip(self._children, other._children):
-            subSelf.copyDataTo(subOther)
-
 
 class IndexRole(enum.Enum):
     """Role of the ``QModelIndex`` of :class:`ExperimentDataModel`."""
@@ -645,8 +637,8 @@ class ExperimentDataModel(QAbstractItemModel):
                 oldIdx = self.index(sourceRow + i, 0, sourceParent)
                 oldItem = oldIdx.internalPointer()
                 oldData = self.indexToExperimentData(oldIdx)
-                newItem = self._itemFromExperimentData(ExperimentData())
-                oldItem.copyDataTo(newItem)
+                newItem = self._itemFromExperimentData(copy.deepcopy(oldData))
+                newItem.setData(self.Role_ExptName, oldItem.data(self.Role_ExptName))
                 newItems.append(newItem)
                 newWorker = ExperimentWorker(self)
                 newWorkers.append(newWorker)
@@ -672,7 +664,7 @@ class ExperimentDataModel(QAbstractItemModel):
             for i in range(count):
                 oldItem = self.index(sourceRow + i, 0, sourceParent).internalPointer()
                 newItem = ExperimentDataItem()
-                oldItem.copyDataTo(newItem)
+                newItem.setData(self.Role_ExptName, oldItem.data(self.Role_ExptName))
                 newItems.append(newItem)
             self.beginInsertRows(
                 sourceParent, destinationChild, destinationChild + count - 1
