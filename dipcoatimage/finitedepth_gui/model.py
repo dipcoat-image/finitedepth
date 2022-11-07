@@ -550,7 +550,8 @@ class ExperimentDataModel(QAbstractItemModel):
         worker = self.worker(index)
         if worker is None:
             return False
-        ...
+        exptData = self.indexToExperimentData(index)
+        worker.setExperimentData(exptData)
         return True
 
     def insertRows(self, row, count, parent=QModelIndex()):
@@ -562,9 +563,12 @@ class ExperimentDataModel(QAbstractItemModel):
 
             self.beginInsertRows(parent, row, row + count - 1)
             for _ in reversed(range(count)):
-                newItem = self._itemFromExperimentData(ExperimentData())
+                exptData = ExperimentData()
+                newItem = self._itemFromExperimentData(exptData)
                 newItem.setParent(self._rootItem, row)
-                self._workers.insert(row, ExperimentWorker(self))
+                worker = ExperimentWorker(self)
+                self._workers.insert(row, worker)
+                worker.setExperimentData(exptData)
 
             if reactivate:
                 newRow = activatedRow + count
@@ -593,10 +597,13 @@ class ExperimentDataModel(QAbstractItemModel):
 
         self.beginInsertRows(QModelIndex(), row, row + count - 1)
         for i in reversed(range(count)):
-            newItem = self._itemFromExperimentData(exptData[i])
+            data = exptData[i]
+            newItem = self._itemFromExperimentData(data)
             newItem.setData(self.Role_ExptName, names[i])
             newItem.setParent(self._rootItem, row)
-            self._workers.insert(row, ExperimentWorker(self))
+            worker = ExperimentWorker(self)
+            self._workers.insert(row, worker)
+            worker.setExperimentData(data)
 
         if reactivate:
             newRow = activatedRow + count
@@ -635,11 +642,15 @@ class ExperimentDataModel(QAbstractItemModel):
             newItems = []
             newWorkers = []
             for i in range(count):
-                oldItem = self.index(sourceRow + i, 0, sourceParent).internalPointer()
+                oldIdx = self.index(sourceRow + i, 0, sourceParent)
+                oldItem = oldIdx.internalPointer()
+                oldData = self.indexToExperimentData(oldIdx)
                 newItem = self._itemFromExperimentData(ExperimentData())
                 oldItem.copyDataTo(newItem)
                 newItems.append(newItem)
-                newWorkers.append(ExperimentWorker(self))
+                newWorker = ExperimentWorker(self)
+                newWorkers.append(newWorker)
+                newWorker.setExperimentData(oldData)
             self.beginInsertRows(
                 sourceParent, destinationChild, destinationChild + count - 1
             )
