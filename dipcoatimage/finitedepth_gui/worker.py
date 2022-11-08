@@ -14,9 +14,14 @@ from dipcoatimage.finitedepth import (
     SubstrateBase,
     ExperimentBase,
 )
-from dipcoatimage.finitedepth.analysis import AnalysisArgs
+from dipcoatimage.finitedepth.analysis import (
+    AnalysisArgs,
+    ExperimentKind,
+    experiment_kind,
+    Analyzer,
+)
 from PySide6.QtCore import QObject, Signal, QRunnable, QThreadPool
-from typing import Optional
+from typing import List, Optional
 
 
 __all__ = [
@@ -35,11 +40,17 @@ class AnalysisState(enum.Enum):
 
 class AnalysisWorkerSignals(QObject):
     stateChanged = Signal(AnalysisState)
+    progressMaximumChanged = Signal(int)
+    progressValueChanged = Signal(int)
 
 
 class AnalysisWorker(QRunnable):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.coat_paths: List[str] = []
+        self.experiment: Optional[ExperimentBase] = None
+        self.analysisArgs = AnalysisArgs()
+
         self._state = AnalysisState.Stopped
         self.signals = AnalysisWorkerSignals()
 
@@ -53,16 +64,67 @@ class AnalysisWorker(QRunnable):
 
     def run(self):
         self.setState(AnalysisState.Running)
-        # represents analysis
-        import time
 
-        time.sleep(3)
+        if not self.coat_paths or self.experiment is None:
+            self.setState(AnalysisState.Stopped)
+            return
+
+        exptKind = experiment_kind(self.coat_paths)
+        dataPath = self.analysisArgs.data_path
+        imagePath = self.analysisArgs.image_path
+        videoPath = self.analysisArgs.video_path
+        fps = self.analysisArgs.fps
+
+        if (
+            exptKind == ExperimentKind.SingleImageExperiment
+            or exptKind == ExperimentKind.MultiImageExperiment
+        ):
+            total = len(self.coat_paths)
+            img_gen = (cv2.imread(path) for path in self.coat_paths)
+            if fps is None:
+                fps = 0
+
+        elif exptKind == ExperimentKind.VideoExperiment:
+            (path,) = self.coat_paths
+            cap = cv2.VideoCapture(path)
+            total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            img_gen = (cap.read()[1] for _ in range(total))
+            fps = cap.get(cv2.CAP_PROP_FPS)
+
+        else:
+            self.setState(AnalysisState.Stopped)
+            raise TypeError(f"Unsupported experiment kind: {exptKind}")
+
+        self.signals.progressMaximumChanged.emit(total)
+
+        analyzer = Analyzer(self.coat_paths, self.experiment)
+        analysis_gen = analyzer.analysis_generator(
+            dataPath, imagePath, videoPath, fps=fps
+        )
+        next(analysis_gen)
+
+        for i, img in enumerate(img_gen):
+            state = self.state()
+            if state == AnalysisState.Paused:
+                continue
+            elif state == AnalysisState.Stopped:
+                analysis_gen.send(None)
+                break
+            if img is None:
+                analysis_gen.send(None)
+                break
+            else:
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                analysis_gen.send(img)
+                self.signals.progressValueChanged.emit(i + 1)
         self.setState(AnalysisState.Stopped)
 
 
 class ExperimentWorker(QObject):
 
     analysisStateChanged = Signal(AnalysisState)
+    analysisProgressMaximumChanged = Signal(int)
+    analysisProgressValueChanged = Signal(int)
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -72,20 +134,25 @@ class ExperimentWorker(QObject):
         self.substrateImage = np.empty((0, 0, 0), dtype=np.uint8)
         self.substrate: Optional[SubstrateBase] = None
         self.experiment: Optional[ExperimentBase] = None
-        self.analysisArgs = AnalysisArgs()
 
         self.analysisWorker = AnalysisWorker()
         self._analysisState = AnalysisState.Stopped
+        self._analysisProgressMaximum = 0
+        self._analysisProgressValue = 0
 
         self.analysisWorker.setAutoDelete(False)
         self.analysisWorker.signals.stateChanged.connect(self._onAnalysisStateChange)
+        self.analysisWorker.signals.progressMaximumChanged.connect(
+            self._onAnalysisProgressMaximumChange
+        )
+        self.analysisWorker.signals.progressValueChanged.connect(
+            self._onAnalysisProgressValueChange
+        )
 
     def analysisState(self) -> AnalysisState:
         return self._analysisState
 
     def setExperimentData(self, exptData: ExperimentData):
-        self.analysisArgs = exptData.analysis
-
         refPath = exptData.ref_path
         if refPath:
             refImg = cv2.imread(exptData.ref_path)
@@ -96,46 +163,52 @@ class ExperimentWorker(QObject):
         else:
             refImg = cv2.cvtColor(refImg, cv2.COLOR_BGR2RGB)
         self.referenceImage = refImg
+
+        self.analysisWorker.coat_paths = exptData.coat_paths
+
         if self.referenceImage.size == 0:
-            return
-
-        refArgs = exptData.reference
-        try:
-            ref = refArgs.as_reference(self.referenceImage)
-            if not ref.valid():
-                self.reference = None
-            else:
-                self.reference = ref
-        except TypeError:
             self.reference = None
+        else:
+            refArgs = exptData.reference
+            try:
+                ref = refArgs.as_reference(self.referenceImage)
+                if not ref.valid():
+                    self.reference = None
+                else:
+                    self.reference = ref
+            except TypeError:
+                self.reference = None
+
         if self.reference is None:
-            return
-
-        substArgs = exptData.substrate
-        try:
-            subst = substArgs.as_substrate(self.reference)
-            if not subst.valid():
-                self.substrate = None
-            else:
-                self.substrate = subst
-        except TypeError:
             self.substrate = None
-        if self.substrate is None:
-            return
+        else:
+            substArgs = exptData.substrate
+            try:
+                subst = substArgs.as_substrate(self.reference)
+                if not subst.valid():
+                    self.substrate = None
+                else:
+                    self.substrate = subst
+            except TypeError:
+                self.substrate = None
 
-        layerArgs = exptData.coatinglayer
-        exptArgs = exptData.experiment
-        try:
-            structuredLayerArgs = layerArgs.as_structured_args()
-            expt = exptArgs.as_experiment(self.substrate, *structuredLayerArgs)
-            if not expt.valid():
-                self.experiment = None
-            else:
-                self.experiment = expt
-        except TypeError:
+        if self.substrate is None:
             self.experiment = None
-        if self.experiment is None:
-            return
+        else:
+            layerArgs = exptData.coatinglayer
+            exptArgs = exptData.experiment
+            try:
+                structuredLayerArgs = layerArgs.as_structured_args()
+                expt = exptArgs.as_experiment(self.substrate, *structuredLayerArgs)
+                if not expt.valid():
+                    self.experiment = None
+                else:
+                    self.experiment = expt
+            except TypeError:
+                self.experiment = None
+        self.analysisWorker.experiment = self.experiment
+
+        self.analysisWorker.analysisArgs = exptData.analysis
 
     def setAnalysisState(self, state: AnalysisState):
         if self.analysisState() == AnalysisState.Stopped:
@@ -147,3 +220,11 @@ class ExperimentWorker(QObject):
     def _onAnalysisStateChange(self, state: AnalysisState):
         self._analysisState = state
         self.analysisStateChanged.emit(state)
+
+    def _onAnalysisProgressMaximumChange(self, maximum: int):
+        self._analysisProgressMaximum = maximum
+        self.analysisProgressMaximumChanged.emit(maximum)
+
+    def _onAnalysisProgressValueChange(self, value: int):
+        self._analysisProgressValue = value
+        self.analysisProgressValueChanged.emit(value)

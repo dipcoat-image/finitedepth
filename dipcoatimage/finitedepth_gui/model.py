@@ -255,6 +255,8 @@ class ExperimentDataModel(QAbstractItemModel):
 
     activatedIndexChanged = Signal(QModelIndex)
     analysisStateChanged = Signal(AnalysisState)
+    analysisProgressMaximumChanged = Signal(int)
+    analysisProgressValueChanged = Signal(int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -733,11 +735,23 @@ class ExperimentDataModel(QAbstractItemModel):
         oldWorker = self.worker(oldIndex)
         if oldWorker is not None:
             oldWorker.analysisStateChanged.disconnect(self.analysisStateChanged)
+            oldWorker.analysisProgressMaximumChanged.disconnect(
+                self.analysisProgressMaximumChanged
+            )
+            oldWorker.analysisProgressValueChanged.disconnect(
+                self.analysisProgressValueChanged
+            )
         if self.whatsThisIndex(index) != IndexRole.EXPTDATA:
             index = QModelIndex()
         newWorker = self.worker(index)
         if newWorker is not None:
             newWorker.analysisStateChanged.connect(self.analysisStateChanged)
+            newWorker.analysisProgressMaximumChanged.connect(
+                self.analysisProgressMaximumChanged
+            )
+            newWorker.analysisProgressValueChanged.connect(
+                self.analysisProgressValueChanged
+            )
         self._activatedIndex = index
         self.activatedIndexChanged.emit(index)
 

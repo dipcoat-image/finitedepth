@@ -95,7 +95,6 @@ class AnalysisView(QWidget):
         self._vidExtComboBox.activated.connect(self._analyzeArgsMapper.submit)
         self._fpsLineEdit.editingFinished.connect(self._analyzeArgsMapper.submit)
         self._fpsLineEdit.setValidator(dawiq.EmptyFloatValidator())
-        self._analyzeButton.setCheckable(True)
         self._analyzeButton.toggled.connect(self._onAnalyzeButtonToggle)
         self._analyzeArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._analyzeArgsMapper.setItemDelegate(AnalysisArgsDelegate())
@@ -139,12 +138,18 @@ class AnalysisView(QWidget):
         if oldModel is not None:
             oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
             oldModel.analysisStateChanged.disconnect(self._onAnalysisStateChange)
+            oldModel.analysisProgressMaximumChanged.disconnect(
+                self._progressBar.setMaximum
+            )
+            oldModel.analysisProgressValueChanged.disconnect(self._progressBar.setValue)
         self._model = model
         self._analyzeArgsMapper.setModel(model)
         self._analyzeArgsMapper.addMapping(self, 0)
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
             model.analysisStateChanged.connect(self._onAnalysisStateChange)
+            model.analysisProgressMaximumChanged.connect(self._progressBar.setMaximum)
+            model.analysisProgressValueChanged.connect(self._progressBar.setValue)
 
     def dataPathName(self) -> str:
         return self._dataPathLineEdit.text()
@@ -197,12 +202,14 @@ class AnalysisView(QWidget):
             self._analyzeArgsMapper.setRootIndex(index)
             analysisIndex = model.getIndexFor(IndexRole.ANALYSISARGS, index)
             self._analyzeArgsMapper.setCurrentModelIndex(analysisIndex)
+            self._analyzeButton.setCheckable(True)
         else:
             self._dataPathLineEdit.clear()
             self._imgPathLineEdit.clear()
             self._vidPathLineEdit.clear()
             self._fpsLineEdit.clear()
             self._analyzeArgsMapper.setCurrentModelIndex(QModelIndex())
+            self._analyzeButton.setCheckable(False)
 
     def _onAnalyzeButtonToggle(self, checked: bool):
         model = self.model()
