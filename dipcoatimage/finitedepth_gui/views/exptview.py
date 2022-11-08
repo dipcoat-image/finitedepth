@@ -7,6 +7,8 @@ V2 for controlwidgets/exptwidget.py
 
 import dataclasses
 import dawiq
+from itertools import groupby
+from operator import itemgetter
 from PySide6.QtCore import Slot, QModelIndex
 from PySide6.QtWidgets import (
     QWidget,
@@ -17,13 +19,18 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QGroupBox,
+    QFileDialog,
 )
 from dipcoatimage.finitedepth import ExperimentBase
 from dipcoatimage.finitedepth.analysis import ImportArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
-from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
+from dipcoatimage.finitedepth_gui.model import (
+    ExperimentDataModel,
+    IndexRole,
+    WorkerUpdateBlocker,
+)
 from .importview import ImportDataView
-from typing import Optional, Type, Union
+from typing import Optional, Type, Union, List
 
 
 __all__ = [
@@ -73,6 +80,7 @@ class ExperimentView(QWidget):
         self._pathsListView = QListView()
         self._addButton = QPushButton("Add")
         self._deleteButton = QPushButton("Delete")
+        self._browseButton = QPushButton("Browse")
         self._paramStackWidget = dawiq.DataclassStackedWidget()
 
         self._nameMapper = QDataWidgetMapper()
@@ -83,6 +91,7 @@ class ExperimentView(QWidget):
         self._pathsListView.setEditTriggers(QListView.SelectedClicked)
         self._addButton.clicked.connect(self.appendNewPath)
         self._deleteButton.clicked.connect(self.deleteSelectedPaths)
+        self._browseButton.clicked.connect(self.openBrowseDialog)
         self._paramStackWidget.currentDataEdited.connect(self._exptArgsMapper.submit)
         self._exptArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._exptArgsMapper.setItemDelegate(ExperimentArgsDelegate())
@@ -103,6 +112,7 @@ class ExperimentView(QWidget):
         buttonsLayout.addWidget(self._addButton)
         buttonsLayout.addWidget(self._deleteButton)
         pathsLayout.addLayout(buttonsLayout)
+        pathsLayout.addWidget(self._browseButton)
         pathsGroupBox.setLayout(pathsLayout)
         layout.addWidget(pathsGroupBox)
         layout.addWidget(self._paramStackWidget)
@@ -139,21 +149,61 @@ class ExperimentView(QWidget):
     @Slot()
     def appendNewPath(self):
         model = self._pathsListView.model()
+        if not isinstance(model, ExperimentDataModel):
+            return
         parent = self._pathsListView.rootIndex()
-        if isinstance(model, ExperimentDataModel) and parent.isValid():
-            rowNum = model.rowCount(parent)
-            success = model.insertRow(rowNum, parent)
-            if success:
-                index = model.index(rowNum, 0, parent)
-                model.setData(index, "New path", role=model.Role_CoatPath)
+        self.insertPaths(model.rowCount(parent), ["New path"])
+
+    @Slot()
+    def openBrowseDialog(self):
+        model = self._pathsListView.model()
+        if not isinstance(model, ExperimentDataModel):
+            return
+        parent = self._pathsListView.rootIndex()
+        if not model.whatsThisIndex(parent) == IndexRole.COATPATHS:
+            return
+        paths, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Select experiment files",
+            "./",
+            options=QFileDialog.DontUseNativeDialog,
+        )
+        self.insertPaths(model.rowCount(parent), paths)
+
+    def insertPaths(self, row, paths: List[str]):
+        model = self._pathsListView.model()
+        if not isinstance(model, ExperimentDataModel):
+            return
+        parent = self._pathsListView.rootIndex()
+        if not model.whatsThisIndex(parent) == IndexRole.COATPATHS:
+            return
+
+        count = len(paths)
+        with WorkerUpdateBlocker(model):
+            model.insertRows(row, count, parent)
+            for i, path in enumerate(paths):
+                index = model.index(row + i, 0, parent)
+                model.setData(index, path, role=model.Role_CoatPath)
+        model.updateWorker(model.getTopLevelIndex(parent))
 
     @Slot()
     def deleteSelectedPaths(self):
         model = self._pathsListView.model()
-        if model is not None:
-            rows = [idx.row() for idx in self._pathsListView.selectedIndexes()]
-            for i in reversed(sorted(rows)):
-                model.removeRow(i, self._pathsListView.rootIndex())
+        if not isinstance(model, ExperimentDataModel):
+            return
+        parent = self._pathsListView.rootIndex()
+        if not model.whatsThisIndex(parent) == IndexRole.COATPATHS:
+            return
+
+        rows = [idx.row() for idx in self._pathsListView.selectedIndexes()]
+        continuous_rows = [
+            list(map(itemgetter(1), g))
+            for k, g in groupby(enumerate(sorted(rows)), lambda i_x: i_x[0] - i_x[1])
+        ]
+        with WorkerUpdateBlocker(model):
+            for row_list in reversed(continuous_rows):
+                model.removeRows(row_list[0], len(row_list), parent)
+        model.updateWorker(model.getTopLevelIndex(parent))
 
     def parametersStackedWidget(self) -> dawiq.DataclassStackedWidget:
         return self._paramStackWidget
@@ -205,25 +255,34 @@ class ExperimentArgsDelegate(dawiq.DataclassDelegate):
         if isinstance(model, ExperimentDataModel):
             indexRole = model.whatsThisIndex(index)
             if indexRole == IndexRole.EXPTARGS and isinstance(editor, ExperimentView):
-                # set ImportArgs for experiment type to model
-                importArgs = ImportArgs(editor.typeName(), editor.moduleName())
-                model.setData(
-                    model.getIndexFor(IndexRole.EXPT_TYPE, index),
-                    importArgs,
-                    role=model.Role_ImportArgs,
-                )
+                with WorkerUpdateBlocker(model):
+                    # set ImportArgs for experiment type to model
+                    importArgs = ImportArgs(editor.typeName(), editor.moduleName())
+                    model.setData(
+                        model.getIndexFor(IndexRole.EXPT_TYPE, index),
+                        importArgs,
+                        role=model.Role_ImportArgs,
+                    )
 
-                # set dataclass type to model
-                paramIndex = model.getIndexFor(IndexRole.EXPT_PARAMETERS, index)
-                exptType, _ = Importer(importArgs.name, importArgs.module).try_import()
-                if isinstance(exptType, type) and issubclass(exptType, ExperimentBase):
-                    paramType = exptType.Parameters
-                else:
-                    paramType = None
-                model.setData(paramIndex, paramType, role=self.TypeRole)
+                    # set dataclass type to model
+                    paramIndex = model.getIndexFor(IndexRole.EXPT_PARAMETERS, index)
+                    exptType, _ = Importer(
+                        importArgs.name, importArgs.module
+                    ).try_import()
+                    if isinstance(exptType, type) and issubclass(
+                        exptType, ExperimentBase
+                    ):
+                        paramType = exptType.Parameters
+                    else:
+                        paramType = None
+                    model.setData(paramIndex, paramType, role=self.TypeRole)
 
-                # set dataclass data to model
-                self.setModelData(editor.currentParametersWidget(), model, paramIndex)
+                    # set dataclass data to model
+                    self.setModelData(
+                        editor.currentParametersWidget(), model, paramIndex
+                    )
+
+                model.updateWorker(model.getTopLevelIndex(index))
 
         super().setModelData(editor, model, index)
 

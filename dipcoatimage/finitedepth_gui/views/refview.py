@@ -25,7 +25,11 @@ from PySide6.QtWidgets import (
 from dipcoatimage.finitedepth import SubstrateReferenceBase
 from dipcoatimage.finitedepth.analysis import ImportArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer, OptionalROI
-from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
+from dipcoatimage.finitedepth_gui.model import (
+    ExperimentDataModel,
+    IndexRole,
+    WorkerUpdateBlocker,
+)
 from .importview import ImportDataView
 from .roiview import ROIView
 from typing import Optional, Type, Union
@@ -306,46 +310,54 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
         if isinstance(model, ExperimentDataModel):
             indexRole = model.whatsThisIndex(index)
             if indexRole == IndexRole.REFARGS and isinstance(editor, ReferenceView):
-                # set ImportArgs for reference type to model
-                importArgs = ImportArgs(editor.typeName(), editor.moduleName())
-                model.setData(
-                    model.getIndexFor(IndexRole.REF_TYPE, index),
-                    importArgs,
-                    role=model.Role_ImportArgs,
-                )
+                with WorkerUpdateBlocker(model):
+                    # set ImportArgs for reference type to model
+                    importArgs = ImportArgs(editor.typeName(), editor.moduleName())
+                    model.setData(
+                        model.getIndexFor(IndexRole.REF_TYPE, index),
+                        importArgs,
+                        role=model.Role_ImportArgs,
+                    )
 
-                # set ROIs to model
-                model.setData(
-                    model.getIndexFor(IndexRole.REF_TEMPLATEROI, index),
-                    editor.templateROI(),
-                    role=model.Role_ROI,
-                )
-                model.setData(
-                    model.getIndexFor(IndexRole.REF_SUBSTRATEROI, index),
-                    editor.substrateROI(),
-                    role=model.Role_ROI,
-                )
+                    # set ROIs to model
+                    model.setData(
+                        model.getIndexFor(IndexRole.REF_TEMPLATEROI, index),
+                        editor.templateROI(),
+                        role=model.Role_ROI,
+                    )
+                    model.setData(
+                        model.getIndexFor(IndexRole.REF_SUBSTRATEROI, index),
+                        editor.substrateROI(),
+                        role=model.Role_ROI,
+                    )
 
-                # set dataclasses types to model
-                paramIndex = model.getIndexFor(IndexRole.REF_PARAMETERS, index)
-                drawOptIndex = model.getIndexFor(IndexRole.REF_DRAWOPTIONS, index)
-                refType, _ = Importer(importArgs.name, importArgs.module).try_import()
-                if isinstance(refType, type) and issubclass(
-                    refType, SubstrateReferenceBase
-                ):
-                    paramType = refType.Parameters
-                    drawOptType = refType.DrawOptions
-                else:
-                    paramType = None
-                    drawOptType = None
-                model.setData(paramIndex, paramType, role=self.TypeRole)
-                model.setData(drawOptIndex, drawOptType, role=self.TypeRole)
+                    # set dataclasses types to model
+                    paramIndex = model.getIndexFor(IndexRole.REF_PARAMETERS, index)
+                    drawOptIndex = model.getIndexFor(IndexRole.REF_DRAWOPTIONS, index)
+                    refType, _ = Importer(
+                        importArgs.name, importArgs.module
+                    ).try_import()
+                    if isinstance(refType, type) and issubclass(
+                        refType, SubstrateReferenceBase
+                    ):
+                        paramType = refType.Parameters
+                        drawOptType = refType.DrawOptions
+                    else:
+                        paramType = None
+                        drawOptType = None
+                    model.setData(paramIndex, paramType, role=self.TypeRole)
+                    model.setData(drawOptIndex, drawOptType, role=self.TypeRole)
 
-                # set dataclasses data to model
-                self.setModelData(editor.currentParametersWidget(), model, paramIndex)
-                self.setModelData(
-                    editor.currentDrawOptionsWidget(), model, drawOptIndex
-                )
+                    # set dataclasses data to model
+                    self.setModelData(
+                        editor.currentParametersWidget(), model, paramIndex
+                    )
+                    self.setModelData(
+                        editor.currentDrawOptionsWidget(), model, drawOptIndex
+                    )
+
+                model.updateWorker(model.getTopLevelIndex(index))
+
         super().setModelData(editor, model, index)
 
     def setEditorData(self, editor, index):

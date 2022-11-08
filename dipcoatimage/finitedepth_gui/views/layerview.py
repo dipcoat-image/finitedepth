@@ -18,7 +18,11 @@ from PySide6.QtWidgets import (
 from dipcoatimage.finitedepth import CoatingLayerBase
 from dipcoatimage.finitedepth.analysis import ImportArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
-from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
+from dipcoatimage.finitedepth_gui.model import (
+    ExperimentDataModel,
+    IndexRole,
+    WorkerUpdateBlocker,
+)
 from .importview import ImportDataView
 from typing import Optional, Type, Union
 
@@ -205,41 +209,49 @@ class CoatingLayerArgsDelegate(dawiq.DataclassDelegate):
             if indexRole == IndexRole.LAYERARGS and isinstance(
                 editor, CoatingLayerView
             ):
-                # set ImportArgs for layer type to model
-                importArgs = ImportArgs(editor.typeName(), editor.moduleName())
-                model.setData(
-                    model.getIndexFor(IndexRole.LAYER_TYPE, index),
-                    importArgs,
-                    role=model.Role_ImportArgs,
-                )
+                with WorkerUpdateBlocker(model):
+                    # set ImportArgs for layer type to model
+                    importArgs = ImportArgs(editor.typeName(), editor.moduleName())
+                    model.setData(
+                        model.getIndexFor(IndexRole.LAYER_TYPE, index),
+                        importArgs,
+                        role=model.Role_ImportArgs,
+                    )
 
-                # set dataclasses types to model
-                paramIndex = model.getIndexFor(IndexRole.LAYER_PARAMETERS, index)
-                drawOptIndex = model.getIndexFor(IndexRole.LAYER_DRAWOPTIONS, index)
-                decoOptIndex = model.getIndexFor(IndexRole.LAYER_DECOOPTIONS, index)
-                layerType, _ = Importer(importArgs.name, importArgs.module).try_import()
-                if isinstance(layerType, type) and issubclass(
-                    layerType, CoatingLayerBase
-                ):
-                    paramType = layerType.Parameters
-                    drawOptType = layerType.DrawOptions
-                    decoOptType = layerType.DecoOptions
-                else:
-                    paramType = None
-                    drawOptType = None
-                    decoOptType = None
-                model.setData(paramIndex, paramType, role=self.TypeRole)
-                model.setData(drawOptIndex, drawOptType, role=self.TypeRole)
-                model.setData(decoOptIndex, decoOptType, role=self.TypeRole)
+                    # set dataclasses types to model
+                    paramIndex = model.getIndexFor(IndexRole.LAYER_PARAMETERS, index)
+                    drawOptIndex = model.getIndexFor(IndexRole.LAYER_DRAWOPTIONS, index)
+                    decoOptIndex = model.getIndexFor(IndexRole.LAYER_DECOOPTIONS, index)
+                    layerType, _ = Importer(
+                        importArgs.name, importArgs.module
+                    ).try_import()
+                    if isinstance(layerType, type) and issubclass(
+                        layerType, CoatingLayerBase
+                    ):
+                        paramType = layerType.Parameters
+                        drawOptType = layerType.DrawOptions
+                        decoOptType = layerType.DecoOptions
+                    else:
+                        paramType = None
+                        drawOptType = None
+                        decoOptType = None
+                    model.setData(paramIndex, paramType, role=self.TypeRole)
+                    model.setData(drawOptIndex, drawOptType, role=self.TypeRole)
+                    model.setData(decoOptIndex, decoOptType, role=self.TypeRole)
 
-                # set dataclasses data to model
-                self.setModelData(editor.currentParametersWidget(), model, paramIndex)
-                self.setModelData(
-                    editor.currentDrawOptionsWidget(), model, drawOptIndex
-                )
-                self.setModelData(
-                    editor.currentDecoOptionsWidget(), model, decoOptIndex
-                )
+                    # set dataclasses data to model
+                    self.setModelData(
+                        editor.currentParametersWidget(), model, paramIndex
+                    )
+                    self.setModelData(
+                        editor.currentDrawOptionsWidget(), model, drawOptIndex
+                    )
+                    self.setModelData(
+                        editor.currentDecoOptionsWidget(), model, decoOptIndex
+                    )
+
+                model.updateWorker(model.getTopLevelIndex(index))
+
         super().setModelData(editor, model, index)
 
     def setEditorData(self, editor, index):

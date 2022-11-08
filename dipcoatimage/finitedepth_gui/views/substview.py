@@ -18,7 +18,11 @@ from PySide6.QtWidgets import (
 from dipcoatimage.finitedepth import SubstrateBase
 from dipcoatimage.finitedepth.analysis import ImportArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
-from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
+from dipcoatimage.finitedepth_gui.model import (
+    ExperimentDataModel,
+    IndexRole,
+    WorkerUpdateBlocker,
+)
 from .importview import ImportDataView
 from typing import Optional, Type, Union
 
@@ -179,32 +183,42 @@ class SubstrateArgsDelegate(dawiq.DataclassDelegate):
         if isinstance(model, ExperimentDataModel):
             indexRole = model.whatsThisIndex(index)
             if indexRole == IndexRole.SUBSTARGS and isinstance(editor, SubstrateView):
-                # set ImportArgs for substtrate type to model
-                importArgs = ImportArgs(editor.typeName(), editor.moduleName())
-                model.setData(
-                    model.getIndexFor(IndexRole.SUBST_TYPE, index),
-                    importArgs,
-                    role=model.Role_ImportArgs,
-                )
+                with WorkerUpdateBlocker(model):
+                    # set ImportArgs for substtrate type to model
+                    importArgs = ImportArgs(editor.typeName(), editor.moduleName())
+                    model.setData(
+                        model.getIndexFor(IndexRole.SUBST_TYPE, index),
+                        importArgs,
+                        role=model.Role_ImportArgs,
+                    )
 
-                # set dataclasses types to model
-                paramIndex = model.getIndexFor(IndexRole.SUBST_PARAMETERS, index)
-                drawOptIndex = model.getIndexFor(IndexRole.SUBST_DRAWOPTIONS, index)
-                substType, _ = Importer(importArgs.name, importArgs.module).try_import()
-                if isinstance(substType, type) and issubclass(substType, SubstrateBase):
-                    paramType = substType.Parameters
-                    drawOptType = substType.DrawOptions
-                else:
-                    paramType = None
-                    drawOptType = None
-                model.setData(paramIndex, paramType, role=self.TypeRole)
-                model.setData(drawOptIndex, drawOptType, role=self.TypeRole)
+                    # set dataclasses types to model
+                    paramIndex = model.getIndexFor(IndexRole.SUBST_PARAMETERS, index)
+                    drawOptIndex = model.getIndexFor(IndexRole.SUBST_DRAWOPTIONS, index)
+                    substType, _ = Importer(
+                        importArgs.name, importArgs.module
+                    ).try_import()
+                    if isinstance(substType, type) and issubclass(
+                        substType, SubstrateBase
+                    ):
+                        paramType = substType.Parameters
+                        drawOptType = substType.DrawOptions
+                    else:
+                        paramType = None
+                        drawOptType = None
+                    model.setData(paramIndex, paramType, role=self.TypeRole)
+                    model.setData(drawOptIndex, drawOptType, role=self.TypeRole)
 
-                # set dataclasses data to model
-                self.setModelData(editor.currentParametersWidget(), model, paramIndex)
-                self.setModelData(
-                    editor.currentDrawOptionsWidget(), model, drawOptIndex
-                )
+                    # set dataclasses data to model
+                    self.setModelData(
+                        editor.currentParametersWidget(), model, paramIndex
+                    )
+                    self.setModelData(
+                        editor.currentDrawOptionsWidget(), model, drawOptIndex
+                    )
+
+                model.updateWorker(model.getTopLevelIndex(index))
+
         super().setModelData(editor, model, index)
 
     def setEditorData(self, editor, index):

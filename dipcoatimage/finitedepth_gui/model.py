@@ -16,6 +16,7 @@ from dipcoatimage.finitedepth import (
 )
 from dipcoatimage.finitedepth.util import Importer
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
+from .worker import AnalysisState, ExperimentWorker
 from typing import Optional, Any, Union, Tuple, List
 
 
@@ -23,6 +24,7 @@ __all__ = [
     "ExperimentDataItem",
     "IndexRole",
     "ExperimentDataModel",
+    "WorkerUpdateBlocker",
 ]
 
 
@@ -124,14 +126,6 @@ class ExperimentDataItem(object):
             orphan._parent = None
             while orphan._children:
                 orphan.remove(0)
-
-    def copyDataTo(self, other: "ExperimentDataItem"):
-        """
-        Copy the data of *self* and its children to *other* and its children.
-        """
-        other._data = copy.deepcopy(self._data)
-        for (subSelf, subOther) in zip(self._children, other._children):
-            subSelf.copyDataTo(subOther)
 
 
 class IndexRole(enum.Enum):
@@ -260,11 +254,16 @@ class ExperimentDataModel(QAbstractItemModel):
     Row_ExptParameters = 1
 
     activatedIndexChanged = Signal(QModelIndex)
+    analysisStateChanged = Signal(AnalysisState)
+    analysisProgressMaximumChanged = Signal(int)
+    analysisProgressValueChanged = Signal(int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._rootItem = ExperimentDataItem()
         self._activatedIndex = QModelIndex()
+        self._blockWorkerUpdate = False
+        self._workers: List[ExperimentWorker] = []
 
     @classmethod
     def _itemFromExperimentData(cls, exptData: ExperimentData) -> ExperimentDataItem:
@@ -488,9 +487,68 @@ class ExperimentDataModel(QAbstractItemModel):
         dataItem = index.internalPointer()
         if isinstance(dataItem, ExperimentDataItem):
             dataItem.setData(role, value)
+            topLevelIndex = self.getTopLevelIndex(index)
+            # Update worker
+            indexRole = self.whatsThisIndex(index)
+            # TODO: specify TypeFlags for each case
+            if indexRole in [
+                IndexRole.REFPATH,
+                IndexRole.REF_TYPE,
+                IndexRole.REF_TEMPLATEROI,
+                IndexRole.REF_SUBSTRATEROI,
+                IndexRole.REF_PARAMETERS,
+            ]:
+                self.updateWorker(topLevelIndex)
+            elif indexRole in [
+                IndexRole.REF_DRAWOPTIONS,
+            ]:
+                self.updateWorker(topLevelIndex)
+            elif indexRole in [
+                IndexRole.SUBST_TYPE,
+                IndexRole.SUBST_PARAMETERS,
+            ]:
+                self.updateWorker(topLevelIndex)
+            elif indexRole in [
+                IndexRole.SUBST_DRAWOPTIONS,
+            ]:
+                self.updateWorker(topLevelIndex)
+            elif indexRole in [
+                IndexRole.COATPATH,
+                IndexRole.LAYER_TYPE,
+                IndexRole.LAYER_PARAMETERS,
+                IndexRole.LAYER_DRAWOPTIONS,
+                IndexRole.LAYER_DECOOPTIONS,
+                IndexRole.EXPT_TYPE,
+                IndexRole.EXPT_PARAMETERS,
+            ]:
+                self.updateWorker(topLevelIndex)
+            elif indexRole in [
+                IndexRole.ANALYSISARGS,
+            ]:
+                self.updateWorker(topLevelIndex)
+            else:
+                pass
             self.dataChanged.emit(index, index, [role])
             return True
         return False
+
+    def worker(self, index: QModelIndex) -> Optional[ExperimentWorker]:
+        if self.whatsThisIndex(index) != IndexRole.EXPTDATA:
+            return None
+        row = index.row()
+        if row + 1 > len(self._workers):
+            return None
+        return self._workers[row]
+
+    def updateWorker(self, index: QModelIndex) -> bool:
+        if self._blockWorkerUpdate:
+            return False
+        worker = self.worker(index)
+        if worker is None:
+            return False
+        exptData = self.indexToExperimentData(index)
+        worker.setExperimentData(exptData)
+        return True
 
     def insertRows(self, row, count, parent=QModelIndex()):
         if not parent.isValid():
@@ -500,9 +558,13 @@ class ExperimentDataModel(QAbstractItemModel):
             reactivate = (parent == activatedIndex.parent()) and row <= activatedRow
 
             self.beginInsertRows(parent, row, row + count - 1)
-            for _ in range(count):
-                newItem = self._itemFromExperimentData(ExperimentData())
-                newItem.setParent(self._rootItem)
+            for _ in reversed(range(count)):
+                exptData = ExperimentData()
+                newItem = self._itemFromExperimentData(exptData)
+                newItem.setParent(self._rootItem, row)
+                worker = ExperimentWorker(self)
+                self._workers.insert(row, worker)
+                worker.setExperimentData(exptData)
 
             if reactivate:
                 newRow = activatedRow + count
@@ -512,10 +574,12 @@ class ExperimentDataModel(QAbstractItemModel):
             return True
         elif self.whatsThisIndex(parent) == IndexRole.COATPATHS:
             self.beginInsertRows(parent, row, row + count - 1)
-            for _ in range(count):
+            for _ in reversed(range(count)):
                 newItem = ExperimentDataItem()
-                newItem.setParent(parent.internalPointer())
+                newItem.setParent(parent.internalPointer(), row)
             self.endInsertRows()
+
+            self.updateWorker(self.getTopLevelIndex(parent))
             return True
         return False
 
@@ -528,10 +592,14 @@ class ExperimentDataModel(QAbstractItemModel):
         reactivate = row <= activatedRow
 
         self.beginInsertRows(QModelIndex(), row, row + count - 1)
-        for i in range(count):
-            newItem = self._itemFromExperimentData(exptData[i])
+        for i in reversed(range(count)):
+            data = exptData[i]
+            newItem = self._itemFromExperimentData(data)
             newItem.setData(self.Role_ExptName, names[i])
-            newItem.setParent(self._rootItem)
+            newItem.setParent(self._rootItem, row)
+            worker = ExperimentWorker(self)
+            self._workers.insert(row, worker)
+            worker.setExperimentData(data)
 
         if reactivate:
             newRow = activatedRow + count
@@ -568,16 +636,23 @@ class ExperimentDataModel(QAbstractItemModel):
             ) and destinationChild <= activatedRow
 
             newItems = []
+            newWorkers = []
             for i in range(count):
-                oldItem = self.index(sourceRow + i, 0, sourceParent).internalPointer()
-                newItem = self._itemFromExperimentData(ExperimentData())
-                oldItem.copyDataTo(newItem)
+                oldIdx = self.index(sourceRow + i, 0, sourceParent)
+                oldItem = oldIdx.internalPointer()
+                oldData = self.indexToExperimentData(oldIdx)
+                newItem = self._itemFromExperimentData(copy.deepcopy(oldData))
+                newItem.setData(self.Role_ExptName, oldItem.data(self.Role_ExptName))
                 newItems.append(newItem)
+                newWorker = ExperimentWorker(self)
+                newWorkers.append(newWorker)
+                newWorker.setExperimentData(oldData)
             self.beginInsertRows(
                 sourceParent, destinationChild, destinationChild + count - 1
             )
-            for item in reversed(newItems):
+            for item, worker in zip(reversed(newItems), reversed(newWorkers)):
                 item.setParent(self._rootItem, destinationChild)
+                self._workers.insert(destinationChild, worker)
 
             if reactivate:
                 newRow = activatedRow + count
@@ -593,14 +668,16 @@ class ExperimentDataModel(QAbstractItemModel):
             for i in range(count):
                 oldItem = self.index(sourceRow + i, 0, sourceParent).internalPointer()
                 newItem = ExperimentDataItem()
-                oldItem.copyDataTo(newItem)
+                newItem.setData(self.Role_ExptName, oldItem.data(self.Role_ExptName))
                 newItems.append(newItem)
             self.beginInsertRows(
                 sourceParent, destinationChild, destinationChild + count - 1
             )
             for item in reversed(newItems):
-                item.setParent(parentDataItem)
+                item.setParent(parentDataItem, destinationChild)
             self.endInsertRows()
+
+            self.updateWorker(self.getTopLevelIndex(sourceParent))
         return False
 
     def removeRows(self, row, count, parent=QModelIndex()):
@@ -611,18 +688,19 @@ class ExperimentDataModel(QAbstractItemModel):
             activatedRow = activatedIndex.row()
             activatedColumn = activatedIndex.column()
             reactivate = (parent == activatedIndex.parent()) and row <= activatedRow
+            if reactivate:
+                self.setActivatedIndex(QModelIndex())
 
             self.beginRemoveRows(parent, row, row + count - 1)
             for _ in range(count):
                 self._rootItem.remove(row)
-
+                worker = self._workers.pop(row)
+                worker.setAnalysisState(AnalysisState.Stopped)
             if reactivate:
-                if activatedRow < row + count:
-                    newIndex = QModelIndex()
-                else:
+                if activatedRow >= row + count:
                     newRow = activatedRow - count
                     newIndex = self.index(newRow, activatedColumn, parent)
-                self.setActivatedIndex(newIndex)
+                    self.setActivatedIndex(newIndex)
             self.endRemoveRows()
             return True
         elif self.whatsThisIndex(parent) == IndexRole.COATPATHS:
@@ -631,6 +709,8 @@ class ExperimentDataModel(QAbstractItemModel):
             for _ in range(count):
                 dataItem.remove(row)
             self.endRemoveRows()
+
+            self.updateWorker(self.getTopLevelIndex(parent))
             return True
         return False
 
@@ -654,9 +734,37 @@ class ExperimentDataModel(QAbstractItemModel):
 
         Emits :attr:`activatedIndexChanged` signal.
         """
+        oldIndex = self._activatedIndex
+        oldWorker = self.worker(oldIndex)
+        if oldWorker is not None:
+            oldWorker.analysisStateChanged.disconnect(self.analysisStateChanged)
+            oldWorker.analysisProgressMaximumChanged.disconnect(
+                self.analysisProgressMaximumChanged
+            )
+            oldWorker.analysisProgressValueChanged.disconnect(
+                self.analysisProgressValueChanged
+            )
         if self.whatsThisIndex(index) != IndexRole.EXPTDATA:
             index = QModelIndex()
         self._activatedIndex = index
+        newWorker = self.worker(index)
+        if newWorker is not None:
+            newWorker.analysisStateChanged.connect(self.analysisStateChanged)
+            newWorker.analysisProgressMaximumChanged.connect(
+                self.analysisProgressMaximumChanged
+            )
+            newWorker.analysisProgressValueChanged.connect(
+                self.analysisProgressValueChanged
+            )
+            self.analysisStateChanged.emit(newWorker.analysisState())
+            self.analysisProgressMaximumChanged.emit(
+                newWorker.analysisProgressMaximum()
+            )
+            self.analysisProgressValueChanged.emit(newWorker.analysisProgressValue())
+        else:
+            self.analysisStateChanged.emit(AnalysisState.Stopped)
+            self.analysisProgressMaximumChanged.emit(0)
+            self.analysisProgressValueChanged.emit(0)
         self.activatedIndexChanged.emit(index)
 
     @classmethod
@@ -788,3 +896,27 @@ class ExperimentDataModel(QAbstractItemModel):
                 return self.index(self.Row_ExptParameters, 0, parent)
 
         return QModelIndex()
+
+    def getTopLevelIndex(self, index: QModelIndex) -> QModelIndex:
+        """
+        Get the index with :obj:`IndexRole.EXPTDATA` that *index* belongs to.
+
+        If there is no top level index for *index*, return invalid index.
+        """
+        if not index.isValid():
+            return QModelIndex()
+        while index.parent().isValid():
+            index = index.parent()
+        return index
+
+
+class WorkerUpdateBlocker:
+    def __init__(self, model: ExperimentDataModel):
+        self.model = model
+
+    def __enter__(self):
+        self.model._blockWorkerUpdate = True
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.model._blockWorkerUpdate = False

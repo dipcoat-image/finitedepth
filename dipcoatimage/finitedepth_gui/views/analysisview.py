@@ -7,7 +7,7 @@ V2 for controlwidgets/analysiswidget.py
 
 import dawiq
 import os
-from PySide6.QtCore import Signal, Slot, QModelIndex
+from PySide6.QtCore import Slot, QModelIndex
 from PySide6.QtWidgets import (
     QWidget,
     QLineEdit,
@@ -20,7 +20,12 @@ from PySide6.QtWidgets import (
     QStyledItemDelegate,
 )
 from dipcoatimage.finitedepth.analysis import Analyzer, AnalysisArgs
-from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
+from dipcoatimage.finitedepth_gui.worker import AnalysisState
+from dipcoatimage.finitedepth_gui.model import (
+    ExperimentDataModel,
+    IndexRole,
+    WorkerUpdateBlocker,
+)
 from typing import Optional
 
 __all__ = [
@@ -59,8 +64,6 @@ class AnalysisView(QWidget):
 
     """
 
-    analysisRequested = Signal()
-
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -92,7 +95,7 @@ class AnalysisView(QWidget):
         self._vidExtComboBox.activated.connect(self._analyzeArgsMapper.submit)
         self._fpsLineEdit.editingFinished.connect(self._analyzeArgsMapper.submit)
         self._fpsLineEdit.setValidator(dawiq.EmptyFloatValidator())
-        self._analyzeButton.clicked.connect(self.analysisRequested)
+        self._analyzeButton.toggled.connect(self._onAnalyzeButtonToggle)
         self._analyzeArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._analyzeArgsMapper.setItemDelegate(AnalysisArgsDelegate())
 
@@ -134,11 +137,19 @@ class AnalysisView(QWidget):
         oldModel = self.model()
         if oldModel is not None:
             oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
+            oldModel.analysisStateChanged.disconnect(self._onAnalysisStateChange)
+            oldModel.analysisProgressMaximumChanged.disconnect(
+                self._progressBar.setMaximum
+            )
+            oldModel.analysisProgressValueChanged.disconnect(self._progressBar.setValue)
         self._model = model
         self._analyzeArgsMapper.setModel(model)
         self._analyzeArgsMapper.addMapping(self, 0)
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
+            model.analysisStateChanged.connect(self._onAnalysisStateChange)
+            model.analysisProgressMaximumChanged.connect(self._progressBar.setMaximum)
+            model.analysisProgressValueChanged.connect(self._progressBar.setValue)
 
     def dataPathName(self) -> str:
         return self._dataPathLineEdit.text()
@@ -191,12 +202,36 @@ class AnalysisView(QWidget):
             self._analyzeArgsMapper.setRootIndex(index)
             analysisIndex = model.getIndexFor(IndexRole.ANALYSISARGS, index)
             self._analyzeArgsMapper.setCurrentModelIndex(analysisIndex)
+            self._analyzeButton.setCheckable(True)
         else:
             self._dataPathLineEdit.clear()
             self._imgPathLineEdit.clear()
             self._vidPathLineEdit.clear()
             self._fpsLineEdit.clear()
             self._analyzeArgsMapper.setCurrentModelIndex(QModelIndex())
+            self._analyzeButton.setCheckable(False)
+
+    def _onAnalyzeButtonToggle(self, checked: bool):
+        model = self.model()
+        if model is None:
+            return
+        index = model.activatedIndex()
+        worker = model.worker(index)
+        if worker is None:
+            return
+        if checked:
+            state = AnalysisState.Running
+        else:
+            state = AnalysisState.Stopped
+        worker.setAnalysisState(state)
+
+    def _onAnalysisStateChange(self, state: AnalysisState):
+        if state == AnalysisState.Running:
+            self._analyzeButton.setChecked(True)
+            self._analyzeButton.setText("Stop analysis")
+        else:
+            self._analyzeButton.setChecked(False)
+            self._analyzeButton.setText("Analyze")
 
 
 class AnalysisArgsDelegate(QStyledItemDelegate):
@@ -204,31 +239,34 @@ class AnalysisArgsDelegate(QStyledItemDelegate):
         if isinstance(model, ExperimentDataModel):
             indexRole = model.whatsThisIndex(index)
             if indexRole == IndexRole.ANALYSISARGS and isinstance(editor, AnalysisView):
-                dataPathName = editor.dataPathName()
-                dataPathExt = editor.dataPathExtension()
-                if not dataPathName:
-                    dataPath = ""
-                else:
-                    dataPath = dataPathName + dataPathExt
+                with WorkerUpdateBlocker(model):
+                    dataPathName = editor.dataPathName()
+                    dataPathExt = editor.dataPathExtension()
+                    if not dataPathName:
+                        dataPath = ""
+                    else:
+                        dataPath = dataPathName + dataPathExt
 
-                imgPathName = editor.imagePathName()
-                imgPathExt = editor.imagePathExtension()
-                if not imgPathName:
-                    imgPath = ""
-                else:
-                    imgPath = imgPathName + imgPathExt
+                    imgPathName = editor.imagePathName()
+                    imgPathExt = editor.imagePathExtension()
+                    if not imgPathName:
+                        imgPath = ""
+                    else:
+                        imgPath = imgPathName + imgPathExt
 
-                vidPathName = editor.videoPathName()
-                vidPathExt = editor.videoPathExtension()
-                if not vidPathName:
-                    vidPath = ""
-                else:
-                    vidPath = vidPathName + vidPathExt
+                    vidPathName = editor.videoPathName()
+                    vidPathExt = editor.videoPathExtension()
+                    if not vidPathName:
+                        vidPath = ""
+                    else:
+                        vidPath = vidPathName + vidPathExt
 
-                fps = editor.fps()
+                    fps = editor.fps()
 
-                analysisArgs = AnalysisArgs(dataPath, imgPath, vidPath, fps)
-                model.setData(index, analysisArgs, role=model.Role_AnalysisArgs)
+                    analysisArgs = AnalysisArgs(dataPath, imgPath, vidPath, fps)
+                    model.setData(index, analysisArgs, role=model.Role_AnalysisArgs)
+
+                model.updateWorker(model.getTopLevelIndex(index))
 
         super().setModelData(editor, model, index)
 
