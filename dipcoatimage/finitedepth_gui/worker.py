@@ -108,15 +108,11 @@ class AnalysisWorker(QRunnable):
             if state == AnalysisState.Paused:
                 continue
             elif state == AnalysisState.Stopped:
-                analysis_gen.send(None)
                 break
-            if img is None:
-                analysis_gen.send(None)
-                break
-            else:
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                analysis_gen.send(img)
-                self.signals.progressValueChanged.emit(i + 1)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            analysis_gen.send(img)
+            self.signals.progressValueChanged.emit(i + 1)
+        analysis_gen.send(None)
         self.setState(AnalysisState.Stopped)
 
 

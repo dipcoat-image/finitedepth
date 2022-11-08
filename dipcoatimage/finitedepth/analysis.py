@@ -315,13 +315,11 @@ class Analyzer:
             data_path, image_path, video_path, fps=fps
         )
         next(analysis_gen)
+
         for img in tqdm.tqdm(img_gen, total=total, desc=name):
-            if img is None:
-                analysis_gen.send(None)
-                break
-            else:
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                analysis_gen.send(img)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            analysis_gen.send(img)
+        analysis_gen.send(None)
 
     def analysis_generator(
         self,
@@ -438,9 +436,9 @@ class Analyzer:
         finally:
             if write_data:
                 datawriter.terminate()
-
             if write_video:
                 videowriter.release()
+            yield
 
 
 @dataclasses.dataclass
