@@ -1,5 +1,5 @@
 black
 flake8
-mypy
+mypy == 0.950
 pytest
 PyYAML
