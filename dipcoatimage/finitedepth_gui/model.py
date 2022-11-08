@@ -746,6 +746,7 @@ class ExperimentDataModel(QAbstractItemModel):
             )
         if self.whatsThisIndex(index) != IndexRole.EXPTDATA:
             index = QModelIndex()
+        self._activatedIndex = index
         newWorker = self.worker(index)
         if newWorker is not None:
             newWorker.analysisStateChanged.connect(self.analysisStateChanged)
@@ -764,7 +765,6 @@ class ExperimentDataModel(QAbstractItemModel):
             self.analysisStateChanged.emit(AnalysisState.Stopped)
             self.analysisProgressMaximumChanged.emit(0)
             self.analysisProgressValueChanged.emit(0)
-        self._activatedIndex = index
         self.activatedIndexChanged.emit(index)
 
     @classmethod
