@@ -488,47 +488,46 @@ class ExperimentDataModel(QAbstractItemModel):
         if isinstance(dataItem, ExperimentDataItem):
             dataItem.setData(role, value)
             topLevelIndex = self.getTopLevelIndex(index)
-            if topLevelIndex == self.activatedIndex() and not self._blockWorkerUpdate:
-                # Update worker
-                indexRole = self.whatsThisIndex(index)
-                # TODO: specify TypeFlags for each case
-                if indexRole in [
-                    IndexRole.REFPATH,
-                    IndexRole.REF_TYPE,
-                    IndexRole.REF_TEMPLATEROI,
-                    IndexRole.REF_SUBSTRATEROI,
-                    IndexRole.REF_PARAMETERS,
-                ]:
-                    self.updateWorker(topLevelIndex)
-                elif indexRole in [
-                    IndexRole.REF_DRAWOPTIONS,
-                ]:
-                    self.updateWorker(topLevelIndex)
-                elif indexRole in [
-                    IndexRole.SUBST_TYPE,
-                    IndexRole.SUBST_PARAMETERS,
-                ]:
-                    self.updateWorker(topLevelIndex)
-                elif indexRole in [
-                    IndexRole.SUBST_DRAWOPTIONS,
-                ]:
-                    self.updateWorker(topLevelIndex)
-                elif indexRole in [
-                    IndexRole.COATPATH,
-                    IndexRole.LAYER_TYPE,
-                    IndexRole.LAYER_PARAMETERS,
-                    IndexRole.LAYER_DRAWOPTIONS,
-                    IndexRole.LAYER_DECOOPTIONS,
-                    IndexRole.EXPT_TYPE,
-                    IndexRole.EXPT_PARAMETERS,
-                ]:
-                    self.updateWorker(topLevelIndex)
-                elif indexRole in [
-                    IndexRole.ANALYSISARGS,
-                ]:
-                    self.updateWorker(topLevelIndex)
-                else:
-                    pass
+            # Update worker
+            indexRole = self.whatsThisIndex(index)
+            # TODO: specify TypeFlags for each case
+            if indexRole in [
+                IndexRole.REFPATH,
+                IndexRole.REF_TYPE,
+                IndexRole.REF_TEMPLATEROI,
+                IndexRole.REF_SUBSTRATEROI,
+                IndexRole.REF_PARAMETERS,
+            ]:
+                self.updateWorker(topLevelIndex)
+            elif indexRole in [
+                IndexRole.REF_DRAWOPTIONS,
+            ]:
+                self.updateWorker(topLevelIndex)
+            elif indexRole in [
+                IndexRole.SUBST_TYPE,
+                IndexRole.SUBST_PARAMETERS,
+            ]:
+                self.updateWorker(topLevelIndex)
+            elif indexRole in [
+                IndexRole.SUBST_DRAWOPTIONS,
+            ]:
+                self.updateWorker(topLevelIndex)
+            elif indexRole in [
+                IndexRole.COATPATH,
+                IndexRole.LAYER_TYPE,
+                IndexRole.LAYER_PARAMETERS,
+                IndexRole.LAYER_DRAWOPTIONS,
+                IndexRole.LAYER_DECOOPTIONS,
+                IndexRole.EXPT_TYPE,
+                IndexRole.EXPT_PARAMETERS,
+            ]:
+                self.updateWorker(topLevelIndex)
+            elif indexRole in [
+                IndexRole.ANALYSISARGS,
+            ]:
+                self.updateWorker(topLevelIndex)
+            else:
+                pass
             self.dataChanged.emit(index, index, [role])
             return True
         return False
@@ -542,6 +541,8 @@ class ExperimentDataModel(QAbstractItemModel):
         return self._workers[row]
 
     def updateWorker(self, index: QModelIndex) -> bool:
+        if self._blockWorkerUpdate:
+            return False
         worker = self.worker(index)
         if worker is None:
             return False
@@ -575,9 +576,9 @@ class ExperimentDataModel(QAbstractItemModel):
             self.beginInsertRows(parent, row, row + count - 1)
             for _ in reversed(range(count)):
                 newItem = ExperimentDataItem()
-                newItem.setData(self.Role_CoatPath, "New path")
                 newItem.setParent(parent.internalPointer(), row)
             self.endInsertRows()
+
             self.updateWorker(self.getTopLevelIndex(parent))
             return True
         return False
@@ -675,6 +676,7 @@ class ExperimentDataModel(QAbstractItemModel):
             for item in reversed(newItems):
                 item.setParent(parentDataItem, destinationChild)
             self.endInsertRows()
+
             self.updateWorker(self.getTopLevelIndex(sourceParent))
         return False
 
@@ -707,6 +709,7 @@ class ExperimentDataModel(QAbstractItemModel):
             for _ in range(count):
                 dataItem.remove(row)
             self.endRemoveRows()
+
             self.updateWorker(self.getTopLevelIndex(parent))
             return True
         return False
