@@ -148,7 +148,9 @@ class ExperimentDataListView(QWidget):
         ]
         parent = self._listView.rootIndex()
         for row_list in continuous_rows:
-            model.copyRows(parent, row_list[0], len(row_list), parent, model.rowCount(parent))
+            model.copyRows(
+                parent, row_list[0], len(row_list), parent, model.rowCount(parent)
+            )
 
     @Slot()
     def deleteSelectedRows(self):
