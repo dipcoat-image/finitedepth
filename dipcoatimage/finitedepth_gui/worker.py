@@ -10,10 +10,12 @@ import numpy as np
 from dipcoatimage.finitedepth import (
     ExperimentData,
     SubstrateReferenceBase,
+    SubstrateBase,
+    ExperimentBase,
 )
 from dipcoatimage.finitedepth.analysis import AnalysisArgs
-from dipcoatimage.finitedepth.util import Importer
 from PySide6.QtCore import QRunnable
+from typing import Optional
 
 
 __all__ = [
@@ -26,15 +28,15 @@ class ExperimentWorker(QRunnable):
         super().__init__(parent)
 
         self.referenceImage = np.empty((0, 0, 0), dtype=np.uint8)
-        self.reference = None
+        self.reference: Optional[SubstrateReferenceBase] = None
         self.substrateImage = np.empty((0, 0, 0), dtype=np.uint8)
-        self.substrate = None
-        self.coatingLayerImage = np.empty((0, 0, 0), dtype=np.uint8)
-        self.coatingLayer = None
-        self.experiment = None
+        self.substrate: Optional[SubstrateBase] = None
+        self.experiment: Optional[ExperimentBase] = None
         self.analysisArgs = AnalysisArgs()
 
     def setExperimentData(self, exptData: ExperimentData):
+        self.analysisArgs = exptData.analysis
+
         refPath = exptData.ref_path
         if refPath:
             refImg = cv2.imread(exptData.ref_path)
@@ -45,13 +47,43 @@ class ExperimentWorker(QRunnable):
         else:
             refImg = cv2.cvtColor(refImg, cv2.COLOR_BGR2RGB)
         self.referenceImage = refImg
+        if self.referenceImage.size == 0:
+            return
 
         refArgs = exptData.reference
-        refType, _ = Importer(refArgs.type.name, refArgs.type.module).try_import()
-        if isinstance(refType, type) and issubclass(refType, SubstrateReferenceBase):
-            ref = refArgs.as_reference(refImg)
+        try:
+            ref = refArgs.as_reference(self.referenceImage)
             if not ref.valid():
-                ref = None
-        else:
-            ref = None
-        self.reference = ref
+                self.reference = None
+            else:
+                self.reference = ref
+        except TypeError:
+            self.reference = None
+        if self.reference is None:
+            return
+
+        substArgs = exptData.substrate
+        try:
+            subst = substArgs.as_substrate(self.reference)
+            if not subst.valid():
+                self.substrate = None
+            else:
+                self.substrate = subst
+        except TypeError:
+            self.substrate = None
+        if self.substrate is None:
+            return
+
+        layerArgs = exptData.coatinglayer
+        exptArgs = exptData.experiment
+        try:
+            structuredLayerArgs = layerArgs.as_structured_args()
+            expt = exptArgs.as_experiment(self.substrate, *structuredLayerArgs)
+            if not expt.valid():
+                self.experiment = None
+            else:
+                self.experiment = expt
+        except TypeError:
+            self.experiment = None
+        if self.experiment is None:
+            return
