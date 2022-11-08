@@ -6,6 +6,7 @@ V2 for workers
 """
 
 import cv2  # type: ignore
+import enum
 import numpy as np
 from dipcoatimage.finitedepth import (
     ExperimentData,
@@ -14,16 +15,55 @@ from dipcoatimage.finitedepth import (
     ExperimentBase,
 )
 from dipcoatimage.finitedepth.analysis import AnalysisArgs
-from PySide6.QtCore import QObject
+from PySide6.QtCore import QObject, Signal, Slot, QRunnable, QThreadPool
 from typing import Optional
 
 
 __all__ = [
+    "AnalysisState",
+    "AnalysisWorkerSignals",
+    "AnalysisWorker",
     "ExperimentWorker",
 ]
 
 
+class AnalysisState(enum.Enum):
+    Running = 0
+    Paused = 1
+    Stopped = 2
+
+
+class AnalysisWorkerSignals(QObject):
+    stateChanged = Signal(AnalysisState)
+
+
+class AnalysisWorker(QRunnable):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._state = AnalysisState.Stopped
+        self.signals = AnalysisWorkerSignals()
+
+    def state(self) -> AnalysisState:
+        return self._state
+
+    def setState(self, state: AnalysisState):
+        if self._state != state:
+            self._state = state
+            self.signals.stateChanged.emit(state)
+
+    def run(self):
+        self.setState(AnalysisState.Running)
+        # represents analysis
+        import time
+        time.sleep(3)
+        self.setState(AnalysisState.Stopped)
+
+
 class ExperimentWorker(QObject):
+
+    analysisStateChanged = Signal(AnalysisState)
+
     def __init__(self, parent):
         super().__init__(parent)
 
@@ -33,6 +73,15 @@ class ExperimentWorker(QObject):
         self.substrate: Optional[SubstrateBase] = None
         self.experiment: Optional[ExperimentBase] = None
         self.analysisArgs = AnalysisArgs()
+
+        self.analysisWorker = AnalysisWorker()
+        self._analysisState = AnalysisState.Stopped
+
+        self.analysisWorker.setAutoDelete(False)
+        self.analysisWorker.signals.stateChanged.connect(self._onAnalysisStateChange)
+
+    def analysisState(self) -> AnalysisState:
+        return self._analysisState
 
     def setExperimentData(self, exptData: ExperimentData):
         self.analysisArgs = exptData.analysis
@@ -88,5 +137,13 @@ class ExperimentWorker(QObject):
         if self.experiment is None:
             return
 
-    def analyze(self):
-        ...
+    def setAnalysisState(self, state: AnalysisState):
+        if self.analysisState() == AnalysisState.Stopped:
+            if state == AnalysisState.Running:
+                QThreadPool.globalInstance().start(self.analysisWorker)
+        else:
+            self.analysisWorker.setState(state)
+
+    def _onAnalysisStateChange(self, state: AnalysisState):
+        self._analysisState = state
+        self.analysisStateChanged.emit(state)

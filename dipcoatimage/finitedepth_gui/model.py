@@ -16,7 +16,7 @@ from dipcoatimage.finitedepth import (
 )
 from dipcoatimage.finitedepth.util import Importer
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
-from .worker import ExperimentWorker
+from .worker import AnalysisState, ExperimentWorker
 from typing import Optional, Any, Union, Tuple, List
 
 
@@ -254,6 +254,7 @@ class ExperimentDataModel(QAbstractItemModel):
     Row_ExptParameters = 1
 
     activatedIndexChanged = Signal(QModelIndex)
+    analysisStateChanged = Signal(AnalysisState)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -728,8 +729,15 @@ class ExperimentDataModel(QAbstractItemModel):
 
         Emits :attr:`activatedIndexChanged` signal.
         """
+        oldIndex = self._activatedIndex
+        oldWorker = self.worker(oldIndex)
+        if oldWorker is not None:
+            oldWorker.analysisStateChanged.disconnect(self.analysisStateChanged)
         if self.whatsThisIndex(index) != IndexRole.EXPTDATA:
             index = QModelIndex()
+        newWorker = self.worker(index)
+        if newWorker is not None:
+            newWorker.analysisStateChanged.connect(self.analysisStateChanged)
         self._activatedIndex = index
         self.activatedIndexChanged.emit(index)
 

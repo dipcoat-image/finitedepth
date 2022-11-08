@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QStyledItemDelegate,
 )
 from dipcoatimage.finitedepth.analysis import Analyzer, AnalysisArgs
+from dipcoatimage.finitedepth_gui.worker import AnalysisState
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
     IndexRole,
@@ -94,7 +95,8 @@ class AnalysisView(QWidget):
         self._vidExtComboBox.activated.connect(self._analyzeArgsMapper.submit)
         self._fpsLineEdit.editingFinished.connect(self._analyzeArgsMapper.submit)
         self._fpsLineEdit.setValidator(dawiq.EmptyFloatValidator())
-        self._analyzeButton.clicked.connect(self.requestAnalysis)
+        self._analyzeButton.setCheckable(True)
+        self._analyzeButton.toggled.connect(self._onAnalyzeButtonToggle)
         self._analyzeArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._analyzeArgsMapper.setItemDelegate(AnalysisArgsDelegate())
 
@@ -136,11 +138,13 @@ class AnalysisView(QWidget):
         oldModel = self.model()
         if oldModel is not None:
             oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
+            oldModel.analysisStateChanged.disconnect(self._onAnalysisStateChange)
         self._model = model
         self._analyzeArgsMapper.setModel(model)
         self._analyzeArgsMapper.addMapping(self, 0)
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
+            model.analysisStateChanged.connect(self._onAnalysisStateChange)
 
     def dataPathName(self) -> str:
         return self._dataPathLineEdit.text()
@@ -200,16 +204,27 @@ class AnalysisView(QWidget):
             self._fpsLineEdit.clear()
             self._analyzeArgsMapper.setCurrentModelIndex(QModelIndex())
 
-    @Slot()
-    def requestAnalysis(self):
-        """Request the analysis of the experiment in current model index."""
+    def _onAnalyzeButtonToggle(self, checked: bool):
         model = self.model()
         if model is None:
             return
         index = model.activatedIndex()
         worker = model.worker(index)
-        if worker is not None:
-            worker.analyze()
+        if worker is None:
+            return
+        if checked:
+            state = AnalysisState.Running
+        else:
+            state = AnalysisState.Stopped
+        worker.setAnalysisState(state)
+
+    def _onAnalysisStateChange(self, state: AnalysisState):
+        if state == AnalysisState.Running:
+            self._analyzeButton.setChecked(True)
+            self._analyzeButton.setText("Stop analysis")
+        else:
+            self._analyzeButton.setChecked(False)
+            self._analyzeButton.setText("Analyze")
 
 
 class AnalysisArgsDelegate(QStyledItemDelegate):
