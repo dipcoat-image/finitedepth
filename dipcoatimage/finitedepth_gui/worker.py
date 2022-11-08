@@ -148,6 +148,19 @@ class ExperimentWorker(QObject):
     def analysisState(self) -> AnalysisState:
         return self._analysisState
 
+    def setAnalysisState(self, state: AnalysisState):
+        if self.analysisState() == AnalysisState.Stopped:
+            if state == AnalysisState.Running:
+                QThreadPool.globalInstance().start(self.analysisWorker)
+        else:
+            self.analysisWorker.setState(state)
+
+    def analysisProgressMaximum(self) -> int:
+        return self._analysisProgressMaximum
+
+    def analysisProgressValue(self) -> int:
+        return self._analysisProgressValue
+
     def setExperimentData(self, exptData: ExperimentData):
         refPath = exptData.ref_path
         if refPath:
@@ -205,13 +218,6 @@ class ExperimentWorker(QObject):
         self.analysisWorker.experiment = self.experiment
 
         self.analysisWorker.analysisArgs = exptData.analysis
-
-    def setAnalysisState(self, state: AnalysisState):
-        if self.analysisState() == AnalysisState.Stopped:
-            if state == AnalysisState.Running:
-                QThreadPool.globalInstance().start(self.analysisWorker)
-        else:
-            self.analysisWorker.setState(state)
 
     def _onAnalysisStateChange(self, state: AnalysisState):
         self._analysisState = state

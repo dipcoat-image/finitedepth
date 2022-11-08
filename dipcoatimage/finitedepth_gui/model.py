@@ -694,8 +694,8 @@ class ExperimentDataModel(QAbstractItemModel):
             self.beginRemoveRows(parent, row, row + count - 1)
             for _ in range(count):
                 self._rootItem.remove(row)
-                self._workers.pop(row)
-
+                worker = self._workers.pop(row)
+                worker.setAnalysisState(AnalysisState.Stopped)
             if reactivate:
                 if activatedRow >= row + count:
                     newRow = activatedRow - count
@@ -755,6 +755,15 @@ class ExperimentDataModel(QAbstractItemModel):
             newWorker.analysisProgressValueChanged.connect(
                 self.analysisProgressValueChanged
             )
+            self.analysisStateChanged.emit(newWorker.analysisState())
+            self.analysisProgressMaximumChanged.emit(
+                newWorker.analysisProgressMaximum()
+            )
+            self.analysisProgressValueChanged.emit(newWorker.analysisProgressValue())
+        else:
+            self.analysisStateChanged.emit(AnalysisState.Stopped)
+            self.analysisProgressMaximumChanged.emit(0)
+            self.analysisProgressValueChanged.emit(0)
         self._activatedIndex = index
         self.activatedIndexChanged.emit(index)
 
