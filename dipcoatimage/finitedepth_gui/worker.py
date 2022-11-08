@@ -133,8 +133,8 @@ class ExperimentWorker(QObject):
 
         self.analysisWorker = AnalysisWorker()
         self._analysisState = AnalysisState.Stopped
-        self._analysisProgressMaximum = 0
-        self._analysisProgressValue = 0
+        self._analysisProgressMaximum = 100
+        self._analysisProgressValue = -1
 
         self.analysisWorker.setAutoDelete(False)
         self.analysisWorker.signals.stateChanged.connect(self._onAnalysisStateChange)
