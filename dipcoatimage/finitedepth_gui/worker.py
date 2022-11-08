@@ -15,7 +15,7 @@ from dipcoatimage.finitedepth import (
     ExperimentBase,
 )
 from dipcoatimage.finitedepth.analysis import AnalysisArgs
-from PySide6.QtCore import QObject, Signal, Slot, QRunnable, QThreadPool
+from PySide6.QtCore import QObject, Signal, QRunnable, QThreadPool
 from typing import Optional
 
 
@@ -38,7 +38,6 @@ class AnalysisWorkerSignals(QObject):
 
 
 class AnalysisWorker(QRunnable):
-
     def __init__(self, parent=None):
         super().__init__(parent)
         self._state = AnalysisState.Stopped
@@ -56,6 +55,7 @@ class AnalysisWorker(QRunnable):
         self.setState(AnalysisState.Running)
         # represents analysis
         import time
+
         time.sleep(3)
         self.setState(AnalysisState.Stopped)
 
