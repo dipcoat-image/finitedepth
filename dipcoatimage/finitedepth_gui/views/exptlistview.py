@@ -6,6 +6,8 @@ V2 for inventory.py
 """
 
 import enum
+from itertools import groupby
+from operator import itemgetter
 from PySide6.QtCore import (
     QModelIndex,
     Qt,
@@ -139,10 +141,14 @@ class ExperimentDataListView(QWidget):
         model = self.model()
         if model is None:
             return
-        for index in self._listView.selectedIndexes():
-            # TODO: copy consecutive rows in one-shot
-            parent = index.parent()
-            model.copyRows(parent, index.row(), 1, parent, model.rowCount(parent))
+        rows = [idx.row() for idx in self._listView.selectedIndexes()]
+        continuous_rows = [
+            list(map(itemgetter(1), g))
+            for k, g in groupby(enumerate(sorted(rows)), lambda i_x: i_x[0] - i_x[1])
+        ]
+        parent = self._listView.rootIndex()
+        for row_list in continuous_rows:
+            model.copyRows(parent, row_list[0], len(row_list), parent, model.rowCount(parent))
 
     @Slot()
     def deleteSelectedRows(self):
@@ -150,9 +156,13 @@ class ExperimentDataListView(QWidget):
         if model is None:
             return
         rows = [idx.row() for idx in self._listView.selectedIndexes()]
-        for i in reversed(sorted(rows)):
-            # TODO: remove consecutive rows in one-shot
-            model.removeRow(i)
+        continuous_rows = [
+            list(map(itemgetter(1), g))
+            for k, g in groupby(enumerate(sorted(rows)), lambda i_x: i_x[0] - i_x[1])
+        ]
+        parent = self._listView.rootIndex()
+        for row_list in reversed(continuous_rows):
+            model.removeRows(row_list[0], len(row_list), parent)
 
     def _onIndexActivated(self, index: QModelIndex):
         model = self.model()
