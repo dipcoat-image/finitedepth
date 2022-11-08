@@ -7,7 +7,7 @@ V2 for controlwidgets/analysiswidget.py
 
 import dawiq
 import os
-from PySide6.QtCore import Signal, Slot, QModelIndex
+from PySide6.QtCore import Slot, QModelIndex
 from PySide6.QtWidgets import (
     QWidget,
     QLineEdit,
@@ -63,8 +63,6 @@ class AnalysisView(QWidget):
 
     """
 
-    analysisRequested = Signal()
-
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -96,7 +94,7 @@ class AnalysisView(QWidget):
         self._vidExtComboBox.activated.connect(self._analyzeArgsMapper.submit)
         self._fpsLineEdit.editingFinished.connect(self._analyzeArgsMapper.submit)
         self._fpsLineEdit.setValidator(dawiq.EmptyFloatValidator())
-        self._analyzeButton.clicked.connect(self.analysisRequested)
+        self._analyzeButton.clicked.connect(self.requestAnalysis)
         self._analyzeArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._analyzeArgsMapper.setItemDelegate(AnalysisArgsDelegate())
 
@@ -201,6 +199,17 @@ class AnalysisView(QWidget):
             self._vidPathLineEdit.clear()
             self._fpsLineEdit.clear()
             self._analyzeArgsMapper.setCurrentModelIndex(QModelIndex())
+
+    @Slot()
+    def requestAnalysis(self):
+        """Request the analysis of the experiment in current model index."""
+        model = self.model()
+        if model is None:
+            return
+        index = model.activatedIndex()
+        worker = model.worker(index)
+        if worker is not None:
+            worker.analyze()
 
 
 class AnalysisArgsDelegate(QStyledItemDelegate):

@@ -60,7 +60,6 @@ class DataViewTab(QTabWidget):
 
     currentTypeChanged = Signal(TypeFlag)
     roiDrawFlagChanged = Signal(ROIDrawFlag)
-    analysisRequested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -73,7 +72,6 @@ class DataViewTab(QTabWidget):
 
         self.currentChanged.connect(self._onCurrentChange)
         self._refView.roiDrawFlagChanged.connect(self.roiDrawFlagChanged)
-        self._analysisView.analysisRequested.connect(self.analysisRequested)
 
         exptScroll = QScrollArea()
         exptScroll.setWidgetResizable(True)

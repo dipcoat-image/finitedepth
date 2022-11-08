@@ -14,7 +14,7 @@ from dipcoatimage.finitedepth import (
     ExperimentBase,
 )
 from dipcoatimage.finitedepth.analysis import AnalysisArgs
-from PySide6.QtCore import QRunnable
+from PySide6.QtCore import QObject
 from typing import Optional
 
 
@@ -23,7 +23,7 @@ __all__ = [
 ]
 
 
-class ExperimentWorker(QRunnable):
+class ExperimentWorker(QObject):
     def __init__(self, parent):
         super().__init__(parent)
 
@@ -87,3 +87,6 @@ class ExperimentWorker(QRunnable):
             self.experiment = None
         if self.experiment is None:
             return
+
+    def analyze(self):
+        ...
