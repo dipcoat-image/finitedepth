@@ -688,6 +688,8 @@ class ExperimentDataModel(QAbstractItemModel):
             activatedRow = activatedIndex.row()
             activatedColumn = activatedIndex.column()
             reactivate = (parent == activatedIndex.parent()) and row <= activatedRow
+            if reactivate:
+                self.setActivatedIndex(QModelIndex())
 
             self.beginRemoveRows(parent, row, row + count - 1)
             for _ in range(count):
@@ -695,12 +697,10 @@ class ExperimentDataModel(QAbstractItemModel):
                 self._workers.pop(row)
 
             if reactivate:
-                if activatedRow < row + count:
-                    newIndex = QModelIndex()
-                else:
+                if activatedRow >= row + count:
                     newRow = activatedRow - count
                     newIndex = self.index(newRow, activatedColumn, parent)
-                self.setActivatedIndex(newIndex)
+                    self.setActivatedIndex(newIndex)
             self.endRemoveRows()
             return True
         elif self.whatsThisIndex(parent) == IndexRole.COATPATHS:
