@@ -5,12 +5,13 @@ from dipcoatimage.finitedepth_gui.core import ClassSelection, VisualizationMode
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
+from dipcoatimage.finitedepth_gui.typing import SignalProtocol
 import numpy as np
 from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt, QUrl
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
 from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaRecorder
-from typing import Optional, List
+from typing import Optional, List, Protocol
 from .toolbar import DisplayWidgetToolBar
 from .roidisplay import NDArrayROILabel, NDArrayROILabel_V2
 from .videostream import (
@@ -21,6 +22,7 @@ from .videostream import (
 
 __all__ = [
     "MainDisplayWindow",
+    "ImageProcessorProtocol",
     "MainDisplayWindow_V2",
 ]
 
@@ -273,8 +275,19 @@ class MainDisplayWindow(QMainWindow):
         super().closeEvent(event)
 
 
+class ImageProcessorProtocol(Protocol):
+    arrayChanged: SignalProtocol
+
+    def setArray(self, array: np.ndarray):
+        ...
+
+    def ready(self) -> bool:
+        ...
+
+
 class MainDisplayWindow_V2(QMainWindow):
 
+    _arrayChanged = Signal(np.ndarray)
     visualizationModeChanged = Signal(VisualizationMode)
     imageCaptured = Signal(str)
     videoRecorded = Signal(QUrl)
@@ -294,7 +307,8 @@ class MainDisplayWindow_V2(QMainWindow):
         self._mediaRecorder = QMediaRecorder()
 
         self._videoController.setPlayer(self._videoPlayer)
-
+        self._videoPlayer.arrayChanged.connect(self._displayImage)
+        self._mediaCaptureSession.arrayChanged.connect(self._displayImage)
         self._displayToolBar.setCamera(self._camera)
         self._displayToolBar.setImageCapture(self._imageCapture)
         self._displayToolBar.setMediaRecorder(self._mediaRecorder)
@@ -313,21 +327,27 @@ class MainDisplayWindow_V2(QMainWindow):
         centralWidget.setLayout(layout)
         self.setCentralWidget(centralWidget)
 
-    def imageProcessor(self):
+    def imageProcessor(self) -> Optional[ImageProcessorProtocol]:
         return self._imageProcessor
 
-    def setImageProcessor(self, imageProcessor):
+    def setImageProcessor(self, imageProcessor: Optional[ImageProcessorProtocol]):
         oldProcessor = self.imageProcessor()
         if oldProcessor is None:
-            self._videoPlayer.arrayChanged.disconnect(self._displayLabel.setArray)
-            self._mediaCaptureSession.arrayChanged.disconnect(
-                self._displayLabel.setArray
-            )
+            self._arrayChanged.disconnect(self._displayLabel.setArray)
         else:
-            ...
+            self._arrayChanged.disconnect(oldProcessor.setArray)
+            oldProcessor.arrayChanged.connect(self._displayLabel.setArray)
         self._imageProcessor = imageProcessor
         if imageProcessor is None:
-            self._videoPlayer.arrayChanged.connect(self._displayLabel.setArray)
-            self._mediaCaptureSession.arrayChanged.connect(self._displayLabel.setArray)
+            self._arrayChanged.connect(self._displayLabel.setArray)
         else:
-            ...
+            self._arrayChanged.connect(imageProcessor.setArray)
+            imageProcessor.arrayChanged.connect(self._displayLabel.setArray)
+
+    @Slot(np.ndarray)
+    def _displayImage(self, array: np.ndarray):
+        processor = self.imageProcessor()
+        if processor is not None:
+            if not processor.ready():
+                return
+        self._arrayChanged.emit(array)
