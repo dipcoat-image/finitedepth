@@ -1,12 +1,17 @@
 from araviq6 import MediaController, NDArrayMediaCaptureSession
 import cv2  # type: ignore[import]
 from dipcoatimage.finitedepth.analysis import experiment_kind, ExperimentKind
-from dipcoatimage.finitedepth_gui.core import ClassSelection, VisualizationMode
+from dipcoatimage.finitedepth_gui.core import (
+    ClassSelection,
+    VisualizationMode,
+    ExperimentComponent,
+)
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
 from dipcoatimage.finitedepth_gui.typing import SignalProtocol
+import enum
 import numpy as np
 from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt, QUrl, QModelIndex
 from PySide6.QtGui import QPixmap
@@ -24,6 +29,7 @@ from .videostream import (
 __all__ = [
     "MainDisplayWindow",
     "ImageProcessorProtocol",
+    "FrameSource",
     "MainDisplayWindow_V2",
 ]
 
@@ -286,6 +292,12 @@ class ImageProcessorProtocol(Protocol):
         ...
 
 
+class FrameSource(enum.Enum):
+    NULL = 0
+    FILE = 1
+    CAMERA = 2
+
+
 class MainDisplayWindow_V2(QMainWindow):
 
     _arrayChanged = Signal(np.ndarray)
@@ -297,7 +309,10 @@ class MainDisplayWindow_V2(QMainWindow):
         super().__init__(parent)
 
         self._model = None
+        self._exptKind = ExperimentKind.NullExperiment
         self._currentModelIndex = QModelIndex()
+        self._currentView = ExperimentComponent.UNKNOWN
+        self._currentFrameSource = FrameSource.NULL
 
         self._displayLabel = NDArrayROILabel_V2()
         self._videoController = MediaController()
@@ -310,6 +325,8 @@ class MainDisplayWindow_V2(QMainWindow):
         self._imageCapture = QImageCapture()
         self._mediaRecorder = QMediaRecorder()
 
+        self._displayLabel.setAlignment(Qt.AlignCenter)
+        self._videoController.setVisible(False)
         self._videoController.setPlayer(self._videoPlayer)
         self._videoPlayer.arrayChanged.connect(self._displayImage)
         self._mediaCaptureSession.arrayChanged.connect(self._displayImage)
@@ -323,7 +340,7 @@ class MainDisplayWindow_V2(QMainWindow):
         )
         self._displayToolBar.imageCaptured.connect(self.imageCaptured)
         self._displayToolBar.videoRecorded.connect(self.videoRecorded)
-        self._displayLabel.setAlignment(Qt.AlignCenter)
+        self._camera.activeChanged.connect(self._onCameraActiveChange)
 
         self.addToolBar(self._displayToolBar)
         layout = QVBoxLayout()
@@ -381,10 +398,10 @@ class MainDisplayWindow_V2(QMainWindow):
                 model.index(row, 0, coatPathsIdx).data(model.Role_CoatPath)
                 for row in range(model.rowCount(coatPathsIdx))
             ]
-            self.setCoatPaths(coatPaths)
+            self._setCoatPaths(coatPaths)
         else:
             self._currentModelIndex = QModelIndex()
-            self.setCoatPaths([])
+            self._setCoatPaths([])
 
     @Slot(QModelIndex)
     def _onWorkerUpdate(self, index: QModelIndex):
@@ -398,10 +415,12 @@ class MainDisplayWindow_V2(QMainWindow):
             model.index(row, 0, coatPathsIdx).data(model.Role_CoatPath)
             for row in range(model.rowCount(coatPathsIdx))
         ]
-        self.setCoatPaths(coatPaths)
+        self._setCoatPaths(coatPaths)
 
-    def setCoatPaths(self, paths: List[str]):
+    def _setCoatPaths(self, paths: List[str]):
         exptKind = experiment_kind(paths)
+        self._exptKind = exptKind
+        self._updateControllerVisibility()
 
         if exptKind == ExperimentKind.VideoExperiment:
             self._videoPlayer.setSource(QUrl.fromLocalFile(paths[0]))
@@ -409,8 +428,37 @@ class MainDisplayWindow_V2(QMainWindow):
             exptKind == ExperimentKind.SingleImageExperiment
             or exptKind == ExperimentKind.MultiImageExperiment
         ):
+            self._videoPlayer.setSource(QUrl())
             img = cv2.cvtColor(cv2.imread(paths[0]), cv2.COLOR_BGR2RGB)
             self._displayImage(img)
         else:
+            self._videoPlayer.setSource(QUrl())
             img = np.empty((0, 0, 0), dtype=np.uint8)
             self._displayImage(img)
+
+    @Slot(ExperimentComponent)
+    def setCurrentView(self, currentView: ExperimentComponent):
+        self._currentView = currentView
+        self._updateControllerVisibility()
+
+    @Slot(bool)
+    def _onCameraActiveChange(self, active: bool):
+        if active:
+            self._currentFrameSource = FrameSource.CAMERA
+        else:
+            self._currentFrameSource = FrameSource.FILE
+        self._updateControllerVisibility()
+
+    def _updateControllerVisibility(self):
+        if self._currentFrameSource == FrameSource.CAMERA:
+            visible = False
+        elif self._currentView in [
+            ExperimentComponent.REFERENCE,
+            ExperimentComponent.SUBSTRATE,
+        ]:
+            visible = False
+        elif self._exptKind == ExperimentKind.VideoExperiment:
+            visible = True
+        else:
+            visible = False
+        self._videoController.setVisible(visible)

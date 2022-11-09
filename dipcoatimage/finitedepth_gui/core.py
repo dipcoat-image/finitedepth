@@ -29,7 +29,7 @@ __all__ = [
     "StructuredSubstrateArgs",
     "StructuredCoatingLayerArgs",
     "ClassSelection",
-    "TypeFlag",
+    "ExperimentComponent",
     "VisualizationMode",
 ]
 
@@ -165,13 +165,21 @@ class ClassSelection(enum.IntFlag):
     ANALYSIS = 8
 
 
-class TypeFlag(enum.IntFlag):
+class ExperimentComponent(enum.Enum):
+    """
+    Enum to represent five components of the experiment data, plus ``UNKNOWN``
+    for null value.
+
+    The members of this class are used to indicate which tab widget is specified
+    in experiment data view.
+    """
+
     UNKNOWN = 0
     REFERENCE = 1
     SUBSTRATE = 2
-    COATINGLAYER = 4
-    EXPERIMENT = 8
-    ANALYSIS = 16
+    COATINGLAYER = 3
+    EXPERIMENT = 4
+    ANALYSIS = 5
 
 
 class VisualizationMode(enum.IntEnum):

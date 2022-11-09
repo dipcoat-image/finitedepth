@@ -72,6 +72,7 @@ class MainWindow(QMainWindow):
 
         self._listView.setModel(self._model)
         self._dataViewTab.setModel(self._model)
+        self._dataViewTab.currentViewChanged.connect(self._display.setCurrentView)
         self._display.setModel(self._model)
         self._display.setImageProcessor(self._imageProcessor)
 
