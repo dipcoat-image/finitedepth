@@ -309,6 +309,8 @@ class MainDisplayWindow_V2(QMainWindow):
         self._videoController.setPlayer(self._videoPlayer)
         self._videoPlayer.arrayChanged.connect(self._displayImage)
         self._mediaCaptureSession.arrayChanged.connect(self._displayImage)
+        self._arrayChanged.connect(self._displayLabel.setArray)
+
         self._displayToolBar.setCamera(self._camera)
         self._displayToolBar.setImageCapture(self._imageCapture)
         self._displayToolBar.setMediaRecorder(self._mediaRecorder)
