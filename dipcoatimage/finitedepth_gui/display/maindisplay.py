@@ -284,6 +284,7 @@ class MainDisplayWindow_V2(QMainWindow):
         super().__init__(parent)
 
         self._model = None
+        self._currentModelIndex = QModelIndex()
 
         self._displayToolBar = DisplayWidgetToolBar()
         self._camera = QCamera()
@@ -318,10 +319,15 @@ class MainDisplayWindow_V2(QMainWindow):
         oldModel = self.model()
         if oldModel is not None:
             oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
+        self._displayLabel.setModel(model)
         self._model = model
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
 
     @Slot(QModelIndex)
     def setActivatedIndex(self, index: QModelIndex):
-        ...
+        model = index.model()
+        if isinstance(model, ExperimentDataModel):
+            self._currentModelIndex = index
+        else:
+            self._currentModelIndex = QModelIndex()
