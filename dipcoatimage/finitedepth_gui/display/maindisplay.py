@@ -1,13 +1,14 @@
 from araviq6 import MediaController, NDArrayMediaCaptureSession
 import cv2  # type: ignore[import]
-from dipcoatimage.finitedepth.analysis import ExperimentKind
+from dipcoatimage.finitedepth.analysis import experiment_kind, ExperimentKind
 from dipcoatimage.finitedepth_gui.core import ClassSelection, VisualizationMode
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
+from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
 from dipcoatimage.finitedepth_gui.typing import SignalProtocol
 import numpy as np
-from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt, QUrl
+from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt, QUrl, QModelIndex
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
 from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaRecorder
@@ -295,6 +296,9 @@ class MainDisplayWindow_V2(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self._model = None
+        self._currentModelIndex = QModelIndex()
+
         self._displayLabel = NDArrayROILabel_V2()
         self._videoController = MediaController()
         self._videoPlayer = PreviewableNDArrayVideoPlayer()
@@ -353,3 +357,60 @@ class MainDisplayWindow_V2(QMainWindow):
             if not processor.ready():
                 return
         self._arrayChanged.emit(array)
+
+    def model(self) -> Optional[ExperimentDataModel]:
+        return self._model
+
+    def setModel(self, model: Optional[ExperimentDataModel]):
+        oldModel = self.model()
+        if oldModel is not None:
+            oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
+            oldModel.workerUpdated.disconnect(self._onWorkerUpdate)
+        self._model = model
+        if model is not None:
+            model.activatedIndexChanged.connect(self.setActivatedIndex)
+            model.workerUpdated.connect(self._onWorkerUpdate)
+
+    @Slot(QModelIndex)
+    def setActivatedIndex(self, index: QModelIndex):
+        model = index.model()
+        if isinstance(model, ExperimentDataModel):
+            self._currentModelIndex = index
+            coatPathsIdx = model.getIndexFor(IndexRole.COATPATHS, index)
+            coatPaths = [
+                model.index(row, 0, coatPathsIdx).data(model.Role_CoatPath)
+                for row in range(model.rowCount(coatPathsIdx))
+            ]
+            self.setCoatPaths(coatPaths)
+        else:
+            self._currentModelIndex = QModelIndex()
+            self.setCoatPaths([])
+
+    @Slot(QModelIndex)
+    def _onWorkerUpdate(self, index: QModelIndex):
+        model = self.model()
+        if model is None:
+            return
+        if index != self._currentModelIndex:
+            return
+        coatPathsIdx = model.getIndexFor(IndexRole.COATPATHS, index)
+        coatPaths = [
+            model.index(row, 0, coatPathsIdx).data(model.Role_CoatPath)
+            for row in range(model.rowCount(coatPathsIdx))
+        ]
+        self.setCoatPaths(coatPaths)
+
+    def setCoatPaths(self, paths: List[str]):
+        exptKind = experiment_kind(paths)
+
+        if exptKind == ExperimentKind.VideoExperiment:
+            self._videoPlayer.setSource(QUrl.fromLocalFile(paths[0]))
+        elif (
+            exptKind == ExperimentKind.SingleImageExperiment
+            or exptKind == ExperimentKind.MultiImageExperiment
+        ):
+            img = cv2.cvtColor(cv2.imread(paths[0]), cv2.COLOR_BGR2RGB)
+            self._displayImage(img)
+        else:
+            img = np.empty((0, 0, 0), dtype=np.uint8)
+            self._displayImage(img)

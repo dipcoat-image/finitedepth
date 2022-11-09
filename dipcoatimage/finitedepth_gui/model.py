@@ -253,6 +253,7 @@ class ExperimentDataModel(QAbstractItemModel):
     Row_ExptType = 0
     Row_ExptParameters = 1
 
+    workerUpdated = Signal(QModelIndex)
     activatedIndexChanged = Signal(QModelIndex)
     analysisStateChanged = Signal(AnalysisState)
     analysisProgressMaximumChanged = Signal(int)
@@ -548,6 +549,7 @@ class ExperimentDataModel(QAbstractItemModel):
             return False
         exptData = self.indexToExperimentData(index)
         worker.setExperimentData(exptData)
+        self.workerUpdated.emit(index)
         return True
 
     def insertRows(self, row, count, parent=QModelIndex()):
