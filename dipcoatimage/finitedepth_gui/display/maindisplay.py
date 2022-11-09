@@ -5,14 +5,15 @@ from dipcoatimage.finitedepth_gui.core import ClassSelection, VisualizationMode
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
+from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 import numpy as np
-from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt, QUrl
+from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt, QUrl, QModelIndex
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
 from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaRecorder
 from typing import Optional, List
 from .toolbar import DisplayWidgetToolBar
-from .roidisplay import NDArrayROILabel
+from .roidisplay import NDArrayROILabel, NDArrayROILabel_V2
 from .videostream import (
     PreviewableNDArrayVideoPlayer,
     VisualizeProcessor,
@@ -21,6 +22,7 @@ from .videostream import (
 
 __all__ = [
     "MainDisplayWindow",
+    "MainDisplayWindow_V2",
 ]
 
 
@@ -53,8 +55,8 @@ class MainDisplayWindow(QMainWindow):
         self._expt_kind = ExperimentKind.NullExperiment
         self._selectedClass = ClassSelection.UNKNOWN
 
-        self._display_label = NDArrayROILabel()
-        self._video_controller = MediaController()
+        self._displayLabel = NDArrayROILabel()
+        self._videoController = MediaController()
 
         self._video_player = PreviewableNDArrayVideoPlayer()
         self._capture_session = NDArrayMediaCaptureSession()
@@ -114,10 +116,10 @@ class MainDisplayWindow(QMainWindow):
 
     def displayLabel(self) -> NDArrayROILabel:
         """Label to display the visualization result."""
-        return self._display_label
+        return self._displayLabel
 
     def videoController(self) -> MediaController:
-        return self._video_controller
+        return self._videoController
 
     def videoPlayer(self) -> PreviewableNDArrayVideoPlayer:
         return self._video_player
@@ -270,3 +272,56 @@ class MainDisplayWindow(QMainWindow):
         self.processorThread().quit()
         self.processorThread().wait()
         super().closeEvent(event)
+
+
+class MainDisplayWindow_V2(QMainWindow):
+
+    visualizationModeChanged = Signal(VisualizationMode)
+    imageCaptured = Signal(str)
+    videoRecorded = Signal(QUrl)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self._model = None
+
+        self._displayToolBar = DisplayWidgetToolBar()
+        self._camera = QCamera()
+        self._imageCapture = QImageCapture()
+        self._mediaRecorder = QMediaRecorder()
+
+        self._displayLabel = NDArrayROILabel_V2()
+        self._videoController = MediaController()
+
+        self._displayToolBar.setCamera(self._camera)
+        self._displayToolBar.setImageCapture(self._imageCapture)
+        self._displayToolBar.setMediaRecorder(self._mediaRecorder)
+        self._displayToolBar.visualizationModeChanged.connect(
+            self.visualizationModeChanged
+        )
+        self._displayToolBar.imageCaptured.connect(self.imageCaptured)
+        self._displayToolBar.videoRecorded.connect(self.videoRecorded)
+        self._displayLabel.setAlignment(Qt.AlignCenter)
+
+        self.addToolBar(self._displayToolBar)
+        layout = QVBoxLayout()
+        layout.addWidget(self._displayLabel)
+        layout.addWidget(self._videoController)
+        centralWidget = QWidget()
+        centralWidget.setLayout(layout)
+        self.setCentralWidget(centralWidget)
+
+    def model(self) -> Optional[ExperimentDataModel]:
+        return self._model
+
+    def setModel(self, model: Optional[ExperimentDataModel]):
+        oldModel = self.model()
+        if oldModel is not None:
+            oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
+        self._model = model
+        if model is not None:
+            model.activatedIndexChanged.connect(self.setActivatedIndex)
+
+    @Slot(QModelIndex)
+    def setActivatedIndex(self, index: QModelIndex):
+        ...

@@ -9,6 +9,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMainWindow, QDockWidget
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from dipcoatimage.finitedepth_gui.views import ExperimentDataListView, DataViewTab
+from dipcoatimage.finitedepth_gui.display import MainDisplayWindow_V2
 
 
 __all__ = ["MainWindow"]
@@ -37,6 +38,7 @@ class MainWindow(QMainWindow):
         self._model = ExperimentDataModel()
         self._listView = ExperimentDataListView()
         self._dataViewTab = DataViewTab()
+        self._display = MainDisplayWindow_V2()
 
         self._listView.setModel(self._model)
         self._dataViewTab.setModel(self._model)
@@ -47,4 +49,5 @@ class MainWindow(QMainWindow):
         exptDataDock = QDockWidget("Experiment data")
         exptDataDock.setWidget(self._dataViewTab)
         self.addDockWidget(Qt.BottomDockWidgetArea, exptDataDock)
+        self.setCentralWidget(self._display)
         self.setWindowTitle("Coating layer analysis")
