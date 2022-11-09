@@ -5,9 +5,8 @@ from dipcoatimage.finitedepth_gui.core import ClassSelection, VisualizationMode
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
-from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 import numpy as np
-from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt, QUrl, QModelIndex
+from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt, QUrl
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
 from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaRecorder
@@ -283,16 +282,18 @@ class MainDisplayWindow_V2(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._model = None
-        self._currentModelIndex = QModelIndex()
+        self._displayLabel = NDArrayROILabel_V2()
+        self._videoController = MediaController()
+        self._videoPlayer = PreviewableNDArrayVideoPlayer()
+        self._mediaCaptureSession = NDArrayMediaCaptureSession()
+        self._imageProcessor = None
 
         self._displayToolBar = DisplayWidgetToolBar()
         self._camera = QCamera()
         self._imageCapture = QImageCapture()
         self._mediaRecorder = QMediaRecorder()
 
-        self._displayLabel = NDArrayROILabel_V2()
-        self._videoController = MediaController()
+        self._videoController.setPlayer(self._videoPlayer)
 
         self._displayToolBar.setCamera(self._camera)
         self._displayToolBar.setImageCapture(self._imageCapture)
@@ -312,22 +313,21 @@ class MainDisplayWindow_V2(QMainWindow):
         centralWidget.setLayout(layout)
         self.setCentralWidget(centralWidget)
 
-    def model(self) -> Optional[ExperimentDataModel]:
-        return self._model
+    def imageProcessor(self):
+        return self._imageProcessor
 
-    def setModel(self, model: Optional[ExperimentDataModel]):
-        oldModel = self.model()
-        if oldModel is not None:
-            oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
-        self._displayLabel.setModel(model)
-        self._model = model
-        if model is not None:
-            model.activatedIndexChanged.connect(self.setActivatedIndex)
-
-    @Slot(QModelIndex)
-    def setActivatedIndex(self, index: QModelIndex):
-        model = index.model()
-        if isinstance(model, ExperimentDataModel):
-            self._currentModelIndex = index
+    def setImageProcessor(self, imageProcessor):
+        oldProcessor = self.imageProcessor()
+        if oldProcessor is None:
+            self._videoPlayer.arrayChanged.disconnect(self._displayLabel.setArray)
+            self._mediaCaptureSession.arrayChanged.disconnect(
+                self._displayLabel.setArray
+            )
         else:
-            self._currentModelIndex = QModelIndex()
+            ...
+        self._imageProcessor = imageProcessor
+        if imageProcessor is None:
+            self._videoPlayer.arrayChanged.connect(self._displayLabel.setArray)
+            self._mediaCaptureSession.arrayChanged.connect(self._displayLabel.setArray)
+        else:
+            ...
