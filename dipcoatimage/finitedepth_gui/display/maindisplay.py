@@ -312,8 +312,8 @@ class MainDisplayWindow_V2(QMainWindow):
         self._model = None
         self._exptKind = ExperimentKind.NullExperiment
         self._currentModelIndex = QModelIndex()
-        self._currentView = DataMember.NULL
-        self._currentFrameSource = FrameSource.NULL
+        self._currentView = DataMember.EXPERIMENT
+        self._currentFrameSource = FrameSource.FILE
 
         self._displayLabel = NDArrayROILabel_V2()
         self._videoController = MediaController()
