@@ -262,7 +262,7 @@ class ExperimentWorker(QObject):
 
     def drawReferenceImage(self) -> npt.NDArray[np.uint8]:
         reference = self.reference
-        if reference is None:
+        if reference is not None:
             image = reference.draw()
         else:
             image = self.referenceImage

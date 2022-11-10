@@ -9,10 +9,8 @@ from PySide6.QtCore import QThread, Qt
 from PySide6.QtWidgets import QMainWindow, QDockWidget
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from dipcoatimage.finitedepth_gui.views import ExperimentDataListView, DataViewTab
-from dipcoatimage.finitedepth_gui.display import (
-    MainDisplayWindow_V2,
-    VisualizeProcessor_V2,
-)
+from dipcoatimage.finitedepth_gui.pipeline import VisualizeProcessor_V2
+from dipcoatimage.finitedepth_gui.display import MainDisplayWindow_V2
 
 
 __all__ = [
@@ -52,7 +50,6 @@ class MainWindow(QMainWindow):
         self._dataViewTab.setModel(self._model)
         self._dataViewTab.currentViewChanged.connect(self._display.setCurrentView)
         self._display.setModel(self._model)
-        self._display.setImageProcessor(self._imageProcessor)
 
         self._imageProcessor.moveToThread(self._processorThread)
         self._processorThread.start()

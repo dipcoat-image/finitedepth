@@ -1,19 +1,17 @@
 from araviq6 import MediaController, NDArrayMediaCaptureSession
 import cv2  # type: ignore[import]
-from dipcoatimage.finitedepth.analysis import experiment_kind, ExperimentKind
+from dipcoatimage.finitedepth.analysis import ExperimentKind
 from dipcoatimage.finitedepth_gui.core import (
     ClassSelection,
     VisualizationMode,
     DataMember,
 )
-from dipcoatimage.finitedepth_gui.core import DataArgs
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
-from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
-from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
+from dipcoatimage.finitedepth_gui.pipeline import FrameSource
 import numpy as np
-from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt, QUrl, QModelIndex
+from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt, QUrl
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
 from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaRecorder
@@ -23,8 +21,6 @@ from .roidisplay import NDArrayROILabel, NDArrayROILabel_V2
 from .videostream import (
     PreviewableNDArrayVideoPlayer,
     VisualizeProcessor,
-    FrameSource,
-    VisualizeProcessor_V2,
 )
 
 
@@ -283,8 +279,12 @@ class MainDisplayWindow(QMainWindow):
 
 
 class MainDisplayWindow_V2(QMainWindow):
+    """
+    Window to display the visualization result.
 
-    _arrayChanged = Signal(np.ndarray)
+    This widget is only a view. Visualization must be done by some other object.
+    """
+
     visualizationModeChanged = Signal(VisualizationMode)
     imageCaptured = Signal(str)
     videoRecorded = Signal(QUrl)
@@ -292,28 +292,19 @@ class MainDisplayWindow_V2(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._model = None
         self._exptKind = ExperimentKind.NullExperiment
-        self._currentModelIndex = QModelIndex()
         self._currentView = DataMember.EXPERIMENT
         self._currentFrameSource = FrameSource.FILE
 
         self._displayLabel = NDArrayROILabel_V2()
         self._videoController = MediaController()
-        self._videoPlayer = PreviewableNDArrayVideoPlayer()
-        self._mediaCaptureSession = NDArrayMediaCaptureSession()
-        self._imageProcessor = None
-
         self._displayToolBar = DisplayWidgetToolBar()
+
         self._camera = QCamera()
         self._imageCapture = QImageCapture()
         self._mediaRecorder = QMediaRecorder()
-
         self._displayLabel.setAlignment(Qt.AlignCenter)
         self._videoController.setVisible(False)
-        self._videoController.setPlayer(self._videoPlayer)
-        self._videoPlayer.arrayChanged.connect(self._displayImage)
-        self._arrayChanged.connect(self._displayLabel.setArray)
 
         self._displayToolBar.setCamera(self._camera)
         self._displayToolBar.setImageCapture(self._imageCapture)
@@ -323,6 +314,7 @@ class MainDisplayWindow_V2(QMainWindow):
         )
         self._displayToolBar.imageCaptured.connect(self.imageCaptured)
         self._displayToolBar.videoRecorded.connect(self.videoRecorded)
+
         self._camera.activeChanged.connect(self._onCameraActiveChange)
 
         self.addToolBar(self._displayToolBar)
@@ -333,107 +325,13 @@ class MainDisplayWindow_V2(QMainWindow):
         centralWidget.setLayout(layout)
         self.setCentralWidget(centralWidget)
 
-    def imageProcessor(self) -> Optional[VisualizeProcessor_V2]:
-        return self._imageProcessor
-
-    def setImageProcessor(self, imageProcessor: Optional[VisualizeProcessor_V2]):
-        oldProcessor = self.imageProcessor()
-        if oldProcessor is None:
-            self._arrayChanged.disconnect(self._displayLabel.setArray)
-        else:
-            self._arrayChanged.disconnect(oldProcessor.setArray)
-            oldProcessor.arrayChanged.disconnect(self._displayLabel.setArray)
-        self._imageProcessor = imageProcessor
-        if imageProcessor is None:
-            self._arrayChanged.connect(self._displayLabel.setArray)
-        else:
-            self._arrayChanged.connect(imageProcessor.setArray)
-            imageProcessor.arrayChanged.connect(self._displayLabel.setArray)
-
-    @Slot(np.ndarray)
-    def _displayImage(self, array: np.ndarray):
-        processor = self.imageProcessor()
-        if processor is not None:
-            if not processor.ready():
-                return
-        self._arrayChanged.emit(array)
-
-    def model(self) -> Optional[ExperimentDataModel]:
-        return self._model
-
-    def setModel(self, model: Optional[ExperimentDataModel]):
-        oldModel = self.model()
-        if oldModel is not None:
-            oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
-            oldModel.experimentDataChanged.disconnect(self._onExptDataChange)
-            oldModel.workerUpdated.disconnect(self._onWorkerUpdate)
-        self._model = model
-        if model is not None:
-            model.activatedIndexChanged.connect(self.setActivatedIndex)
-            model.experimentDataChanged.connect(self._onExptDataChange)
-            model.workerUpdated.connect(self._onWorkerUpdate)
-
-    @Slot(QModelIndex)
-    def setActivatedIndex(self, index: QModelIndex):
-        model = index.model()
-        imageProcessor = self.imageProcessor()
-        if isinstance(model, ExperimentDataModel):
-            self._currentModelIndex = index
-            if imageProcessor is not None:
-                imageProcessor.setWorker(model.worker(index))
-            coatPathsIdx = model.getIndexFor(IndexRole.COATPATHS, index)
-            coatPaths = [
-                model.index(row, 0, coatPathsIdx).data(model.Role_CoatPath)
-                for row in range(model.rowCount(coatPathsIdx))
-            ]
-            self._setCoatPaths(coatPaths)
-        else:
-            self._currentModelIndex = QModelIndex()
-            if imageProcessor is not None:
-                imageProcessor.setWorker(None)
-            self._setCoatPaths([])
-
-    @Slot(QModelIndex, DataArgs)
-    def _onExptDataChange(self, index: QModelIndex, flag: DataArgs):
-        # set image paths from the data
-        model = self.model()
-        if model is None:
-            return
-        if index != self._currentModelIndex:
-            return
-        if flag & DataArgs.COATPATHS:
-            coatPathsIdx = model.getIndexFor(IndexRole.COATPATHS, index)
-            coatPaths = [
-                model.index(row, 0, coatPathsIdx).data(model.Role_CoatPath)
-                for row in range(model.rowCount(coatPathsIdx))
-            ]
-            self._setCoatPaths(coatPaths)
-
-    @Slot(QModelIndex, WorkerUpdateFlag)
-    def _onWorkerUpdate(self, index: QModelIndex, flag: WorkerUpdateFlag):
-        ...
-
-    def _setCoatPaths(self, paths: List[str]):
-        exptKind = experiment_kind(paths)
+    @Slot(ExperimentKind)
+    def setExperimentKind(self, exptKind: ExperimentKind):
         controllerVisible = self.isExperimentVideo(
             self._currentFrameSource, self._currentView, exptKind
         )
         self._videoController.setVisible(controllerVisible)
         self._exptKind = exptKind
-
-        if exptKind == ExperimentKind.VideoExperiment:
-            self._videoPlayer.setSource(QUrl.fromLocalFile(paths[0]))
-        elif (
-            exptKind == ExperimentKind.SingleImageExperiment
-            or exptKind == ExperimentKind.MultiImageExperiment
-        ):
-            self._videoPlayer.setSource(QUrl())
-            img = cv2.cvtColor(cv2.imread(paths[0]), cv2.COLOR_BGR2RGB)
-            self._displayImage(img)
-        else:
-            self._videoPlayer.setSource(QUrl())
-            img = np.empty((0, 0, 0), dtype=np.uint8)
-            self._displayImage(img)
 
     @Slot(DataMember)
     def setCurrentView(self, currentView: DataMember):
@@ -441,30 +339,18 @@ class MainDisplayWindow_V2(QMainWindow):
             self._currentFrameSource, currentView, self._exptKind
         )
         self._videoController.setVisible(controllerVisible)
-
-        imageProcessor = self.imageProcessor()
-        if imageProcessor is not None:
-            imageProcessor.setCurrentView(currentView)
-
         self._currentView = currentView
 
     @Slot(bool)
     def _onCameraActiveChange(self, active: bool):
         if active:
             frameSource = FrameSource.CAMERA
-            self._videoPlayer.arrayChanged.disconnect(self._displayImage)
-            self._mediaCaptureSession.arrayChanged.connect(self._displayImage)
         else:
             frameSource = FrameSource.FILE
-            self._videoPlayer.arrayChanged.connect(self._displayImage)
-            self._mediaCaptureSession.arrayChanged.disconnect(self._displayImage)
         controllerVisible = self.isExperimentVideo(
             frameSource, self._currentView, self._exptKind
         )
         self._videoController.setVisible(controllerVisible)
-        imageProcessor = self.imageProcessor()
-        if imageProcessor is not None:
-            imageProcessor.setFrameSource(frameSource)
         self._currentFrameSource = frameSource
 
     @staticmethod

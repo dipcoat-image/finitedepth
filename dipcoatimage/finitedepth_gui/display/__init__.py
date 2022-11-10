@@ -24,7 +24,6 @@ from .toolbar import (
 from .videostream import (
     PreviewableNDArrayVideoPlayer,
     VisualizeProcessor,
-    VisualizeProcessor_V2,
 )
 
 
@@ -39,5 +38,4 @@ __all__ = [
     "get_icons_path",
     "MainDisplayWindow",
     "MainDisplayWindow_V2",
-    "VisualizeProcessor_V2",
 ]
