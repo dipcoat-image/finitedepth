@@ -420,9 +420,7 @@ class MainDisplayWindow_V2(QMainWindow):
     def _setCoatPaths(self, paths: List[str]):
         exptKind = experiment_kind(paths)
         controllerVisible = self.isExperimentVideo(
-            self._frameSource,
-            self._currentView,
-            exptKind
+            self._currentFrameSource, self._currentView, exptKind
         )
         self._videoController.setVisible(controllerVisible)
         self._exptKind = exptKind
@@ -444,9 +442,7 @@ class MainDisplayWindow_V2(QMainWindow):
     @Slot(ExperimentMember)
     def setCurrentView(self, currentView: ExperimentMember):
         controllerVisible = self.isExperimentVideo(
-            self._frameSource,
-            currentView,
-            self._exptKind
+            self._currentFrameSource, currentView, self._exptKind
         )
         self._videoController.setVisible(controllerVisible)
         self._currentView = currentView
@@ -458,9 +454,7 @@ class MainDisplayWindow_V2(QMainWindow):
         else:
             frameSource = FrameSource.FILE
         controllerVisible = self.isExperimentVideo(
-            frameSource,
-            self._currentView,
-            self._exptKind
+            frameSource, self._currentView, self._exptKind
         )
         self._videoController.setVisible(controllerVisible)
         self._currentFrameSource = frameSource
@@ -472,11 +466,11 @@ class MainDisplayWindow_V2(QMainWindow):
         exptKind: ExperimentKind,
     ) -> bool:
         viewExclude = [
-            ExperiementMember.REFERENCE,
+            ExperimentMember.REFERENCE,
             ExperimentMember.SUBSTRATE,
         ]
         ret = (
-            frameSource == FrameSoruce.FILE
+            frameSource == FrameSource.FILE
             and currentView not in viewExclude
             and exptKind == ExperimentKind.VideoExperiment
         )
