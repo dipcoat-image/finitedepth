@@ -9,6 +9,7 @@ from dipcoatimage.finitedepth_gui.core import (
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
+from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
 from dipcoatimage.finitedepth_gui.typing import SignalProtocol
 import enum
@@ -403,8 +404,8 @@ class MainDisplayWindow_V2(QMainWindow):
             self._currentModelIndex = QModelIndex()
             self._setCoatPaths([])
 
-    @Slot(QModelIndex)
-    def _onWorkerUpdate(self, index: QModelIndex):
+    @Slot(QModelIndex, WorkerUpdateFlag)
+    def _onWorkerUpdate(self, index: QModelIndex, flag: WorkerUpdateFlag):
         model = self.model()
         if model is None:
             return

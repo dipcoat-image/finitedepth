@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 from dipcoatimage.finitedepth import SubstrateReferenceBase
 from dipcoatimage.finitedepth.analysis import ImportArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer, OptionalROI
+from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
     IndexRole,
@@ -356,7 +357,7 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
                         editor.currentDrawOptionsWidget(), model, drawOptIndex
                     )
 
-                model.updateWorker(model.getTopLevelIndex(index))
+                model.updateWorker(model.getTopLevelIndex(index), WorkerUpdateFlag.NULL)
 
         super().setModelData(editor, model, index)
 

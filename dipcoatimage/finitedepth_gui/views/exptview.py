@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 from dipcoatimage.finitedepth import ExperimentBase
 from dipcoatimage.finitedepth.analysis import ImportArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
+from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
     IndexRole,
@@ -184,7 +185,7 @@ class ExperimentView(QWidget):
             for i, path in enumerate(paths):
                 index = model.index(row + i, 0, parent)
                 model.setData(index, path, role=model.Role_CoatPath)
-        model.updateWorker(model.getTopLevelIndex(parent))
+        model.updateWorker(model.getTopLevelIndex(parent), WorkerUpdateFlag.NULL)
 
     @Slot()
     def deleteSelectedPaths(self):
@@ -203,7 +204,7 @@ class ExperimentView(QWidget):
         with WorkerUpdateBlocker(model):
             for row_list in reversed(continuous_rows):
                 model.removeRows(row_list[0], len(row_list), parent)
-        model.updateWorker(model.getTopLevelIndex(parent))
+        model.updateWorker(model.getTopLevelIndex(parent), WorkerUpdateFlag.NULL)
 
     def parametersStackedWidget(self) -> dawiq.DataclassStackedWidget:
         return self._paramStackWidget
@@ -282,7 +283,7 @@ class ExperimentArgsDelegate(dawiq.DataclassDelegate):
                         editor.currentParametersWidget(), model, paramIndex
                     )
 
-                model.updateWorker(model.getTopLevelIndex(index))
+                model.updateWorker(model.getTopLevelIndex(index), WorkerUpdateFlag.NULL)
 
         super().setModelData(editor, model, index)
 

@@ -28,6 +28,7 @@ __all__ = [
     "AnalysisState",
     "AnalysisWorkerSignals",
     "AnalysisWorker",
+    "WorkerUpdateFlag",
     "ExperimentWorker",
 ]
 
@@ -116,6 +117,19 @@ class AnalysisWorker(QRunnable):
         self.setState(AnalysisState.Stopped)
 
 
+class WorkerUpdateFlag(enum.IntFlag):
+    """Flag to indicate how the worker should be updated."""
+
+    NULL = 0
+    REFPATH = 1
+    REFARGS = 2
+    SUBSTARGS = 4
+    LAYERARGS = 8
+    COATPATHS = 16
+    EXPTARGS = 32
+    ANALYSISARGS = 64
+
+
 class ExperimentWorker(QObject):
 
     analysisStateChanged = Signal(AnalysisState)
@@ -161,7 +175,7 @@ class ExperimentWorker(QObject):
     def analysisProgressValue(self) -> int:
         return self._analysisProgressValue
 
-    def setExperimentData(self, exptData: ExperimentData):
+    def setExperimentData(self, exptData: ExperimentData, flag: WorkerUpdateFlag):
         refPath = exptData.ref_path
         if refPath:
             refImg = cv2.imread(exptData.ref_path)
