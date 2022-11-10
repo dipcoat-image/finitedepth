@@ -1,5 +1,6 @@
 from araviq6 import NDArrayVideoPlayer
 import cv2  # type: ignore[import]
+import enum
 import numpy as np
 import numpy.typing as npt
 from dipcoatimage.finitedepth import SubstrateReferenceBase
@@ -12,6 +13,7 @@ from typing import Optional
 
 __all__ = [
     "PreviewableNDArrayVideoPlayer",
+    "FrameSource",
     "VisualizeProcessor_V2",
 ]
 
@@ -119,6 +121,12 @@ class VisualizeProcessor(QObject):
         self.arrayChanged.emit(ret)
 
 
+class FrameSource(enum.Enum):
+    NULL = 0
+    FILE = 1
+    CAMERA = 2
+
+
 class VisualizeProcessor_V2(QObject):
     arrayChanged = Signal(np.ndarray)
 
@@ -126,6 +134,7 @@ class VisualizeProcessor_V2(QObject):
         super().__init__(parent)
         self._worker = None
         self._currentView = DataMember.EXPERIMENT
+        self._frameSource = FrameSource.NULL
         self._ready = True
 
     def setWorker(self, worker: Optional[ExperimentWorker]):
@@ -133,6 +142,9 @@ class VisualizeProcessor_V2(QObject):
 
     def setCurrentView(self, currentView: DataMember):
         self._currentView = currentView
+
+    def setFrameSource(self, frameSource: FrameSource):
+        self._frameSource = frameSource
 
     @Slot(np.ndarray)
     def setArray(self, array: npt.NDArray[np.uint8]):

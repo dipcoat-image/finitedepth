@@ -11,7 +11,6 @@ from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
-import enum
 import numpy as np
 from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt, QUrl, QModelIndex
 from PySide6.QtGui import QPixmap
@@ -23,13 +22,13 @@ from .roidisplay import NDArrayROILabel, NDArrayROILabel_V2
 from .videostream import (
     PreviewableNDArrayVideoPlayer,
     VisualizeProcessor,
+    FrameSource,
     VisualizeProcessor_V2,
 )
 
 
 __all__ = [
     "MainDisplayWindow",
-    "FrameSource",
     "MainDisplayWindow_V2",
 ]
 
@@ -282,12 +281,6 @@ class MainDisplayWindow(QMainWindow):
         super().closeEvent(event)
 
 
-class FrameSource(enum.Enum):
-    NULL = 0
-    FILE = 1
-    CAMERA = 2
-
-
 class MainDisplayWindow_V2(QMainWindow):
 
     _arrayChanged = Signal(np.ndarray)
@@ -456,6 +449,9 @@ class MainDisplayWindow_V2(QMainWindow):
             frameSource, self._currentView, self._exptKind
         )
         self._videoController.setVisible(controllerVisible)
+        imageProcessor = self.imageProcessor()
+        if imageProcessor is not None:
+            imageProcessor.setFrameSource(frameSource)
         self._currentFrameSource = frameSource
 
     @staticmethod
