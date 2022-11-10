@@ -186,7 +186,7 @@ class ExperimentView(QWidget):
                 index = model.index(row + i, 0, parent)
                 model.setData(index, path, role=model.Role_CoatPath)
 
-        flag = WorkerUpdateFlag.EXPERIMENT
+        flag = WorkerUpdateFlag.ANALYSIS
         model.updateWorker(model.getTopLevelIndex(index), flag)
 
     @Slot()
@@ -207,7 +207,7 @@ class ExperimentView(QWidget):
             for row_list in reversed(continuous_rows):
                 model.removeRows(row_list[0], len(row_list), parent)
 
-        flag = WorkerUpdateFlag.EXPERIMENT
+        flag = WorkerUpdateFlag.ANALYSIS
         model.updateWorker(model.getTopLevelIndex(parent), flag)
 
     def parametersStackedWidget(self) -> dawiq.DataclassStackedWidget:

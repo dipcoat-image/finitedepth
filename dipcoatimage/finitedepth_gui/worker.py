@@ -173,62 +173,66 @@ class ExperimentWorker(QObject):
         return self._analysisProgressValue
 
     def setExperimentData(self, exptData: ExperimentData, flag: WorkerUpdateFlag):
-        refPath = exptData.ref_path
-        if refPath:
-            refImg = cv2.imread(exptData.ref_path)
-        else:
-            refImg = None
-        if refImg is None:
-            refImg = np.empty((0, 0, 0), dtype=np.uint8)
-        else:
-            refImg = cv2.cvtColor(refImg, cv2.COLOR_BGR2RGB)
-        self.referenceImage = refImg
+        if flag & WorkerUpdateFlag.REFIMAGE:
+            refPath = exptData.ref_path
+            if refPath:
+                refImg = cv2.imread(exptData.ref_path)
+            else:
+                refImg = None
+            if refImg is None:
+                refImg = np.empty((0, 0, 0), dtype=np.uint8)
+            else:
+                refImg = cv2.cvtColor(refImg, cv2.COLOR_BGR2RGB)
+            self.referenceImage = refImg
 
-        self.analysisWorker.coat_paths = exptData.coat_paths
-
-        if self.referenceImage.size == 0:
-            self.reference = None
-        else:
-            refArgs = exptData.reference
-            try:
-                ref = refArgs.as_reference(self.referenceImage)
-                if not ref.valid():
-                    self.reference = None
-                else:
-                    self.reference = ref
-            except TypeError:
+        if flag & WorkerUpdateFlag.REFERENCE:
+            if self.referenceImage.size == 0:
                 self.reference = None
+            else:
+                refArgs = exptData.reference
+                try:
+                    ref = refArgs.as_reference(self.referenceImage)
+                    if not ref.valid():
+                        self.reference = None
+                    else:
+                        self.reference = ref
+                except TypeError:
+                    self.reference = None
 
-        if self.reference is None:
-            self.substrate = None
-        else:
-            substArgs = exptData.substrate
-            try:
-                subst = substArgs.as_substrate(self.reference)
-                if not subst.valid():
-                    self.substrate = None
-                else:
-                    self.substrate = subst
-            except TypeError:
+        if flag & WorkerUpdateFlag.SUBSTRATE:
+            if self.reference is None:
                 self.substrate = None
+            else:
+                substArgs = exptData.substrate
+                try:
+                    subst = substArgs.as_substrate(self.reference)
+                    if not subst.valid():
+                        self.substrate = None
+                    else:
+                        self.substrate = subst
+                except TypeError:
+                    self.substrate = None
 
-        if self.substrate is None:
-            self.experiment = None
-        else:
-            layerArgs = exptData.coatinglayer
-            exptArgs = exptData.experiment
-            try:
-                structuredLayerArgs = layerArgs.as_structured_args()
-                expt = exptArgs.as_experiment(self.substrate, *structuredLayerArgs)
-                if not expt.valid():
-                    self.experiment = None
-                else:
-                    self.experiment = expt
-            except TypeError:
+        if flag & WorkerUpdateFlag.EXPERIMENT:
+            if self.substrate is None:
                 self.experiment = None
-        self.analysisWorker.experiment = self.experiment
+            else:
+                layerArgs = exptData.coatinglayer
+                exptArgs = exptData.experiment
+                try:
+                    structuredLayerArgs = layerArgs.as_structured_args()
+                    expt = exptArgs.as_experiment(self.substrate, *structuredLayerArgs)
+                    if not expt.valid():
+                        self.experiment = None
+                    else:
+                        self.experiment = expt
+                except TypeError:
+                    self.experiment = None
+            self.analysisWorker.experiment = self.experiment
 
-        self.analysisWorker.analysisArgs = exptData.analysis
+        if flag & WorkerUpdateFlag.ANALYSIS:
+            self.analysisWorker.coat_paths = exptData.coat_paths
+            self.analysisWorker.analysisArgs = exptData.analysis
 
     def _onAnalysisStateChange(self, state: AnalysisState):
         self._analysisState = state

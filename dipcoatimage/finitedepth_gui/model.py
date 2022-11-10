@@ -526,7 +526,6 @@ class ExperimentDataModel(QAbstractItemModel):
             ]:
                 WorkerUpdateFlag.SUBSTRATE
             elif indexRole in [
-                IndexRole.COATPATH,
                 IndexRole.LAYER_TYPE,
                 IndexRole.LAYER_PARAMETERS,
                 IndexRole.LAYER_DRAWOPTIONS,
@@ -536,6 +535,7 @@ class ExperimentDataModel(QAbstractItemModel):
             ]:
                 flag = WorkerUpdateFlag.EXPERIMENT
             elif indexRole in [
+                IndexRole.COATPATH,
                 IndexRole.ANALYSISARGS,
             ]:
                 flag = WorkerUpdateFlag.ANALYSIS
