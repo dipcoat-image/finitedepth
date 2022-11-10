@@ -10,6 +10,7 @@ from dipcoatimage.finitedepth_gui.core import DataArgs
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
+from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
 import numpy as np
 from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt, QUrl, QModelIndex
@@ -312,7 +313,6 @@ class MainDisplayWindow_V2(QMainWindow):
         self._videoController.setVisible(False)
         self._videoController.setPlayer(self._videoPlayer)
         self._videoPlayer.arrayChanged.connect(self._displayImage)
-        self._mediaCaptureSession.arrayChanged.connect(self._displayImage)
         self._arrayChanged.connect(self._displayLabel.setArray)
 
         self._displayToolBar.setCamera(self._camera)
@@ -366,10 +366,12 @@ class MainDisplayWindow_V2(QMainWindow):
         if oldModel is not None:
             oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
             oldModel.experimentDataChanged.disconnect(self._onExptDataChange)
+            oldModel.workerUpdated.disconnect(self._onWorkerUpdate)
         self._model = model
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
             model.experimentDataChanged.connect(self._onExptDataChange)
+            model.workerUpdated.connect(self._onWorkerUpdate)
 
     @Slot(QModelIndex)
     def setActivatedIndex(self, index: QModelIndex):
@@ -393,6 +395,7 @@ class MainDisplayWindow_V2(QMainWindow):
 
     @Slot(QModelIndex, DataArgs)
     def _onExptDataChange(self, index: QModelIndex, flag: DataArgs):
+        # set image paths from the data
         model = self.model()
         if model is None:
             return
@@ -405,6 +408,10 @@ class MainDisplayWindow_V2(QMainWindow):
                 for row in range(model.rowCount(coatPathsIdx))
             ]
             self._setCoatPaths(coatPaths)
+
+    @Slot(QModelIndex, WorkerUpdateFlag)
+    def _onWorkerUpdate(self, index: QModelIndex, flag: WorkerUpdateFlag):
+        ...
 
     def _setCoatPaths(self, paths: List[str]):
         exptKind = experiment_kind(paths)
@@ -434,17 +441,23 @@ class MainDisplayWindow_V2(QMainWindow):
             self._currentFrameSource, currentView, self._exptKind
         )
         self._videoController.setVisible(controllerVisible)
+
         imageProcessor = self.imageProcessor()
         if imageProcessor is not None:
             imageProcessor.setCurrentView(currentView)
+
         self._currentView = currentView
 
     @Slot(bool)
     def _onCameraActiveChange(self, active: bool):
         if active:
             frameSource = FrameSource.CAMERA
+            self._videoPlayer.arrayChanged.disconnect(self._displayImage)
+            self._mediaCaptureSession.arrayChanged.connect(self._displayImage)
         else:
             frameSource = FrameSource.FILE
+            self._videoPlayer.arrayChanged.connect(self._displayImage)
+            self._mediaCaptureSession.arrayChanged.disconnect(self._displayImage)
         controllerVisible = self.isExperimentVideo(
             frameSource, self._currentView, self._exptKind
         )

@@ -259,3 +259,34 @@ class ExperimentWorker(QObject):
     def _onAnalysisProgressValueChange(self, value: int):
         self._analysisProgressValue = value
         self.analysisProgressValueChanged.emit(value)
+
+    def drawReferenceImage(self) -> npt.NDArray[np.uint8]:
+        reference = self.reference
+        if reference is None:
+            image = reference.draw()
+        else:
+            image = self.referenceImage
+        return image
+
+    def drawSubstrateImage(self) -> npt.NDArray[np.uint8]:
+        substrate = self.substrate
+        if substrate is not None:
+            image = substrate.draw()
+        else:
+            image = self.referenceImage
+            h, w = image.shape[:2]
+            substROI = self.exptData.reference.substrateROI
+            x0, y0, x1, y1 = SubstrateReferenceBase.sanitize_ROI(substROI, h, w)
+            image = image[y0:y1, x0:x1]
+        return image
+
+    def drawCoatingLayerImage(
+        self, image: npt.NDArray[np.uint8]
+    ) -> npt.NDArray[np.uint8]:
+        expt = self.experiment
+        if expt is not None:
+            if image.size > 0:
+                layer = expt.construct_coatinglayer(image)
+                if layer.valid():
+                    image = layer.draw()
+        return image
