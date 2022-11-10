@@ -2,6 +2,7 @@ from araviq6 import NDArrayVideoPlayer
 import cv2  # type: ignore[import]
 import numpy as np
 import numpy.typing as npt
+from dipcoatimage.finitedepth import SubstrateReferenceBase
 from dipcoatimage.finitedepth_gui.core import ClassSelection, DataMember
 from dipcoatimage.finitedepth_gui.worker import ExperimentWorker
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
@@ -141,7 +142,32 @@ class VisualizeProcessor_V2(QObject):
         self._ready = True
 
     def processArray(self, array: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
-        # TODO: implement processing
+        if self._worker is None:
+            return array
+        if self._currentView == DataMember.REFERENCE:
+            self._worker.setReferenceImage(array)
+            reference = self._worker.reference
+            if reference is not None:
+                array = reference.draw()
+            else:
+                array = self._worker.referenceImage
+        elif self._currentView == DataMember.SUBSTRATE:
+            self._worker.setReferenceImage(array)
+            substrate = self._worker.substrate
+            if substrate is not None:
+                array = substrate.draw()
+            else:
+                h, w = array.shape[:2]
+                substROI = self._worker.exptData.reference.substrateROI
+                x0, y0, x1, y1 = SubstrateReferenceBase.sanitize_ROI(substROI, h, w)
+                array = array[y0:y1, x0:x1]
+        else:
+            expt = self._worker.experiment
+            if expt is not None:
+                if array.size > 0:
+                    layer = expt.construct_coatinglayer(array)
+                    if layer.valid():
+                        array = layer.draw()
         return array
 
     def ready(self) -> bool:

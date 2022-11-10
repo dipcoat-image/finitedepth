@@ -8,6 +8,7 @@ V2 for workers
 import cv2  # type: ignore
 import enum
 import numpy as np
+import numpy.typing as npt
 from dipcoatimage.finitedepth import (
     ExperimentData,
     SubstrateReferenceBase,
@@ -129,6 +130,7 @@ class WorkerUpdateFlag(enum.IntFlag):
 
 
 class ExperimentWorker(QObject):
+    """Stores structured experiment objects."""
 
     analysisStateChanged = Signal(AnalysisState)
     analysisProgressMaximumChanged = Signal(int)
@@ -137,6 +139,7 @@ class ExperimentWorker(QObject):
     def __init__(self, parent):
         super().__init__(parent)
 
+        self.exptData = ExperimentData()
         self.referenceImage = np.empty((0, 0, 0), dtype=np.uint8)
         self.reference: Optional[SubstrateReferenceBase] = None
         self.substrate: Optional[SubstrateBase] = None
@@ -173,6 +176,8 @@ class ExperimentWorker(QObject):
         return self._analysisProgressValue
 
     def setExperimentData(self, exptData: ExperimentData, flag: WorkerUpdateFlag):
+        self.exptData = exptData
+
         if flag & WorkerUpdateFlag.REFIMAGE:
             refPath = exptData.ref_path
             if refPath:
@@ -233,6 +238,15 @@ class ExperimentWorker(QObject):
         if flag & WorkerUpdateFlag.ANALYSIS:
             self.analysisWorker.coat_paths = exptData.coat_paths
             self.analysisWorker.analysisArgs = exptData.analysis
+
+    def setReferenceImage(self, image: npt.NDArray[np.uint8]):
+        self.referenceImage = image
+        self.setExperimentData(
+            self.exptData,
+            WorkerUpdateFlag.REFERENCE
+            | WorkerUpdateFlag.SUBSTRATE
+            | WorkerUpdateFlag.EXPERIMENT,
+        )
 
     def _onAnalysisStateChange(self, state: AnalysisState):
         self._analysisState = state
