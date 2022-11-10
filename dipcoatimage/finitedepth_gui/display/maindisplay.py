@@ -6,10 +6,10 @@ from dipcoatimage.finitedepth_gui.core import (
     VisualizationMode,
     DataMember,
 )
+from dipcoatimage.finitedepth_gui.core import DataArgs
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
-from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
 from dipcoatimage.finitedepth_gui.typing import SignalProtocol
 import enum
@@ -312,7 +312,7 @@ class MainDisplayWindow_V2(QMainWindow):
         self._model = None
         self._exptKind = ExperimentKind.NullExperiment
         self._currentModelIndex = QModelIndex()
-        self._currentView = DataMember.UNKNOWN
+        self._currentView = DataMember.NULL
         self._currentFrameSource = FrameSource.NULL
 
         self._displayLabel = NDArrayROILabel_V2()
@@ -383,11 +383,11 @@ class MainDisplayWindow_V2(QMainWindow):
         oldModel = self.model()
         if oldModel is not None:
             oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
-            oldModel.workerUpdated.disconnect(self._onWorkerUpdate)
+            oldModel.experimentDataChanged.disconnect(self._onExptDataChange)
         self._model = model
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
-            model.workerUpdated.connect(self._onWorkerUpdate)
+            model.experimentDataChanged.connect(self._onExptDataChange)
 
     @Slot(QModelIndex)
     def setActivatedIndex(self, index: QModelIndex):
@@ -404,19 +404,20 @@ class MainDisplayWindow_V2(QMainWindow):
             self._currentModelIndex = QModelIndex()
             self._setCoatPaths([])
 
-    @Slot(QModelIndex, WorkerUpdateFlag)
-    def _onWorkerUpdate(self, index: QModelIndex, flag: WorkerUpdateFlag):
+    @Slot(QModelIndex, DataArgs)
+    def _onExptDataChange(self, index: QModelIndex, flag: DataArgs):
         model = self.model()
         if model is None:
             return
         if index != self._currentModelIndex:
             return
-        coatPathsIdx = model.getIndexFor(IndexRole.COATPATHS, index)
-        coatPaths = [
-            model.index(row, 0, coatPathsIdx).data(model.Role_CoatPath)
-            for row in range(model.rowCount(coatPathsIdx))
-        ]
-        self._setCoatPaths(coatPaths)
+        if flag & DataArgs.COATPATHS:
+            coatPathsIdx = model.getIndexFor(IndexRole.COATPATHS, index)
+            coatPaths = [
+                model.index(row, 0, coatPathsIdx).data(model.Role_CoatPath)
+                for row in range(model.rowCount(coatPathsIdx))
+            ]
+            self._setCoatPaths(coatPaths)
 
     def _setCoatPaths(self, paths: List[str]):
         exptKind = experiment_kind(paths)

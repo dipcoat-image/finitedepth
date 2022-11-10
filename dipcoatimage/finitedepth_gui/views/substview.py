@@ -18,11 +18,12 @@ from PySide6.QtWidgets import (
 from dipcoatimage.finitedepth import SubstrateBase
 from dipcoatimage.finitedepth.analysis import ImportArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
+from dipcoatimage.finitedepth_gui.core import DataArgs
 from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
     IndexRole,
-    WorkerUpdateBlocker,
+    ExperimentSignalBlocker,
 )
 from .importview import ImportDataView
 from typing import Optional, Type, Union
@@ -184,7 +185,7 @@ class SubstrateArgsDelegate(dawiq.DataclassDelegate):
         if isinstance(model, ExperimentDataModel):
             indexRole = model.whatsThisIndex(index)
             if indexRole == IndexRole.SUBSTARGS and isinstance(editor, SubstrateView):
-                with WorkerUpdateBlocker(model):
+                with ExperimentSignalBlocker(model):
                     # set ImportArgs for substtrate type to model
                     importArgs = ImportArgs(editor.typeName(), editor.moduleName())
                     model.setData(
@@ -218,8 +219,10 @@ class SubstrateArgsDelegate(dawiq.DataclassDelegate):
                         editor.currentDrawOptionsWidget(), model, drawOptIndex
                     )
 
+                topLevelIndex = model.getTopLevelIndex(index)
+                model.emitExperimentDataChanged(topLevelIndex, DataArgs.SUBSTRATE)
                 flag = WorkerUpdateFlag.SUBSTRATE | WorkerUpdateFlag.EXPERIMENT
-                model.updateWorker(model.getTopLevelIndex(index), flag)
+                model.updateWorker(topLevelIndex, flag)
 
         super().setModelData(editor, model, index)
 

@@ -123,7 +123,7 @@ class WorkerUpdateFlag(enum.IntFlag):
     NULL = 0
     REFIMAGE = 1
     REFERENCE = 2
-    SUBSTATE = 4
+    SUBSTRATE = 4
     EXPERIMENT = 8
     ANALYSIS = 16
 

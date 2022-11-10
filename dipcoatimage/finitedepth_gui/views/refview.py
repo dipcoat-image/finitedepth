@@ -25,11 +25,12 @@ from PySide6.QtWidgets import (
 from dipcoatimage.finitedepth import SubstrateReferenceBase
 from dipcoatimage.finitedepth.analysis import ImportArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer, OptionalROI
+from dipcoatimage.finitedepth_gui.core import DataArgs
 from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
     IndexRole,
-    WorkerUpdateBlocker,
+    ExperimentSignalBlocker,
 )
 from .importview import ImportDataView
 from .roiview import ROIView
@@ -311,7 +312,7 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
         if isinstance(model, ExperimentDataModel):
             indexRole = model.whatsThisIndex(index)
             if indexRole == IndexRole.REFARGS and isinstance(editor, ReferenceView):
-                with WorkerUpdateBlocker(model):
+                with ExperimentSignalBlocker(model):
                     # set ImportArgs for reference type to model
                     importArgs = ImportArgs(editor.typeName(), editor.moduleName())
                     model.setData(
@@ -357,12 +358,14 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
                         editor.currentDrawOptionsWidget(), model, drawOptIndex
                     )
 
+                topLevelIndex = model.getTopLevelIndex(index)
+                model.emitExperimentDataChanged(topLevelIndex, DataArgs.REFERENCE)
                 flag = (
                     WorkerUpdateFlag.REFERENCE
                     | WorkerUpdateFlag.SUBSTRATE
                     | WorkerUpdateFlag.EXPERIMENT
                 )
-                model.updateWorker(model.getTopLevelIndex(index), flag)
+                model.updateWorker(topLevelIndex, flag)
 
         super().setModelData(editor, model, index)
 

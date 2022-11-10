@@ -17,6 +17,7 @@ from dipcoatimage.finitedepth import (
 )
 from dipcoatimage.finitedepth.util import Importer
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
+from .core import DataArgs
 from .worker import AnalysisState, WorkerUpdateFlag, ExperimentWorker
 from typing import Optional, Any, Union, Tuple, List
 
@@ -25,7 +26,7 @@ __all__ = [
     "ExperimentDataItem",
     "IndexRole",
     "ExperimentDataModel",
-    "WorkerUpdateBlocker",
+    "ExperimentSignalBlocker",
 ]
 
 
@@ -254,6 +255,7 @@ class ExperimentDataModel(QAbstractItemModel):
     Row_ExptType = 0
     Row_ExptParameters = 1
 
+    experimentDataChanged = Signal(QModelIndex, DataArgs)
     workerUpdated = Signal(QModelIndex, WorkerUpdateFlag)
     activatedIndexChanged = Signal(QModelIndex)
     analysisStateChanged = Signal(AnalysisState)
@@ -264,7 +266,7 @@ class ExperimentDataModel(QAbstractItemModel):
         super().__init__(parent)
         self._rootItem = ExperimentDataItem()
         self._activatedIndex = QModelIndex()
-        self._blockWorkerUpdate = False
+        self._blockExperimentSignals = False
         self._workers: List[ExperimentWorker] = []
 
     @classmethod
@@ -495,7 +497,8 @@ class ExperimentDataModel(QAbstractItemModel):
             if indexRole in [
                 IndexRole.REFPATH,
             ]:
-                flag = (
+                dataArgs = DataArgs.REFPATH
+                workerUpdateFlag = (
                     WorkerUpdateFlag.REFIMAGE
                     | WorkerUpdateFlag.REFERENCE
                     | WorkerUpdateFlag.SUBSTRATE
@@ -507,7 +510,8 @@ class ExperimentDataModel(QAbstractItemModel):
                 IndexRole.REF_SUBSTRATEROI,
                 IndexRole.REF_PARAMETERS,
             ]:
-                flag = (
+                dataArgs = DataArgs.REFERENCE
+                workerUpdateFlag = (
                     WorkerUpdateFlag.REFERENCE
                     | WorkerUpdateFlag.SUBSTRATE
                     | WorkerUpdateFlag.EXPERIMENT
@@ -515,36 +519,60 @@ class ExperimentDataModel(QAbstractItemModel):
             elif indexRole in [
                 IndexRole.REF_DRAWOPTIONS,
             ]:
-                flag = WorkerUpdateFlag.REFERENCE
+                dataArgs = DataArgs.REFERENCE
+                workerUpdateFlag = WorkerUpdateFlag.REFERENCE
             elif indexRole in [
                 IndexRole.SUBST_TYPE,
                 IndexRole.SUBST_PARAMETERS,
             ]:
-                flag = WorkerUpdateFlag.SUBSTRATE | WorkerUpdateFlag.EXPERIMENT
+                dataArgs = DataArgs.SUBSTRATE
+                workerUpdateFlag = (
+                    WorkerUpdateFlag.SUBSTRATE | WorkerUpdateFlag.EXPERIMENT
+                )
             elif indexRole in [
                 IndexRole.SUBST_DRAWOPTIONS,
             ]:
+                dataArgs = DataArgs.SUBSTRATE
                 WorkerUpdateFlag.SUBSTRATE
             elif indexRole in [
                 IndexRole.LAYER_TYPE,
                 IndexRole.LAYER_PARAMETERS,
                 IndexRole.LAYER_DRAWOPTIONS,
                 IndexRole.LAYER_DECOOPTIONS,
+            ]:
+                dataArgs = DataArgs.COATINGLAYER
+                workerUpdateFlag = WorkerUpdateFlag.EXPERIMENT
+            elif indexRole in [
                 IndexRole.EXPT_TYPE,
                 IndexRole.EXPT_PARAMETERS,
             ]:
-                flag = WorkerUpdateFlag.EXPERIMENT
+                dataArgs = DataArgs.EXPERIMENT
+                workerUpdateFlag = WorkerUpdateFlag.EXPERIMENT
             elif indexRole in [
                 IndexRole.COATPATH,
+            ]:
+                dataArgs = DataArgs.COATPATHS
+                workerUpdateFlag = WorkerUpdateFlag.ANALYSIS
+            elif indexRole in [
                 IndexRole.ANALYSISARGS,
             ]:
-                flag = WorkerUpdateFlag.ANALYSIS
+                dataArgs = DataArgs.ANALYSIS
+                workerUpdateFlag = WorkerUpdateFlag.ANALYSIS
             else:
-                flag = WorkerUpdateFlag.NULL
-            self.updateWorker(topLevelIndex, flag)
+                dataArgs = DataArgs.NULL
+                workerUpdateFlag = WorkerUpdateFlag.NULL
             self.dataChanged.emit(index, index, [role])
+            self.emitExperimentDataChanged(topLevelIndex, dataArgs)
+            self.updateWorker(topLevelIndex, workerUpdateFlag)
             return True
         return False
+
+    def emitExperimentDataChanged(self, index: QModelIndex, dataArgs: DataArgs):
+        if not dataArgs:
+            return
+        if self._blockExperimentSignals:
+            return
+        self.experimentDataChanged.emit(index, dataArgs)
 
     def worker(self, index: QModelIndex) -> Optional[ExperimentWorker]:
         if self.whatsThisIndex(index) != IndexRole.EXPTDATA:
@@ -557,7 +585,7 @@ class ExperimentDataModel(QAbstractItemModel):
     def updateWorker(self, index: QModelIndex, flag: WorkerUpdateFlag) -> bool:
         if not flag:
             return False
-        if self._blockWorkerUpdate:
+        if self._blockExperimentSignals:
             return False
         worker = self.worker(index)
         if worker is None:
@@ -598,9 +626,9 @@ class ExperimentDataModel(QAbstractItemModel):
                 newItem.setParent(parent.internalPointer(), row)
             self.endInsertRows()
 
-            self.updateWorker(
-                self.getTopLevelIndex(parent), WorkerUpdateFlag.EXPERIMENT
-            )
+            topLevelIndex = self.getTopLevelIndex(parent)
+            self.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
+            self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
             return True
         return False
 
@@ -700,9 +728,9 @@ class ExperimentDataModel(QAbstractItemModel):
                 item.setParent(parentDataItem, destinationChild)
             self.endInsertRows()
 
-            self.updateWorker(
-                self.getTopLevelIndex(sourceParent), WorkerUpdateFlag.EXPERIMENT
-            )
+            topLevelIndex = self.getTopLevelIndex(sourceParent)
+            self.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
+            self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
         return False
 
     def removeRows(self, row, count, parent=QModelIndex()):
@@ -735,9 +763,9 @@ class ExperimentDataModel(QAbstractItemModel):
                 dataItem.remove(row)
             self.endRemoveRows()
 
-            self.updateWorker(
-                self.getTopLevelIndex(parent), WorkerUpdateFlag.EXPERIMENT
-            )
+            topLevelIndex = self.getTopLevelIndex(parent)
+            self.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
+            self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
             return True
         return False
 
@@ -937,13 +965,13 @@ class ExperimentDataModel(QAbstractItemModel):
         return index
 
 
-class WorkerUpdateBlocker:
+class ExperimentSignalBlocker:
     def __init__(self, model: ExperimentDataModel):
         self.model = model
 
     def __enter__(self):
-        self.model._blockWorkerUpdate = True
+        self.model._blockExperimentSignals = True
         return self
 
     def __exit__(self, type, value, traceback):
-        self.model._blockWorkerUpdate = False
+        self.model._blockExperimentSignals = False

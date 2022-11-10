@@ -24,11 +24,12 @@ from PySide6.QtWidgets import (
 from dipcoatimage.finitedepth import ExperimentBase
 from dipcoatimage.finitedepth.analysis import ImportArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
+from dipcoatimage.finitedepth_gui.core import DataArgs
 from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
     IndexRole,
-    WorkerUpdateBlocker,
+    ExperimentSignalBlocker,
 )
 from .importview import ImportDataView
 from typing import Optional, Type, Union, List
@@ -180,14 +181,15 @@ class ExperimentView(QWidget):
             return
 
         count = len(paths)
-        with WorkerUpdateBlocker(model):
+        with ExperimentSignalBlocker(model):
             model.insertRows(row, count, parent)
             for i, path in enumerate(paths):
                 index = model.index(row + i, 0, parent)
                 model.setData(index, path, role=model.Role_CoatPath)
 
-        flag = WorkerUpdateFlag.ANALYSIS
-        model.updateWorker(model.getTopLevelIndex(index), flag)
+        topLevelIndex = model.getTopLevelIndex(parent)
+        model.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
+        model.updateWorker(topLevelIndex, WorkerUpdateFlag.ANALYSIS)
 
     @Slot()
     def deleteSelectedPaths(self):
@@ -203,12 +205,13 @@ class ExperimentView(QWidget):
             list(map(itemgetter(1), g))
             for k, g in groupby(enumerate(sorted(rows)), lambda i_x: i_x[0] - i_x[1])
         ]
-        with WorkerUpdateBlocker(model):
+        with ExperimentSignalBlocker(model):
             for row_list in reversed(continuous_rows):
                 model.removeRows(row_list[0], len(row_list), parent)
 
-        flag = WorkerUpdateFlag.ANALYSIS
-        model.updateWorker(model.getTopLevelIndex(parent), flag)
+        topLevelIndex = model.getTopLevelIndex(parent)
+        model.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
+        model.updateWorker(topLevelIndex, WorkerUpdateFlag.ANALYSIS)
 
     def parametersStackedWidget(self) -> dawiq.DataclassStackedWidget:
         return self._paramStackWidget
@@ -260,7 +263,7 @@ class ExperimentArgsDelegate(dawiq.DataclassDelegate):
         if isinstance(model, ExperimentDataModel):
             indexRole = model.whatsThisIndex(index)
             if indexRole == IndexRole.EXPTARGS and isinstance(editor, ExperimentView):
-                with WorkerUpdateBlocker(model):
+                with ExperimentSignalBlocker(model):
                     # set ImportArgs for experiment type to model
                     importArgs = ImportArgs(editor.typeName(), editor.moduleName())
                     model.setData(
@@ -287,8 +290,9 @@ class ExperimentArgsDelegate(dawiq.DataclassDelegate):
                         editor.currentParametersWidget(), model, paramIndex
                     )
 
-                flag = WorkerUpdateFlag.EXPERIMENT
-                model.updateWorker(model.getTopLevelIndex(index), flag)
+                topLevelIndex = model.getTopLevelIndex(index)
+                model.emitExperimentDataChanged(topLevelIndex, DataArgs.EXPERIMENT)
+                model.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
 
         super().setModelData(editor, model, index)
 
