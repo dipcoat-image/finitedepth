@@ -4,7 +4,7 @@ from dipcoatimage.finitedepth.analysis import experiment_kind, ExperimentKind
 from dipcoatimage.finitedepth_gui.core import (
     ClassSelection,
     VisualizationMode,
-    ExperimentComponent,
+    ExperimentMember,
 )
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
@@ -311,7 +311,7 @@ class MainDisplayWindow_V2(QMainWindow):
         self._model = None
         self._exptKind = ExperimentKind.NullExperiment
         self._currentModelIndex = QModelIndex()
-        self._currentView = ExperimentComponent.UNKNOWN
+        self._currentView = ExperimentMember.UNKNOWN
         self._currentFrameSource = FrameSource.NULL
 
         self._displayLabel = NDArrayROILabel_V2()
@@ -419,8 +419,13 @@ class MainDisplayWindow_V2(QMainWindow):
 
     def _setCoatPaths(self, paths: List[str]):
         exptKind = experiment_kind(paths)
+        controllerVisible = self.isExperimentVideo(
+            self._frameSource,
+            self._currentView,
+            exptKind
+        )
+        self._videoController.setVisible(controllerVisible)
         self._exptKind = exptKind
-        self._updateControllerVisibility()
 
         if exptKind == ExperimentKind.VideoExperiment:
             self._videoPlayer.setSource(QUrl.fromLocalFile(paths[0]))
@@ -436,31 +441,43 @@ class MainDisplayWindow_V2(QMainWindow):
             img = np.empty((0, 0, 0), dtype=np.uint8)
             self._displayImage(img)
 
-    @Slot(ExperimentComponent)
-    def setCurrentView(self, currentView: ExperimentComponent):
+    @Slot(ExperimentMember)
+    def setCurrentView(self, currentView: ExperimentMember):
+        controllerVisible = self.isExperimentVideo(
+            self._frameSource,
+            currentView,
+            self._exptKind
+        )
+        self._videoController.setVisible(controllerVisible)
         self._currentView = currentView
-        self._updateControllerVisibility()
 
     @Slot(bool)
     def _onCameraActiveChange(self, active: bool):
         if active:
-            self._currentFrameSource = FrameSource.CAMERA
+            frameSource = FrameSource.CAMERA
         else:
-            self._currentFrameSource = FrameSource.FILE
-        self._updateControllerVisibility()
+            frameSource = FrameSource.FILE
+        controllerVisible = self.isExperimentVideo(
+            frameSource,
+            self._currentView,
+            self._exptKind
+        )
+        self._videoController.setVisible(controllerVisible)
+        self._currentFrameSource = frameSource
 
-    def _updateControllerVisibility(self):
-        if self._currentFrameSource == FrameSource.CAMERA:
-            visible = False
-        elif self._currentView in [
-            ExperimentComponent.REFERENCE,
-            ExperimentComponent.SUBSTRATE,
-        ]:
-            visible = False
-        elif self._exptKind == ExperimentKind.VideoExperiment:
-            visible = True
-        else:
-            visible = False
-        self._videoController.setVisible(visible)
-
-    def 
+    @staticmethod
+    def isExperimentVideo(
+        frameSource: FrameSource,
+        currentView: ExperimentMember,
+        exptKind: ExperimentKind,
+    ) -> bool:
+        viewExclude = [
+            ExperiementMember.REFERENCE,
+            ExperimentMember.SUBSTRATE,
+        ]
+        ret = (
+            frameSource == FrameSoruce.FILE
+            and currentView not in viewExclude
+            and exptKind == ExperimentKind.VideoExperiment
+        )
+        return ret

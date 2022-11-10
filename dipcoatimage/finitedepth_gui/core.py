@@ -29,7 +29,7 @@ __all__ = [
     "StructuredSubstrateArgs",
     "StructuredCoatingLayerArgs",
     "ClassSelection",
-    "ExperimentComponent",
+    "ExperimentMember",
     "VisualizationMode",
 ]
 
@@ -165,7 +165,7 @@ class ClassSelection(enum.IntFlag):
     ANALYSIS = 8
 
 
-class ExperimentComponent(enum.Enum):
+class ExperimentMember(enum.Enum):
     """
     Enum to represent five components of the experiment data, plus ``UNKNOWN``
     for null value.

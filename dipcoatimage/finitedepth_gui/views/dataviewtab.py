@@ -7,7 +7,7 @@ V2 for controlwidgets/controlwidget.py
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QTabWidget, QScrollArea
-from dipcoatimage.finitedepth_gui.core import ExperimentComponent
+from dipcoatimage.finitedepth_gui.core import ExperimentMember
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from .exptview import ExperimentView
 from .refview import ReferenceView, ROIDrawFlag
@@ -58,7 +58,7 @@ class DataViewTab(QTabWidget):
 
     """
 
-    currentViewChanged = Signal(ExperimentComponent)
+    currentViewChanged = Signal(ExperimentMember)
     roiDrawFlagChanged = Signal(ROIDrawFlag)
 
     def __init__(self, parent=None):
@@ -108,17 +108,17 @@ class DataViewTab(QTabWidget):
 
         widget = self.widget(index)
         if not isinstance(widget, QScrollArea):
-            currentView = ExperimentComponent.UNKNOWN
+            currentView = ExperimentMember.UNKNOWN
         elif widget.widget() is self._exptView:
-            currentView = ExperimentComponent.EXPERIMENT
+            currentView = ExperimentMember.EXPERIMENT
         elif widget.widget() is self._refView:
-            currentView = ExperimentComponent.REFERENCE
+            currentView = ExperimentMember.REFERENCE
         elif widget.widget() is self._substView:
-            currentView = ExperimentComponent.SUBSTRATE
+            currentView = ExperimentMember.SUBSTRATE
         elif widget.widget() is self._layerView:
-            currentView = ExperimentComponent.COATINGLAYER
+            currentView = ExperimentMember.COATINGLAYER
         elif widget.widget() is self._analysisView:
-            currentView = ExperimentComponent.ANALYSIS
+            currentView = ExperimentMember.ANALYSIS
         else:
-            currentView = ExperimentComponent.UNKNOWN
+            currentView = ExperimentMember.UNKNOWN
         self.currentViewChanged.emit(currentView)
