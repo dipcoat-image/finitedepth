@@ -4,7 +4,7 @@ from dipcoatimage.finitedepth.analysis import experiment_kind, ExperimentKind
 from dipcoatimage.finitedepth_gui.core import (
     ClassSelection,
     VisualizationMode,
-    ExperimentMember,
+    DataMember,
 )
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
@@ -312,7 +312,7 @@ class MainDisplayWindow_V2(QMainWindow):
         self._model = None
         self._exptKind = ExperimentKind.NullExperiment
         self._currentModelIndex = QModelIndex()
-        self._currentView = ExperimentMember.UNKNOWN
+        self._currentView = DataMember.UNKNOWN
         self._currentFrameSource = FrameSource.NULL
 
         self._displayLabel = NDArrayROILabel_V2()
@@ -440,8 +440,8 @@ class MainDisplayWindow_V2(QMainWindow):
             img = np.empty((0, 0, 0), dtype=np.uint8)
             self._displayImage(img)
 
-    @Slot(ExperimentMember)
-    def setCurrentView(self, currentView: ExperimentMember):
+    @Slot(DataMember)
+    def setCurrentView(self, currentView: DataMember):
         controllerVisible = self.isExperimentVideo(
             self._currentFrameSource, currentView, self._exptKind
         )
@@ -463,12 +463,12 @@ class MainDisplayWindow_V2(QMainWindow):
     @staticmethod
     def isExperimentVideo(
         frameSource: FrameSource,
-        currentView: ExperimentMember,
+        currentView: DataMember,
         exptKind: ExperimentKind,
     ) -> bool:
         viewExclude = [
-            ExperimentMember.REFERENCE,
-            ExperimentMember.SUBSTRATE,
+            DataMember.REFERENCE,
+            DataMember.SUBSTRATE,
         ]
         ret = (
             frameSource == FrameSource.FILE
