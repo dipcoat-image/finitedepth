@@ -5,41 +5,17 @@ Main Window
 V2 for analysisgui.py
 """
 
-import numpy as np
-import numpy.typing as npt
-from PySide6.QtCore import QObject, Signal, Slot, QThread, Qt
+from PySide6.QtCore import QThread, Qt
 from PySide6.QtWidgets import QMainWindow, QDockWidget
+from dipcoatimage.finitedepth_gui.worker import VisualizeProcessor
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from dipcoatimage.finitedepth_gui.views import ExperimentDataListView, DataViewTab
 from dipcoatimage.finitedepth_gui.display import MainDisplayWindow_V2
 
 
 __all__ = [
-    "VisualizeProcessor",
     "MainWindow",
 ]
-
-
-class VisualizeProcessor(QObject):
-    arrayChanged = Signal(np.ndarray)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._ready = True
-
-    @Slot(np.ndarray)
-    def setArray(self, array: npt.NDArray[np.uint8]):
-        array = array.copy()  # must detach array from the memory
-        self._ready = False
-        self.arrayChanged.emit(self.processArray(array))
-        self._ready = True
-
-    def processArray(self, array: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
-        # TODO: implement processing
-        return array
-
-    def ready(self) -> bool:
-        return self._ready
 
 
 class MainWindow(QMainWindow):
