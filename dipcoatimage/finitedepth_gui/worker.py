@@ -21,6 +21,7 @@ from dipcoatimage.finitedepth.analysis import (
     experiment_kind,
     Analyzer,
 )
+from .core import DataMember
 from PySide6.QtCore import QObject, Signal, Slot, QRunnable, QThreadPool
 from typing import List, Optional
 
@@ -254,7 +255,11 @@ class VisualizeProcessor(QObject):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._currentView = DataMember.EXPERIMENT
         self._ready = True
+
+    def setCurrentView(self, currentView: DataMember):
+        self._currentView = currentView
 
     @Slot(np.ndarray)
     def setArray(self, array: npt.NDArray[np.uint8]):

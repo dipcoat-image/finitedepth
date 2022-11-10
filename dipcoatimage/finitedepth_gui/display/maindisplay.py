@@ -286,6 +286,9 @@ class MainDisplayWindow(QMainWindow):
 class ImageProcessorProtocol(Protocol):
     arrayChanged: SignalProtocol
 
+    def setCurrentView(self, currentView: DataMember):
+        ...
+
     def setArray(self, array: np.ndarray):
         ...
 
@@ -447,6 +450,9 @@ class MainDisplayWindow_V2(QMainWindow):
             self._currentFrameSource, currentView, self._exptKind
         )
         self._videoController.setVisible(controllerVisible)
+        imageProcessor = self.imageProcessor()
+        if imageProcessor is not None:
+            imageProcessor.setCurrentView(currentView)
         self._currentView = currentView
 
     @Slot(bool)
