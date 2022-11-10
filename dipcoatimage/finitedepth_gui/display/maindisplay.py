@@ -359,7 +359,7 @@ class MainDisplayWindow_V2(QMainWindow):
             self._arrayChanged.disconnect(self._displayLabel.setArray)
         else:
             self._arrayChanged.disconnect(oldProcessor.setArray)
-            oldProcessor.arrayChanged.connect(self._displayLabel.setArray)
+            oldProcessor.arrayChanged.disconnect(self._displayLabel.setArray)
         self._imageProcessor = imageProcessor
         if imageProcessor is None:
             self._arrayChanged.connect(self._displayLabel.setArray)
@@ -462,3 +462,5 @@ class MainDisplayWindow_V2(QMainWindow):
         else:
             visible = False
         self._videoController.setVisible(visible)
+
+    def 
