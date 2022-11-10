@@ -381,8 +381,11 @@ class MainDisplayWindow_V2(QMainWindow):
     @Slot(QModelIndex)
     def setActivatedIndex(self, index: QModelIndex):
         model = index.model()
+        imageProcessor = self.imageProcessor()
         if isinstance(model, ExperimentDataModel):
             self._currentModelIndex = index
+            if imageProcessor is not None:
+                imageProcessor.setWorker(model.worker(index))
             coatPathsIdx = model.getIndexFor(IndexRole.COATPATHS, index)
             coatPaths = [
                 model.index(row, 0, coatPathsIdx).data(model.Role_CoatPath)
@@ -391,6 +394,8 @@ class MainDisplayWindow_V2(QMainWindow):
             self._setCoatPaths(coatPaths)
         else:
             self._currentModelIndex = QModelIndex()
+            if imageProcessor is not None:
+                imageProcessor.setWorker(None)
             self._setCoatPaths([])
 
     @Slot(QModelIndex, DataArgs)

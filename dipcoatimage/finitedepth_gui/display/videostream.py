@@ -1,9 +1,10 @@
 from araviq6 import NDArrayVideoPlayer
 import cv2  # type: ignore[import]
-from dipcoatimage.finitedepth_gui.core import ClassSelection, DataMember
-from dipcoatimage.finitedepth_gui.workers import MasterWorker
 import numpy as np
 import numpy.typing as npt
+from dipcoatimage.finitedepth_gui.core import ClassSelection, DataMember
+from dipcoatimage.finitedepth_gui.worker import ExperimentWorker
+from dipcoatimage.finitedepth_gui.workers import MasterWorker
 from PySide6.QtCore import QUrl, Signal, Slot, QObject
 from typing import Optional
 
@@ -122,8 +123,12 @@ class VisualizeProcessor_V2(QObject):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._worker = None
         self._currentView = DataMember.EXPERIMENT
         self._ready = True
+
+    def setWorker(self, worker: Optional[ExperimentWorker]):
+        self._worker = worker
 
     def setCurrentView(self, currentView: DataMember):
         self._currentView = currentView
