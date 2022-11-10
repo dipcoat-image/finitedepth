@@ -8,7 +8,6 @@ V2 for workers
 import cv2  # type: ignore
 import enum
 import numpy as np
-import numpy.typing as npt
 from dipcoatimage.finitedepth import (
     ExperimentData,
     SubstrateReferenceBase,
@@ -21,8 +20,7 @@ from dipcoatimage.finitedepth.analysis import (
     experiment_kind,
     Analyzer,
 )
-from .core import DataMember
-from PySide6.QtCore import QObject, Signal, Slot, QRunnable, QThreadPool
+from PySide6.QtCore import QObject, Signal, QRunnable, QThreadPool
 from typing import List, Optional
 
 
@@ -32,7 +30,6 @@ __all__ = [
     "AnalysisWorker",
     "WorkerUpdateFlag",
     "ExperimentWorker",
-    "VisualizeProcessor",
 ]
 
 
@@ -248,29 +245,3 @@ class ExperimentWorker(QObject):
     def _onAnalysisProgressValueChange(self, value: int):
         self._analysisProgressValue = value
         self.analysisProgressValueChanged.emit(value)
-
-
-class VisualizeProcessor(QObject):
-    arrayChanged = Signal(np.ndarray)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._currentView = DataMember.EXPERIMENT
-        self._ready = True
-
-    def setCurrentView(self, currentView: DataMember):
-        self._currentView = currentView
-
-    @Slot(np.ndarray)
-    def setArray(self, array: npt.NDArray[np.uint8]):
-        array = array.copy()  # must detach array from the memory
-        self._ready = False
-        self.arrayChanged.emit(self.processArray(array))
-        self._ready = True
-
-    def processArray(self, array: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
-        # TODO: implement processing
-        return array
-
-    def ready(self) -> bool:
-        return self._ready

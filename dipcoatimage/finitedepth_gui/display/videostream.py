@@ -1,6 +1,6 @@
 from araviq6 import NDArrayVideoPlayer
 import cv2  # type: ignore[import]
-from dipcoatimage.finitedepth_gui.core import ClassSelection
+from dipcoatimage.finitedepth_gui.core import ClassSelection, DataMember
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
 import numpy as np
 import numpy.typing as npt
@@ -10,7 +10,7 @@ from typing import Optional
 
 __all__ = [
     "PreviewableNDArrayVideoPlayer",
-    "VisualizeProcessor",
+    "VisualizeProcessor_V2",
 ]
 
 
@@ -115,3 +115,29 @@ class VisualizeProcessor(QObject):
                 worker.experimentWorker().coatingLayerImage()
             )
         self.arrayChanged.emit(ret)
+
+
+class VisualizeProcessor_V2(QObject):
+    arrayChanged = Signal(np.ndarray)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._currentView = DataMember.EXPERIMENT
+        self._ready = True
+
+    def setCurrentView(self, currentView: DataMember):
+        self._currentView = currentView
+
+    @Slot(np.ndarray)
+    def setArray(self, array: npt.NDArray[np.uint8]):
+        array = array.copy()  # must detach array from the memory
+        self._ready = False
+        self.arrayChanged.emit(self.processArray(array))
+        self._ready = True
+
+    def processArray(self, array: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
+        # TODO: implement processing
+        return array
+
+    def ready(self) -> bool:
+        return self._ready

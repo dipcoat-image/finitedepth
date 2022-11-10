@@ -11,25 +11,24 @@ from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
-from dipcoatimage.finitedepth_gui.typing import SignalProtocol
 import enum
 import numpy as np
 from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt, QUrl, QModelIndex
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
 from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaRecorder
-from typing import Optional, List, Protocol
+from typing import Optional, List
 from .toolbar import DisplayWidgetToolBar
 from .roidisplay import NDArrayROILabel, NDArrayROILabel_V2
 from .videostream import (
     PreviewableNDArrayVideoPlayer,
     VisualizeProcessor,
+    VisualizeProcessor_V2,
 )
 
 
 __all__ = [
     "MainDisplayWindow",
-    "ImageProcessorProtocol",
     "FrameSource",
     "MainDisplayWindow_V2",
 ]
@@ -283,19 +282,6 @@ class MainDisplayWindow(QMainWindow):
         super().closeEvent(event)
 
 
-class ImageProcessorProtocol(Protocol):
-    arrayChanged: SignalProtocol
-
-    def setCurrentView(self, currentView: DataMember):
-        ...
-
-    def setArray(self, array: np.ndarray):
-        ...
-
-    def ready(self) -> bool:
-        ...
-
-
 class FrameSource(enum.Enum):
     NULL = 0
     FILE = 1
@@ -354,10 +340,10 @@ class MainDisplayWindow_V2(QMainWindow):
         centralWidget.setLayout(layout)
         self.setCentralWidget(centralWidget)
 
-    def imageProcessor(self) -> Optional[ImageProcessorProtocol]:
+    def imageProcessor(self) -> Optional[VisualizeProcessor_V2]:
         return self._imageProcessor
 
-    def setImageProcessor(self, imageProcessor: Optional[ImageProcessorProtocol]):
+    def setImageProcessor(self, imageProcessor: Optional[VisualizeProcessor_V2]):
         oldProcessor = self.imageProcessor()
         if oldProcessor is None:
             self._arrayChanged.disconnect(self._displayLabel.setArray)

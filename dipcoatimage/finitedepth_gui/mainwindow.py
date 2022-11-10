@@ -7,10 +7,12 @@ V2 for analysisgui.py
 
 from PySide6.QtCore import QThread, Qt
 from PySide6.QtWidgets import QMainWindow, QDockWidget
-from dipcoatimage.finitedepth_gui.worker import VisualizeProcessor
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from dipcoatimage.finitedepth_gui.views import ExperimentDataListView, DataViewTab
-from dipcoatimage.finitedepth_gui.display import MainDisplayWindow_V2
+from dipcoatimage.finitedepth_gui.display import (
+    MainDisplayWindow_V2,
+    VisualizeProcessor_V2,
+)
 
 
 __all__ = [
@@ -44,7 +46,7 @@ class MainWindow(QMainWindow):
         self._display = MainDisplayWindow_V2()
 
         self._processorThread = QThread()
-        self._imageProcessor = VisualizeProcessor()
+        self._imageProcessor = VisualizeProcessor_V2()
 
         self._listView.setModel(self._model)
         self._dataViewTab.setModel(self._model)
