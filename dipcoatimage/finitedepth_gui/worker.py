@@ -121,13 +121,11 @@ class WorkerUpdateFlag(enum.IntFlag):
     """Flag to indicate how the worker should be updated."""
 
     NULL = 0
-    REFPATH = 1
-    REFARGS = 2
-    SUBSTARGS = 4
-    LAYERARGS = 8
-    COATPATHS = 16
-    EXPTARGS = 32
-    ANALYSISARGS = 64
+    REFIMAGE = 1
+    REFERENCE = 2
+    SUBSTATE = 4
+    EXPERIMENT = 8
+    ANALYSIS = 16
 
 
 class ExperimentWorker(QObject):
@@ -141,7 +139,6 @@ class ExperimentWorker(QObject):
 
         self.referenceImage = np.empty((0, 0, 0), dtype=np.uint8)
         self.reference: Optional[SubstrateReferenceBase] = None
-        self.substrateImage = np.empty((0, 0, 0), dtype=np.uint8)
         self.substrate: Optional[SubstrateBase] = None
         self.experiment: Optional[ExperimentBase] = None
 

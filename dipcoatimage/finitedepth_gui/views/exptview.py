@@ -185,7 +185,9 @@ class ExperimentView(QWidget):
             for i, path in enumerate(paths):
                 index = model.index(row + i, 0, parent)
                 model.setData(index, path, role=model.Role_CoatPath)
-        model.updateWorker(model.getTopLevelIndex(parent), WorkerUpdateFlag.NULL)
+
+        flag = WorkerUpdateFlag.EXPERIMENT
+        model.updateWorker(model.getTopLevelIndex(index), flag)
 
     @Slot()
     def deleteSelectedPaths(self):
@@ -204,7 +206,9 @@ class ExperimentView(QWidget):
         with WorkerUpdateBlocker(model):
             for row_list in reversed(continuous_rows):
                 model.removeRows(row_list[0], len(row_list), parent)
-        model.updateWorker(model.getTopLevelIndex(parent), WorkerUpdateFlag.NULL)
+
+        flag = WorkerUpdateFlag.EXPERIMENT
+        model.updateWorker(model.getTopLevelIndex(parent), flag)
 
     def parametersStackedWidget(self) -> dawiq.DataclassStackedWidget:
         return self._paramStackWidget
@@ -283,7 +287,8 @@ class ExperimentArgsDelegate(dawiq.DataclassDelegate):
                         editor.currentParametersWidget(), model, paramIndex
                     )
 
-                model.updateWorker(model.getTopLevelIndex(index), WorkerUpdateFlag.NULL)
+                flag = WorkerUpdateFlag.EXPERIMENT
+                model.updateWorker(model.getTopLevelIndex(index), flag)
 
         super().setModelData(editor, model, index)
 

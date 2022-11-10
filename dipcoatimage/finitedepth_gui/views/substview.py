@@ -218,7 +218,8 @@ class SubstrateArgsDelegate(dawiq.DataclassDelegate):
                         editor.currentDrawOptionsWidget(), model, drawOptIndex
                     )
 
-                model.updateWorker(model.getTopLevelIndex(index), WorkerUpdateFlag.NULL)
+                flag = WorkerUpdateFlag.SUBSTRATE | WorkerUpdateFlag.EXPERIMENT
+                model.updateWorker(model.getTopLevelIndex(index), flag)
 
         super().setModelData(editor, model, index)
 

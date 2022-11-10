@@ -251,7 +251,8 @@ class CoatingLayerArgsDelegate(dawiq.DataclassDelegate):
                         editor.currentDecoOptionsWidget(), model, decoOptIndex
                     )
 
-                model.updateWorker(model.getTopLevelIndex(index), WorkerUpdateFlag.NULL)
+                flag = WorkerUpdateFlag.EXPERIMENT
+                model.updateWorker(model.getTopLevelIndex(index), flag)
 
         super().setModelData(editor, model, index)
 

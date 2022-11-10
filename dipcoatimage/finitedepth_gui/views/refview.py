@@ -357,7 +357,12 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
                         editor.currentDrawOptionsWidget(), model, drawOptIndex
                     )
 
-                model.updateWorker(model.getTopLevelIndex(index), WorkerUpdateFlag.NULL)
+                flag = (
+                    WorkerUpdateFlag.REFERENCE
+                    | WorkerUpdateFlag.SUBSTRATE
+                    | WorkerUpdateFlag.EXPERIMENT
+                )
+                model.updateWorker(model.getTopLevelIndex(index), flag)
 
         super().setModelData(editor, model, index)
 

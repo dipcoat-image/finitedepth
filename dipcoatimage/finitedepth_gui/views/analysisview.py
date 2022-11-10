@@ -266,7 +266,8 @@ class AnalysisArgsDelegate(QStyledItemDelegate):
                     analysisArgs = AnalysisArgs(dataPath, imgPath, vidPath, fps)
                     model.setData(index, analysisArgs, role=model.Role_AnalysisArgs)
 
-                model.updateWorker(model.getTopLevelIndex(index), WorkerUpdateFlag.NULL)
+                flag = WorkerUpdateFlag.ANALYSIS
+                model.updateWorker(model.getTopLevelIndex(index), flag)
 
         super().setModelData(editor, model, index)
 

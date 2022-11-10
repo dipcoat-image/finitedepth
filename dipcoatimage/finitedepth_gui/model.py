@@ -492,28 +492,39 @@ class ExperimentDataModel(QAbstractItemModel):
             topLevelIndex = self.getTopLevelIndex(index)
             # Update worker
             indexRole = self.whatsThisIndex(index)
-            # TODO: specify TypeFlags for each case
             if indexRole in [
                 IndexRole.REFPATH,
+            ]:
+                flag = (
+                    WorkerUpdateFlag.REFIMAGE
+                    | WorkerUpdateFlag.REFERENCE
+                    | WorkerUpdateFlag.SUBSTRATE
+                    | WorkerUpdateFlag.EXPERIMENT
+                )
+            elif indexRole in [
                 IndexRole.REF_TYPE,
                 IndexRole.REF_TEMPLATEROI,
                 IndexRole.REF_SUBSTRATEROI,
                 IndexRole.REF_PARAMETERS,
             ]:
-                self.updateWorker(topLevelIndex, WorkerUpdateFlag.NULL)
+                flag = (
+                    WorkerUpdateFlag.REFERENCE
+                    | WorkerUpdateFlag.SUBSTRATE
+                    | WorkerUpdateFlag.EXPERIMENT
+                )
             elif indexRole in [
                 IndexRole.REF_DRAWOPTIONS,
             ]:
-                self.updateWorker(topLevelIndex, WorkerUpdateFlag.NULL)
+                flag = WorkerUpdateFlag.REFERENCE
             elif indexRole in [
                 IndexRole.SUBST_TYPE,
                 IndexRole.SUBST_PARAMETERS,
             ]:
-                self.updateWorker(topLevelIndex, WorkerUpdateFlag.NULL)
+                flag = WorkerUpdateFlag.SUBSTRATE | WorkerUpdateFlag.EXPERIMENT
             elif indexRole in [
                 IndexRole.SUBST_DRAWOPTIONS,
             ]:
-                self.updateWorker(topLevelIndex, WorkerUpdateFlag.NULL)
+                WorkerUpdateFlag.SUBSTRATE
             elif indexRole in [
                 IndexRole.COATPATH,
                 IndexRole.LAYER_TYPE,
@@ -523,13 +534,14 @@ class ExperimentDataModel(QAbstractItemModel):
                 IndexRole.EXPT_TYPE,
                 IndexRole.EXPT_PARAMETERS,
             ]:
-                self.updateWorker(topLevelIndex, WorkerUpdateFlag.NULL)
+                flag = WorkerUpdateFlag.EXPERIMENT
             elif indexRole in [
                 IndexRole.ANALYSISARGS,
             ]:
-                self.updateWorker(topLevelIndex, WorkerUpdateFlag.NULL)
+                flag = WorkerUpdateFlag.ANALYSIS
             else:
-                pass
+                flag = WorkerUpdateFlag.NULL
+            self.updateWorker(topLevelIndex, flag)
             self.dataChanged.emit(index, index, [role])
             return True
         return False
@@ -543,6 +555,8 @@ class ExperimentDataModel(QAbstractItemModel):
         return self._workers[row]
 
     def updateWorker(self, index: QModelIndex, flag: WorkerUpdateFlag) -> bool:
+        if not flag:
+            return False
         if self._blockWorkerUpdate:
             return False
         worker = self.worker(index)
@@ -584,7 +598,9 @@ class ExperimentDataModel(QAbstractItemModel):
                 newItem.setParent(parent.internalPointer(), row)
             self.endInsertRows()
 
-            self.updateWorker(self.getTopLevelIndex(parent), WorkerUpdateFlag.NULL)
+            self.updateWorker(
+                self.getTopLevelIndex(parent), WorkerUpdateFlag.EXPERIMENT
+            )
             return True
         return False
 
@@ -685,7 +701,7 @@ class ExperimentDataModel(QAbstractItemModel):
             self.endInsertRows()
 
             self.updateWorker(
-                self.getTopLevelIndex(sourceParent), WorkerUpdateFlag.NULL
+                self.getTopLevelIndex(sourceParent), WorkerUpdateFlag.EXPERIMENT
             )
         return False
 
@@ -719,7 +735,9 @@ class ExperimentDataModel(QAbstractItemModel):
                 dataItem.remove(row)
             self.endRemoveRows()
 
-            self.updateWorker(self.getTopLevelIndex(parent), WorkerUpdateFlag.NULL)
+            self.updateWorker(
+                self.getTopLevelIndex(parent), WorkerUpdateFlag.EXPERIMENT
+            )
             return True
         return False
 
