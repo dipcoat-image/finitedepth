@@ -16,7 +16,7 @@ from dipcoatimage.finitedepth_gui.model import IndexRole, ExperimentDataModel
 from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt, QUrl, QModelIndex
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
-from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaRecorder
+from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaRecorder, QMediaPlayer
 from typing import Optional, List
 from .toolbar import DisplayWidgetToolBar
 from .roidisplay import NDArrayROILabel, NDArrayROILabel_V2
@@ -391,6 +391,9 @@ class MainDisplayWindow_V2(QMainWindow):
             active, self._currentView, self._exptKind
         )
         self._videoController.setVisible(controllerVisible)
+
+    def setPlayer(self, player: Optional[QMediaPlayer]):
+        self._videoController.setPlayer(player)
 
     @staticmethod
     def isExperimentVideo(

@@ -109,6 +109,7 @@ class VisualizeManager(QObject):
 
         self._model = None
         self._frameSource = FrameSource.NULL
+        self._imageOutput = None
 
         self._videoPlayer = PreviewableNDArrayVideoPlayer()
         self._captureSession = NDArrayMediaCaptureSession()
@@ -121,12 +122,6 @@ class VisualizeManager(QObject):
 
         self._imageProcessor.moveToThread(self._processorThread)
         self._processorThread.start()
-
-    def videoPlayer(self) -> PreviewableNDArrayVideoPlayer:
-        return self._videoPlayer
-
-    def captureSession(self) -> NDArrayMediaCaptureSession:
-        return self._captureSession
 
     def setModel(self, model: Optional[ExperimentDataModel]):
         oldModel = self._model
@@ -168,6 +163,16 @@ class VisualizeManager(QObject):
         if not processor.ready():
             return
         self._processRequested.emit(array)
+
+    def setImageOutput(self, imageOutput):
+        oldOutput = self._imageOutput
+        if oldOutput is not None:
+            oldOutput.setPlayer(None)
+            self.arrayChanged.disconnect(oldOutput.setArray)
+        self._imageOutput = imageOutput
+        if imageOutput is not None:
+            imageOutput.setPlayer(self._videoPlayer)
+            self.arrayChanged.connect(imageOutput.setArray)
 
     def stop(self):
         self._processorThread.quit()
