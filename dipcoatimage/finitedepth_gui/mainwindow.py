@@ -46,6 +46,9 @@ class MainWindow(QMainWindow):
 
         self._listView.setModel(self._model)
         self._dataViewTab.setModel(self._model)
+        self._display.setModel(self._model)
+        self._visualizeManager.setModel(self._model)
+        self._visualizeManager.arrayChanged.connect(self._display.setArray)
 
         exptListDock = QDockWidget("List of experiments")
         exptListDock.setWidget(self._listView)

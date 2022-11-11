@@ -1,17 +1,19 @@
 from araviq6 import MediaController, NDArrayMediaCaptureSession
 import cv2  # type: ignore[import]
-from dipcoatimage.finitedepth.analysis import ExperimentKind
+import numpy as np
+import numpy.typing as npt
+from dipcoatimage.finitedepth.analysis import experiment_kind, ExperimentKind
 from dipcoatimage.finitedepth_gui.core import (
     ClassSelection,
     VisualizationMode,
     DataMember,
+    DataArgs,
 )
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
-from dipcoatimage.finitedepth_gui.pipeline import FrameSource
-import numpy as np
-from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt, QUrl
+from dipcoatimage.finitedepth_gui.model import IndexRole, ExperimentDataModel
+from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt, QUrl, QModelIndex
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
 from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaRecorder
@@ -292,9 +294,10 @@ class MainDisplayWindow_V2(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self._model = None
+        self._currentModelIndex = QModelIndex()
         self._exptKind = ExperimentKind.NullExperiment
-        self._currentView = DataMember.EXPERIMENT
-        self._currentFrameSource = FrameSource.FILE
+        self._currentView = DataMember.NULL
 
         self._displayLabel = NDArrayROILabel_V2()
         self._videoController = MediaController()
@@ -325,10 +328,51 @@ class MainDisplayWindow_V2(QMainWindow):
         centralWidget.setLayout(layout)
         self.setCentralWidget(centralWidget)
 
-    @Slot(ExperimentKind)
+    def setModel(self, model: Optional[ExperimentDataModel]):
+        oldModel = self._model
+        if oldModel is not None:
+            oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
+            oldModel.experimentDataChanged.disconnect(self._onExptDataChange)
+        self._model = model
+        if model is not None:
+            model.activatedIndexChanged.connect(self.setActivatedIndex)
+            model.experimentDataChanged.connect(self._onExptDataChange)
+
+    @Slot(QModelIndex)
+    def setActivatedIndex(self, index: QModelIndex):
+        model = index.model()
+        if isinstance(model, ExperimentDataModel):
+            coatPathsIdx = model.getIndexFor(IndexRole.COATPATHS, index)
+            coatPaths = [
+                model.index(row, 0, coatPathsIdx).data(model.Role_CoatPath)
+                for row in range(model.rowCount(coatPathsIdx))
+            ]
+            exptKind = experiment_kind(coatPaths)
+        else:
+            index = QModelIndex()
+            exptKind = ExperimentKind.NullExperiment
+        self._currentModelIndex = index
+        self.setExperimentKind(exptKind)
+
+    @Slot(QModelIndex, DataArgs)
+    def _onExptDataChange(self, index: QModelIndex, flag: DataArgs):
+        model = self._model
+        if model is None:
+            return
+        if index != self._currentModelIndex:
+            return
+        if flag & DataArgs.COATPATHS:
+            coatPathsIdx = model.getIndexFor(IndexRole.COATPATHS, index)
+            coatPaths = [
+                model.index(row, 0, coatPathsIdx).data(model.Role_CoatPath)
+                for row in range(model.rowCount(coatPathsIdx))
+            ]
+            exptKind = experiment_kind(coatPaths)
+            self.setExperimentKind(exptKind)
+
     def setExperimentKind(self, exptKind: ExperimentKind):
         controllerVisible = self.isExperimentVideo(
-            self._currentFrameSource, self._currentView, exptKind
+            self._camera.isActive(), self._currentView, exptKind
         )
         self._videoController.setVisible(controllerVisible)
         self._exptKind = exptKind
@@ -336,26 +380,21 @@ class MainDisplayWindow_V2(QMainWindow):
     @Slot(DataMember)
     def setCurrentView(self, currentView: DataMember):
         controllerVisible = self.isExperimentVideo(
-            self._currentFrameSource, currentView, self._exptKind
+            self._camera.isActive(), currentView, self._exptKind
         )
         self._videoController.setVisible(controllerVisible)
         self._currentView = currentView
 
     @Slot(bool)
     def _onCameraActiveChange(self, active: bool):
-        if active:
-            frameSource = FrameSource.CAMERA
-        else:
-            frameSource = FrameSource.FILE
         controllerVisible = self.isExperimentVideo(
-            frameSource, self._currentView, self._exptKind
+            active, self._currentView, self._exptKind
         )
         self._videoController.setVisible(controllerVisible)
-        self._currentFrameSource = frameSource
 
     @staticmethod
     def isExperimentVideo(
-        frameSource: FrameSource,
+        cameraActive: bool,
         currentView: DataMember,
         exptKind: ExperimentKind,
     ) -> bool:
@@ -364,8 +403,12 @@ class MainDisplayWindow_V2(QMainWindow):
             DataMember.SUBSTRATE,
         ]
         ret = (
-            frameSource == FrameSource.FILE
+            not cameraActive
             and currentView not in viewExclude
             and exptKind == ExperimentKind.VideoExperiment
         )
         return ret
+
+    @Slot(np.ndarray)
+    def setArray(self, array: npt.NDArray[np.uint8]):
+        self._displayLabel.setArray(array)

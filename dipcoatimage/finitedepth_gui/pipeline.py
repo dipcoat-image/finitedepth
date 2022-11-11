@@ -2,14 +2,15 @@
 Video streaming pipeline
 """
 
-from araviq6 import NDArrayVideoPlayer
+from araviq6 import NDArrayVideoPlayer, NDArrayMediaCaptureSession
 import cv2  # type: ignore[import]
 import enum
 import numpy as np
 import numpy.typing as npt
 from dipcoatimage.finitedepth_gui.core import DataMember
 from dipcoatimage.finitedepth_gui.worker import ExperimentWorker
-from PySide6.QtCore import QObject, Signal, Slot, QUrl, QThread
+from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
+from PySide6.QtCore import QObject, Signal, Slot, QUrl, QThread, QModelIndex
 from typing import Optional
 
 
@@ -99,14 +100,74 @@ class FrameSource(enum.Enum):
 
 
 class VisualizeManager(QObject):
+
+    _processRequested = Signal(np.ndarray)
+    arrayChanged = Signal(np.ndarray)
+
     def __init__(self, parent=None):
         super().__init__(parent)
+
+        self._model = None
+        self._frameSource = FrameSource.NULL
+
+        self._videoPlayer = PreviewableNDArrayVideoPlayer()
+        self._captureSession = NDArrayMediaCaptureSession()
 
         self._processorThread = QThread()
         self._imageProcessor = ImageProcessor()
 
+        self._processRequested.connect(self._imageProcessor.setArray)
+        self._imageProcessor.arrayChanged.connect(self.arrayChanged)
+
         self._imageProcessor.moveToThread(self._processorThread)
         self._processorThread.start()
+
+    def videoPlayer(self) -> PreviewableNDArrayVideoPlayer:
+        return self._videoPlayer
+
+    def captureSession(self) -> NDArrayMediaCaptureSession:
+        return self._captureSession
+
+    def setModel(self, model: Optional[ExperimentDataModel]):
+        oldModel = self._model
+        if oldModel is not None:
+            oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
+        self._model = model
+        if model is not None:
+            model.activatedIndexChanged.connect(self.setActivatedIndex)
+
+    @Slot(QModelIndex)
+    def setActivatedIndex(self, index: QModelIndex):
+        model = index.model()
+        if isinstance(model, ExperimentDataModel):
+            worker = model.worker(index)
+        else:
+            worker = None
+        self._imageProcessor.setWorker(worker)
+
+    @Slot(FrameSource)
+    def setFrameSource(self, frameSource: FrameSource):
+        oldSource = self._frameSource
+        if oldSource == FrameSource.CAMERA:
+            self._captureSession.arrayChanged.disconnect(self._displayImage)
+        elif oldSource == FrameSource.FILE:
+            self._videoPlayer.arrayChanged.disconnect(self._displayImage)
+        else:
+            pass
+        self._frameSource = frameSource
+        if frameSource == FrameSource.CAMERA:
+            self._captureSession.arrayChanged.connect(self._displayImage)
+        elif oldSource == FrameSource.FILE:
+            self._videoPlayer.arrayChanged.connect(self._displayImage)
+        else:
+            pass
+
+    @Slot(np.ndarray)
+    def _displayImage(self, array: npt.NDArray[np.uint8]):
+        processor = self._imageProcessor
+        if not processor.ready():
+            return
+        self._processRequested.emit(array)
 
     def stop(self):
         self._processorThread.quit()
