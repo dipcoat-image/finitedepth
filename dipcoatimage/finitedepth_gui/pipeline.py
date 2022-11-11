@@ -2,35 +2,34 @@
 Video streaming pipeline
 """
 
+from araviq6 import NDArrayVideoPlayer
+import cv2  # type: ignore[import]
 import enum
 import numpy as np
 import numpy.typing as npt
 from dipcoatimage.finitedepth_gui.core import DataMember
 from dipcoatimage.finitedepth_gui.worker import ExperimentWorker
-from PySide6.QtCore import QObject, Signal, Slot
+from PySide6.QtCore import QObject, Signal, Slot, QUrl, QThread
 from typing import Optional
 
 
 __all__ = [
+    "ImageProcessor",
+    "PreviewableNDArrayVideoPlayer",
     "FrameSource",
-    "VisualizeProcessor_V2",
+    "VisualizeManager",
 ]
 
 
-class FrameSource(enum.Enum):
-    NULL = 0
-    FILE = 1
-    CAMERA = 2
+class ImageProcessor(QObject):
+    """Object to process the incoming image."""
 
-
-class VisualizeProcessor_V2(QObject):
     arrayChanged = Signal(np.ndarray)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._worker = None
-        self._currentView = DataMember.EXPERIMENT
-        self._frameSource = FrameSource.NULL
+        self._currentView = DataMember.NULL
         self._ready = True
 
     def setWorker(self, worker: Optional[ExperimentWorker]):
@@ -38,9 +37,6 @@ class VisualizeProcessor_V2(QObject):
 
     def setCurrentView(self, currentView: DataMember):
         self._currentView = currentView
-
-    def setFrameSource(self, frameSource: FrameSource):
-        self._frameSource = frameSource
 
     @Slot(np.ndarray)
     def setArray(self, array: npt.NDArray[np.uint8]):
@@ -65,3 +61,54 @@ class VisualizeProcessor_V2(QObject):
 
     def ready(self) -> bool:
         return self._ready
+
+
+class PreviewableNDArrayVideoPlayer(NDArrayVideoPlayer):
+    """
+    Video player which emits first frame of the video on source change
+    and on video stop.
+    """
+
+    @Slot(QUrl)
+    def setSource(self, source: QUrl):
+        super().setSource(source)
+        self.arrayChanged.emit(self.previewImage())
+
+    @Slot()
+    def stop(self):
+        super().stop()
+        self.arrayChanged.emit(self.previewImage())
+
+    def previewImage(self) -> npt.NDArray[np.uint8]:
+        path = self.source().toLocalFile()
+        if path:
+            cap = cv2.VideoCapture(path)
+            ok, img = cap.read()
+            cap.release()
+            if not ok:
+                img = np.empty((0, 0, 0))
+        else:
+            img = np.empty((0, 0, 0))
+        return img
+
+
+class FrameSource(enum.Enum):
+    NULL = 0
+    FILE = 1
+    CAMERA = 2
+
+
+class VisualizeManager(QObject):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self._processorThread = QThread()
+        self._imageProcessor = ImageProcessor()
+
+        self._imageProcessor.moveToThread(self._processorThread)
+        self._processorThread.start()
+
+    def stop(self):
+        self._processorThread.quit()
+        self._processorThread.wait()

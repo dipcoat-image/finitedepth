@@ -5,12 +5,12 @@ Main Window
 V2 for analysisgui.py
 """
 
-from PySide6.QtCore import QThread, Qt
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMainWindow, QDockWidget
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from dipcoatimage.finitedepth_gui.views import ExperimentDataListView, DataViewTab
-from dipcoatimage.finitedepth_gui.pipeline import VisualizeProcessor_V2
 from dipcoatimage.finitedepth_gui.display import MainDisplayWindow_V2
+from dipcoatimage.finitedepth_gui.pipeline import VisualizeManager
 
 
 __all__ = [
@@ -42,17 +42,10 @@ class MainWindow(QMainWindow):
         self._listView = ExperimentDataListView()
         self._dataViewTab = DataViewTab()
         self._display = MainDisplayWindow_V2()
-
-        self._processorThread = QThread()
-        self._imageProcessor = VisualizeProcessor_V2()
+        self._visualizeManager = VisualizeManager()
 
         self._listView.setModel(self._model)
         self._dataViewTab.setModel(self._model)
-        self._dataViewTab.currentViewChanged.connect(self._display.setCurrentView)
-        self._display.setModel(self._model)
-
-        self._imageProcessor.moveToThread(self._processorThread)
-        self._processorThread.start()
 
         exptListDock = QDockWidget("List of experiments")
         exptListDock.setWidget(self._listView)
@@ -64,6 +57,5 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Coating layer analysis")
 
     def closeEvent(self, event):
-        self._processorThread.quit()
-        self._processorThread.wait()
+        self._visualizeManager.stop()
         super().closeEvent(event)
