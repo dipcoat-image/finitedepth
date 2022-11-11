@@ -10,6 +10,7 @@ import numpy.typing as npt
 from dipcoatimage.finitedepth_gui.core import DataMember
 from dipcoatimage.finitedepth_gui.worker import ExperimentWorker
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
+from dipcoatimage.finitedepth_gui.display import MainDisplayWindow_V2
 from PySide6.QtCore import QObject, Signal, Slot, QUrl, QThread, QModelIndex
 from typing import Optional
 
@@ -109,7 +110,7 @@ class VisualizeManager(QObject):
 
         self._model = None
         self._frameSource = FrameSource.NULL
-        self._imageOutput = None
+        self._display = None
 
         self._videoPlayer = PreviewableNDArrayVideoPlayer()
         self._captureSession = NDArrayMediaCaptureSession()
@@ -131,6 +132,18 @@ class VisualizeManager(QObject):
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
 
+    def setDisplay(self, display: Optional[MainDisplayWindow_V2]):
+        oldDisplay = self._display
+        if oldDisplay is not None:
+            oldDisplay.setPlayer(None)
+            oldDisplay.cameraActiveChanged.disconnect(self.setCameraActive)
+            self.arrayChanged.disconnect(oldDisplay.setArray)
+        self._display = display
+        if display is not None:
+            display.setPlayer(self._videoPlayer)
+            display.cameraActiveChanged.connect(self.setCameraActive)
+            self.arrayChanged.connect(display.setArray)
+
     @Slot(QModelIndex)
     def setActivatedIndex(self, index: QModelIndex):
         model = index.model()
@@ -140,7 +153,14 @@ class VisualizeManager(QObject):
             worker = None
         self._imageProcessor.setWorker(worker)
 
-    @Slot(FrameSource)
+    @Slot(bool)
+    def setCameraActive(self, active: bool):
+        if active:
+            frameSource = FrameSource.CAMERA
+        else:
+            frameSource = FrameSource.FILE
+        self.setFrameSource(frameSource)
+
     def setFrameSource(self, frameSource: FrameSource):
         oldSource = self._frameSource
         if oldSource == FrameSource.CAMERA:
@@ -163,16 +183,6 @@ class VisualizeManager(QObject):
         if not processor.ready():
             return
         self._processRequested.emit(array)
-
-    def setImageOutput(self, imageOutput):
-        oldOutput = self._imageOutput
-        if oldOutput is not None:
-            oldOutput.setPlayer(None)
-            self.arrayChanged.disconnect(oldOutput.setArray)
-        self._imageOutput = imageOutput
-        if imageOutput is not None:
-            imageOutput.setPlayer(self._videoPlayer)
-            self.arrayChanged.connect(imageOutput.setArray)
 
     def stop(self):
         self._processorThread.quit()

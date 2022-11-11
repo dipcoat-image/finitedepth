@@ -290,6 +290,7 @@ class MainDisplayWindow_V2(QMainWindow):
     visualizationModeChanged = Signal(VisualizationMode)
     imageCaptured = Signal(str)
     videoRecorded = Signal(QUrl)
+    cameraActiveChanged = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -391,6 +392,7 @@ class MainDisplayWindow_V2(QMainWindow):
             active, self._currentView, self._exptKind
         )
         self._videoController.setVisible(controllerVisible)
+        self.cameraActiveChanged.emit(active)
 
     def setPlayer(self, player: Optional[QMediaPlayer]):
         self._videoController.setPlayer(player)
