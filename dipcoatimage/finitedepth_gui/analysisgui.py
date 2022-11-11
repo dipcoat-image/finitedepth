@@ -110,7 +110,7 @@ class AnalysisGUI(QMainWindow):
 
         # initialize window state
         self.masterWorker().setVisualizationMode(VisualizationMode.FULL)
-        self.mainDisplayWindow().setVisualizeActionToggleState(VisualizationMode.FULL)
+        self.mainDisplayWindow().setVisualizationMode(VisualizationMode.FULL)
         self.experimentInventory().addNewExperiment()
         self.experimentInventory().activateExperiment(0)
         self.masterControlWidget().setSelectedClass(ClassSelection.EXPERIMENT)

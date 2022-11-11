@@ -1,9 +1,9 @@
 from araviq6 import NDArrayVideoPlayer
 import cv2  # type: ignore[import]
-from dipcoatimage.finitedepth_gui.core import ClassSelection
-from dipcoatimage.finitedepth_gui.workers import MasterWorker
 import numpy as np
 import numpy.typing as npt
+from dipcoatimage.finitedepth_gui.core import ClassSelection
+from dipcoatimage.finitedepth_gui.workers import MasterWorker
 from PySide6.QtCore import QUrl, Signal, Slot, QObject
 from typing import Optional
 

@@ -29,7 +29,8 @@ __all__ = [
     "StructuredSubstrateArgs",
     "StructuredCoatingLayerArgs",
     "ClassSelection",
-    "TypeFlag",
+    "DataMember",
+    "DataArgs",
     "VisualizationMode",
 ]
 
@@ -165,13 +166,36 @@ class ClassSelection(enum.IntFlag):
     ANALYSIS = 8
 
 
-class TypeFlag(enum.IntFlag):
-    UNKNOWN = 0
+class DataMember(enum.Enum):
+    """
+    Enum to represent five components (plus ``NULL``) which makes up
+    finite depth dip coating experiment analysis.
+
+    The members of this class are used to indicate which tab widget is specified
+    in experiment data view.
+    """
+
+    NULL = 0
     REFERENCE = 1
     SUBSTRATE = 2
-    COATINGLAYER = 4
-    EXPERIMENT = 8
-    ANALYSIS = 16
+    COATINGLAYER = 3
+    EXPERIMENT = 4
+    ANALYSIS = 5
+
+
+class DataArgs(enum.IntFlag):
+    """
+    Flag to represent the arguments of :class:`ExperimentData`.
+    """
+
+    NULL = 0
+    REFPATH = 1
+    COATPATHS = 2
+    REFERENCE = 4
+    SUBSTRATE = 8
+    COATINGLAYER = 16
+    EXPERIMENT = 32
+    ANALYSIS = 64
 
 
 class VisualizationMode(enum.IntEnum):

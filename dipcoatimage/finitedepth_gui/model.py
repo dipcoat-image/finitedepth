@@ -7,6 +7,7 @@ V2 for inventory.py
 
 import copy
 import enum
+from functools import reduce
 from dipcoatimage.finitedepth import (
     ExperimentData,
     SubstrateReferenceBase,
@@ -16,7 +17,8 @@ from dipcoatimage.finitedepth import (
 )
 from dipcoatimage.finitedepth.util import Importer
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
-from .worker import AnalysisState, ExperimentWorker
+from .core import DataArgs
+from .worker import AnalysisState, WorkerUpdateFlag, ExperimentWorker
 from typing import Optional, Any, Union, Tuple, List
 
 
@@ -24,7 +26,7 @@ __all__ = [
     "ExperimentDataItem",
     "IndexRole",
     "ExperimentDataModel",
-    "WorkerUpdateBlocker",
+    "ExperimentSignalBlocker",
 ]
 
 
@@ -253,6 +255,8 @@ class ExperimentDataModel(QAbstractItemModel):
     Row_ExptType = 0
     Row_ExptParameters = 1
 
+    experimentDataChanged = Signal(QModelIndex, DataArgs)
+    workerUpdated = Signal(QModelIndex, WorkerUpdateFlag)
     activatedIndexChanged = Signal(QModelIndex)
     analysisStateChanged = Signal(AnalysisState)
     analysisProgressMaximumChanged = Signal(int)
@@ -262,7 +266,7 @@ class ExperimentDataModel(QAbstractItemModel):
         super().__init__(parent)
         self._rootItem = ExperimentDataItem()
         self._activatedIndex = QModelIndex()
-        self._blockWorkerUpdate = False
+        self._blockExperimentSignals = False
         self._workers: List[ExperimentWorker] = []
 
     @classmethod
@@ -490,47 +494,85 @@ class ExperimentDataModel(QAbstractItemModel):
             topLevelIndex = self.getTopLevelIndex(index)
             # Update worker
             indexRole = self.whatsThisIndex(index)
-            # TODO: specify TypeFlags for each case
             if indexRole in [
                 IndexRole.REFPATH,
+            ]:
+                dataArgs = DataArgs.REFPATH
+                workerUpdateFlag = (
+                    WorkerUpdateFlag.REFIMAGE
+                    | WorkerUpdateFlag.REFERENCE
+                    | WorkerUpdateFlag.SUBSTRATE
+                    | WorkerUpdateFlag.EXPERIMENT
+                )
+            elif indexRole in [
                 IndexRole.REF_TYPE,
                 IndexRole.REF_TEMPLATEROI,
                 IndexRole.REF_SUBSTRATEROI,
                 IndexRole.REF_PARAMETERS,
             ]:
-                self.updateWorker(topLevelIndex)
+                dataArgs = DataArgs.REFERENCE
+                workerUpdateFlag = (
+                    WorkerUpdateFlag.REFERENCE
+                    | WorkerUpdateFlag.SUBSTRATE
+                    | WorkerUpdateFlag.EXPERIMENT
+                )
             elif indexRole in [
                 IndexRole.REF_DRAWOPTIONS,
             ]:
-                self.updateWorker(topLevelIndex)
+                dataArgs = DataArgs.REFERENCE
+                workerUpdateFlag = WorkerUpdateFlag.REFERENCE
             elif indexRole in [
                 IndexRole.SUBST_TYPE,
                 IndexRole.SUBST_PARAMETERS,
             ]:
-                self.updateWorker(topLevelIndex)
+                dataArgs = DataArgs.SUBSTRATE
+                workerUpdateFlag = (
+                    WorkerUpdateFlag.SUBSTRATE | WorkerUpdateFlag.EXPERIMENT
+                )
             elif indexRole in [
                 IndexRole.SUBST_DRAWOPTIONS,
             ]:
-                self.updateWorker(topLevelIndex)
+                dataArgs = DataArgs.SUBSTRATE
+                WorkerUpdateFlag.SUBSTRATE
             elif indexRole in [
-                IndexRole.COATPATH,
                 IndexRole.LAYER_TYPE,
                 IndexRole.LAYER_PARAMETERS,
                 IndexRole.LAYER_DRAWOPTIONS,
                 IndexRole.LAYER_DECOOPTIONS,
+            ]:
+                dataArgs = DataArgs.COATINGLAYER
+                workerUpdateFlag = WorkerUpdateFlag.EXPERIMENT
+            elif indexRole in [
                 IndexRole.EXPT_TYPE,
                 IndexRole.EXPT_PARAMETERS,
             ]:
-                self.updateWorker(topLevelIndex)
+                dataArgs = DataArgs.EXPERIMENT
+                workerUpdateFlag = WorkerUpdateFlag.EXPERIMENT
+            elif indexRole in [
+                IndexRole.COATPATH,
+            ]:
+                dataArgs = DataArgs.COATPATHS
+                workerUpdateFlag = WorkerUpdateFlag.ANALYSIS
             elif indexRole in [
                 IndexRole.ANALYSISARGS,
             ]:
-                self.updateWorker(topLevelIndex)
+                dataArgs = DataArgs.ANALYSIS
+                workerUpdateFlag = WorkerUpdateFlag.ANALYSIS
             else:
-                pass
+                dataArgs = DataArgs.NULL
+                workerUpdateFlag = WorkerUpdateFlag.NULL
             self.dataChanged.emit(index, index, [role])
+            self.emitExperimentDataChanged(topLevelIndex, dataArgs)
+            self.updateWorker(topLevelIndex, workerUpdateFlag)
             return True
         return False
+
+    def emitExperimentDataChanged(self, index: QModelIndex, dataArgs: DataArgs):
+        if not dataArgs:
+            return
+        if self._blockExperimentSignals:
+            return
+        self.experimentDataChanged.emit(index, dataArgs)
 
     def worker(self, index: QModelIndex) -> Optional[ExperimentWorker]:
         if self.whatsThisIndex(index) != IndexRole.EXPTDATA:
@@ -540,14 +582,17 @@ class ExperimentDataModel(QAbstractItemModel):
             return None
         return self._workers[row]
 
-    def updateWorker(self, index: QModelIndex) -> bool:
-        if self._blockWorkerUpdate:
+    def updateWorker(self, index: QModelIndex, flag: WorkerUpdateFlag) -> bool:
+        if not flag:
+            return False
+        if self._blockExperimentSignals:
             return False
         worker = self.worker(index)
         if worker is None:
             return False
         exptData = self.indexToExperimentData(index)
-        worker.setExperimentData(exptData)
+        worker.setExperimentData(exptData, flag)
+        self.workerUpdated.emit(index, flag)
         return True
 
     def insertRows(self, row, count, parent=QModelIndex()):
@@ -564,7 +609,9 @@ class ExperimentDataModel(QAbstractItemModel):
                 newItem.setParent(self._rootItem, row)
                 worker = ExperimentWorker(self)
                 self._workers.insert(row, worker)
-                worker.setExperimentData(exptData)
+                worker.setExperimentData(
+                    exptData, reduce(lambda x, y: x | y, WorkerUpdateFlag)
+                )
 
             if reactivate:
                 newRow = activatedRow + count
@@ -579,7 +626,9 @@ class ExperimentDataModel(QAbstractItemModel):
                 newItem.setParent(parent.internalPointer(), row)
             self.endInsertRows()
 
-            self.updateWorker(self.getTopLevelIndex(parent))
+            topLevelIndex = self.getTopLevelIndex(parent)
+            self.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
+            self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
             return True
         return False
 
@@ -599,7 +648,7 @@ class ExperimentDataModel(QAbstractItemModel):
             newItem.setParent(self._rootItem, row)
             worker = ExperimentWorker(self)
             self._workers.insert(row, worker)
-            worker.setExperimentData(data)
+            worker.setExperimentData(data, reduce(lambda x, y: x | y, WorkerUpdateFlag))
 
         if reactivate:
             newRow = activatedRow + count
@@ -646,7 +695,9 @@ class ExperimentDataModel(QAbstractItemModel):
                 newItems.append(newItem)
                 newWorker = ExperimentWorker(self)
                 newWorkers.append(newWorker)
-                newWorker.setExperimentData(oldData)
+                newWorker.setExperimentData(
+                    oldData, reduce(lambda x, y: x | y, WorkerUpdateFlag)
+                )
             self.beginInsertRows(
                 sourceParent, destinationChild, destinationChild + count - 1
             )
@@ -677,7 +728,9 @@ class ExperimentDataModel(QAbstractItemModel):
                 item.setParent(parentDataItem, destinationChild)
             self.endInsertRows()
 
-            self.updateWorker(self.getTopLevelIndex(sourceParent))
+            topLevelIndex = self.getTopLevelIndex(sourceParent)
+            self.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
+            self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
         return False
 
     def removeRows(self, row, count, parent=QModelIndex()):
@@ -710,7 +763,9 @@ class ExperimentDataModel(QAbstractItemModel):
                 dataItem.remove(row)
             self.endRemoveRows()
 
-            self.updateWorker(self.getTopLevelIndex(parent))
+            topLevelIndex = self.getTopLevelIndex(parent)
+            self.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
+            self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
             return True
         return False
 
@@ -910,13 +965,13 @@ class ExperimentDataModel(QAbstractItemModel):
         return index
 
 
-class WorkerUpdateBlocker:
+class ExperimentSignalBlocker:
     def __init__(self, model: ExperimentDataModel):
         self.model = model
 
     def __enter__(self):
-        self.model._blockWorkerUpdate = True
+        self.model._blockExperimentSignals = True
         return self
 
     def __exit__(self, type, value, traceback):
-        self.model._blockWorkerUpdate = False
+        self.model._blockExperimentSignals = False

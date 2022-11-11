@@ -167,23 +167,10 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         self._image.setflags(write=False)
 
         h, w = image.shape[:2]
-        full_roi = (0, 0, w, h)
-        max_vars = (w, h, w, h)
-
-        temp_roi = list(templateROI)
-        for i, var in enumerate(templateROI):
-            if var is None:
-                temp_roi[i] = full_roi[i]
-            elif var < 0:
-                temp_roi[i] = max_vars[i] + var
+        temp_roi = self.sanitize_ROI(templateROI, h, w)
         self._templateROI = cast(IntROI, tuple(temp_roi))
 
-        subst_roi = list(substrateROI)
-        for i, var in enumerate(substrateROI):
-            if var is None:
-                subst_roi[i] = full_roi[i]
-            elif var < 0:
-                subst_roi[i] = max_vars[i] + var
+        subst_roi = self.sanitize_ROI(substrateROI, h, w)
         self._substrateROI = cast(IntROI, tuple(subst_roi))
 
         if parameters is None:
@@ -195,6 +182,19 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
             self._draw_options = self.DrawOptions()
         else:
             self._draw_options = dataclasses.replace(draw_options)
+
+    @staticmethod
+    def sanitize_ROI(roi: OptionalROI, h: int, w: int):
+        full_roi = (0, 0, w, h)
+        max_vars = (w, h, w, h)
+
+        ret = list(roi)
+        for i, var in enumerate(roi):
+            if var is None:
+                ret[i] = full_roi[i]
+            elif var < 0:
+                ret[i] = max_vars[i] + var
+        return ret
 
     @property
     def image(self) -> npt.NDArray[np.uint8]:
