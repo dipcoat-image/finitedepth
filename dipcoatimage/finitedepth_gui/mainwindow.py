@@ -7,6 +7,7 @@ V2 for analysisgui.py
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMainWindow, QDockWidget
+from PySide6.QtMultimedia import QCamera
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from dipcoatimage.finitedepth_gui.views import ExperimentDataListView, DataViewTab
 from dipcoatimage.finitedepth_gui.display import MainDisplayWindow_V2
@@ -43,11 +44,13 @@ class MainWindow(QMainWindow):
         self._dataViewTab = DataViewTab()
         self._display = MainDisplayWindow_V2()
         self._visualizeManager = VisualizeManager()
+        self._camera = QCamera()
 
         self._listView.setModel(self._model)
         self._dataViewTab.setModel(self._model)
         self._display.setModel(self._model)
         self._visualizeManager.setModel(self._model)
+        self._display.setCamera(self._camera)
         self._visualizeManager.setImageOutput(self._display)
 
         exptListDock = QDockWidget("List of experiments")

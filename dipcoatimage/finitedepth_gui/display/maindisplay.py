@@ -298,18 +298,17 @@ class MainDisplayWindow_V2(QMainWindow):
         self._currentModelIndex = QModelIndex()
         self._exptKind = ExperimentKind.NullExperiment
         self._currentView = DataMember.NULL
+        self._camera = None
 
         self._displayLabel = NDArrayROILabel_V2()
         self._videoController = MediaController()
         self._displayToolBar = DisplayWidgetToolBar()
 
-        self._camera = QCamera()
         self._imageCapture = QImageCapture()
         self._mediaRecorder = QMediaRecorder()
         self._displayLabel.setAlignment(Qt.AlignCenter)
         self._videoController.setVisible(False)
 
-        self._displayToolBar.setCamera(self._camera)
         self._displayToolBar.setImageCapture(self._imageCapture)
         self._displayToolBar.setMediaRecorder(self._mediaRecorder)
         self._displayToolBar.visualizationModeChanged.connect(
@@ -317,8 +316,6 @@ class MainDisplayWindow_V2(QMainWindow):
         )
         self._displayToolBar.imageCaptured.connect(self.imageCaptured)
         self._displayToolBar.videoRecorded.connect(self.videoRecorded)
-
-        self._camera.activeChanged.connect(self._onCameraActiveChange)
 
         self.addToolBar(self._displayToolBar)
         layout = QVBoxLayout()
@@ -328,8 +325,11 @@ class MainDisplayWindow_V2(QMainWindow):
         centralWidget.setLayout(layout)
         self.setCentralWidget(centralWidget)
 
+    def model(self) -> Optional[ExperimentDataModel]:
+        return self._model
+
     def setModel(self, model: Optional[ExperimentDataModel]):
-        oldModel = self._model
+        oldModel = self.model()
         if oldModel is not None:
             oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
             oldModel.experimentDataChanged.disconnect(self._onExptDataChange)
@@ -356,8 +356,8 @@ class MainDisplayWindow_V2(QMainWindow):
 
     @Slot(QModelIndex, DataArgs)
     def _onExptDataChange(self, index: QModelIndex, flag: DataArgs):
-        model = self._model
-        if model is None:
+        model = index.model()
+        if not isinstance(model, ExperimentDataModel):
             return
         if index != self._currentModelIndex:
             return
@@ -371,19 +371,45 @@ class MainDisplayWindow_V2(QMainWindow):
             self.setExperimentKind(exptKind)
 
     def setExperimentKind(self, exptKind: ExperimentKind):
+        camera = self.camera()
+        if camera is None:
+            cameraActive = False
+        else:
+            cameraActive = camera.isActive()
         controllerVisible = self.isExperimentVideo(
-            self._camera.isActive(), self._currentView, exptKind
+            cameraActive, self._currentView, exptKind
         )
         self._videoController.setVisible(controllerVisible)
         self._exptKind = exptKind
 
     @Slot(DataMember)
     def setCurrentView(self, currentView: DataMember):
+        camera = self.camera()
+        if camera is None:
+            cameraActive = False
+        else:
+            cameraActive = camera.isActive()
         controllerVisible = self.isExperimentVideo(
-            self._camera.isActive(), currentView, self._exptKind
+            cameraActive, currentView, self._exptKind
         )
         self._videoController.setVisible(controllerVisible)
         self._currentView = currentView
+
+    def camera(self) -> Optional[QCamera]:
+        return self._camera
+
+    def setCamera(self, camera: Optional[QCamera]):
+        oldCamera = self.camera()
+        if oldCamera is not None:
+            oldCamera.activeChanged.disconnect(  # type: ignore[attr-defined]
+                self._onCameraActiveChange
+            )
+        self._camera = camera
+        self._displayToolBar.setCamera(camera)
+        if camera is not None:
+            camera.activeChanged.connect(  # type: ignore[attr-defined]
+                self._onCameraActiveChange
+            )
 
     @Slot(bool)
     def _onCameraActiveChange(self, active: bool):
