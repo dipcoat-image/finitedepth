@@ -94,6 +94,10 @@ class PreviewableNDArrayVideoPlayer(NDArrayVideoPlayer):
 
 
 class DisplayProtocol(Protocol):
+
+    def setFrameSource(self, frameSource: FrameSource):
+        ...
+
     def setPlayer(self, player: Optional[QMediaPlayer]):
         ...
 
@@ -104,6 +108,7 @@ class DisplayProtocol(Protocol):
 class VisualizeManager(QObject):
 
     _processRequested = Signal(np.ndarray)
+    frameSourceChanged = Signal(FrameSource)
     arrayChanged = Signal(np.ndarray)
 
     def __init__(self, parent=None):
@@ -182,6 +187,7 @@ class VisualizeManager(QObject):
             self._videoPlayer.arrayChanged.connect(self._displayImage)
         else:
             pass
+        self.frameSourceChanged.emit(frameSource)
 
     @Slot(np.ndarray)
     def _displayImage(self, array: npt.NDArray[np.uint8]):
@@ -196,10 +202,12 @@ class VisualizeManager(QObject):
     def setDisplay(self, display: Optional[DisplayProtocol]):
         oldDisplay = self.display()
         if oldDisplay is not None:
+            self.frameSourceChanged.disconnect(oldDisplay.setFrameSource)
             oldDisplay.setPlayer(None)
             self.arrayChanged.disconnect(oldDisplay.setArray)
         self._display = display
         if display is not None:
+            self.frameSourceChanged.connect(oldDisplay.setFrameSource)
             display.setPlayer(self._videoPlayer)
             self.arrayChanged.connect(display.setArray)
 

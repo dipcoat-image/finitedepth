@@ -9,6 +9,7 @@ from dipcoatimage.finitedepth_gui.core import (
     DataMember,
     DataArgs,
 )
+from dipcoatimage.finitedepth_gui.core import FrameSource
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
@@ -298,7 +299,7 @@ class MainDisplayWindow_V2(QMainWindow):
         self._currentModelIndex = QModelIndex()
         self._exptKind = ExperimentKind.NullExperiment
         self._currentView = DataMember.NULL
-        self._camera = None
+        self._frameSource = FrameSource.NULL
 
         self._displayLabel = NDArrayROILabel_V2()
         self._videoController = MediaController()
@@ -371,59 +372,37 @@ class MainDisplayWindow_V2(QMainWindow):
             self.setExperimentKind(exptKind)
 
     def setExperimentKind(self, exptKind: ExperimentKind):
-        camera = self.camera()
-        if camera is None:
-            cameraActive = False
-        else:
-            cameraActive = camera.isActive()
         controllerVisible = self.isExperimentVideo(
-            cameraActive, self._currentView, exptKind
+            self._frameSource, self._currentView, exptKind
         )
         self._videoController.setVisible(controllerVisible)
         self._exptKind = exptKind
 
     @Slot(DataMember)
     def setCurrentView(self, currentView: DataMember):
-        camera = self.camera()
-        if camera is None:
-            cameraActive = False
-        else:
-            cameraActive = camera.isActive()
         controllerVisible = self.isExperimentVideo(
-            cameraActive, currentView, self._exptKind
+            self._frameSource, currentView, self._exptKind
         )
         self._videoController.setVisible(controllerVisible)
         self._currentView = currentView
 
-    def camera(self) -> Optional[QCamera]:
-        return self._camera
-
     def setCamera(self, camera: Optional[QCamera]):
-        oldCamera = self.camera()
-        if oldCamera is not None:
-            oldCamera.activeChanged.disconnect(  # type: ignore[attr-defined]
-                self._onCameraActiveChange
-            )
-        self._camera = camera
         self._displayToolBar.setCamera(camera)
-        if camera is not None:
-            camera.activeChanged.connect(  # type: ignore[attr-defined]
-                self._onCameraActiveChange
-            )
 
-    @Slot(bool)
-    def _onCameraActiveChange(self, active: bool):
+    @Slot(FrameSource)
+    def setFrameSource(self, frameSource: FrameSource):
         controllerVisible = self.isExperimentVideo(
-            active, self._currentView, self._exptKind
+            frameSource, self._currentView, self._exptKind
         )
         self._videoController.setVisible(controllerVisible)
+        self._frameSource = frameSource
 
     def setPlayer(self, player: Optional[QMediaPlayer]):
         self._videoController.setPlayer(player)
 
     @staticmethod
     def isExperimentVideo(
-        cameraActive: bool,
+        frameSource: FrameSource,
         currentView: DataMember,
         exptKind: ExperimentKind,
     ) -> bool:
@@ -432,7 +411,7 @@ class MainDisplayWindow_V2(QMainWindow):
             DataMember.SUBSTRATE,
         ]
         ret = (
-            not cameraActive
+            frameSource != FrameSource.CAMERA
             and currentView not in viewExclude
             and exptKind == ExperimentKind.VideoExperiment
         )
