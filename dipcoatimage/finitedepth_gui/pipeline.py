@@ -12,6 +12,7 @@ from dipcoatimage.finitedepth_gui.worker import ExperimentWorker
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from dipcoatimage.finitedepth_gui.display import MainDisplayWindow_V2
 from PySide6.QtCore import QObject, Signal, Slot, QUrl, QThread, QModelIndex
+from PySide6.QtMultimedia import QCamera
 from typing import Optional
 
 
@@ -110,39 +111,29 @@ class VisualizeManager(QObject):
 
         self._model = None
         self._frameSource = FrameSource.NULL
+        self._videoPlayer = PreviewableNDArrayVideoPlayer()
+        self._camera = None
+        self._captureSession = NDArrayMediaCaptureSession()
+        self._imageProcessor = ImageProcessor()
         self._display = None
 
-        self._videoPlayer = PreviewableNDArrayVideoPlayer()
-        self._captureSession = NDArrayMediaCaptureSession()
-
         self._processorThread = QThread()
-        self._imageProcessor = ImageProcessor()
+        self._imageProcessor.moveToThread(self._processorThread)
+        self._processorThread.start()
 
         self._processRequested.connect(self._imageProcessor.setArray)
         self._imageProcessor.arrayChanged.connect(self.arrayChanged)
 
-        self._imageProcessor.moveToThread(self._processorThread)
-        self._processorThread.start()
+    def model(self) -> Optional[ExperimentDataModel]:
+        return self._model
 
     def setModel(self, model: Optional[ExperimentDataModel]):
-        oldModel = self._model
+        oldModel = self.model()
         if oldModel is not None:
             oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
         self._model = model
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
-
-    def setDisplay(self, display: Optional[MainDisplayWindow_V2]):
-        oldDisplay = self._display
-        if oldDisplay is not None:
-            oldDisplay.setPlayer(None)
-            oldDisplay.cameraActiveChanged.disconnect(self.setCameraActive)
-            self.arrayChanged.disconnect(oldDisplay.setArray)
-        self._display = display
-        if display is not None:
-            display.setPlayer(self._videoPlayer)
-            display.cameraActiveChanged.connect(self.setCameraActive)
-            self.arrayChanged.connect(display.setArray)
 
     @Slot(QModelIndex)
     def setActivatedIndex(self, index: QModelIndex):
@@ -153,8 +144,23 @@ class VisualizeManager(QObject):
             worker = None
         self._imageProcessor.setWorker(worker)
 
+    def camera(self) -> Optional[QCamera]:
+        return self._camera
+
+    def setCamera(self, camera: Optional[QCamera]):
+        oldCamera = self.camera()
+        if oldCamera is not None:
+            oldCamera.activeChanged.disconnect(  # type: ignore[attr-defined]
+                self._onCameraActiveChange
+            )
+        self._camera = camera
+        if camera is not None:
+            camera.activeChanged.connect(  # type: ignore[attr-defined]
+                self._onCameraActiveChange
+            )
+
     @Slot(bool)
-    def setCameraActive(self, active: bool):
+    def _onCameraActiveChange(self, active: bool):
         if active:
             frameSource = FrameSource.CAMERA
         else:
@@ -183,6 +189,19 @@ class VisualizeManager(QObject):
         if not processor.ready():
             return
         self._processRequested.emit(array)
+
+    def display(self) -> Optional[MainDisplayWindow_V2]:
+        return self._display
+
+    def setDisplay(self, display: Optional[MainDisplayWindow_V2]):
+        oldDisplay = self.display()
+        if oldDisplay is not None:
+            oldDisplay.setPlayer(None)
+            self.arrayChanged.disconnect(oldDisplay.setArray)
+        self._display = display
+        if display is not None:
+            display.setPlayer(self._videoPlayer)
+            self.arrayChanged.connect(display.setArray)
 
     def stop(self):
         self._processorThread.quit()

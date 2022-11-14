@@ -40,18 +40,19 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
 
         self._model = ExperimentDataModel()
+        self._visualizeManager = VisualizeManager()
         self._listView = ExperimentDataListView()
         self._dataViewTab = DataViewTab()
         self._display = MainDisplayWindow_V2()
-        self._visualizeManager = VisualizeManager()
         self._camera = QCamera()
 
         self._listView.setModel(self._model)
         self._dataViewTab.setModel(self._model)
         self._display.setModel(self._model)
         self._visualizeManager.setModel(self._model)
+        self._visualizeManager.setCamera(self._camera)
+        self._visualizeManager.setDisplay(self._display)
         self._display.setCamera(self._camera)
-        self._visualizeManager.setImageOutput(self._display)
 
         exptListDock = QDockWidget("List of experiments")
         exptListDock.setWidget(self._listView)
