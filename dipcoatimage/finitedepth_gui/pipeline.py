@@ -4,22 +4,20 @@ Video streaming pipeline
 
 from araviq6 import NDArrayVideoPlayer, NDArrayMediaCaptureSession
 import cv2  # type: ignore[import]
-import enum
 import numpy as np
 import numpy.typing as npt
-from dipcoatimage.finitedepth_gui.core import DataMember
+from dipcoatimage.finitedepth_gui.core import DataMember, FrameSource
 from dipcoatimage.finitedepth_gui.worker import ExperimentWorker
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
-from dipcoatimage.finitedepth_gui.display import MainDisplayWindow_V2
 from PySide6.QtCore import QObject, Signal, Slot, QUrl, QThread, QModelIndex
-from PySide6.QtMultimedia import QCamera
-from typing import Optional
+from PySide6.QtMultimedia import QCamera, QMediaPlayer
+from typing import Optional, Protocol
 
 
 __all__ = [
     "ImageProcessor",
     "PreviewableNDArrayVideoPlayer",
-    "FrameSource",
+    "DisplayProtocol",
     "VisualizeManager",
 ]
 
@@ -95,10 +93,12 @@ class PreviewableNDArrayVideoPlayer(NDArrayVideoPlayer):
         return img
 
 
-class FrameSource(enum.Enum):
-    NULL = 0
-    FILE = 1
-    CAMERA = 2
+class DisplayProtocol(Protocol):
+    def setPlayer(self, player: Optional[QMediaPlayer]):
+        ...
+
+    def setArray(self, array: np.ndarray):
+        ...
 
 
 class VisualizeManager(QObject):
@@ -190,10 +190,10 @@ class VisualizeManager(QObject):
             return
         self._processRequested.emit(array)
 
-    def display(self) -> Optional[MainDisplayWindow_V2]:
+    def display(self) -> Optional[DisplayProtocol]:
         return self._display
 
-    def setDisplay(self, display: Optional[MainDisplayWindow_V2]):
+    def setDisplay(self, display: Optional[DisplayProtocol]):
         oldDisplay = self.display()
         if oldDisplay is not None:
             oldDisplay.setPlayer(None)

@@ -6,6 +6,7 @@ Core objects for GUI.
 
 """
 import dataclasses
+import enum
 from dipcoatimage.finitedepth import (
     ExperimentBase,
     SubstrateReferenceBase,
@@ -19,7 +20,6 @@ from dipcoatimage.finitedepth.analysis import (
     CoatingLayerArgs,
 )
 from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol, Importer
-import enum
 from typing import Any, Optional, TypeVar, Type
 
 
@@ -32,6 +32,7 @@ __all__ = [
     "DataMember",
     "DataArgs",
     "VisualizationMode",
+    "FrameSource",
 ]
 
 
@@ -221,3 +222,9 @@ class VisualizationMode(enum.IntEnum):
     OFF = 0
     FULL = 1
     FAST = 2
+
+
+class FrameSource(enum.Enum):
+    NULL = 0
+    FILE = 1
+    CAMERA = 2
