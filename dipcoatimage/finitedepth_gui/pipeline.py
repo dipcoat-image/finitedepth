@@ -135,6 +135,7 @@ class VisualizeManager(QObject):
 
         self._model = None
         self._frameSource = FrameSource.NULL
+        self._currentView = DataMember.NULL
         self._videoPlayer = PreviewableNDArrayVideoPlayer()
         self._camera = None
         self._captureSession = NDArrayMediaCaptureSession()
@@ -187,16 +188,28 @@ class VisualizeManager(QObject):
             return
         if index != model.activatedIndex():
             return
-        if flag & DataArgs.COATPATHS:
-            coatPathsIdx = model.getIndexFor(IndexRole.COATPATHS, index)
-            coatPaths = [
-                model.index(row, 0, coatPathsIdx).data(model.Role_CoatPath)
-                for row in range(model.rowCount(coatPathsIdx))
-            ]
-            exptKind = experiment_kind(coatPaths)
-            display = self.display()
-            if display is not None:
-                display.setExperimentKind(exptKind)
+        if self._frameSource == FrameSource.FILE:
+            if flag & (DataArgs.REFPATH | DataArgs.REFERENCE) and self._currentView == DataMember.REFERENCE.REFERENCE:
+                worker = model.worker(model.activatedIndex())
+                if worker is None:
+                    img = np.empty((0, 0, 0), dtype=np.uint8)
+                else:
+                    ref = worker.reference
+                    if ref is not None:
+                        img = ref.draw()
+                    else:
+                        img = np.empty((0, 0, 0), dtype=np.uint8)
+                self.arrayChanged.emit(img)
+            if flag & DataArgs.COATPATHS:
+                coatPathsIdx = model.getIndexFor(IndexRole.COATPATHS, index)
+                coatPaths = [
+                    model.index(row, 0, coatPathsIdx).data(model.Role_CoatPath)
+                    for row in range(model.rowCount(coatPathsIdx))
+                ]
+                exptKind = experiment_kind(coatPaths)
+                display = self.display()
+                if display is not None:
+                    display.setExperimentKind(exptKind)
 
     def camera(self) -> Optional[QCamera]:
         return self._camera
@@ -272,6 +285,7 @@ class VisualizeManager(QObject):
         display = self.display()
         if display is not None:
             display.setCurrentView(currentView)
+        self._currentView = currentView
 
     @Slot(np.ndarray)
     def _displayImage(self, array: npt.NDArray[np.uint8]):
