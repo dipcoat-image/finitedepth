@@ -1,12 +1,10 @@
 from araviq6 import NDArrayLabel
-import dataclasses
 from PySide6.QtCore import Signal, Slot, QSize, QRect, QPoint, Qt, QModelIndex
 from PySide6.QtGui import QPaintEvent, QMouseEvent, QPainter, QBrush, QColor
-from dipcoatimage.finitedepth.analysis import ReferenceArgs
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
 from dipcoatimage.finitedepth_gui.views import ROIDrawFlag
-from typing import Union, Tuple, List, Optional
+from typing import Union, Tuple, List
 
 
 __all__ = [
@@ -225,27 +223,15 @@ class NDArrayROILabel(NDArrayLabel):
 class NDArrayROILabel_V2(NDArrayLabel):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._model = None
         self._currentModelIndex = QModelIndex()
         self._roiDrawFlag = ROIDrawFlag.NONE
+        self._drawing = False
         self._drawnROI = (-1, -1, -1, -1)
 
-    def model(self) -> Optional[ExperimentDataModel]:
-        return self._model
-
-    def setModel(self, model: Optional[ExperimentDataModel]):
-        oldModel = self.model()
-        if oldModel is not None:
-            oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
-        self._model = model
-        if model is not None:
-            model.activatedIndexChanged.connect(self.setActivatedIndex)
-
-    @Slot(QModelIndex)
     def setActivatedIndex(self, index: QModelIndex):
         model = index.model()
         if isinstance(model, ExperimentDataModel):
-            self._currentModelIndex = model.getIndexFor(IndexRole.REFARGS, index)
+            self._currentModelIndex = index
         else:
             self._currentModelIndex = QModelIndex()
 
@@ -259,22 +245,25 @@ class NDArrayROILabel_V2(NDArrayLabel):
 
     def paintEvent(self, event):
         super().paintEvent(event)
-        index = self._currentModelIndex
-        if not index.isValid():
-            return
-        refArgs = index.data(Qt.UserRole)
-        if not isinstance(refArgs, ReferenceArgs):
-            return
-        drawFlag = self._roiDrawFlag
-        if drawFlag is ROIDrawFlag.TEMPLATE:
-            roi = refArgs.templateROI
-        elif drawFlag is ROIDrawFlag.SUBSTRATE:
-            roi = refArgs.substrateROI
-        else:
-            return
 
         qp = QPainter(self)
         if not self._drawing:
+            index = self._currentModelIndex
+            if not index.isValid():
+                return
+            model = index.model()
+            if not isinstance(model, ExperimentDataModel):
+                return
+            refArgsIdx = model.getIndexFor(IndexRole.REFARGS, self._currentModelIndex)
+            drawFlag = self._roiDrawFlag
+            if drawFlag == ROIDrawFlag.TEMPLATE:
+                roiIdx = model.getIndexFor(IndexRole.REF_TEMPLATEROI, refArgsIdx)
+            elif drawFlag == ROIDrawFlag.SUBSTRATE:
+                roiIdx = model.getIndexFor(IndexRole.REF_SUBSTRATEROI, refArgsIdx)
+            else:
+                return
+            roi = roiIdx.data(model.Role_ROI)
+
             originalSize = self._original_pixmap.size()
             W, H = originalSize.width(), originalSize.height()
             x1, y1, x2, y2 = roi
@@ -313,6 +302,8 @@ class NDArrayROILabel_V2(NDArrayLabel):
 
     def mouseReleaseEvent(self, event):
         super().mouseReleaseEvent(event)
+        self._drawing = False
+
         x1, y1, _, _ = self._originalROI2LabelROI(self._drawnROI)
         pos = event.position()
         x2, y2 = pos.x(), pos.y()
@@ -326,24 +317,19 @@ class NDArrayROILabel_V2(NDArrayLabel):
         index = self._currentModelIndex
         if not index.isValid():
             return
-        refArgs = index.data(Qt.UserRole)
-        if not isinstance(refArgs, ReferenceArgs):
+        model = index.model()
+        if not isinstance(model, ExperimentDataModel):
             return
+        refArgsIdx = model.getIndexFor(IndexRole.REFARGS, self._currentModelIndex)
         drawFlag = self._roiDrawFlag
-        if drawFlag is ROIDrawFlag.TEMPLATE:
-            refArgs = dataclasses.replace(
-                refArgs, templateROI=tuple(map(int, self._drawnROI))
-            )
-            index.setData(refArgs, Qt.UserRole)
-        elif drawFlag is ROIDrawFlag.TEMPLATE:
-            refArgs = dataclasses.replace(
-                refArgs, substrateROI=tuple(map(int, self._drawnROI))
-            )
-            index.setData(refArgs, Qt.UserRole)
+        if drawFlag == ROIDrawFlag.TEMPLATE:
+            roiIdx = model.getIndexFor(IndexRole.REF_TEMPLATEROI, refArgsIdx)
+        elif drawFlag == ROIDrawFlag.SUBSTRATE:
+            roiIdx = model.getIndexFor(IndexRole.REF_SUBSTRATEROI, refArgsIdx)
         else:
             return
+        model.setData(roiIdx, tuple(map(int, self._drawnROI)), model.Role_ROI)
 
-        self._drawing = False
         self.update()
 
     def _labelROI2OriginalROI(self, roi: ROI) -> ROI:

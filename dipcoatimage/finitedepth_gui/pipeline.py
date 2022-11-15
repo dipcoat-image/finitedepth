@@ -109,6 +109,9 @@ class PreviewableNDArrayVideoPlayer(NDArrayVideoPlayer):
 
 
 class DisplayProtocol(Protocol):
+    def setActivatedIndex(self, index: QModelIndex):
+        ...
+
     def setExperimentKind(self, exptKind: ExperimentKind):
         ...
 
@@ -180,6 +183,7 @@ class VisualizeManager(QObject):
         display = self.display()
         if display is not None:
             display.setExperimentKind(exptKind)
+            display.setActivatedIndex(index)
 
     @Slot(QModelIndex, DataArgs)
     def _onExptDataChange(self, index: QModelIndex, flag: DataArgs):
@@ -189,7 +193,10 @@ class VisualizeManager(QObject):
         if index != model.activatedIndex():
             return
         if self._frameSource == FrameSource.FILE:
-            if flag & (DataArgs.REFPATH | DataArgs.REFERENCE) and self._currentView == DataMember.REFERENCE.REFERENCE:
+            if (
+                flag & (DataArgs.REFPATH | DataArgs.REFERENCE)
+                and self._currentView == DataMember.REFERENCE.REFERENCE
+            ):
                 worker = model.worker(model.activatedIndex())
                 if worker is None:
                     img = np.empty((0, 0, 0), dtype=np.uint8)

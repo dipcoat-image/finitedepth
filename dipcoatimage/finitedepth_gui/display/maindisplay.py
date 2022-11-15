@@ -12,7 +12,8 @@ from dipcoatimage.finitedepth_gui.core import (
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
 from dipcoatimage.finitedepth_gui.workers import MasterWorker
-from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt, QUrl
+from dipcoatimage.finitedepth_gui.views import ROIDrawFlag
+from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt, QUrl, QModelIndex
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
 from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaRecorder, QMediaPlayer
@@ -322,6 +323,9 @@ class MainDisplayWindow_V2(QMainWindow):
         centralWidget.setLayout(layout)
         self.setCentralWidget(centralWidget)
 
+    def setActivatedIndex(self, index: QModelIndex):
+        self._displayLabel.setActivatedIndex(index)
+
     def setExperimentKind(self, exptKind: ExperimentKind):
         controllerVisible = self.isExperimentVideo(
             self._frameSource, self._currentView, exptKind
@@ -369,3 +373,7 @@ class MainDisplayWindow_V2(QMainWindow):
 
     def setCamera(self, camera: Optional[QCamera]):
         self._displayToolBar.setCamera(camera)
+
+    @Slot(ROIDrawFlag)
+    def setROIDrawFlag(self, flag: ROIDrawFlag):
+        self._displayLabel.setROIDrawFlag(flag)
