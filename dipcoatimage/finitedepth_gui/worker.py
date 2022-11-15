@@ -16,6 +16,8 @@ from dipcoatimage.finitedepth import (
     ExperimentBase,
 )
 from dipcoatimage.finitedepth.analysis import (
+    ReferenceArgs,
+    SubstrateArgs,
     AnalysisArgs,
     ExperimentKind,
     experiment_kind,
@@ -191,32 +193,12 @@ class ExperimentWorker(QObject):
             self.referenceImage = refImg
 
         if flag & WorkerUpdateFlag.REFERENCE:
-            if self.referenceImage.size == 0:
-                self.reference = None
-            else:
-                refArgs = exptData.reference
-                try:
-                    ref = refArgs.as_reference(self.referenceImage)
-                    if not ref.valid():
-                        self.reference = None
-                    else:
-                        self.reference = ref
-                except TypeError:
-                    self.reference = None
+            self.reference = self.constructReference(
+                self.referenceImage, exptData.reference
+            )
 
         if flag & WorkerUpdateFlag.SUBSTRATE:
-            if self.reference is None:
-                self.substrate = None
-            else:
-                substArgs = exptData.substrate
-                try:
-                    subst = substArgs.as_substrate(self.reference)
-                    if not subst.valid():
-                        self.substrate = None
-                    else:
-                        self.substrate = subst
-                except TypeError:
-                    self.substrate = None
+            self.substrate = self.constructSubstrate(self.reference, exptData.substrate)
 
         if flag & WorkerUpdateFlag.EXPERIMENT:
             if self.substrate is None:
@@ -239,14 +221,35 @@ class ExperimentWorker(QObject):
             self.analysisWorker.coat_paths = exptData.coat_paths
             self.analysisWorker.analysisArgs = exptData.analysis
 
-    def setReferenceImage(self, image: npt.NDArray[np.uint8]):
-        self.referenceImage = image
-        self.setExperimentData(
-            self.exptData,
-            WorkerUpdateFlag.REFERENCE
-            | WorkerUpdateFlag.SUBSTRATE
-            | WorkerUpdateFlag.EXPERIMENT,
-        )
+    @staticmethod
+    def constructReference(
+        refImg: npt.NDArray[np.uint8], refArgs: ReferenceArgs
+    ) -> Optional[SubstrateReferenceBase]:
+        if refImg.size == 0:
+            ref = None
+        else:
+            try:
+                ref = refArgs.as_reference(refImg)
+                if not ref.valid():
+                    ref = None
+            except TypeError:
+                ref = None
+        return ref
+
+    @staticmethod
+    def constructSubstrate(
+        ref: Optional[SubstrateReferenceBase], substArgs: SubstrateArgs
+    ) -> Optional[SubstrateBase]:
+        if ref is None:
+            subst = None
+        else:
+            try:
+                subst = substArgs.as_substrate(ref)
+                if not subst.valid():
+                    subst = None
+            except TypeError:
+                subst = None
+        return subst
 
     def _onAnalysisStateChange(self, state: AnalysisState):
         self._analysisState = state
@@ -259,34 +262,3 @@ class ExperimentWorker(QObject):
     def _onAnalysisProgressValueChange(self, value: int):
         self._analysisProgressValue = value
         self.analysisProgressValueChanged.emit(value)
-
-    def drawReferenceImage(self) -> npt.NDArray[np.uint8]:
-        reference = self.reference
-        if reference is not None:
-            image = reference.draw()
-        else:
-            image = self.referenceImage
-        return image
-
-    def drawSubstrateImage(self) -> npt.NDArray[np.uint8]:
-        substrate = self.substrate
-        if substrate is not None:
-            image = substrate.draw()
-        else:
-            image = self.referenceImage
-            h, w = image.shape[:2]
-            substROI = self.exptData.reference.substrateROI
-            x0, y0, x1, y1 = SubstrateReferenceBase.sanitize_ROI(substROI, h, w)
-            image = image[y0:y1, x0:x1]
-        return image
-
-    def drawCoatingLayerImage(
-        self, image: npt.NDArray[np.uint8]
-    ) -> npt.NDArray[np.uint8]:
-        expt = self.experiment
-        if expt is not None:
-            if image.size > 0:
-                layer = expt.construct_coatinglayer(image)
-                if layer.valid():
-                    image = layer.draw()
-        return image

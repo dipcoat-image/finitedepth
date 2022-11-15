@@ -6,6 +6,7 @@ from araviq6 import NDArrayVideoPlayer, NDArrayMediaCaptureSession
 import cv2  # type: ignore[import]
 import numpy as np
 import numpy.typing as npt
+from dipcoatimage.finitedepth import SubstrateReferenceBase
 from dipcoatimage.finitedepth.analysis import ExperimentKind, experiment_kind
 from dipcoatimage.finitedepth_gui.core import DataMember, DataArgs, FrameSource
 from dipcoatimage.finitedepth_gui.worker import ExperimentWorker
@@ -24,7 +25,7 @@ __all__ = [
 
 
 class ImageProcessor(QObject):
-    """Object to process the incoming image."""
+    """Object to process the incoming image from video or camera."""
 
     arrayChanged = Signal(np.ndarray)
 
@@ -52,13 +53,26 @@ class ImageProcessor(QObject):
         if worker is None:
             return array
         if self._currentView == DataMember.REFERENCE:
-            worker.setReferenceImage(array)
-            array = worker.drawReferenceImage()
+            ref = worker.constructReference(array, worker.exptData.reference)
+            if ref is not None:
+                array = ref.draw()
         elif self._currentView == DataMember.SUBSTRATE:
-            worker.setReferenceImage(array)
-            array = worker.drawSubstrateImage()
+            ref = worker.constructReference(array, worker.exptData.reference)
+            subst = worker.constructSubstrate(ref, worker.exptData.substrate)
+            if subst is not None:
+                array = subst.draw()
+            else:
+                h, w = array.shape[:2]
+                substROI = worker.exptData.reference.substrateROI
+                x0, y0, x1, y1 = SubstrateReferenceBase.sanitize_ROI(substROI, h, w)
+                array = array[y0:y1, x0:x1]
         else:
-            array = worker.drawCoatingLayerImage(array)
+            expt = worker.experiment
+            if expt is not None:
+                if array.size > 0:
+                    layer = expt.construct_coatinglayer(array)
+                    if layer.valid():
+                        array = layer.draw()
         return array
 
     def ready(self) -> bool:
@@ -225,7 +239,19 @@ class VisualizeManager(QObject):
 
     @Slot(DataMember)
     def setCurrentView(self, currentView: DataMember):
+        if currentView in (DataMember.REFERENCE, DataMember.SUBSTRATE):
+            self._videoPlayer.pause()
         self._imageProcessor.setCurrentView(currentView)
+        model = self.model()
+        if model is None:
+            return
+        if self._frameSource == FrameSource.FILE:
+            if currentView == DataMember.REFERENCE:
+                ...
+            elif currentView == DataMember.SUBSTRATE:
+                ...
+            else:
+                ...
         self.currentViewChanged.emit(currentView)
 
     @Slot(np.ndarray)

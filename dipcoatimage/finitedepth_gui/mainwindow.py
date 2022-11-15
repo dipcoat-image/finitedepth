@@ -8,6 +8,7 @@ V2 for analysisgui.py
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMainWindow, QDockWidget
 from PySide6.QtMultimedia import QCamera
+from dipcoatimage.finitedepth_gui.core import FrameSource
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from dipcoatimage.finitedepth_gui.views import ExperimentDataListView, DataViewTab
 from dipcoatimage.finitedepth_gui.display import MainDisplayWindow_V2
@@ -64,6 +65,8 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.BottomDockWidgetArea, exptDataDock)
         self.setCentralWidget(self._display)
         self.setWindowTitle("Coating layer analysis")
+
+        self._visualizeManager.setFrameSource(FrameSource.FILE)
 
     def closeEvent(self, event):
         self._visualizeManager.stop()
