@@ -560,9 +560,9 @@ class ExperimentDataModel(QAbstractItemModel):
             else:
                 dataArgs = DataArgs.NULL
                 workerUpdateFlag = WorkerUpdateFlag.NULL
+            self.updateWorker(topLevelIndex, workerUpdateFlag)
             self.dataChanged.emit(index, index, [role])
             self.emitExperimentDataChanged(topLevelIndex, dataArgs)
-            self.updateWorker(topLevelIndex, workerUpdateFlag)
             return True
         return False
 
@@ -625,8 +625,8 @@ class ExperimentDataModel(QAbstractItemModel):
             self.endInsertRows()
 
             topLevelIndex = self.getTopLevelIndex(parent)
-            self.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
             self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
+            self.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
             return True
         return False
 
@@ -727,8 +727,8 @@ class ExperimentDataModel(QAbstractItemModel):
             self.endInsertRows()
 
             topLevelIndex = self.getTopLevelIndex(sourceParent)
-            self.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
             self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
+            self.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
         return False
 
     def removeRows(self, row, count, parent=QModelIndex()):
@@ -762,8 +762,8 @@ class ExperimentDataModel(QAbstractItemModel):
             self.endRemoveRows()
 
             topLevelIndex = self.getTopLevelIndex(parent)
-            self.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
             self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
+            self.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
             return True
         return False
 

@@ -359,13 +359,13 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
                     )
 
                 topLevelIndex = model.getTopLevelIndex(index)
-                model.emitExperimentDataChanged(topLevelIndex, DataArgs.REFERENCE)
                 flag = (
                     WorkerUpdateFlag.REFERENCE
                     | WorkerUpdateFlag.SUBSTRATE
                     | WorkerUpdateFlag.EXPERIMENT
                 )
                 model.updateWorker(topLevelIndex, flag)
+                model.emitExperimentDataChanged(topLevelIndex, DataArgs.REFERENCE)
 
         super().setModelData(editor, model, index)
 

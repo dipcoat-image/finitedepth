@@ -268,8 +268,8 @@ class AnalysisArgsDelegate(QStyledItemDelegate):
                     model.setData(index, analysisArgs, role=model.Role_AnalysisArgs)
 
                 topLevelIndex = model.getTopLevelIndex(index)
-                model.emitExperimentDataChanged(topLevelIndex, DataArgs.ANALYSIS)
                 model.updateWorker(topLevelIndex, WorkerUpdateFlag.ANALYSIS)
+                model.emitExperimentDataChanged(topLevelIndex, DataArgs.ANALYSIS)
 
         super().setModelData(editor, model, index)
 

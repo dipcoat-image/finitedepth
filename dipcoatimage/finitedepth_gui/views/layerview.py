@@ -253,8 +253,8 @@ class CoatingLayerArgsDelegate(dawiq.DataclassDelegate):
                     )
 
                 topLevelIndex = model.getTopLevelIndex(index)
-                model.emitExperimentDataChanged(topLevelIndex, DataArgs.COATINGLAYER)
                 model.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
+                model.emitExperimentDataChanged(topLevelIndex, DataArgs.COATINGLAYER)
 
         super().setModelData(editor, model, index)
 

@@ -188,8 +188,8 @@ class ExperimentView(QWidget):
                 model.setData(index, path, role=model.Role_CoatPath)
 
         topLevelIndex = model.getTopLevelIndex(parent)
-        model.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
         model.updateWorker(topLevelIndex, WorkerUpdateFlag.ANALYSIS)
+        model.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
 
     @Slot()
     def deleteSelectedPaths(self):
@@ -210,8 +210,8 @@ class ExperimentView(QWidget):
                 model.removeRows(row_list[0], len(row_list), parent)
 
         topLevelIndex = model.getTopLevelIndex(parent)
-        model.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
         model.updateWorker(topLevelIndex, WorkerUpdateFlag.ANALYSIS)
+        model.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
 
     def parametersStackedWidget(self) -> dawiq.DataclassStackedWidget:
         return self._paramStackWidget
@@ -291,8 +291,8 @@ class ExperimentArgsDelegate(dawiq.DataclassDelegate):
                     )
 
                 topLevelIndex = model.getTopLevelIndex(index)
-                model.emitExperimentDataChanged(topLevelIndex, DataArgs.EXPERIMENT)
                 model.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
+                model.emitExperimentDataChanged(topLevelIndex, DataArgs.EXPERIMENT)
 
         super().setModelData(editor, model, index)
 
