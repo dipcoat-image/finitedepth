@@ -322,7 +322,6 @@ class MainDisplayWindow_V2(QMainWindow):
         centralWidget.setLayout(layout)
         self.setCentralWidget(centralWidget)
 
-    @Slot(ExperimentKind)
     def setExperimentKind(self, exptKind: ExperimentKind):
         controllerVisible = self.isExperimentVideo(
             self._frameSource, self._currentView, exptKind
@@ -330,7 +329,6 @@ class MainDisplayWindow_V2(QMainWindow):
         self._videoController.setVisible(controllerVisible)
         self._exptKind = exptKind
 
-    @Slot(DataMember)
     def setCurrentView(self, currentView: DataMember):
         controllerVisible = self.isExperimentVideo(
             self._frameSource, currentView, self._exptKind
@@ -338,7 +336,6 @@ class MainDisplayWindow_V2(QMainWindow):
         self._videoController.setVisible(controllerVisible)
         self._currentView = currentView
 
-    @Slot(FrameSource)
     def setFrameSource(self, frameSource: FrameSource):
         controllerVisible = self.isExperimentVideo(
             frameSource, self._currentView, self._exptKind

@@ -127,9 +127,6 @@ class DisplayProtocol(Protocol):
 
 class VisualizeManager(QObject):
 
-    experimentKindChanged = Signal(ExperimentKind)
-    currentViewChanged = Signal(DataMember)
-    frameSourceChanged = Signal(FrameSource)
     _processRequested = Signal(np.ndarray)
     arrayChanged = Signal(np.ndarray)
 
@@ -179,7 +176,9 @@ class VisualizeManager(QObject):
             worker = None
             exptKind = ExperimentKind.NullExperiment
         self._imageProcessor.setWorker(worker)
-        self.experimentKindChanged.emit(exptKind)
+        display = self.display()
+        if display is not None:
+            display.setExperimentKind(exptKind)
 
     @Slot(QModelIndex, DataArgs)
     def _onExptDataChange(self, index: QModelIndex, flag: DataArgs):
@@ -195,7 +194,9 @@ class VisualizeManager(QObject):
                 for row in range(model.rowCount(coatPathsIdx))
             ]
             exptKind = experiment_kind(coatPaths)
-            self.experimentKindChanged.emit(exptKind)
+            display = self.display()
+            if display is not None:
+                display.setExperimentKind(exptKind)
 
     def camera(self) -> Optional[QCamera]:
         return self._camera
@@ -235,7 +236,9 @@ class VisualizeManager(QObject):
             self._videoPlayer.arrayChanged.connect(self._displayImage)
         else:
             pass
-        self.frameSourceChanged.emit(frameSource)
+        display = self.display()
+        if display is not None:
+            display.setFrameSource(frameSource)
 
     @Slot(DataMember)
     def setCurrentView(self, currentView: DataMember):
@@ -266,7 +269,9 @@ class VisualizeManager(QObject):
                     ...
                     img = np.empty((0, 0, 0), dtype=np.uint8)
             self.arrayChanged.emit(img)
-        self.currentViewChanged.emit(currentView)
+        display = self.display()
+        if display is not None:
+            display.setCurrentView(currentView)
 
     @Slot(np.ndarray)
     def _displayImage(self, array: npt.NDArray[np.uint8]):
@@ -281,16 +286,10 @@ class VisualizeManager(QObject):
     def setDisplay(self, display: Optional[DisplayProtocol]):
         oldDisplay = self.display()
         if oldDisplay is not None:
-            self.experimentKindChanged.disconnect(oldDisplay.setExperimentKind)
-            self.currentViewChanged.disconnect(oldDisplay.setCurrentView)
-            self.frameSourceChanged.disconnect(oldDisplay.setFrameSource)
             oldDisplay.setPlayer(None)
             self.arrayChanged.disconnect(oldDisplay.setArray)
         self._display = display
         if display is not None:
-            self.experimentKindChanged.connect(display.setExperimentKind)
-            self.currentViewChanged.connect(display.setCurrentView)
-            self.frameSourceChanged.connect(display.setFrameSource)
             display.setPlayer(self._videoPlayer)
             self.arrayChanged.connect(display.setArray)
 
