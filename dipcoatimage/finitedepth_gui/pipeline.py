@@ -246,12 +246,26 @@ class VisualizeManager(QObject):
         if model is None:
             return
         if self._frameSource == FrameSource.FILE:
-            if currentView == DataMember.REFERENCE:
-                ...
-            elif currentView == DataMember.SUBSTRATE:
-                ...
+            worker = model.worker(model.activatedIndex())
+            if worker is None:
+                img = np.empty((0, 0, 0), dtype=np.uint8)
             else:
-                ...
+                if currentView == DataMember.REFERENCE:
+                    ref = worker.reference
+                    if ref is not None:
+                        img = ref.draw()
+                    else:
+                        img = np.empty((0, 0, 0), dtype=np.uint8)
+                elif currentView == DataMember.SUBSTRATE:
+                    subst = worker.substrate
+                    if subst is not None:
+                        img = subst.draw()
+                    else:
+                        img = np.empty((0, 0, 0), dtype=np.uint8)
+                else:
+                    ...
+                    img = np.empty((0, 0, 0), dtype=np.uint8)
+            self.arrayChanged.emit(img)
         self.currentViewChanged.emit(currentView)
 
     @Slot(np.ndarray)
