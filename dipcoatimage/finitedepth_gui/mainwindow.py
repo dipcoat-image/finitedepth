@@ -48,10 +48,12 @@ class MainWindow(QMainWindow):
 
         self._listView.setModel(self._model)
         self._dataViewTab.setModel(self._model)
-        self._display.setModel(self._model)
         self._visualizeManager.setModel(self._model)
         self._visualizeManager.setCamera(self._camera)
         self._visualizeManager.setDisplay(self._display)
+        self._dataViewTab.currentViewChanged.connect(
+            self._visualizeManager.setCurrentView
+        )
         self._display.setCamera(self._camera)
 
         exptListDock = QDockWidget("List of experiments")

@@ -789,7 +789,7 @@ class ExperimentDataModel(QAbstractItemModel):
 
         Emits :attr:`activatedIndexChanged` signal.
         """
-        oldIndex = self._activatedIndex
+        oldIndex = self.activatedIndex()
         oldWorker = self.worker(oldIndex)
         if oldWorker is not None:
             oldWorker.analysisStateChanged.disconnect(self.analysisStateChanged)

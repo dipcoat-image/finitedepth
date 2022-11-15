@@ -6,9 +6,10 @@ from araviq6 import NDArrayVideoPlayer, NDArrayMediaCaptureSession
 import cv2  # type: ignore[import]
 import numpy as np
 import numpy.typing as npt
-from dipcoatimage.finitedepth_gui.core import DataMember, FrameSource
+from dipcoatimage.finitedepth.analysis import ExperimentKind, experiment_kind
+from dipcoatimage.finitedepth_gui.core import DataMember, DataArgs, FrameSource
 from dipcoatimage.finitedepth_gui.worker import ExperimentWorker
-from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
+from dipcoatimage.finitedepth_gui.model import IndexRole, ExperimentDataModel
 from PySide6.QtCore import QObject, Signal, Slot, QUrl, QThread, QModelIndex
 from PySide6.QtMultimedia import QCamera, QMediaPlayer
 from typing import Optional, Protocol
@@ -94,6 +95,11 @@ class PreviewableNDArrayVideoPlayer(NDArrayVideoPlayer):
 
 
 class DisplayProtocol(Protocol):
+    def setExperimentKind(self, exptKind: ExperimentKind):
+        ...
+
+    def setCurrentView(self, currentView: DataMember):
+        ...
 
     def setFrameSource(self, frameSource: FrameSource):
         ...
@@ -107,8 +113,10 @@ class DisplayProtocol(Protocol):
 
 class VisualizeManager(QObject):
 
-    _processRequested = Signal(np.ndarray)
+    experimentKindChanged = Signal(ExperimentKind)
+    currentViewChanged = Signal(DataMember)
     frameSourceChanged = Signal(FrameSource)
+    _processRequested = Signal(np.ndarray)
     arrayChanged = Signal(np.ndarray)
 
     def __init__(self, parent=None):
@@ -135,19 +143,45 @@ class VisualizeManager(QObject):
     def setModel(self, model: Optional[ExperimentDataModel]):
         oldModel = self.model()
         if oldModel is not None:
-            oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
+            oldModel.activatedIndexChanged.disconnect(self._onActivatedIndexChange)
+            oldModel.experimentDataChanged.disconnect(self._onExptDataChange)
         self._model = model
         if model is not None:
-            model.activatedIndexChanged.connect(self.setActivatedIndex)
+            model.activatedIndexChanged.connect(self._onActivatedIndexChange)
+            model.experimentDataChanged.connect(self._onExptDataChange)
 
     @Slot(QModelIndex)
-    def setActivatedIndex(self, index: QModelIndex):
+    def _onActivatedIndexChange(self, index: QModelIndex):
         model = index.model()
         if isinstance(model, ExperimentDataModel):
             worker = model.worker(index)
+            coatPathsIdx = model.getIndexFor(IndexRole.COATPATHS, index)
+            coatPaths = [
+                model.index(row, 0, coatPathsIdx).data(model.Role_CoatPath)
+                for row in range(model.rowCount(coatPathsIdx))
+            ]
+            exptKind = experiment_kind(coatPaths)
         else:
             worker = None
+            exptKind = ExperimentKind.NullExperiment
         self._imageProcessor.setWorker(worker)
+        self.experimentKindChanged.emit(exptKind)
+
+    @Slot(QModelIndex, DataArgs)
+    def _onExptDataChange(self, index: QModelIndex, flag: DataArgs):
+        model = index.model()
+        if not isinstance(model, ExperimentDataModel):
+            return
+        if index != model.activatedIndex():
+            return
+        if flag & DataArgs.COATPATHS:
+            coatPathsIdx = model.getIndexFor(IndexRole.COATPATHS, index)
+            coatPaths = [
+                model.index(row, 0, coatPathsIdx).data(model.Role_CoatPath)
+                for row in range(model.rowCount(coatPathsIdx))
+            ]
+            exptKind = experiment_kind(coatPaths)
+            self.experimentKindChanged.emit(exptKind)
 
     def camera(self) -> Optional[QCamera]:
         return self._camera
@@ -189,6 +223,11 @@ class VisualizeManager(QObject):
             pass
         self.frameSourceChanged.emit(frameSource)
 
+    @Slot(DataMember)
+    def setCurrentView(self, currentView: DataMember):
+        self._imageProcessor.setCurrentView(currentView)
+        self.currentViewChanged.emit(currentView)
+
     @Slot(np.ndarray)
     def _displayImage(self, array: npt.NDArray[np.uint8]):
         processor = self._imageProcessor
@@ -202,12 +241,16 @@ class VisualizeManager(QObject):
     def setDisplay(self, display: Optional[DisplayProtocol]):
         oldDisplay = self.display()
         if oldDisplay is not None:
+            self.experimentKindChanged.disconnect(oldDisplay.setExperimentKind)
+            self.currentViewChanged.disconnect(oldDisplay.setCurrentView)
             self.frameSourceChanged.disconnect(oldDisplay.setFrameSource)
             oldDisplay.setPlayer(None)
             self.arrayChanged.disconnect(oldDisplay.setArray)
         self._display = display
         if display is not None:
-            self.frameSourceChanged.connect(oldDisplay.setFrameSource)
+            self.experimentKindChanged.connect(display.setExperimentKind)
+            self.currentViewChanged.connect(display.setCurrentView)
+            self.frameSourceChanged.connect(display.setFrameSource)
             display.setPlayer(self._videoPlayer)
             self.arrayChanged.connect(display.setArray)
 
