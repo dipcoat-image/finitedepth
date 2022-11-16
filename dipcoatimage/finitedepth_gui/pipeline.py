@@ -151,12 +151,16 @@ class VisualizeManager(QObject):
         self._imageProcessor.setWorker(worker)
 
         oldExptKind = self._exptKind
-        if oldExptKind == ExperimentKind.VideoExperiment:
-            if self._frameSource == FrameSource.FILE and self._currentView not in (
+        if (
+            oldExptKind == ExperimentKind.VideoExperiment
+            and self._frameSource == FrameSource.FILE
+            and self._currentView
+            not in (
                 DataMember.REFERENCE,
                 DataMember.SUBSTRATE,
-            ):
-                self._videoPlayer.arrayChanged.disconnect(self._displayImage)
+            )
+        ):
+            self._videoPlayer.arrayChanged.disconnect(self._displayImage)
         exptKind = experiment_kind(coatPaths)
         if exptKind == ExperimentKind.VideoExperiment:
             if self._frameSource == FrameSource.FILE and self._currentView not in (
@@ -224,52 +228,40 @@ class VisualizeManager(QObject):
             return
         if index != model.activatedIndex():
             return
-        if self._frameSource == FrameSource.FILE:
+        worker = model.worker(index)
+        if worker is None:
+            return
+
+        self._imageProcessor.setWorker(worker)
+
+        if flag & DataArgs.COATPATHS:
+            oldExptKind = self._exptKind
             if (
-                flag & (DataArgs.REFPATH | DataArgs.REFERENCE)
-                and self._currentView == DataMember.REFERENCE
+                oldExptKind == ExperimentKind.VideoExperiment
+                and self._frameSource == FrameSource.FILE
+                and self._currentView
+                not in (
+                    DataMember.REFERENCE,
+                    DataMember.SUBSTRATE,
+                )
             ):
-                worker = model.worker(model.activatedIndex())
-                if worker is None:
-                    img = np.empty((0, 0, 0), dtype=np.uint8)
-                else:
-                    ref = worker.reference
-                    if ref is not None:
-                        img = ref.draw()
-                    else:
-                        img = np.empty((0, 0, 0), dtype=np.uint8)
-                self.arrayChanged.emit(img)
-            elif (
-                flag & (DataArgs.REFPATH | DataArgs.REFERENCE | DataArgs.SUBSTRATE)
-                and self._currentView == DataMember.SUBSTRATE
-            ):
-                worker = model.worker(model.activatedIndex())
-                if worker is None:
-                    img = np.empty((0, 0, 0), dtype=np.uint8)
-                else:
-                    subst = worker.substrate
-                    if subst is not None:
-                        img = subst.draw()
-                    else:
-                        img = worker.referenceImage
-                        h, w = img.shape[:2]
-                        roi = worker.exptData.reference.substrateROI
-                        x0, y0, x1, y1 = SubstrateReferenceBase.sanitize_ROI(roi, h, w)
-                        img = img[y0:y1, x0:x1]
-                self.arrayChanged.emit(img)
-            elif flag & DataArgs.COATPATHS:
-                worker = model.worker(model.activatedIndex())
-                if worker is None:
-                    coatPaths = []
-                else:
-                    coatPaths = worker.exptData.coat_paths
-                exptKind = experiment_kind(coatPaths)
-                if exptKind == ExperimentKind.VideoExperiment:
-                    source = QUrl.fromLocalFile(coatPaths[0])
-                    self._videoPlayer.setSource(source)
-                display = self.display()
-                if display is not None:
-                    display.setExperimentKind(exptKind)
+                self._videoPlayer.arrayChanged.disconnect(self._displayImage)
+            coatPaths = worker.exptData.coat_paths
+            exptKind = experiment_kind(coatPaths)
+            if exptKind == ExperimentKind.VideoExperiment:
+                if self._frameSource == FrameSource.FILE and self._currentView not in (
+                    DataMember.REFERENCE,
+                    DataMember.SUBSTRATE,
+                ):
+                    self._videoPlayer.arrayChanged.connect(self._displayImage)
+                source = QUrl.fromLocalFile(coatPaths[0])
+                self._videoPlayer.setSource(source)
+            else:
+                self._videoPlayer.setSource(QUrl())
+            self._exptKind = exptKind
+            display = self.display()
+            if display is not None:
+                display.setExperimentKind(exptKind)
 
     def camera(self) -> Optional[QCamera]:
         return self._camera
