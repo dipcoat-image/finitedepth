@@ -61,10 +61,8 @@ class ImageProcessor(QObject):
             if subst is not None:
                 array = subst.draw()
             else:
-                h, w = array.shape[:2]
-                substROI = worker.exptData.reference.substrateROI
-                x0, y0, x1, y1 = SubstrateReferenceBase.sanitize_ROI(substROI, h, w)
-                array = array[y0:y1, x0:x1]
+                roi = worker.exptData.reference.substrateROI
+                array = cropForSubstrate(array, roi)
         else:
             expt = worker.experiment
             if expt is not None:
@@ -191,10 +189,8 @@ class VisualizeManager(QObject):
                     img = subst.draw()
                 else:
                     img = worker.referenceImage
-                    h, w = img.shape[:2]
                     roi = worker.exptData.reference.substrateROI
-                    x0, y0, x1, y1 = SubstrateReferenceBase.sanitize_ROI(roi, h, w)
-                    img = img[y0:y1, x0:x1]
+                    img = cropForSubstrate(img, roi)
                 self.arrayChanged.emit(img)
             else:
                 if exptKind in (
@@ -364,10 +360,8 @@ class VisualizeManager(QObject):
                         img = subst.draw()
                     else:
                         img = worker.referenceImage
-                        h, w = img.shape[:2]
                         roi = worker.exptData.reference.substrateROI
-                        x0, y0, x1, y1 = SubstrateReferenceBase.sanitize_ROI(roi, h, w)
-                        img = img[y0:y1, x0:x1]
+                        img = cropForSubstrate(img, roi)
                 else:
                     ...
                     img = np.empty((0, 0, 0), dtype=np.uint8)
@@ -400,3 +394,9 @@ class VisualizeManager(QObject):
     def stop(self):
         self._processorThread.quit()
         self._processorThread.wait()
+
+
+def cropForSubstrate(img, roi):
+    h, w = img.shape[:2]
+    x0, y0, x1, y1 = SubstrateReferenceBase.sanitize_ROI(roi, h, w)
+    return img[y0:y1, x0:x1]
