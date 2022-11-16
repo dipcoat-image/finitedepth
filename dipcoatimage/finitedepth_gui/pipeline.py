@@ -138,8 +138,6 @@ class VisualizeManager(QObject):
 
     @Slot(QModelIndex)
     def _onActivatedIndexChange(self, index: QModelIndex):
-        self._videoPlayer.stop()
-
         model = index.model()
         if isinstance(model, ExperimentDataModel):
             worker = model.worker(index)
