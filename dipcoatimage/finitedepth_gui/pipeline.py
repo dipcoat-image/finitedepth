@@ -31,11 +31,13 @@ class ImageProcessor(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._worker = None
+        self._prev = None
         self._currentView = DataMember.NULL
         self._ready = True
 
     def setWorker(self, worker: Optional[ExperimentWorker]):
         self._worker = worker
+        self._prev = None
 
     def setCurrentView(self, currentView: DataMember):
         self._currentView = currentView
@@ -67,9 +69,12 @@ class ImageProcessor(QObject):
             expt = worker.experiment
             if expt is not None:
                 if array.size > 0:
-                    layer = expt.construct_coatinglayer(array)
+                    layer = expt.construct_coatinglayer(array, self._prev)
                     if layer.valid():
                         array = layer.draw()
+                        self._prev = layer
+                    else:
+                        self._prev = None
         return array
 
     def ready(self) -> bool:
