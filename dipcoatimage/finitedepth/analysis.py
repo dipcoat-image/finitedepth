@@ -321,6 +321,33 @@ class Analyzer:
             analysis_gen.send(img)
         analysis_gen.send(None)
 
+    def layer_generator(
+        self, prev: Optional[CoatingLayerBase] = None
+    ) -> Generator[CoatingLayerBase, npt.NDArray[np.uint8], None]:
+        """
+        Generator which receives coated substrate image to yield instance of
+        :attr:`layer_type`.
+
+        As new image is sent, coating layer instance is created using
+        :meth:`construct_coatinglayer` of :attr:`experiment` with the previous
+        coating layer instance. *prev* is used as the previous instance for the
+        first yield value.
+
+        Parameters
+        ==========
+
+        prev
+            Coating layer instance treated to be previous one to construct the
+            first coating layer instance.
+
+        """
+        expt = self.experiment
+        while True:
+            img = yield  # type: ignore
+            layer = expt.construct_coatinglayer(img, prev)
+            yield layer
+            prev = layer
+
     def analysis_generator(
         self,
         data_path: str = "",
@@ -391,7 +418,7 @@ class Analyzer:
         else:
             write_video = False
 
-        layer_gen = self.experiment.layer_generator()
+        layer_gen = self.layer_generator()
         i = 0
         try:
             while True:
