@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
 )
 from dipcoatimage.finitedepth import SubstrateReferenceBase
 from dipcoatimage.finitedepth.analysis import ImportArgs
-from dipcoatimage.finitedepth.util import DataclassProtocol, Importer, OptionalROI
+from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
 from dipcoatimage.finitedepth_gui.core import DataArgs
 from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import (
