@@ -10,7 +10,7 @@ from dipcoatimage.finitedepth import SubstrateReferenceBase
 from dipcoatimage.finitedepth.analysis import ExperimentKind, experiment_kind
 from dipcoatimage.finitedepth_gui.core import DataMember, DataArgs, FrameSource
 from dipcoatimage.finitedepth_gui.worker import ExperimentWorker
-from dipcoatimage.finitedepth_gui.model import IndexRole, ExperimentDataModel
+from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from PySide6.QtCore import QObject, Signal, Slot, QUrl, QThread, QModelIndex
 from PySide6.QtMultimedia import QCamera, QMediaPlayer
 from typing import Optional, Protocol
@@ -109,6 +109,7 @@ class VisualizeManager(QObject):
         self._frameSource = FrameSource.NULL
         self._currentView = DataMember.NULL
         self._videoPlayer = NDArrayVideoPlayer()
+        self._lastVideoFrame = np.empty((0, 0, 0), dtype=np.uint8)
         self._camera = None
         self._captureSession = NDArrayMediaCaptureSession()
         self._imageProcessor = ImageProcessor()
@@ -158,14 +159,14 @@ class VisualizeManager(QObject):
                 DataMember.SUBSTRATE,
             )
         ):
-            self._videoPlayer.arrayChanged.disconnect(self._displayImage)
+            self._videoPlayer.arrayChanged.disconnect(self._displayImageFromVideo)
         exptKind = experiment_kind(coatPaths)
         if exptKind == ExperimentKind.VideoExperiment:
             if self._frameSource == FrameSource.FILE and self._currentView not in (
                 DataMember.REFERENCE,
                 DataMember.SUBSTRATE,
             ):
-                self._videoPlayer.arrayChanged.connect(self._displayImage)
+                self._videoPlayer.arrayChanged.connect(self._displayImageFromVideo)
             source = QUrl.fromLocalFile(coatPaths[0])
             self._videoPlayer.setSource(source)
         else:
@@ -241,7 +242,7 @@ class VisualizeManager(QObject):
                     DataMember.SUBSTRATE,
                 )
             ):
-                self._videoPlayer.arrayChanged.disconnect(self._displayImage)
+                self._videoPlayer.arrayChanged.disconnect(self._displayImageFromVideo)
             coatPaths = worker.exptData.coat_paths
             exptKind = experiment_kind(coatPaths)
             if exptKind == ExperimentKind.VideoExperiment:
@@ -249,7 +250,7 @@ class VisualizeManager(QObject):
                     DataMember.REFERENCE,
                     DataMember.SUBSTRATE,
                 ):
-                    self._videoPlayer.arrayChanged.connect(self._displayImage)
+                    self._videoPlayer.arrayChanged.connect(self._displayImageFromVideo)
                 source = QUrl.fromLocalFile(coatPaths[0])
                 self._videoPlayer.setSource(source)
             else:
@@ -258,6 +259,68 @@ class VisualizeManager(QObject):
             display = self.display()
             if display is not None:
                 display.setExperimentKind(exptKind)
+
+        if self._currentView == DataMember.REFERENCE:
+            if flag & (DataArgs.REFPATH | DataArgs.REFERENCE):
+                ref = worker.reference
+                if ref is not None:
+                    img = ref.draw()
+                else:
+                    img = np.empty((0, 0, 0), dtype=np.uint8)
+                self.arrayChanged.emit(img)
+        elif self._currentView == DataMember.SUBSTRATE:
+            if flag & (DataArgs.REFPATH | DataArgs.REFERENCE | DataArgs.SUBSTRATE):
+                subst = worker.substrate
+                if subst is not None:
+                    img = subst.draw()
+                else:
+                    img = worker.referenceImage
+                    roi = worker.exptData.reference.substrateROI
+                    img = cropForSubstrate(img, roi)
+                self.arrayChanged.emit(img)
+        else:
+            coatPaths = worker.exptData.coat_paths
+            exptKind = self._exptKind
+            if flag & DataArgs.COATPATHS:
+                if exptKind in (
+                    ExperimentKind.SingleImageExperiment,
+                    ExperimentKind.MultiImageExperiment,
+                ):
+                    img = cv2.cvtColor(cv2.imread(coatPaths[0]), cv2.COLOR_BGR2RGB)
+                    self._processRequested.emit(img)
+                elif exptKind == ExperimentKind.VideoExperiment:
+                    cap = cv2.VideoCapture(coatPaths[0])
+                    ok, img = cap.read()
+                    cap.release()
+                    if ok:
+                        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                    else:
+                        img = np.empty((0, 0, 0), dtype=np.uint8)
+                    self._processRequested.emit(img)
+                else:
+                    img = np.empty((0, 0, 0), dtype=np.uint8)
+                    self.arrayChanged.emit(img)
+            elif flag & (
+                DataArgs.REFPATH
+                | DataArgs.REFERENCE
+                | DataArgs.SUBSTRATE
+                | DataArgs.COATINGLAYER
+                | DataArgs.EXPERIMENT
+            ):
+                if exptKind in (
+                    ExperimentKind.SingleImageExperiment,
+                    ExperimentKind.MultiImageExperiment,
+                ):
+                    img = cv2.cvtColor(cv2.imread(coatPaths[0]), cv2.COLOR_BGR2RGB)
+                    self._processRequested.emit(img)
+                else:
+                    state = self._videoPlayer.playbackState()
+                    if state == QMediaPlayer.PlaybackState:
+                        pass
+                    else:
+                        self._processRequested.emit(self._lastVideoFrame)
+            else:
+                pass
 
     def camera(self) -> Optional[QCamera]:
         return self._camera
@@ -295,7 +358,7 @@ class VisualizeManager(QObject):
                     DataMember.SUBSTRATE,
                 )
             ):
-                self._videoPlayer.arrayChanged.disconnect(self._displayImage)
+                self._videoPlayer.arrayChanged.disconnect(self._displayImageFromVideo)
         else:
             pass
         self._frameSource = frameSource
@@ -310,7 +373,7 @@ class VisualizeManager(QObject):
                     DataMember.SUBSTRATE,
                 )
             ):
-                self._videoPlayer.arrayChanged.connect(self._displayImage)
+                self._videoPlayer.arrayChanged.connect(self._displayImageFromVideo)
         else:
             pass
         display = self.display()
@@ -329,14 +392,14 @@ class VisualizeManager(QObject):
                 self._frameSource == FrameSource.FILE
                 and self._exptKind == ExperimentKind.VideoExperiment
             ):
-                self._videoPlayer.arrayChanged.disconnect(self._displayImage)
+                self._videoPlayer.arrayChanged.disconnect(self._displayImageFromVideo)
             self._videoPlayer.pause()
         elif not isExptView(oldView) and isExptView(currentView):
             if (
                 self._frameSource == FrameSource.FILE
                 and self._exptKind == ExperimentKind.VideoExperiment
             ):
-                self._videoPlayer.arrayChanged.connect(self._displayImage)
+                self._videoPlayer.arrayChanged.connect(self._displayImageFromVideo)
 
         self._imageProcessor.setCurrentView(currentView)
 
@@ -370,6 +433,11 @@ class VisualizeManager(QObject):
         if display is not None:
             display.setCurrentView(currentView)
         self._currentView = currentView
+
+    @Slot(np.ndarray)
+    def _displayImageFromVideo(self, array: npt.NDArray[np.uint8]):
+        self._lastVideoFrame = array.copy()
+        self._displayImage(array)
 
     @Slot(np.ndarray)
     def _displayImage(self, array: npt.NDArray[np.uint8]):
