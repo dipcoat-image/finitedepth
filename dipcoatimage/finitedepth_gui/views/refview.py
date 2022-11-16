@@ -9,7 +9,7 @@ import dataclasses
 import dawiq
 import enum
 import imagesize  # type: ignore
-from PySide6.QtCore import Signal, Slot, QModelIndex
+from PySide6.QtCore import Qt, Signal, Slot, QModelIndex
 from PySide6.QtWidgets import (
     QWidget,
     QLineEdit,
@@ -100,13 +100,14 @@ class ReferenceView(QWidget):
 
         self._refPathMapper = QDataWidgetMapper()
         self._refArgsMapper = QDataWidgetMapper()
+        self._refROIsMapper = QDataWidgetMapper()
 
         self._browseButton.clicked.connect(self.browseReferenceImage)
         self._importView.editingFinished.connect(self._refArgsMapper.submit)
-        self._tempROIView.editingFinished.connect(self._refArgsMapper.submit)
+        self._tempROIView.editingFinished.connect(self._refROIsMapper.submit)
         self._tempROIDrawButton.setCheckable(True)
         self._tempROIDrawButton.clicked.connect(self._onTempROIDrawClick)
-        self._substROIView.editingFinished.connect(self._refArgsMapper.submit)
+        self._substROIView.editingFinished.connect(self._refROIsMapper.submit)
         self._substROIDrawButton.setCheckable(True)
         self._substROIDrawButton.clicked.connect(self._onSubstROIDrawClick)
         self._paramStackWidget.currentDataEdited.connect(self._refArgsMapper.submit)
@@ -116,6 +117,9 @@ class ReferenceView(QWidget):
         self._refPathMapper.setItemDelegate(refPathDelegate)
         self._refArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._refArgsMapper.setItemDelegate(ReferenceArgsDelegate())
+        self._refROIsMapper.setOrientation(Qt.Orientation.Vertical)
+        self._refROIsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
+        self._refROIsMapper.setItemDelegate(ReferenceROIDelegate())
 
         self._refPathLineEdit.setPlaceholderText("Path for the reference image file")
         self._browseButton.setText("Browse")
@@ -167,6 +171,9 @@ class ReferenceView(QWidget):
         self._refPathMapper.addMapping(self._refPathLineEdit, 0)
         self._refArgsMapper.setModel(model)
         self._refArgsMapper.addMapping(self, 0)
+        self._refROIsMapper.setModel(model)
+        self._refROIsMapper.addMapping(self._tempROIView, 1)
+        self._refROIsMapper.addMapping(self._substROIView, 2)
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
 
@@ -199,24 +206,12 @@ class ReferenceView(QWidget):
         self._tempROIView.setROIMaximum(w, h)
         self._substROIView.setROIMaximum(w, h)
 
-    def templateROI(self) -> OptionalROI:
-        return self._tempROIView.roi()
-
-    def setTemplateROI(self, roi: OptionalROI):
-        self._tempROIView.setROI(roi)
-
     def _onTempROIDrawClick(self, checked: bool):
         if checked:
             self._substROIDrawButton.setChecked(False)
             self.roiDrawFlagChanged.emit(ROIDrawFlag.TEMPLATE)
         else:
             self.roiDrawFlagChanged.emit(ROIDrawFlag.NONE)
-
-    def substrateROI(self) -> OptionalROI:
-        return self._substROIView.roi()
-
-    def setSubstrateROI(self, roi: OptionalROI):
-        self._substROIView.setROI(roi)
 
     def _onSubstROIDrawClick(self, checked: bool):
         if checked:
@@ -269,17 +264,20 @@ class ReferenceView(QWidget):
             refPathIndex = model.getIndexFor(IndexRole.REFPATH, index)
             self._refPathMapper.setCurrentModelIndex(refPathIndex)
             self._refArgsMapper.setRootIndex(index)
-            refIndex = model.getIndexFor(IndexRole.REFARGS, index)
-            self._refArgsMapper.setCurrentModelIndex(refIndex)
+            refArgsIndex = model.getIndexFor(IndexRole.REFARGS, index)
+            self._refArgsMapper.setCurrentModelIndex(refArgsIndex)
+            self._refROIsMapper.setRootIndex(refArgsIndex)
+            self._refROIsMapper.toFirst()
         else:
+            self._refPathMapper.setCurrentModelIndex(QModelIndex())
+            self._refArgsMapper.setCurrentModelIndex(QModelIndex())
+            self._refROIsMapper.setCurrentModelIndex(QModelIndex())
             self._refPathLineEdit.clear()
             self._importView.clear()
             self._tempROIView.clear()
             self._substROIView.clear()
-            self._refPathMapper.setCurrentModelIndex(QModelIndex())
             self._paramStackWidget.setCurrentIndex(0)
             self._drawOptStackWidget.setCurrentIndex(0)
-            self._refArgsMapper.setCurrentModelIndex(QModelIndex())
 
 
 class ReferencePathDelegate(QStyledItemDelegate):
@@ -319,18 +317,6 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
                         model.getIndexFor(IndexRole.REF_TYPE, index),
                         importArgs,
                         role=model.Role_ImportArgs,
-                    )
-
-                    # set ROIs to model
-                    model.setData(
-                        model.getIndexFor(IndexRole.REF_TEMPLATEROI, index),
-                        editor.templateROI(),
-                        role=model.Role_ROI,
-                    )
-                    model.setData(
-                        model.getIndexFor(IndexRole.REF_SUBSTRATEROI, index),
-                        editor.substrateROI(),
-                        role=model.Role_ROI,
                     )
 
                     # set dataclasses types to model
@@ -382,18 +368,6 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
                 editor.setTypeName(importArgs.name)
                 editor.setModuleName(importArgs.module)
 
-                # set ROIs to editor
-                templateROI = model.data(
-                    model.getIndexFor(IndexRole.REF_TEMPLATEROI, index),
-                    role=model.Role_ROI,
-                )
-                editor.setTemplateROI(templateROI)
-                substrateROI = model.data(
-                    model.getIndexFor(IndexRole.REF_SUBSTRATEROI, index),
-                    role=model.Role_ROI,
-                )
-                editor.setSubstrateROI(substrateROI)
-
                 # add data widget if absent
                 paramIndex = model.getIndexFor(IndexRole.REF_PARAMETERS, index)
                 paramType = model.data(paramIndex, role=self.TypeRole)
@@ -424,4 +398,18 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
                 if drawOptWidgetIdx == -1:
                     editor.setCurrentDrawOptionsIndex(0)
 
+        super().setEditorData(editor, index)
+
+
+class ReferenceROIDelegate(QStyledItemDelegate):
+    def setModelData(self, editor, model, index):
+        if isinstance(model, ExperimentDataModel) and isinstance(editor, ROIView):
+            model.setData(index, editor.roi(), role=model.Role_ROI)
+        super().setModelData(editor, model, index)
+
+    def setEditorData(self, editor, index):
+        model = index.model()
+        if isinstance(model, ExperimentDataModel) and isinstance(editor, ROIView):
+            roi = index.data(model.Role_ROI)
+            editor.setROI(roi)
         super().setEditorData(editor, index)
