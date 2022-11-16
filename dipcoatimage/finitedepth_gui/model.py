@@ -256,7 +256,6 @@ class ExperimentDataModel(QAbstractItemModel):
     Row_ExptParameters = 1
 
     experimentDataChanged = Signal(QModelIndex, DataArgs)
-    workerUpdated = Signal(QModelIndex, WorkerUpdateFlag)
     activatedIndexChanged = Signal(QModelIndex)
     analysisStateChanged = Signal(AnalysisState)
     analysisProgressMaximumChanged = Signal(int)
@@ -561,9 +560,9 @@ class ExperimentDataModel(QAbstractItemModel):
             else:
                 dataArgs = DataArgs.NULL
                 workerUpdateFlag = WorkerUpdateFlag.NULL
+            self.updateWorker(topLevelIndex, workerUpdateFlag)
             self.dataChanged.emit(index, index, [role])
             self.emitExperimentDataChanged(topLevelIndex, dataArgs)
-            self.updateWorker(topLevelIndex, workerUpdateFlag)
             return True
         return False
 
@@ -592,7 +591,6 @@ class ExperimentDataModel(QAbstractItemModel):
             return False
         exptData = self.indexToExperimentData(index)
         worker.setExperimentData(exptData, flag)
-        self.workerUpdated.emit(index, flag)
         return True
 
     def insertRows(self, row, count, parent=QModelIndex()):
@@ -627,8 +625,8 @@ class ExperimentDataModel(QAbstractItemModel):
             self.endInsertRows()
 
             topLevelIndex = self.getTopLevelIndex(parent)
-            self.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
             self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
+            self.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
             return True
         return False
 
@@ -729,8 +727,8 @@ class ExperimentDataModel(QAbstractItemModel):
             self.endInsertRows()
 
             topLevelIndex = self.getTopLevelIndex(sourceParent)
-            self.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
             self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
+            self.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
         return False
 
     def removeRows(self, row, count, parent=QModelIndex()):
@@ -764,8 +762,8 @@ class ExperimentDataModel(QAbstractItemModel):
             self.endRemoveRows()
 
             topLevelIndex = self.getTopLevelIndex(parent)
-            self.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
             self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
+            self.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
             return True
         return False
 
@@ -789,7 +787,7 @@ class ExperimentDataModel(QAbstractItemModel):
 
         Emits :attr:`activatedIndexChanged` signal.
         """
-        oldIndex = self._activatedIndex
+        oldIndex = self.activatedIndex()
         oldWorker = self.worker(oldIndex)
         if oldWorker is not None:
             oldWorker.analysisStateChanged.disconnect(self.analysisStateChanged)

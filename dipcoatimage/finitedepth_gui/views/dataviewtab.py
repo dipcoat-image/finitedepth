@@ -101,7 +101,7 @@ class DataViewTab(QTabWidget):
         self._layerView.setModel(model)
         self._analysisView.setModel(model)
 
-    def _onCurrentChange(self, index):
+    def _onCurrentChange(self, index: int):
         self._refView._tempROIDrawButton.setChecked(False)
         self._refView._substROIDrawButton.setChecked(False)
         self.roiDrawFlagChanged.emit(ROIDrawFlag.NONE)

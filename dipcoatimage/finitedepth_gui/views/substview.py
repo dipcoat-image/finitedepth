@@ -220,9 +220,9 @@ class SubstrateArgsDelegate(dawiq.DataclassDelegate):
                     )
 
                 topLevelIndex = model.getTopLevelIndex(index)
-                model.emitExperimentDataChanged(topLevelIndex, DataArgs.SUBSTRATE)
                 flag = WorkerUpdateFlag.SUBSTRATE | WorkerUpdateFlag.EXPERIMENT
                 model.updateWorker(topLevelIndex, flag)
+                model.emitExperimentDataChanged(topLevelIndex, DataArgs.SUBSTRATE)
 
         super().setModelData(editor, model, index)
 

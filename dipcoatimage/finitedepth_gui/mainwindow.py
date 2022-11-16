@@ -5,12 +5,14 @@ Main Window
 V2 for analysisgui.py
 """
 
-from PySide6.QtCore import QThread, Qt
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMainWindow, QDockWidget
+from PySide6.QtMultimedia import QCamera
+from dipcoatimage.finitedepth_gui.core import FrameSource
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from dipcoatimage.finitedepth_gui.views import ExperimentDataListView, DataViewTab
-from dipcoatimage.finitedepth_gui.pipeline import VisualizeProcessor_V2
 from dipcoatimage.finitedepth_gui.display import MainDisplayWindow_V2
+from dipcoatimage.finitedepth_gui.pipeline import VisualizeManager
 
 
 __all__ = [
@@ -39,20 +41,22 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
 
         self._model = ExperimentDataModel()
+        self._visualizeManager = VisualizeManager()
         self._listView = ExperimentDataListView()
         self._dataViewTab = DataViewTab()
         self._display = MainDisplayWindow_V2()
-
-        self._processorThread = QThread()
-        self._imageProcessor = VisualizeProcessor_V2()
+        self._camera = QCamera()
 
         self._listView.setModel(self._model)
         self._dataViewTab.setModel(self._model)
-        self._dataViewTab.currentViewChanged.connect(self._display.setCurrentView)
-        self._display.setModel(self._model)
-
-        self._imageProcessor.moveToThread(self._processorThread)
-        self._processorThread.start()
+        self._visualizeManager.setModel(self._model)
+        self._visualizeManager.setCamera(self._camera)
+        self._visualizeManager.setDisplay(self._display)
+        self._dataViewTab.currentViewChanged.connect(
+            self._visualizeManager.setCurrentView
+        )
+        self._dataViewTab.roiDrawFlagChanged.connect(self._display.setROIDrawFlag)
+        self._display.setCamera(self._camera)
 
         exptListDock = QDockWidget("List of experiments")
         exptListDock.setWidget(self._listView)
@@ -63,7 +67,8 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self._display)
         self.setWindowTitle("Coating layer analysis")
 
+        self._visualizeManager.setFrameSource(FrameSource.FILE)
+
     def closeEvent(self, event):
-        self._processorThread.quit()
-        self._processorThread.wait()
+        self._visualizeManager.stop()
         super().closeEvent(event)
