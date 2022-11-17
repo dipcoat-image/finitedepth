@@ -323,9 +323,7 @@ class VisualizeManager(QObject):
                     | DataArgs.EXPERIMENT
                 ):
                     state = self._videoPlayer.playbackState()
-                    if state == QMediaPlayer.PlaybackState.PlayingState:
-                        pass
-                    elif state == QMediaPlayer.PlaybackState.StoppedState:
+                    if state == QMediaPlayer.PlaybackState.StoppedState:
                         cap = cv2.VideoCapture(coatPaths[0])
                         ok, img = cap.read()
                         cap.release()
@@ -431,9 +429,7 @@ class VisualizeManager(QObject):
                     self.arrayChanged.emit(img)
             elif exptKind == ExperimentKind.VIDEO:
                 state = self._videoPlayer.playbackState()
-                if state == QMediaPlayer.PlaybackState.PlayingState:
-                    pass
-                elif state == QMediaPlayer.PlaybackState.StoppedState:
+                if state == QMediaPlayer.PlaybackState.StoppedState:
                     cap = cv2.VideoCapture(coatPaths[0])
                     ok, img = cap.read()
                     cap.release()
@@ -519,9 +515,7 @@ class VisualizeManager(QObject):
                     self.arrayChanged.emit(img)
             elif exptKind == ExperimentKind.VIDEO:
                 state = self._videoPlayer.playbackState()
-                if state == QMediaPlayer.PlaybackState.PlayingState:
-                    pass
-                elif state == QMediaPlayer.PlaybackState.StoppedState:
+                if state == QMediaPlayer.PlaybackState.StoppedState:
                     cap = cv2.VideoCapture(coatPaths[0])
                     ok, img = cap.read()
                     cap.release()
