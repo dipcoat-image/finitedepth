@@ -18,7 +18,7 @@ from dipcoatimage.finitedepth_gui.core import (
 from dipcoatimage.finitedepth_gui.worker import ExperimentWorker
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from PySide6.QtCore import QObject, Signal, Slot, QUrl, QThread, QModelIndex
-from PySide6.QtMultimedia import QCamera, QMediaPlayer
+from PySide6.QtMultimedia import QCamera, QMediaPlayer, QImageCapture, QMediaRecorder
 from typing import Optional, Protocol
 
 
@@ -119,6 +119,15 @@ class DisplayProtocol(Protocol):
     def setPlayer(self, player: Optional[QMediaPlayer]):
         ...
 
+    def setImageCapture(self, imageCapture: Optional[QImageCapture]):
+        ...
+
+    def setMediaRecorder(self, mediaRecorder: Optional[QMediaRecorder]):
+        ...
+
+    def setCamera(self, camera: Optional[QCamera]):
+        ...
+
     def setArray(self, array: np.ndarray):
         ...
 
@@ -139,10 +148,18 @@ class VisualizeManager(QObject):
         self._visualizeMode = VisualizationMode.OFF
         self._videoPlayer = NDArrayVideoPlayer()
         self._lastVideoFrame = np.empty((0, 0, 0), dtype=np.uint8)
-        self._camera = None
+        self._camera = QCamera()
         self._captureSession = NDArrayMediaCaptureSession()
         self._imageProcessor = ImageProcessor()
         self._display = None
+
+        self._imageCapture = QImageCapture()
+        self._mediaRecorder = QMediaRecorder()
+
+        self._camera.activeChanged.connect(self._onCameraActiveChange)
+        self._captureSession.setCamera(self._camera)
+        self._captureSession.setImageCapture(self._imageCapture)
+        self._captureSession.setRecorder(self._mediaRecorder)
 
         self._processorThread = QThread()
         self._imageProcessor.moveToThread(self._processorThread)
@@ -276,22 +293,6 @@ class VisualizeManager(QObject):
                 | DataArgs.EXPERIMENT
             ):
                 self._displayFromWorker(worker)
-
-    def camera(self) -> Optional[QCamera]:
-        return self._camera
-
-    def setCamera(self, camera: Optional[QCamera]):
-        oldCamera = self.camera()
-        if oldCamera is not None:
-            oldCamera.activeChanged.disconnect(  # type: ignore[attr-defined]
-                self._onCameraActiveChange
-            )
-        self._camera = camera
-        self._captureSession.setCamera(camera)
-        if camera is not None:
-            camera.activeChanged.connect(  # type: ignore[attr-defined]
-                self._onCameraActiveChange
-            )
 
     @Slot(bool)
     def _onCameraActiveChange(self, active: bool):
@@ -490,10 +491,16 @@ class VisualizeManager(QObject):
         oldDisplay = self.display()
         if oldDisplay is not None:
             oldDisplay.setPlayer(None)
+            oldDisplay.setCamera(None)
+            oldDisplay.setImageCapture(None)
+            oldDisplay.setMediaRecorder(None)
             self.arrayChanged.disconnect(oldDisplay.setArray)
         self._display = display
         if display is not None:
             display.setPlayer(self._videoPlayer)
+            display.setCamera(self._camera)
+            display.setImageCapture(self._imageCapture)
+            display.setMediaRecorder(self._mediaRecorder)
             self.arrayChanged.connect(display.setArray)
 
     def stop(self):

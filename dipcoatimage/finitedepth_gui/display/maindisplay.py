@@ -302,13 +302,9 @@ class MainDisplayWindow_V2(QMainWindow):
         self._videoController = MediaController()
         self._displayToolBar = DisplayWidgetToolBar()
 
-        self._imageCapture = QImageCapture()
-        self._mediaRecorder = QMediaRecorder()
         self._displayLabel.setAlignment(Qt.AlignCenter)
         self._videoController.setVisible(False)
 
-        self._displayToolBar.setImageCapture(self._imageCapture)
-        self._displayToolBar.setMediaRecorder(self._mediaRecorder)
         self._displayToolBar.visualizationModeChanged.connect(
             self.visualizationModeChanged
         )
@@ -370,6 +366,12 @@ class MainDisplayWindow_V2(QMainWindow):
 
     def setPlayer(self, player: Optional[QMediaPlayer]):
         self._videoController.setPlayer(player)
+
+    def setImageCapture(self, imageCapture: Optional[QImageCapture]):
+        self._displayToolBar.setImageCapture(imageCapture)
+
+    def setMediaRecorder(self, mediaRecorder: Optional[QMediaRecorder]):
+        self._displayToolBar.setMediaRecorder(mediaRecorder)
 
     def setCamera(self, camera: Optional[QCamera]):
         self._displayToolBar.setCamera(camera)
