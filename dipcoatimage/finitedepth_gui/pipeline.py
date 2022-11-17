@@ -180,51 +180,13 @@ class VisualizeManager(QObject):
             self._videoPlayer.setSource(QUrl())
         self._exptKind = exptKind
 
-        if worker is None:
+        if self._frameSource == FrameSource.CAMERA:
+            pass
+        elif worker is None:
             img = np.empty((0, 0, 0), dtype=np.uint8)
             self.arrayChanged.emit(img)
         else:
-            if self._currentView == DataMember.REFERENCE:
-                ref = worker.reference
-                if ref is not None:
-                    img = ref.draw()
-                else:
-                    img = np.empty((0, 0, 0), dtype=np.uint8)
-                self.arrayChanged.emit(img)
-            elif self._currentView == DataMember.SUBSTRATE:
-                subst = worker.substrate
-                if subst is not None:
-                    img = subst.draw()
-                else:
-                    img = worker.referenceImage
-                    roi = worker.exptData.reference.substrateROI
-                    img = cropForSubstrate(img, roi)
-                self.arrayChanged.emit(img)
-            else:
-                if exptKind in (
-                    ExperimentKind.SINGLE_IMAGE,
-                    ExperimentKind.MULTI_IMAGE,
-                ):
-                    img = cv2.imread(coatPaths[0])
-                    if img is not None:
-                        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                        self._imageProcessor.setArray(img)
-                    else:
-                        img = np.empty((0, 0, 0), dtype=np.uint8)
-                        self.arrayChanged.emit(img)
-                elif exptKind == ExperimentKind.VIDEO:
-                    cap = cv2.VideoCapture(coatPaths[0])
-                    ok, img = cap.read()
-                    cap.release()
-                    if ok:
-                        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                        self._imageProcessor.setArray(img)
-                    else:
-                        img = np.empty((0, 0, 0), dtype=np.uint8)
-                        self.arrayChanged.emit(img)
-                else:
-                    img = np.empty((0, 0, 0), dtype=np.uint8)
-                    self.arrayChanged.emit(img)
+            self._displayFromWorker(worker, self._currentView)
 
         display = self.display()
         if display is not None:
@@ -272,6 +234,9 @@ class VisualizeManager(QObject):
                 display.setExperimentKind(exptKind)
 
         self._imageProcessor.setWorker(worker)
+
+        if self._frameSource == FrameSource.CAMERA:
+            return
 
         if self._currentView == DataMember.REFERENCE:
             if flag & (DataArgs.REFPATH | DataArgs.REFERENCE):
@@ -393,57 +358,14 @@ class VisualizeManager(QObject):
         if model is None:
             return
         worker = model.worker(model.activatedIndex())
-        if worker is None:
-            return
 
-        currentView = self._currentView
-        if currentView == DataMember.REFERENCE:
-            ref = worker.reference
-            if ref is not None:
-                img = ref.draw()
-            else:
-                img = np.empty((0, 0, 0), dtype=np.uint8)
-            self.arrayChanged.emit(img)
-        elif currentView == DataMember.SUBSTRATE:
-            subst = worker.substrate
-            if subst is not None:
-                img = subst.draw()
-            else:
-                img = worker.referenceImage
-                roi = worker.exptData.reference.substrateROI
-                img = cropForSubstrate(img, roi)
+        if frameSource == FrameSource.CAMERA:
+            pass
+        elif worker is None:
+            img = np.empty((0, 0, 0), dtype=np.uint8)
             self.arrayChanged.emit(img)
         else:
-            coatPaths = worker.exptData.coat_paths
-            exptKind = self._exptKind
-            if exptKind in (
-                ExperimentKind.SINGLE_IMAGE,
-                ExperimentKind.MULTI_IMAGE,
-            ):
-                img = cv2.imread(coatPaths[0])
-                if img is not None:
-                    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                    self._imageProcessor.setArray(img)
-                else:
-                    img = np.empty((0, 0, 0), dtype=np.uint8)
-                    self.arrayChanged.emit(img)
-            elif exptKind == ExperimentKind.VIDEO:
-                state = self._videoPlayer.playbackState()
-                if state == QMediaPlayer.PlaybackState.StoppedState:
-                    cap = cv2.VideoCapture(coatPaths[0])
-                    ok, img = cap.read()
-                    cap.release()
-                    if ok:
-                        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                        self._imageProcessor.setArray(img)
-                    else:
-                        img = np.empty((0, 0, 0), dtype=np.uint8)
-                        self.arrayChanged.emit(img)
-                else:
-                    self._imageProcessor.setArray(self._lastVideoFrame)
-            else:
-                img = np.empty((0, 0, 0), dtype=np.uint8)
-                self.arrayChanged.emit(img)
+            self._displayFromWorker(worker, self._currentView)
 
         display = self.display()
         if display is not None:
@@ -480,9 +402,20 @@ class VisualizeManager(QObject):
         if model is None:
             return
         worker = model.worker(model.activatedIndex())
-        if worker is None:
-            return
 
+        if self._frameSource == FrameSource.CAMERA:
+            pass
+        elif worker is None:
+            img = np.empty((0, 0, 0), dtype=np.uint8)
+            self.arrayChanged.emit(img)
+        else:
+            self._displayFromWorker(worker, currentView)
+
+        display = self.display()
+        if display is not None:
+            display.setCurrentView(currentView)
+
+    def _displayFromWorker(self, worker: ExperimentWorker, currentView: DataMember):
         if currentView == DataMember.REFERENCE:
             ref = worker.reference
             if ref is not None:
@@ -501,7 +434,7 @@ class VisualizeManager(QObject):
             self.arrayChanged.emit(img)
         else:
             coatPaths = worker.exptData.coat_paths
-            exptKind = self._exptKind
+            exptKind = experiment_kind(coatPaths)
             if exptKind in (
                 ExperimentKind.SINGLE_IMAGE,
                 ExperimentKind.MULTI_IMAGE,
@@ -514,26 +447,18 @@ class VisualizeManager(QObject):
                     img = np.empty((0, 0, 0), dtype=np.uint8)
                     self.arrayChanged.emit(img)
             elif exptKind == ExperimentKind.VIDEO:
-                state = self._videoPlayer.playbackState()
-                if state == QMediaPlayer.PlaybackState.StoppedState:
-                    cap = cv2.VideoCapture(coatPaths[0])
-                    ok, img = cap.read()
-                    cap.release()
-                    if ok:
-                        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                        self._imageProcessor.setArray(img)
-                    else:
-                        img = np.empty((0, 0, 0), dtype=np.uint8)
-                        self.arrayChanged.emit(img)
+                cap = cv2.VideoCapture(coatPaths[0])
+                ok, img = cap.read()
+                cap.release()
+                if ok:
+                    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                    self._imageProcessor.setArray(img)
                 else:
-                    self._imageProcessor.setArray(self._lastVideoFrame)
+                    img = np.empty((0, 0, 0), dtype=np.uint8)
+                    self.arrayChanged.emit(img)
             else:
                 img = np.empty((0, 0, 0), dtype=np.uint8)
                 self.arrayChanged.emit(img)
-
-        display = self.display()
-        if display is not None:
-            display.setCurrentView(currentView)
 
     @Slot(np.ndarray)
     def _displayImageFromVideo(self, array: npt.NDArray[np.uint8]):
