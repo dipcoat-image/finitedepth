@@ -34,7 +34,7 @@ import cv2  # type: ignore
 import dataclasses
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Generic, Type, Optional, cast, Tuple
+from typing import TypeVar, Generic, Type, Optional, Tuple
 from .util import (
     DataclassProtocol,
     OptionalROI,
@@ -64,7 +64,7 @@ class SubstrateReferenceError(Exception):
     pass
 
 
-def sanitize_ROI(roi: OptionalROI, h: int, w: int):
+def sanitize_ROI(roi: OptionalROI, h: int, w: int) -> IntROI:
     full_roi = (0, 0, w, h)
     max_vars = (w, h, w, h)
 
@@ -74,7 +74,7 @@ def sanitize_ROI(roi: OptionalROI, h: int, w: int):
             ret[i] = full_roi[i]
         elif var < 0:
             ret[i] = max_vars[i] + var
-    return ret
+    return tuple(ret)  # type: ignore[return-value]
 
 
 ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
@@ -181,11 +181,8 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         self._image.setflags(write=False)
 
         h, w = image.shape[:2]
-        temp_roi = sanitize_ROI(templateROI, h, w)
-        self._templateROI = cast(IntROI, tuple(temp_roi))
-
-        subst_roi = sanitize_ROI(substrateROI, h, w)
-        self._substrateROI = cast(IntROI, tuple(subst_roi))
+        self._templateROI = sanitize_ROI(templateROI, h, w)
+        self._substrateROI = sanitize_ROI(substrateROI, h, w)
 
         if parameters is None:
             self._parameters = self.Parameters()

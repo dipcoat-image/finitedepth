@@ -229,11 +229,7 @@ class NDArrayROILabel_V2(NDArrayLabel):
         self._drawnROI = (-1, -1, -1, -1)
 
     def setActivatedIndex(self, index: QModelIndex):
-        model = index.model()
-        if isinstance(model, ExperimentDataModel):
-            self._currentModelIndex = index
-        else:
-            self._currentModelIndex = QModelIndex()
+        self._currentModelIndex = index
 
     def roiDrawFlag(self) -> ROIDrawFlag:
         return self._roiDrawFlag
@@ -254,7 +250,7 @@ class NDArrayROILabel_V2(NDArrayLabel):
             model = index.model()
             if not isinstance(model, ExperimentDataModel):
                 return
-            refArgsIdx = model.getIndexFor(IndexRole.REFARGS, self._currentModelIndex)
+            refArgsIdx = model.getIndexFor(IndexRole.REFARGS, index)
             drawFlag = self._roiDrawFlag
             if drawFlag == ROIDrawFlag.TEMPLATE:
                 roiIdx = model.getIndexFor(IndexRole.REF_TEMPLATEROI, refArgsIdx)
@@ -320,7 +316,7 @@ class NDArrayROILabel_V2(NDArrayLabel):
         model = index.model()
         if not isinstance(model, ExperimentDataModel):
             return
-        refArgsIdx = model.getIndexFor(IndexRole.REFARGS, self._currentModelIndex)
+        refArgsIdx = model.getIndexFor(IndexRole.REFARGS, index)
         drawFlag = self._roiDrawFlag
         if drawFlag == ROIDrawFlag.TEMPLATE:
             roiIdx = model.getIndexFor(IndexRole.REF_TEMPLATEROI, refArgsIdx)
