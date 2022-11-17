@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QStyledItemDelegate,
 )
-from dipcoatimage.finitedepth.analysis import Analyzer, AnalysisArgs
+from dipcoatimage.finitedepth import Analyzer, AnalysisArgs
 from dipcoatimage.finitedepth_gui.core import DataArgs
 from dipcoatimage.finitedepth_gui.worker import AnalysisState, WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import (

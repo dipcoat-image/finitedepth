@@ -10,18 +10,16 @@ import enum
 import numpy as np
 import numpy.typing as npt
 from dipcoatimage.finitedepth import (
-    ExperimentData,
     SubstrateReferenceBase,
     SubstrateBase,
     ExperimentBase,
-)
-from dipcoatimage.finitedepth.analysis import (
-    ReferenceArgs,
-    SubstrateArgs,
-    AnalysisArgs,
     ExperimentKind,
     experiment_kind,
     Analyzer,
+    ReferenceArgs,
+    SubstrateArgs,
+    AnalysisArgs,
+    ExperimentData,
 )
 from PySide6.QtCore import QObject, Signal, QRunnable, QThreadPool
 from typing import List, Optional
@@ -80,15 +78,15 @@ class AnalysisWorker(QRunnable):
         fps = self.analysisArgs.fps
 
         if (
-            exptKind == ExperimentKind.SingleImageExperiment
-            or exptKind == ExperimentKind.MultiImageExperiment
+            exptKind == ExperimentKind.SINGLE_IMAGE
+            or exptKind == ExperimentKind.MULTI_IMAGE
         ):
             total = len(self.coat_paths)
             img_gen = (cv2.imread(path) for path in self.coat_paths)
             if fps is None:
                 fps = 0
 
-        elif exptKind == ExperimentKind.VideoExperiment:
+        elif exptKind == ExperimentKind.VIDEO:
             (path,) = self.coat_paths
             cap = cv2.VideoCapture(path)
             total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))

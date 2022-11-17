@@ -1,9 +1,12 @@
 import cv2  # type: ignore
-from dipcoatimage.finitedepth import ExperimentBase
-from dipcoatimage.finitedepth.analysis import Analyzer
 import dataclasses
-from dipcoatimage.finitedepth.analysis import ExperimentKind, AnalysisArgs
 import os
+from dipcoatimage.finitedepth import (
+    ExperimentBase,
+    ExperimentKind,
+    AnalysisArgs,
+    Analyzer,
+)
 from PySide6.QtCore import Slot, Signal
 from typing import Optional, List
 from .base import WorkerBase
@@ -34,7 +37,7 @@ class AnalysisWorker(WorkerBase):
         super().__init__(parent)
         self._experiment = None
         self._paths = []
-        self._expt_kind = ExperimentKind.NullExperiment
+        self._expt_kind = ExperimentKind.NULL
         self._analysisArgs = AnalysisArgs()
 
     def experiment(self) -> Optional[ExperimentBase]:
@@ -77,15 +80,15 @@ class AnalysisWorker(WorkerBase):
 
         # make image generator
         if (
-            expt_kind == ExperimentKind.SingleImageExperiment
-            or expt_kind == ExperimentKind.MultiImageExperiment
+            expt_kind == ExperimentKind.SINGLE_IMAGE
+            or expt_kind == ExperimentKind.MULTI_IMAGE
         ):
             img_gen = (cv2.imread(path) for path in self.paths())
             if fps is None:
                 fps = 0
             h, w = cv2.imread(self.paths()[0]).shape[:2]
             total = len(self.paths())
-        elif expt_kind == ExperimentKind.VideoExperiment:
+        elif expt_kind == ExperimentKind.VIDEO:
             (path,) = self.paths()
             cap = cv2.VideoCapture(path)
             fnum = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -191,5 +194,5 @@ class AnalysisWorker(WorkerBase):
     def clear(self):
         self._experiment = None
         self._paths = []
-        self._expt_kind = ExperimentKind.NullExperiment
+        self._expt_kind = ExperimentKind.NULL
         self._analysisArgs = AnalysisArgs()

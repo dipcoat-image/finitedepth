@@ -1,6 +1,10 @@
 from dataclass2PySide6 import DataclassWidget, StackedDataclassWidget
-from dipcoatimage.finitedepth import ExperimentBase, data_converter
-from dipcoatimage.finitedepth.analysis import ImportArgs, ExperimentArgs
+from dipcoatimage.finitedepth import (
+    ExperimentBase,
+    data_converter,
+    ImportArgs,
+    ExperimentArgs,
+)
 from dipcoatimage.finitedepth_gui.core import StructuredExperimentArgs
 from dipcoatimage.finitedepth_gui.importwidget import ImportWidget
 from PySide6.QtCore import Slot

@@ -2,12 +2,10 @@ import csv
 import cv2  # type: ignore
 import os
 import pytest
-from dipcoatimage.finitedepth import get_samples_path, data_converter
-from dipcoatimage.finitedepth.util import dict_includes
-from dipcoatimage.finitedepth.analysis import (
+from dipcoatimage.finitedepth import (
     ExperimentKind,
     experiment_kind,
-    CSVWriter,
+    data_converter,
     ImportArgs,
     ReferenceArgs,
     SubstrateArgs,
@@ -15,7 +13,10 @@ from dipcoatimage.finitedepth.analysis import (
     ExperimentArgs,
     AnalysisArgs,
     ExperimentData,
+    get_samples_path,
 )
+from dipcoatimage.finitedepth.util import dict_includes
+from dipcoatimage.finitedepth.analysis import CSVWriter
 
 
 REF_PATH = get_samples_path("ref1.png")
@@ -35,33 +36,33 @@ def test_experiment_kind():
     img_path = [
         get_samples_path("coat1.png"),
     ]
-    assert experiment_kind(img_path) == ExperimentKind.SingleImageExperiment
+    assert experiment_kind(img_path) == ExperimentKind.SINGLE_IMAGE
 
     imgs_path = [
         get_samples_path("coat1.png"),
         get_samples_path("coat2.png"),
     ]
-    assert experiment_kind(imgs_path) == ExperimentKind.MultiImageExperiment
+    assert experiment_kind(imgs_path) == ExperimentKind.MULTI_IMAGE
 
     vid_path = [
         get_samples_path("coat3.mp4"),
     ]
-    assert experiment_kind(vid_path) == ExperimentKind.VideoExperiment
+    assert experiment_kind(vid_path) == ExperimentKind.VIDEO
 
     empty_path = []
-    assert experiment_kind(empty_path) == ExperimentKind.NullExperiment
+    assert experiment_kind(empty_path) == ExperimentKind.NULL
     invalid_path = ["invalid.pdf"]
-    assert experiment_kind(invalid_path) == ExperimentKind.NullExperiment
+    assert experiment_kind(invalid_path) == ExperimentKind.NULL
     vids_path = [
         get_samples_path("coat3.mp4"),
         get_samples_path("coat3.mp4"),
     ]
-    assert experiment_kind(vids_path) == ExperimentKind.NullExperiment
+    assert experiment_kind(vids_path) == ExperimentKind.NULL
     vidimg_path = [
         get_samples_path("coat3.mp4"),
         get_samples_path("coat1.png"),
     ]
-    assert experiment_kind(vidimg_path) == ExperimentKind.NullExperiment
+    assert experiment_kind(vidimg_path) == ExperimentKind.NULL
 
 
 def test_CSVWriter(tmp_path):

@@ -22,8 +22,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QStyledItemDelegate,
 )
-from dipcoatimage.finitedepth import SubstrateReferenceBase
-from dipcoatimage.finitedepth.analysis import ImportArgs
+from dipcoatimage.finitedepth import SubstrateReferenceBase, ImportArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
 from dipcoatimage.finitedepth_gui.core import DataArgs
 from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag

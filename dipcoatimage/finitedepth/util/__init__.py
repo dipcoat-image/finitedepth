@@ -4,9 +4,6 @@ Utilities
 
 :mod:`dipcoatimage.finitedepth.util` provides utility functions.
 
-.. automodule:: dipcoatimage.finitedepth.util.dataclass
-   :members:
-
 .. automodule:: dipcoatimage.finitedepth.util.geometry
    :members:
 
@@ -27,7 +24,6 @@ Utilities
 
 """
 
-from .dataclass import data_converter
 from .geometry import intrsct_pt_polar
 from .importing import import_variable, ImportStatus, Importer
 from .path import get_samples_path, cwd
@@ -40,7 +36,6 @@ from .parameters import (
 from .testing import dict_includes
 
 __all__ = [
-    "data_converter",
     "intrsct_pt_polar",
     "import_variable",
     "ImportStatus",

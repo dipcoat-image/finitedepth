@@ -37,7 +37,7 @@ import abc
 import dataclasses
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Generic, Type, Optional, Generator
+from typing import TypeVar, Generic, Type, Optional
 
 from .substrate import SubstrateBase
 from .coatinglayer import CoatingLayerBase
@@ -189,10 +189,11 @@ class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
         prev: Optional[CoatingLayerBase] = None,
     ) -> CoatingLayerBase:
         """
-        Construct instance of :attr:`layer_type` with *image* and attributes.
+        Construct instance of :attr:`layer_type` with *image*.
 
-        *prev* is passed to allow passing different parameters for each coating
-        layer instance. Subclass may override this method modify the parameters.
+        *prev* can be passed to let different parameters applied for each coating
+        layer instance. Passing this argument does nothing by default but
+        subclass can redefine this method to define the behavior.
 
         Parameters
         ==========
@@ -212,34 +213,6 @@ class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
             deco_options=self.layer_decooptions,
         )
         return ret
-
-    def layer_generator(
-        self, prev: Optional[CoatingLayerBase] = None
-    ) -> Generator[CoatingLayerBase, npt.NDArray[np.uint8], None]:
-        """
-        Generator which receives coated substrate image to yield instance of
-        :attr:`layer_type`.
-
-        As new image is sent, coating layer instance is created using
-        :meth:`construct_coatinglayer` with the number of images passed so far
-        and previous coating layer instance.
-
-        Starting number to count the image and "previous" coating layer to
-        construct the first coating layer instance can be specified.
-
-        Parameters
-        ==========
-
-        prev
-            Coating layer instance treated to be previous one to construct the
-            first coating layer instance.
-
-        """
-        while True:
-            img = yield  # type: ignore
-            layer = self.construct_coatinglayer(img, prev)
-            yield layer
-            prev = layer
 
 
 @dataclasses.dataclass(frozen=True)

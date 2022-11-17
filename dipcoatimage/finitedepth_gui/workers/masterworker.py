@@ -1,5 +1,5 @@
 import cv2  # type: ignore
-from dipcoatimage.finitedepth.analysis import (
+from dipcoatimage.finitedepth import (
     ExperimentKind,
     ReferenceArgs,
     SubstrateArgs,

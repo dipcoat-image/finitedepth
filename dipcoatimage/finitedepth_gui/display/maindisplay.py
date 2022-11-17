@@ -2,7 +2,7 @@ from araviq6 import MediaController, NDArrayMediaCaptureSession
 import cv2  # type: ignore[import]
 import numpy as np
 import numpy.typing as npt
-from dipcoatimage.finitedepth.analysis import ExperimentKind
+from dipcoatimage.finitedepth import ExperimentKind
 from dipcoatimage.finitedepth_gui.core import (
     ClassSelection,
     VisualizationMode,
@@ -58,7 +58,7 @@ class MainDisplayWindow(QMainWindow):
         self._exptitem_model = None
         self._currentExperimentRow = -1
         self._coat_paths = []
-        self._expt_kind = ExperimentKind.NullExperiment
+        self._expt_kind = ExperimentKind.NULL
         self._selectedClass = ClassSelection.UNKNOWN
 
         self._displayLabel = NDArrayROILabel()
@@ -170,11 +170,11 @@ class MainDisplayWindow(QMainWindow):
             ClassSelection.SUBSTRATE,
         }:
             pass
-        elif self.experimentKind() == ExperimentKind.VideoExperiment:
+        elif self.experimentKind() == ExperimentKind.VIDEO:
             self.videoPlayer().setSource(QUrl.fromLocalFile(self.coatPaths()[0]))
         elif (
-            self.experimentKind() == ExperimentKind.SingleImageExperiment
-            or self.experimentKind() == ExperimentKind.MultiImageExperiment
+            self.experimentKind() == ExperimentKind.SINGLE_IMAGE
+            or self.experimentKind() == ExperimentKind.MULTI_IMAGE
         ):
             img = cv2.cvtColor(cv2.imread(self.coatPaths()[0]), cv2.COLOR_BGR2RGB)
             self.visualizeProcessor().setArray(img)
@@ -231,7 +231,7 @@ class MainDisplayWindow(QMainWindow):
             ClassSelection.SUBSTRATE,
         }:
             visible = False
-        elif self.experimentKind() == ExperimentKind.VideoExperiment:
+        elif self.experimentKind() == ExperimentKind.VIDEO:
             visible = True
         else:
             visible = False
@@ -258,7 +258,7 @@ class MainDisplayWindow(QMainWindow):
     def onExperimentsRemove(self, rows: List[int]):
         if self.currentExperimentRow() in rows:
             self._coat_paths = []
-            self._expt_kind = ExperimentKind.NullExperiment
+            self._expt_kind = ExperimentKind.NULL
             self.updateControllerVisibility()
             self.videoPlayer().setSource(QUrl())
             self.displayLabel().setPixmap(QPixmap())
@@ -294,7 +294,7 @@ class MainDisplayWindow_V2(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._exptKind = ExperimentKind.NullExperiment
+        self._exptKind = ExperimentKind.NULL
         self._currentView = DataMember.NULL
         self._frameSource = FrameSource.NULL
 
@@ -360,7 +360,7 @@ class MainDisplayWindow_V2(QMainWindow):
         ret = (
             frameSource != FrameSource.CAMERA
             and currentView not in viewExclude
-            and exptKind == ExperimentKind.VideoExperiment
+            and exptKind == ExperimentKind.VIDEO
         )
         return ret
 

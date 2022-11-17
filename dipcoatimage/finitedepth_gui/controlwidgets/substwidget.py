@@ -1,6 +1,10 @@
 from dataclass2PySide6 import DataclassWidget, StackedDataclassWidget
-from dipcoatimage.finitedepth import SubstrateBase, data_converter
-from dipcoatimage.finitedepth.analysis import ImportArgs, SubstrateArgs
+from dipcoatimage.finitedepth import (
+    SubstrateBase,
+    data_converter,
+    ImportArgs,
+    SubstrateArgs,
+)
 from dipcoatimage.finitedepth_gui.core import StructuredSubstrateArgs
 from dipcoatimage.finitedepth_gui.importwidget import ImportWidget
 from PySide6.QtCore import Slot
