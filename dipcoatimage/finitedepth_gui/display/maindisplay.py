@@ -21,7 +21,7 @@ from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
 from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaRecorder, QMediaPlayer
 from typing import Optional
 from .toolbar import DisplayWidgetToolBar
-from .roidisplay import NDArrayROILabel_V2
+from .roidisplay import NDArrayROILabel
 
 
 __all__ = [
@@ -47,7 +47,7 @@ class MainDisplayWindow(QMainWindow):
         self._currentView = DataMember.NULL
         self._frameSource = FrameSource.NULL
 
-        self._displayLabel = NDArrayROILabel_V2()
+        self._displayLabel = NDArrayROILabel()
         self._videoController = MediaController()
         self._displayToolBar = DisplayWidgetToolBar()
 

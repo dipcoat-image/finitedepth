@@ -12,7 +12,6 @@ from .maindisplay import (
 )
 from .roidisplay import (
     NDArrayROILabel,
-    NDArrayROILabel_V2,
     coords_label2pixmap,
     coords_pixmap2label,
 )
@@ -24,7 +23,6 @@ from .toolbar import (
 
 __all__ = [
     "NDArrayROILabel",
-    "NDArrayROILabel_V2",
     "coords_label2pixmap",
     "coords_pixmap2label",
     "DisplayWidgetToolBar",
