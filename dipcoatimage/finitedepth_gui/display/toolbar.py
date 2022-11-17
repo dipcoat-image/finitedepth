@@ -293,7 +293,8 @@ class DisplayWidgetToolBar(QToolBar):
 
     @Slot(QUrl)
     def _onRecordLocationChange(self, location: QUrl):
-        self._recordPathLineEdit.setText(location.toLocalFile())
+        path = os.path.relpath(location.toLocalFile())
+        self._recordPathLineEdit.setText(path)
 
     def _onRecordFormatComboBoxChange(self, index: int):
         form = self._recordFormatComboBox.itemData(index)
@@ -308,7 +309,7 @@ class DisplayWidgetToolBar(QToolBar):
         recorder = self.mediaRecorder()
         if recorder is not None:
             form = recorder.mediaFormat().fileFormat()
-            index = self._recordFromatComboBox.itemData(form)
+            index = self._recordFormatComboBox.findData(form)
             self._recordFormatComboBox.setCurrentIndex(index)
 
     def _onRecordActionToggle(self, checked: bool):

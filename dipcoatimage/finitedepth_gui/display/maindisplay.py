@@ -317,7 +317,7 @@ class MainDisplayWindow_V2(QMainWindow):
             self.visualizationModeChanged
         )
         self._displayToolBar.imageCaptured.connect(self._onImageCapture)
-        self._displayToolBar.videoRecorded.connect(self.videoRecorded)
+        self._displayToolBar.videoRecorded.connect(self._onVideoRecord)
 
         self.addToolBar(self._displayToolBar)
         layout = QVBoxLayout()
@@ -401,6 +401,28 @@ class MainDisplayWindow_V2(QMainWindow):
         if self._currentView in (DataMember.REFERENCE, DataMember.SUBSTRATE):
             refPathIdx = model.getIndexFor(IndexRole.REFPATH, index)
             model.setData(refPathIdx, path, model.Role_RefPath)
+        else:
+            coatPathsIdx = model.getIndexFor(IndexRole.COATPATHS, index)
+            with ExperimentSignalBlocker(model):
+                row = model.rowCount(coatPathsIdx)
+                model.insertRows(row, 1, coatPathsIdx)
+                pathIdx = model.index(row, 0, coatPathsIdx)
+                model.setData(pathIdx, path, role=model.Role_CoatPath)
+            model.updateWorker(index, WorkerUpdateFlag.ANALYSIS)
+            model.emitExperimentDataChanged(index, DataArgs.COATPATHS)
+
+    @Slot(str)
+    def _onVideoRecord(self, url: QUrl):
+        index = self._currentModelIndex
+        if not index.isValid():
+            return
+        model = index.model()
+        if not isinstance(model, ExperimentDataModel):
+            return
+        path = os.path.relpath(url.toLocalFile())
+
+        if self._currentView in (DataMember.REFERENCE, DataMember.SUBSTRATE):
+            pass
         else:
             coatPathsIdx = model.getIndexFor(IndexRole.COATPATHS, index)
             with ExperimentSignalBlocker(model):
