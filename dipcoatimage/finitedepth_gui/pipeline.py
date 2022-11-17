@@ -8,6 +8,7 @@ import numpy as np
 import numpy.typing as npt
 from dipcoatimage.finitedepth import ExperimentKind, experiment_kind
 from dipcoatimage.finitedepth.reference import sanitize_ROI
+from dipcoatimage.finitedepth.coatinglayer import match_template
 from dipcoatimage.finitedepth.util import OptionalROI, binarize
 from dipcoatimage.finitedepth_gui.core import (
     DataMember,
@@ -537,8 +538,7 @@ def fastVisualize(
     subst_x0, subst_y0, subst_x1, subst_y1 = substROI
     substImg = ref_bin[subst_y0:subst_y1, subst_x0:subst_x1]
 
-    res = cv2.matchTemplate(layer_bin, template, cv2.TM_SQDIFF_NORMED)
-    _, _, (tx, ty), _ = cv2.minMaxLoc(res)
+    _, _, (tx, ty), _ = match_template(layer_bin, template)
     dx, dy = (substROI[0] - tempROI[0], substROI[1] - tempROI[1])
     x0, y0 = (tx + dx, ty + dy)
     subst_h, subst_w = substImg.shape[:2]

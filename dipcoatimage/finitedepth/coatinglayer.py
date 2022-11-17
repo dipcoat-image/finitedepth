@@ -62,6 +62,7 @@ except ImportError:
 
 __all__ = [
     "CoatingLayerError",
+    "match_template",
     "CoatingLayerBase",
     "LayerAreaParameters",
     "LayerAreaDrawOptions",
@@ -82,6 +83,14 @@ class CoatingLayerError(Exception):
     """Base class for error from :class:`CoatingLayerBase`."""
 
     pass
+
+
+def match_template(
+    image: npt.NDArray[np.uint8], template: npt.NDArray[np.uint8]
+) -> Tuple[float, Tuple[int, int]]:
+    res = cv2.matchTemplate(image, template, cv2.TM_SQDIFF_NORMED)
+    score, _, loc, _ = cv2.minMaxLoc(res)
+    return (score, loc)
 
 
 class CoatingLayerBase(
@@ -262,15 +271,6 @@ class CoatingLayerBase(
             self._binary_image = binarize(self.image)
         return self._binary_image
 
-    def _match_template(self) -> Tuple[float, Tuple[int, int]]:
-        image = self.binary_image()
-        x0, y0, x1, y1 = self.substrate.reference.templateROI
-        template = self.substrate.reference.binary_image()[y0:y1, x0:x1]
-
-        res = cv2.matchTemplate(image, template, cv2.TM_SQDIFF_NORMED)
-        score, _, loc, _ = cv2.minMaxLoc(res)
-        return (score, loc)
-
     def template_point(self) -> Tuple[int, int]:
         """
         Upper left point in ``(x, y)`` where the matched template is located.
@@ -285,7 +285,10 @@ class CoatingLayerBase(
 
         """
         if not hasattr(self, "_template_point"):
-            self._template_score, self._template_point = self._match_template()
+            image = self.binary_image()
+            x0, y0, x1, y1 = self.substrate.reference.templateROI
+            template = self.substrate.reference.binary_image()[y0:y1, x0:x1]
+            self._template_score, self._template_point = match_template(image, template)
         return self._template_point
 
     def template_score(self) -> float:
@@ -303,7 +306,10 @@ class CoatingLayerBase(
 
         """
         if not hasattr(self, "_template_score"):
-            self._template_score, self._template_point = self._match_template()
+            image = self.binary_image()
+            x0, y0, x1, y1 = self.substrate.reference.templateROI
+            template = self.substrate.reference.binary_image()[y0:y1, x0:x1]
+            self._template_score, self._template_point = match_template(image, template)
         return self._template_score
 
     def substrate_point(self) -> Tuple[int, int]:
