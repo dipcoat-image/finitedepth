@@ -2,12 +2,20 @@ from araviq6 import MediaController, NDArrayMediaCaptureSession
 import cv2  # type: ignore[import]
 import numpy as np
 import numpy.typing as npt
+import os
 from dipcoatimage.finitedepth import ExperimentKind
 from dipcoatimage.finitedepth_gui.core import (
     ClassSelection,
     VisualizationMode,
     DataMember,
     FrameSource,
+    DataArgs,
+)
+from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
+from dipcoatimage.finitedepth_gui.model import (
+    IndexRole,
+    ExperimentDataModel,
+    ExperimentSignalBlocker,
 )
 from dipcoatimage.finitedepth_gui.inventory import ExperimentItemModel
 from dipcoatimage.finitedepth_gui.roimodel import ROIModel
@@ -288,12 +296,12 @@ class MainDisplayWindow_V2(QMainWindow):
     """
 
     visualizationModeChanged = Signal(VisualizationMode)
-    imageCaptured = Signal(str)
     videoRecorded = Signal(QUrl)
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self._currentModelIndex = QModelIndex()
         self._exptKind = ExperimentKind.NULL
         self._currentView = DataMember.NULL
         self._frameSource = FrameSource.NULL
@@ -308,7 +316,7 @@ class MainDisplayWindow_V2(QMainWindow):
         self._displayToolBar.visualizationModeChanged.connect(
             self.visualizationModeChanged
         )
-        self._displayToolBar.imageCaptured.connect(self.imageCaptured)
+        self._displayToolBar.imageCaptured.connect(self._onImageCapture)
         self._displayToolBar.videoRecorded.connect(self.videoRecorded)
 
         self.addToolBar(self._displayToolBar)
@@ -320,6 +328,7 @@ class MainDisplayWindow_V2(QMainWindow):
         self.setCentralWidget(centralWidget)
 
     def setActivatedIndex(self, index: QModelIndex):
+        self._currentModelIndex = index
         self._displayLabel.setActivatedIndex(index)
 
     def setExperimentKind(self, exptKind: ExperimentKind):
@@ -379,3 +388,25 @@ class MainDisplayWindow_V2(QMainWindow):
     @Slot(ROIDrawFlag)
     def setROIDrawFlag(self, flag: ROIDrawFlag):
         self._displayLabel.setROIDrawFlag(flag)
+
+    @Slot(str)
+    def _onImageCapture(self, path: str):
+        index = self._currentModelIndex
+        if not index.isValid():
+            return
+        model = index.model()
+        if not isinstance(model, ExperimentDataModel):
+            return
+        path = os.path.relpath(path)
+        if self._currentView in (DataMember.REFERENCE, DataMember.SUBSTRATE):
+            refPathIdx = model.getIndexFor(IndexRole.REFPATH, index)
+            model.setData(refPathIdx, path, model.Role_RefPath)
+        else:
+            coatPathsIdx = model.getIndexFor(IndexRole.COATPATHS, index)
+            with ExperimentSignalBlocker(model):
+                row = model.rowCount(coatPathsIdx)
+                model.insertRows(row, 1, coatPathsIdx)
+                pathIdx = model.index(row, 0, coatPathsIdx)
+                model.setData(pathIdx, path, role=model.Role_CoatPath)
+            model.updateWorker(index, WorkerUpdateFlag.ANALYSIS)
+            model.emitExperimentDataChanged(index, DataArgs.COATPATHS)
