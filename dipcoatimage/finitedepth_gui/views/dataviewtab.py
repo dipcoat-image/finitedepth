@@ -5,7 +5,7 @@ Data view tab
 V2 for controlwidgets/controlwidget.py
 """
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal, Slot
 from PySide6.QtWidgets import QTabWidget, QScrollArea
 from dipcoatimage.finitedepth_gui.core import DataMember
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
@@ -122,3 +122,7 @@ class DataViewTab(QTabWidget):
         else:
             currentView = DataMember.NULL
         self.currentViewChanged.emit(currentView)
+
+    @Slot(int, int)
+    def setROIMaximum(self, w: int, h: int):
+        self._refView.setROIMaximum(w, h)

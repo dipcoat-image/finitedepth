@@ -106,6 +106,7 @@ class VisualizeManager(QObject):
 
     _processRequested = Signal(np.ndarray)
     arrayChanged = Signal(np.ndarray)
+    roiMaximumChanged = Signal(int, int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -485,6 +486,9 @@ class VisualizeManager(QObject):
     def _displayImageFromVideo(self, array: npt.NDArray[np.uint8]):
         if array.size != 0:
             array = cv2.cvtColor(array, cv2.COLOR_BGR2RGB)
+        if self._currentView == DataMember.REFERENCE:
+            h, w = array.shape[:2]
+            self.roiMaximumChanged.emit(h, w)
         self._lastVideoFrame = array.copy()
         self._displayImage(array)
 
@@ -492,6 +496,9 @@ class VisualizeManager(QObject):
     def _displayImageFromCamera(self, array: npt.NDArray[np.uint8]):
         if array.size != 0:
             array = cv2.cvtColor(array, cv2.COLOR_BGR2RGB)
+        if self._currentView == DataMember.REFERENCE:
+            h, w = array.shape[:2]
+            self.roiMaximumChanged.emit(h, w)
         self._displayImage(array)
 
     @Slot(np.ndarray)

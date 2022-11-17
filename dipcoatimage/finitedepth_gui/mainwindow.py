@@ -57,6 +57,9 @@ class MainWindow(QMainWindow):
         )
         self._dataViewTab.roiDrawFlagChanged.connect(self._display.setROIDrawFlag)
         self._display.setCamera(self._camera)
+        self._visualizeManager.roiMaximumChanged.connect(
+            self._dataViewTab.setROIMaximum
+        )
 
         exptListDock = QDockWidget("List of experiments")
         exptListDock.setWidget(self._listView)
