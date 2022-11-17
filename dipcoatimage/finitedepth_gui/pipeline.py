@@ -8,7 +8,7 @@ import numpy as np
 import numpy.typing as npt
 from dipcoatimage.finitedepth import ExperimentKind, experiment_kind
 from dipcoatimage.finitedepth.reference import sanitize_ROI
-from dipcoatimage.finitedepth.coatinglayer import match_template
+from dipcoatimage.finitedepth.coatinglayer import match_template, subtract_images
 from dipcoatimage.finitedepth.util import OptionalROI, binarize
 from dipcoatimage.finitedepth_gui.core import (
     DataMember,
@@ -538,20 +538,9 @@ def fastVisualize(
     subst_x0, subst_y0, subst_x1, subst_y1 = substROI
     substImg = ref_bin[subst_y0:subst_y1, subst_x0:subst_x1]
 
-    _, _, (tx, ty), _ = match_template(layer_bin, template)
+    _, (tx, ty) = match_template(layer_bin, template)
     dx, dy = (substROI[0] - tempROI[0], substROI[1] - tempROI[1])
     x0, y0 = (tx + dx, ty + dy)
-    subst_h, subst_w = substImg.shape[:2]
-    x1, y1 = (x0 + subst_w, y0 + subst_h)
 
-    H, W = layer_bin.shape
-    img_cropped = layer_bin[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)]
-    subst_cropped = substImg[
-        max(-y0, 0) : min(H - y0, subst_h),
-        max(-x0, 0) : min(W - x0, subst_w),
-    ]
-
-    xor = cv2.bitwise_xor(img_cropped, subst_cropped)
-    nxor = cv2.bitwise_not(xor)
-    layer_bin[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)] = nxor
-    return cv2.cvtColor(layer_bin, cv2.COLOR_GRAY2RGB)
+    ret = subtract_images(layer_bin, substImg, (x0, y0))
+    return cv2.cvtColor(ret, cv2.COLOR_GRAY2RGB)

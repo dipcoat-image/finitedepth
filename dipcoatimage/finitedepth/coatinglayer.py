@@ -63,6 +63,7 @@ except ImportError:
 __all__ = [
     "CoatingLayerError",
     "match_template",
+    "subtract_images",
     "CoatingLayerBase",
     "LayerAreaParameters",
     "LayerAreaDrawOptions",
@@ -91,6 +92,25 @@ def match_template(
     res = cv2.matchTemplate(image, template, cv2.TM_SQDIFF_NORMED)
     score, _, loc, _ = cv2.minMaxLoc(res)
     return (score, loc)
+
+
+def subtract_images(
+    image1: npt.NDArray[np.uint8], image2: npt.NDArray[np.uint8], point: Tuple[int, int]
+) -> npt.NDArray[np.uint8]:
+    """Subtract *image2* from *image1* at *point*. Images must be binary."""
+    H, W = image1.shape
+    h, w = image2.shape
+    x0, y0 = point
+
+    x1, y1 = x0 + w, y0 + h
+    img1_crop = image1[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)]
+    img2_crop = image2[max(-y0, 0) : min(H - y0, h), max(-x0, 0) : min(W - x0, w)]
+    xor = cv2.bitwise_xor(img1_crop, img2_crop)
+    nxor = cv2.bitwise_not(xor)
+
+    ret = image1.copy()
+    ret[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)] = nxor
+    return ret
 
 
 class CoatingLayerBase(
@@ -353,20 +373,12 @@ class CoatingLayerBase(
                 image[labels == label] = 0
 
             # remove the substrate
-            h, w = self.substrate.image().shape[:2]
-            x1 = x0 + w
-            y1 = y0 + h
-
-            cropped_img = image[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)]
-
-            cropped_subs = self.substrate.binary_image()[
-                max(-y0, 0) : min(H - y0, h), max(-x0, 0) : min(W - x0, w)
-            ]
-            xor = cv2.bitwise_xor(cropped_img, cropped_subs)
-            nxor = cv2.bitwise_not(xor)
-            image[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)] = nxor
+            substImg = self.substrate.binary_image()
+            image = subtract_images(image, substImg, (x0, y0))
 
             # remove the area outside of the ROI
+            h, w = substImg.shape
+            x1, y1 = x0 + w, y0 + h
             image[:y0, :] = 255
             image[:y1, :x0] = 255
             image[:y1, x1:] = 255
