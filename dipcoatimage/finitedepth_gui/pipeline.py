@@ -8,7 +8,13 @@ import numpy as np
 import numpy.typing as npt
 from dipcoatimage.finitedepth import ExperimentKind, experiment_kind
 from dipcoatimage.finitedepth.reference import sanitize_ROI
-from dipcoatimage.finitedepth_gui.core import DataMember, DataArgs, FrameSource
+from dipcoatimage.finitedepth.util import OptionalROI
+from dipcoatimage.finitedepth_gui.core import (
+    DataMember,
+    DataArgs,
+    FrameSource,
+    VisualizationMode,
+)
 from dipcoatimage.finitedepth_gui.worker import ExperimentWorker
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from PySide6.QtCore import QObject, Signal, Slot, QUrl, QThread, QModelIndex
@@ -20,7 +26,6 @@ __all__ = [
     "ImageProcessor",
     "DisplayProtocol",
     "VisualizeManager",
-    "cropForSubstrate",
 ]
 
 
@@ -34,6 +39,7 @@ class ImageProcessor(QObject):
         self._worker = None
         self._prev = None
         self._currentView = DataMember.NULL
+        self._visualizeMode = VisualizationMode.OFF
         self._ready = True
 
     def setWorker(self, worker: Optional[ExperimentWorker]):
@@ -42,6 +48,9 @@ class ImageProcessor(QObject):
 
     def setCurrentView(self, currentView: DataMember):
         self._currentView = currentView
+
+    def setVisualizationMode(self, mode: VisualizationMode):
+        self._visualizeMode = mode
 
     @Slot(np.ndarray)
     def setArray(self, array: npt.NDArray[np.uint8]):
@@ -55,27 +64,39 @@ class ImageProcessor(QObject):
         if worker is None:
             return array
         if self._currentView == DataMember.REFERENCE:
-            ref = worker.constructReference(array, worker.exptData.reference)
-            if ref is not None:
-                array = ref.draw()
+            if self._visualizeMode == VisualizationMode.FULL:
+                ref = worker.constructReference(array, worker.exptData.reference)
+                if ref is not None:
+                    array = ref.draw()
         elif self._currentView == DataMember.SUBSTRATE:
-            ref = worker.constructReference(array, worker.exptData.reference)
-            subst = worker.constructSubstrate(ref, worker.exptData.substrate)
+            if self._visualizeMode == VisualizationMode.FULL:
+                ref = worker.constructReference(array, worker.exptData.reference)
+                subst = worker.constructSubstrate(ref, worker.exptData.substrate)
+            else:
+                subst = None
             if subst is not None:
                 array = subst.draw()
             else:
                 roi = worker.exptData.reference.substrateROI
-                array = cropForSubstrate(array, roi)
+                h, w = array.shape[:2]
+                x0, y0, x1, y1 = sanitize_ROI(roi, h, w)
+                array = array[y0:y1, x0:x1]
         else:
-            expt = worker.experiment
-            if expt is not None:
-                if array.size > 0:
-                    layer = expt.construct_coatinglayer(array, self._prev)
-                    if layer.valid():
-                        array = layer.draw()
-                        self._prev = layer
-                    else:
-                        self._prev = None
+            if self._visualizeMode == VisualizationMode.FULL:
+                expt = worker.experiment
+                if expt is not None:
+                    if array.size > 0:
+                        layer = expt.construct_coatinglayer(array, self._prev)
+                        if layer.valid():
+                            array = layer.draw()
+                            self._prev = layer
+                        else:
+                            self._prev = None
+            elif self._visualizeMode == VisualizationMode.FAST:
+                refImg = worker.referenceImage
+                tempROI = worker.exptData.reference.templateROI
+                substROI = worker.exptData.reference.substrateROI
+                array = fastVisualize(refImg, array, tempROI, substROI)
         return array
 
     def ready(self) -> bool:
@@ -115,6 +136,7 @@ class VisualizeManager(QObject):
         self._exptKind = ExperimentKind.NULL
         self._frameSource = FrameSource.NULL
         self._currentView = DataMember.NULL
+        self._visualizeMode = VisualizationMode.OFF
         self._videoPlayer = NDArrayVideoPlayer()
         self._lastVideoFrame = np.empty((0, 0, 0), dtype=np.uint8)
         self._camera = None
@@ -186,7 +208,7 @@ class VisualizeManager(QObject):
             img = np.empty((0, 0, 0), dtype=np.uint8)
             self.arrayChanged.emit(img)
         else:
-            self._displayFromWorker(worker, self._currentView)
+            self._displayFromWorker(worker)
 
         display = self.display()
         if display is not None:
@@ -240,71 +262,20 @@ class VisualizeManager(QObject):
 
         if self._currentView == DataMember.REFERENCE:
             if flag & (DataArgs.REFPATH | DataArgs.REFERENCE):
-                ref = worker.reference
-                if ref is not None:
-                    img = ref.draw()
-                else:
-                    img = np.empty((0, 0, 0), dtype=np.uint8)
-                self.arrayChanged.emit(img)
+                self._displayFromWorker(worker)
         elif self._currentView == DataMember.SUBSTRATE:
             if flag & (DataArgs.REFPATH | DataArgs.REFERENCE | DataArgs.SUBSTRATE):
-                subst = worker.substrate
-                if subst is not None:
-                    img = subst.draw()
-                else:
-                    img = worker.referenceImage
-                    roi = worker.exptData.reference.substrateROI
-                    img = cropForSubstrate(img, roi)
-                self.arrayChanged.emit(img)
+                self._displayFromWorker(worker)
         else:
-            coatPaths = worker.exptData.coat_paths
-            exptKind = self._exptKind
-            if exptKind in (
-                ExperimentKind.SINGLE_IMAGE,
-                ExperimentKind.MULTI_IMAGE,
+            if flag & (
+                DataArgs.COATPATHS
+                | DataArgs.REFPATH
+                | DataArgs.REFERENCE
+                | DataArgs.SUBSTRATE
+                | DataArgs.COATINGLAYER
+                | DataArgs.EXPERIMENT
             ):
-                img = cv2.imread(coatPaths[0])
-                if img is not None:
-                    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                    self._imageProcessor.setArray(img)
-                else:
-                    img = np.empty((0, 0, 0), dtype=np.uint8)
-                    self.arrayChanged.emit(img)
-            elif exptKind == ExperimentKind.VIDEO:
-                if flag & DataArgs.COATPATHS:
-                    cap = cv2.VideoCapture(coatPaths[0])
-                    ok, img = cap.read()
-                    cap.release()
-                    if ok:
-                        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                    else:
-                        img = np.empty((0, 0, 0), dtype=np.uint8)
-                    self._imageProcessor.setArray(img)
-                elif flag & (
-                    DataArgs.REFPATH
-                    | DataArgs.REFERENCE
-                    | DataArgs.SUBSTRATE
-                    | DataArgs.COATINGLAYER
-                    | DataArgs.EXPERIMENT
-                ):
-                    state = self._videoPlayer.playbackState()
-                    if state == QMediaPlayer.PlaybackState.StoppedState:
-                        cap = cv2.VideoCapture(coatPaths[0])
-                        ok, img = cap.read()
-                        cap.release()
-                        if ok:
-                            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                            self._imageProcessor.setArray(img)
-                        else:
-                            img = np.empty((0, 0, 0), dtype=np.uint8)
-                            self.arrayChanged.emit(img)
-                    else:
-                        self._imageProcessor.setArray(self._lastVideoFrame)
-                else:
-                    pass  # no need to update experiment visualization
-            else:
-                img = np.empty((0, 0, 0), dtype=np.uint8)
-                self.arrayChanged.emit(img)
+                self._displayFromWorker(worker)
 
     def camera(self) -> Optional[QCamera]:
         return self._camera
@@ -365,7 +336,7 @@ class VisualizeManager(QObject):
             img = np.empty((0, 0, 0), dtype=np.uint8)
             self.arrayChanged.emit(img)
         else:
-            self._displayFromWorker(worker, self._currentView)
+            self._displayFromWorker(worker)
 
         display = self.display()
         if display is not None:
@@ -409,28 +380,55 @@ class VisualizeManager(QObject):
             img = np.empty((0, 0, 0), dtype=np.uint8)
             self.arrayChanged.emit(img)
         else:
-            self._displayFromWorker(worker, currentView)
+            self._displayFromWorker(worker)
 
         display = self.display()
         if display is not None:
             display.setCurrentView(currentView)
 
-    def _displayFromWorker(self, worker: ExperimentWorker, currentView: DataMember):
+    @Slot(VisualizationMode)
+    def setVisualizationMode(self, mode: VisualizationMode):
+        self._imageProcessor.setVisualizationMode(mode)
+        self._visualizeMode = mode
+
+        model = self.model()
+        if model is None:
+            return
+        worker = model.worker(model.activatedIndex())
+
+        if self._frameSource == FrameSource.CAMERA:
+            pass
+        elif worker is None:
+            img = np.empty((0, 0, 0), dtype=np.uint8)
+            self.arrayChanged.emit(img)
+        else:
+            self._displayFromWorker(worker)
+
+    def _displayFromWorker(self, worker: ExperimentWorker):
+        currentView = self._currentView
         if currentView == DataMember.REFERENCE:
-            ref = worker.reference
-            if ref is not None:
-                img = ref.draw()
+            if self._visualizeMode == VisualizationMode.FULL:
+                ref = worker.reference
+                if ref is not None:
+                    img = ref.draw()
+                else:
+                    img = np.empty((0, 0, 0), dtype=np.uint8)
             else:
-                img = np.empty((0, 0, 0), dtype=np.uint8)
+                img = worker.referenceImage
             self.arrayChanged.emit(img)
         elif currentView == DataMember.SUBSTRATE:
-            subst = worker.substrate
+            if self._visualizeMode == VisualizationMode.FULL:
+                subst = worker.substrate
+            else:
+                subst = None
             if subst is not None:
                 img = subst.draw()
             else:
                 img = worker.referenceImage
                 roi = worker.exptData.reference.substrateROI
-                img = cropForSubstrate(img, roi)
+                h, w = img.shape[:2]
+                x0, y0, x1, y1 = sanitize_ROI(roi, h, w)
+                img = img[y0:y1, x0:x1]
             self.arrayChanged.emit(img)
         else:
             coatPaths = worker.exptData.coat_paths
@@ -440,34 +438,33 @@ class VisualizeManager(QObject):
                 ExperimentKind.MULTI_IMAGE,
             ):
                 img = cv2.imread(coatPaths[0])
-                if img is not None:
-                    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                    self._imageProcessor.setArray(img)
-                else:
-                    img = np.empty((0, 0, 0), dtype=np.uint8)
-                    self.arrayChanged.emit(img)
             elif exptKind == ExperimentKind.VIDEO:
-                cap = cv2.VideoCapture(coatPaths[0])
-                ok, img = cap.read()
-                cap.release()
-                if ok:
-                    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                    self._imageProcessor.setArray(img)
+                state = self._videoPlayer.playbackState()
+                if state == QMediaPlayer.PlaybackState.StoppedState:
+                    cap = cv2.VideoCapture(coatPaths[0])
+                    ok, img = cap.read()
+                    cap.release()
+                    if not ok:
+                        img = None
                 else:
-                    img = np.empty((0, 0, 0), dtype=np.uint8)
-                    self.arrayChanged.emit(img)
+                    img = self._lastVideoFrame
+            else:
+                img = None
+            if img is not None:
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                self._imageProcessor.setArray(img)
             else:
                 img = np.empty((0, 0, 0), dtype=np.uint8)
                 self.arrayChanged.emit(img)
 
     @Slot(np.ndarray)
     def _displayImageFromVideo(self, array: npt.NDArray[np.uint8]):
+        self._lastVideoFrame = array.copy()
         if array.size != 0:
             array = cv2.cvtColor(array, cv2.COLOR_BGR2RGB)
         if self._currentView == DataMember.REFERENCE:
             h, w = array.shape[:2]
             self.roiMaximumChanged.emit(h, w)
-        self._lastVideoFrame = array.copy()
         self._displayImage(array)
 
     @Slot(np.ndarray)
@@ -504,7 +501,78 @@ class VisualizeManager(QObject):
         self._processorThread.wait()
 
 
-def cropForSubstrate(img, roi):
+def crop(img: npt.NDArray[np.uint8], roi: OptionalROI):
     h, w = img.shape[:2]
     x0, y0, x1, y1 = sanitize_ROI(roi, h, w)
     return img[y0:y1, x0:x1]
+
+
+def fastVisualize(
+    refImg: npt.NDArray[np.uint8],
+    layerImg: npt.NDArray[np.uint8],
+    tempROI: OptionalROI,
+    substROI: OptionalROI,
+):
+    if len(refImg.shape) == 2:
+        ref_gray = refImg
+    elif len(refImg.shape) == 3:
+        ch = refImg.shape[-1]
+        if ch == 1:
+            ref_gray = refImg
+        elif ch == 3:
+            ref_gray = cv2.cvtColor(refImg, cv2.COLOR_RGB2GRAY)
+        elif ch == 4:
+            ref_gray = cv2.cvtColor(refImg, cv2.COLOR_RGBA2GRAY)
+        else:
+            raise TypeError(f"Reference image with invalid channel: {refImg.shape}")
+    else:
+        raise TypeError(f"Invalid reference image shape: {refImg.shape}")
+    _, ref_bin = cv2.threshold(ref_gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+    if ref_bin is None:
+        return layerImg
+
+    if len(layerImg.shape) == 2:
+        gray = layerImg
+    elif len(layerImg.shape) == 3:
+        ch = layerImg.shape[-1]
+        if ch == 1:
+            gray = layerImg
+        elif ch == 3:
+            gray = cv2.cvtColor(layerImg, cv2.COLOR_RGB2GRAY)
+        elif ch == 4:
+            gray = cv2.cvtColor(layerImg, cv2.COLOR_RGBA2GRAY)
+        else:
+            raise TypeError(f"Layer image with invalid channel: {layerImg.shape}")
+    else:
+        raise TypeError(f"Invalid layer image shape: {layerImg.shape}")
+    _, layer_bin = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+    if layer_bin is None:
+        return layerImg
+
+    h, w = refImg.shape[:2]
+    tempROI = sanitize_ROI(tempROI, h, w)
+    substROI = sanitize_ROI(substROI, h, w)
+
+    temp_x0, temp_y0, temp_x1, temp_y1 = tempROI
+    template = ref_bin[temp_y0:temp_y1, temp_x0:temp_x1]
+    subst_x0, subst_y0, subst_x1, subst_y1 = substROI
+    substImg = ref_bin[subst_y0:subst_y1, subst_x0:subst_x1]
+
+    res = cv2.matchTemplate(layer_bin, template, cv2.TM_SQDIFF_NORMED)
+    _, _, (tx, ty), _ = cv2.minMaxLoc(res)
+    dx, dy = (substROI[0] - tempROI[0], substROI[1] - tempROI[1])
+    x0, y0 = (tx + dx, ty + dy)
+    subst_h, subst_w = substImg.shape[:2]
+    x1, y1 = (x0 + subst_w, y0 + subst_h)
+
+    H, W = layer_bin.shape
+    img_cropped = layer_bin[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)]
+    subst_cropped = substImg[
+        max(-y0, 0) : min(H - y0, subst_h),
+        max(-x0, 0) : min(W - x0, subst_w),
+    ]
+
+    xor = cv2.bitwise_xor(img_cropped, subst_cropped)
+    nxor = cv2.bitwise_not(xor)
+    layer_bin[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)] = nxor
+    return cv2.cvtColor(layer_bin, cv2.COLOR_GRAY2RGB)

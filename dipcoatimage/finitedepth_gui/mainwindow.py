@@ -52,13 +52,16 @@ class MainWindow(QMainWindow):
         self._visualizeManager.setModel(self._model)
         self._visualizeManager.setCamera(self._camera)
         self._visualizeManager.setDisplay(self._display)
+        self._display.setCamera(self._camera)
+        self._visualizeManager.roiMaximumChanged.connect(
+            self._dataViewTab.setROIMaximum
+        )
         self._dataViewTab.currentViewChanged.connect(
             self._visualizeManager.setCurrentView
         )
         self._dataViewTab.roiDrawFlagChanged.connect(self._display.setROIDrawFlag)
-        self._display.setCamera(self._camera)
-        self._visualizeManager.roiMaximumChanged.connect(
-            self._dataViewTab.setROIMaximum
+        self._display.visualizationModeChanged.connect(
+            self._visualizeManager.setVisualizationMode
         )
 
         exptListDock = QDockWidget("List of experiments")
