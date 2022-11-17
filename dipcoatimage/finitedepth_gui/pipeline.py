@@ -352,6 +352,7 @@ class VisualizeManager(QObject):
                 self._onCameraActiveChange
             )
         self._camera = camera
+        self._captureSession.setCamera(camera)
         if camera is not None:
             camera.activeChanged.connect(  # type: ignore[attr-defined]
                 self._onCameraActiveChange
@@ -368,7 +369,7 @@ class VisualizeManager(QObject):
     def setFrameSource(self, frameSource: FrameSource):
         oldSource = self._frameSource
         if oldSource == FrameSource.CAMERA:
-            self._captureSession.arrayChanged.disconnect(self._displayImage)
+            self._captureSession.arrayChanged.disconnect(self._displayImageFromCamera)
         elif oldSource == FrameSource.FILE:
             if self._exptKind == ExperimentKind.VIDEO and self._currentView not in (
                 DataMember.REFERENCE,
@@ -379,7 +380,7 @@ class VisualizeManager(QObject):
             pass
         self._frameSource = frameSource
         if frameSource == FrameSource.CAMERA:
-            self._captureSession.arrayChanged.connect(self._displayImage)
+            self._captureSession.arrayChanged.connect(self._displayImageFromCamera)
         elif frameSource == FrameSource.FILE:
             if self._exptKind == ExperimentKind.VIDEO and self._currentView not in (
                 DataMember.REFERENCE,
@@ -482,7 +483,15 @@ class VisualizeManager(QObject):
 
     @Slot(np.ndarray)
     def _displayImageFromVideo(self, array: npt.NDArray[np.uint8]):
+        if array.size != 0:
+            array = cv2.cvtColor(array, cv2.COLOR_BGR2RGB)
         self._lastVideoFrame = array.copy()
+        self._displayImage(array)
+
+    @Slot(np.ndarray)
+    def _displayImageFromCamera(self, array: npt.NDArray[np.uint8]):
+        if array.size != 0:
+            array = cv2.cvtColor(array, cv2.COLOR_BGR2RGB)
         self._displayImage(array)
 
     @Slot(np.ndarray)
