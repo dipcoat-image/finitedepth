@@ -10,18 +10,16 @@ import enum
 import numpy as np
 import numpy.typing as npt
 from dipcoatimage.finitedepth import (
-    ExperimentData,
     SubstrateReferenceBase,
     SubstrateBase,
     ExperimentBase,
-)
-from dipcoatimage.finitedepth.analysis import (
-    ReferenceArgs,
-    SubstrateArgs,
-    AnalysisArgs,
     ExperimentKind,
     experiment_kind,
     Analyzer,
+    ReferenceArgs,
+    SubstrateArgs,
+    AnalysisArgs,
+    ExperimentData,
 )
 from PySide6.QtCore import QObject, Signal, QRunnable, QThreadPool
 from typing import List, Optional

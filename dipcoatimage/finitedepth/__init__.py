@@ -43,10 +43,19 @@ from .coatinglayer import (
 )
 from .rectcoatinglayer import RectCoatingLayerBase, RectLayerArea
 from .experiment import ExperimentError, ExperimentBase, Experiment
-from .analysis import ExperimentData
+from .analysis import ExperimentKind, experiment_kind, Analyzer
+from .serialize import (
+    data_converter,
+    ImportArgs,
+    ReferenceArgs,
+    SubstrateArgs,
+    CoatingLayerArgs,
+    ExperimentArgs,
+    AnalysisArgs,
+    ExperimentData,
+)
 from .util import (
     get_samples_path,
-    data_converter,
     CannyParameters,
     HoughLinesParameters,
 )
@@ -74,9 +83,18 @@ __all__ = [
     "ExperimentError",
     "ExperimentBase",
     "Experiment",
+    "ExperimentKind",
+    "experiment_kind",
+    "Analyzer",
+    "data_converter",
+    "ImportArgs",
+    "ReferenceArgs",
+    "SubstrateArgs",
+    "CoatingLayerArgs",
+    "ExperimentArgs",
+    "AnalysisArgs",
     "ExperimentData",
     "get_samples_path",
-    "data_converter",
     "CannyParameters",
     "HoughLinesParameters",
 ]

@@ -6,8 +6,11 @@ from araviq6 import NDArrayVideoPlayer, NDArrayMediaCaptureSession
 import cv2  # type: ignore[import]
 import numpy as np
 import numpy.typing as npt
-from dipcoatimage.finitedepth import SubstrateReferenceBase
-from dipcoatimage.finitedepth.analysis import ExperimentKind, experiment_kind
+from dipcoatimage.finitedepth import (
+    SubstrateReferenceBase,
+    ExperimentKind,
+    experiment_kind,
+)
 from dipcoatimage.finitedepth_gui.core import DataMember, DataArgs, FrameSource
 from dipcoatimage.finitedepth_gui.worker import ExperimentWorker
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel

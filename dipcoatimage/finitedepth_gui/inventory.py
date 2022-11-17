@@ -5,10 +5,16 @@ Experiment inventory
 Experiment item model and widget to view it.
 
 """
-from dipcoatimage.finitedepth import data_converter
-from dipcoatimage.finitedepth.analysis import (
+
+import enum
+from itertools import product
+import os
+import json
+import yaml  # type: ignore[import]
+from dipcoatimage.finitedepth import (
     ExperimentKind,
     experiment_kind,
+    data_converter,
     ReferenceArgs,
     SubstrateArgs,
     CoatingLayerArgs,
@@ -16,10 +22,6 @@ from dipcoatimage.finitedepth.analysis import (
     AnalysisArgs,
     ExperimentData,
 )
-import enum
-from itertools import product
-import json
-import os
 from PySide6.QtCore import Slot, Signal, Qt, QModelIndex
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from PySide6.QtWidgets import (
@@ -34,7 +36,6 @@ from PySide6.QtWidgets import (
     QFileDialog,
 )
 from typing import List, Optional, Dict, Any
-import yaml  # type: ignore[import]
 from .core import (
     StructuredExperimentArgs,
     StructuredReferenceArgs,

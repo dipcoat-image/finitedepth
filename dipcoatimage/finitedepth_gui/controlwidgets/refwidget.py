@@ -1,7 +1,11 @@
 import cv2  # type: ignore
 from dataclass2PySide6 import DataclassWidget, StackedDataclassWidget
-from dipcoatimage.finitedepth import SubstrateReferenceBase, data_converter
-from dipcoatimage.finitedepth.analysis import ImportArgs, ReferenceArgs
+from dipcoatimage.finitedepth import (
+    SubstrateReferenceBase,
+    data_converter,
+    ImportArgs,
+    ReferenceArgs,
+)
 from dipcoatimage.finitedepth_gui.core import StructuredReferenceArgs
 from dipcoatimage.finitedepth_gui.importwidget import ImportWidget
 from dipcoatimage.finitedepth_gui.roimodel import ROIWidget

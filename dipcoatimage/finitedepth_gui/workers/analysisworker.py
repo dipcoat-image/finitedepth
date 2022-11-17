@@ -1,9 +1,12 @@
 import cv2  # type: ignore
-from dipcoatimage.finitedepth import ExperimentBase
-from dipcoatimage.finitedepth.analysis import Analyzer
 import dataclasses
-from dipcoatimage.finitedepth.analysis import ExperimentKind, AnalysisArgs
 import os
+from dipcoatimage.finitedepth import (
+    ExperimentBase,
+    ExperimentKind,
+    AnalysisArgs,
+    Analyzer,
+)
 from PySide6.QtCore import Slot, Signal
 from typing import Optional, List
 from .base import WorkerBase

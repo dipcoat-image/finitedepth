@@ -2,7 +2,7 @@ from araviq6 import MediaController, NDArrayMediaCaptureSession
 import cv2  # type: ignore[import]
 import numpy as np
 import numpy.typing as npt
-from dipcoatimage.finitedepth.analysis import ExperimentKind
+from dipcoatimage.finitedepth import ExperimentKind
 from dipcoatimage.finitedepth_gui.core import (
     ClassSelection,
     VisualizationMode,

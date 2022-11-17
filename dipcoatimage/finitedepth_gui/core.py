@@ -12,8 +12,6 @@ from dipcoatimage.finitedepth import (
     SubstrateReferenceBase,
     SubstrateBase,
     CoatingLayerBase,
-)
-from dipcoatimage.finitedepth.analysis import (
     ExperimentArgs,
     ReferenceArgs,
     SubstrateArgs,

@@ -1,5 +1,5 @@
-from dipcoatimage.finitedepth.analysis import AnalysisArgs, Analyzer
 import os
+from dipcoatimage.finitedepth import AnalysisArgs, Analyzer
 from PySide6.QtCore import Signal, Slot
 from PySide6.QtGui import QDoubleValidator
 from PySide6.QtWidgets import (

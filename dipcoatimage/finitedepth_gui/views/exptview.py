@@ -21,8 +21,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QFileDialog,
 )
-from dipcoatimage.finitedepth import ExperimentBase
-from dipcoatimage.finitedepth.analysis import ImportArgs
+from dipcoatimage.finitedepth import ExperimentBase, ImportArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
 from dipcoatimage.finitedepth_gui.core import DataArgs
 from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag

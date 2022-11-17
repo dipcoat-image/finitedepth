@@ -2,12 +2,10 @@ import csv
 import cv2  # type: ignore
 import os
 import pytest
-from dipcoatimage.finitedepth import get_samples_path, data_converter
-from dipcoatimage.finitedepth.util import dict_includes
-from dipcoatimage.finitedepth.analysis import (
+from dipcoatimage.finitedepth import (
     ExperimentKind,
     experiment_kind,
-    CSVWriter,
+    data_converter,
     ImportArgs,
     ReferenceArgs,
     SubstrateArgs,
@@ -15,7 +13,10 @@ from dipcoatimage.finitedepth.analysis import (
     ExperimentArgs,
     AnalysisArgs,
     ExperimentData,
+    get_samples_path,
 )
+from dipcoatimage.finitedepth.util import dict_includes
+from dipcoatimage.finitedepth.analysis import CSVWriter
 
 
 REF_PATH = get_samples_path("ref1.png")
