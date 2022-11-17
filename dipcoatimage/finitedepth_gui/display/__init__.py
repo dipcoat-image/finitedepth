@@ -20,15 +20,9 @@ from .toolbar import (
     DisplayWidgetToolBar,
     get_icons_path,
 )
-from .videostream import (
-    PreviewableNDArrayVideoPlayer,
-    VisualizeProcessor,
-)
 
 
 __all__ = [
-    "PreviewableNDArrayVideoPlayer",
-    "VisualizeProcessor",
     "NDArrayROILabel",
     "NDArrayROILabel_V2",
     "coords_label2pixmap",
