@@ -236,8 +236,11 @@ class DisplayWidgetToolBar(QToolBar):
             imageCapture.setFileFormat(form)
 
     @Slot(QImageCapture.FileFormat)
-    def _onCaptureFileFormatChange(self, form: QImageCapture.FileFormat):
-        index = self._captureFormatComboBox.itemData(form)
+    def _onCaptureFileFormatChange(self):
+        imageCapture = self.imageCapture()
+        if imageCapture is not None:
+            form = imageCapture.fileFormat()
+        index = self._captureFormatComboBox.findData(form)
         self._captureFormatComboBox.setCurrentIndex(index)
 
     def _onCaptureButtonClick(self):
