@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QMainWindow, QDockWidget
 from dipcoatimage.finitedepth_gui.core import FrameSource
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from dipcoatimage.finitedepth_gui.views import ExperimentDataListView, DataViewTab
-from dipcoatimage.finitedepth_gui.display import MainDisplayWindow_V2
+from dipcoatimage.finitedepth_gui.display import MainDisplayWindow
 from dipcoatimage.finitedepth_gui.pipeline import VisualizeManager
 
 
@@ -43,7 +43,7 @@ class MainWindow(QMainWindow):
         self._visualizeManager = VisualizeManager()
         self._listView = ExperimentDataListView()
         self._dataViewTab = DataViewTab()
-        self._display = MainDisplayWindow_V2()
+        self._display = MainDisplayWindow()
 
         self._listView.setModel(self._model)
         self._dataViewTab.setModel(self._model)

@@ -9,7 +9,6 @@ This module provides the widgets to display the visualized results.
 
 from .maindisplay import (
     MainDisplayWindow,
-    MainDisplayWindow_V2,
 )
 from .roidisplay import (
     NDArrayROILabel,
@@ -37,5 +36,4 @@ __all__ = [
     "DisplayWidgetToolBar",
     "get_icons_path",
     "MainDisplayWindow",
-    "MainDisplayWindow_V2",
 ]
