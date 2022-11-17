@@ -157,7 +157,7 @@ class ExperimentItemModel(QStandardItemModel):
         ret = super().data(index, role)
         if ret is None and not index.parent().isValid():
             if index.column() == self.Col_CoatPaths:
-                ret = ExperimentKind.NullExperiment
+                ret = ExperimentKind.NULL
             if index.column() == self.Col_Reference:
                 if role == self.Role_Args:
                     ret = ReferenceArgs()

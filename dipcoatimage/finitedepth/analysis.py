@@ -88,24 +88,24 @@ class ExperimentKind(enum.Enum):
     """
     Enumeration of the experiment category by coated substrate files.
 
-    NullExperiment
+    NULL
         Invalid file
 
-    SingleImageExperiment
+    SINGLE_IMAGE
         Single image file
 
-    MultiImageExperiment
+    MULTI_IMAGE
         Multiple image files
 
-    VideoExperiment
+    VIDEO
         Single video file
 
     """
 
-    NullExperiment = "NullExperiment"
-    SingleImageExperiment = "SingleImageExperiment"
-    MultiImageExperiment = "MultiImageExperiment"
-    VideoExperiment = "VideoExperiment"
+    NULL = "NULL"
+    SINGLE_IMAGE = "SINGLE_IMAGE"
+    MULTI_IMAGE = "MULTI_IMAGE"
+    VIDEO = "VIDEO"
 
 
 def experiment_kind(paths: List[str]) -> ExperimentKind:
@@ -137,15 +137,15 @@ def experiment_kind(paths: List[str]) -> ExperimentKind:
             break
 
     if INVALID:
-        ret = ExperimentKind.NullExperiment
+        ret = ExperimentKind.NULL
     elif video_count:
-        ret = ExperimentKind.VideoExperiment
+        ret = ExperimentKind.VIDEO
     elif image_count > 1:
-        ret = ExperimentKind.MultiImageExperiment
+        ret = ExperimentKind.MULTI_IMAGE
     elif image_count:
-        ret = ExperimentKind.SingleImageExperiment
+        ret = ExperimentKind.SINGLE_IMAGE
     else:
-        ret = ExperimentKind.NullExperiment
+        ret = ExperimentKind.NULL
     return ret
 
 
@@ -290,8 +290,8 @@ class Analyzer:
 
         # make image generator
         if (
-            expt_kind == ExperimentKind.SingleImageExperiment
-            or expt_kind == ExperimentKind.MultiImageExperiment
+            expt_kind == ExperimentKind.SINGLE_IMAGE
+            or expt_kind == ExperimentKind.MULTI_IMAGE
         ):
             img_gen = (cv2.imread(path) for path in self.paths)
             if fps is None:
@@ -299,7 +299,7 @@ class Analyzer:
 
             total = len(self.paths)
 
-        elif expt_kind == ExperimentKind.VideoExperiment:
+        elif expt_kind == ExperimentKind.VIDEO:
             (path,) = self.paths
             cap = cv2.VideoCapture(path)
             fnum = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
