@@ -6,11 +6,8 @@ from araviq6 import NDArrayVideoPlayer, NDArrayMediaCaptureSession
 import cv2  # type: ignore[import]
 import numpy as np
 import numpy.typing as npt
-from dipcoatimage.finitedepth import (
-    SubstrateReferenceBase,
-    ExperimentKind,
-    experiment_kind,
-)
+from dipcoatimage.finitedepth import ExperimentKind, experiment_kind
+from dipcoatimage.finitedepth.reference import sanitize_ROI
 from dipcoatimage.finitedepth_gui.core import DataMember, DataArgs, FrameSource
 from dipcoatimage.finitedepth_gui.worker import ExperimentWorker
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
@@ -23,6 +20,7 @@ __all__ = [
     "ImageProcessor",
     "DisplayProtocol",
     "VisualizeManager",
+    "cropForSubstrate",
 ]
 
 
@@ -514,5 +512,5 @@ class VisualizeManager(QObject):
 
 def cropForSubstrate(img, roi):
     h, w = img.shape[:2]
-    x0, y0, x1, y1 = SubstrateReferenceBase.sanitize_ROI(roi, h, w)
+    x0, y0, x1, y1 = sanitize_ROI(roi, h, w)
     return img[y0:y1, x0:x1]
