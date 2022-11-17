@@ -8,7 +8,7 @@ import numpy as np
 import numpy.typing as npt
 from dipcoatimage.finitedepth import ExperimentKind, experiment_kind
 from dipcoatimage.finitedepth.reference import sanitize_ROI
-from dipcoatimage.finitedepth.util import OptionalROI
+from dipcoatimage.finitedepth.util import OptionalROI, binarize
 from dipcoatimage.finitedepth_gui.core import (
     DataMember,
     DataArgs,
@@ -520,40 +520,12 @@ def fastVisualize(
     tempROI: OptionalROI,
     substROI: OptionalROI,
 ):
-    if len(refImg.shape) == 2:
-        ref_gray = refImg
-    elif len(refImg.shape) == 3:
-        ch = refImg.shape[-1]
-        if ch == 1:
-            ref_gray = refImg
-        elif ch == 3:
-            ref_gray = cv2.cvtColor(refImg, cv2.COLOR_RGB2GRAY)
-        elif ch == 4:
-            ref_gray = cv2.cvtColor(refImg, cv2.COLOR_RGBA2GRAY)
-        else:
-            raise TypeError(f"Reference image with invalid channel: {refImg.shape}")
-    else:
-        raise TypeError(f"Invalid reference image shape: {refImg.shape}")
-    _, ref_bin = cv2.threshold(ref_gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-    if ref_bin is None:
+    ref_bin = binarize(refImg)
+    if ref_bin.size == 0:
         return layerImg
 
-    if len(layerImg.shape) == 2:
-        gray = layerImg
-    elif len(layerImg.shape) == 3:
-        ch = layerImg.shape[-1]
-        if ch == 1:
-            gray = layerImg
-        elif ch == 3:
-            gray = cv2.cvtColor(layerImg, cv2.COLOR_RGB2GRAY)
-        elif ch == 4:
-            gray = cv2.cvtColor(layerImg, cv2.COLOR_RGBA2GRAY)
-        else:
-            raise TypeError(f"Layer image with invalid channel: {layerImg.shape}")
-    else:
-        raise TypeError(f"Invalid layer image shape: {layerImg.shape}")
-    _, layer_bin = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-    if layer_bin is None:
+    layer_bin = binarize(layerImg)
+    if layer_bin.size == 0:
         return layerImg
 
     h, w = refImg.shape[:2]

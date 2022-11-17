@@ -50,9 +50,9 @@ import cv2  # type: ignore
 import dataclasses
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Generic, Type, Optional, Tuple
 from .substrate import SubstrateBase
-from .util import DataclassProtocol, BinaryImageDrawMode
+from .util import DataclassProtocol, BinaryImageDrawMode, binarize, colorize
+from typing import TypeVar, Generic, Type, Optional, Tuple
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -259,60 +259,13 @@ class CoatingLayerBase(
 
         """
         if not hasattr(self, "_binary_image"):
-            if len(self.image.shape) == 2:
-                gray = self.image
-            elif len(self.image.shape) == 3:
-                ch = self.image.shape[-1]
-                if ch == 1:
-                    gray = self.image
-                elif ch == 3:
-                    gray = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
-                else:
-                    raise TypeError(f"Image with invalid channel: {self.image.shape}")
-            else:
-                raise TypeError(f"Invalid image shape: {self.image.shape}")
-            _, ret = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-            if ret is None:
-                ret = np.empty((0, 0))
-            self._binary_image = ret
+            self._binary_image = binarize(self.image)
         return self._binary_image
 
     def _match_template(self) -> Tuple[float, Tuple[int, int]]:
+        image = self.binary_image()
         x0, y0, x1, y1 = self.substrate.reference.templateROI
-        template = self.substrate.reference.image[y0:y1, x0:x1]
-
-        # make channel same
-        if len(self.image.shape) == 2:
-            img_gray = True
-        elif len(self.image.shape) == 3:
-            ch = self.image.shape[-1]
-            if ch == 1:
-                img_gray = True
-            elif ch == 3:
-                img_gray = False
-            else:
-                raise TypeError(f"Image with invalid channel: {self.image.shape}")
-        else:
-            raise TypeError(f"Invalid image shape: {self.image.shape}")
-        if len(template.shape) == 2:
-            tmp_gray = True
-        elif len(template.shape) == 3:
-            ch = template.shape[-1]
-            if ch == 1:
-                tmp_gray = True
-            elif ch == 3:
-                tmp_gray = False
-            else:
-                raise TypeError(f"Image with invalid channel: {template.shape}")
-        else:
-            raise TypeError(f"Invalid image shape: {template.shape}")
-        if img_gray and not tmp_gray:
-            image = self.image
-            template = cv2.cvtColor(template, cv2.COLOR_RGB2GRAY)
-        elif not img_gray and tmp_gray:
-            image = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
-        else:
-            image = self.image
+        template = self.substrate.reference.binary_image()[y0:y1, x0:x1]
 
         res = cv2.matchTemplate(image, template, cv2.TM_SQDIFF_NORMED)
         score, _, loc, _ = cv2.minMaxLoc(res)
@@ -626,19 +579,7 @@ class LayerArea(
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
 
-        if len(image.shape) == 2:
-            ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-        elif len(image.shape) == 3:
-            ch = image.shape[-1]
-            if ch == 1:
-                ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-            elif ch == 3:
-                ret = image.copy()
-            else:
-                raise TypeError(f"Image with invalid channel: {image.shape}")
-        else:
-            raise TypeError(f"Invalid image shape: {image.shape}")
-
+        ret = colorize(image)
         if self.draw_options.decorate:
             ret[~self.extract_layer().astype(bool)] = self.deco_options.layer_color
         return ret

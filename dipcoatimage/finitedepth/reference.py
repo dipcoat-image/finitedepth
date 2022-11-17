@@ -34,13 +34,15 @@ import cv2  # type: ignore
 import dataclasses
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Generic, Type, Optional, Tuple
 from .util import (
+    binarize,
+    colorize,
     DataclassProtocol,
     OptionalROI,
     IntROI,
     BinaryImageDrawMode,
 )
+from typing import TypeVar, Generic, Type, Optional, Tuple
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -246,22 +248,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
 
         """
         if not hasattr(self, "_binary_image"):
-            if len(self.image.shape) == 2:
-                gray = self.image
-            elif len(self.image.shape) == 3:
-                ch = self.image.shape[-1]
-                if ch == 1:
-                    gray = self.image
-                elif ch == 3:
-                    gray = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
-                else:
-                    raise TypeError(f"Image with invalid channel: {self.image.shape}")
-            else:
-                raise TypeError(f"Invalid image shape: {self.image.shape}")
-            _, ret = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-            if ret is None:
-                ret = np.empty((0, 0))
-            self._binary_image = ret
+            self._binary_image = binarize(self.image)
         return self._binary_image
 
     def substrate_image(self) -> npt.NDArray[np.uint8]:
@@ -418,19 +405,7 @@ class SubstrateReference(
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
 
-        if len(image.shape) == 2:
-            ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-        elif len(image.shape) == 3:
-            ch = image.shape[-1]
-            if ch == 1:
-                ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-            elif ch == 3:
-                ret = image.copy()
-            else:
-                raise TypeError(f"Image with invalid channel: {image.shape}")
-        else:
-            raise TypeError(f"Invalid image shape: {image.shape}")
-
+        ret = colorize(image)
         if self.draw_options.draw_substrateROI:
             x0, y0, x1, y1 = self.substrateROI
             color = self.draw_options.substrateROI_color
