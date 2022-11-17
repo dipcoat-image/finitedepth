@@ -390,6 +390,65 @@ class VisualizeManager(QObject):
                 self._videoPlayer.arrayChanged.connect(self._displayImageFromVideo)
         else:
             pass
+
+        model = self.model()
+        if model is None:
+            return
+        worker = model.worker(model.activatedIndex())
+        if worker is None:
+            return
+
+        currentView = self._currentView
+        if currentView == DataMember.REFERENCE:
+            ref = worker.reference
+            if ref is not None:
+                img = ref.draw()
+            else:
+                img = np.empty((0, 0, 0), dtype=np.uint8)
+            self.arrayChanged.emit(img)
+        elif currentView == DataMember.SUBSTRATE:
+            subst = worker.substrate
+            if subst is not None:
+                img = subst.draw()
+            else:
+                img = worker.referenceImage
+                roi = worker.exptData.reference.substrateROI
+                img = cropForSubstrate(img, roi)
+            self.arrayChanged.emit(img)
+        else:
+            coatPaths = worker.exptData.coat_paths
+            exptKind = self._exptKind
+            if exptKind in (
+                ExperimentKind.SINGLE_IMAGE,
+                ExperimentKind.MULTI_IMAGE,
+            ):
+                img = cv2.imread(coatPaths[0])
+                if img is not None:
+                    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                    self._imageProcessor.setArray(img)
+                else:
+                    img = np.empty((0, 0, 0), dtype=np.uint8)
+                    self.arrayChanged.emit(img)
+            elif exptKind == ExperimentKind.VIDEO:
+                state = self._videoPlayer.playbackState()
+                if state == QMediaPlayer.PlaybackState.PlayingState:
+                    pass
+                elif state == QMediaPlayer.PlaybackState.StoppedState:
+                    cap = cv2.VideoCapture(coatPaths[0])
+                    ok, img = cap.read()
+                    cap.release()
+                    if ok:
+                        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                        self._imageProcessor.setArray(img)
+                    else:
+                        img = np.empty((0, 0, 0), dtype=np.uint8)
+                        self.arrayChanged.emit(img)
+                else:
+                    self._imageProcessor.setArray(self._lastVideoFrame)
+            else:
+                img = np.empty((0, 0, 0), dtype=np.uint8)
+                self.arrayChanged.emit(img)
+
         display = self.display()
         if display is not None:
             display.setFrameSource(frameSource)
