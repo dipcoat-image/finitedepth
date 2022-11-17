@@ -1,10 +1,9 @@
 from araviq6 import NDArrayLabel
-from PySide6.QtCore import Signal, Slot, QSize, QRect, QPoint, Qt, QModelIndex
-from PySide6.QtGui import QPaintEvent, QMouseEvent, QPainter, QBrush, QColor
-from dipcoatimage.finitedepth_gui.roimodel import ROIModel
+from PySide6.QtCore import Slot, QSize, QRect, QPoint, Qt, QModelIndex
+from PySide6.QtGui import QPainter, QBrush, QColor
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
 from dipcoatimage.finitedepth_gui.views import ROIDrawFlag
-from typing import Union, Tuple, List
+from typing import Union, Tuple
 
 
 __all__ = [
