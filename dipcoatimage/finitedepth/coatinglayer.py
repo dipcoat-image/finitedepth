@@ -50,9 +50,9 @@ import cv2  # type: ignore
 import dataclasses
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Generic, Type, Optional, Tuple
 from .substrate import SubstrateBase
-from .util import DataclassProtocol, BinaryImageDrawMode
+from .util import DataclassProtocol, BinaryImageDrawMode, binarize, colorize
+from typing import TypeVar, Generic, Type, Optional, Tuple
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -62,6 +62,8 @@ except ImportError:
 
 __all__ = [
     "CoatingLayerError",
+    "match_template",
+    "subtract_images",
     "CoatingLayerBase",
     "LayerAreaParameters",
     "LayerAreaDrawOptions",
@@ -82,6 +84,33 @@ class CoatingLayerError(Exception):
     """Base class for error from :class:`CoatingLayerBase`."""
 
     pass
+
+
+def match_template(
+    image: npt.NDArray[np.uint8], template: npt.NDArray[np.uint8]
+) -> Tuple[float, Tuple[int, int]]:
+    res = cv2.matchTemplate(image, template, cv2.TM_SQDIFF_NORMED)
+    score, _, loc, _ = cv2.minMaxLoc(res)
+    return (score, loc)
+
+
+def subtract_images(
+    image1: npt.NDArray[np.uint8], image2: npt.NDArray[np.uint8], point: Tuple[int, int]
+) -> npt.NDArray[np.uint8]:
+    """Subtract *image2* from *image1* at *point*. Images must be binary."""
+    H, W = image1.shape
+    h, w = image2.shape
+    x0, y0 = point
+
+    x1, y1 = x0 + w, y0 + h
+    img1_crop = image1[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)]
+    img2_crop = image2[max(-y0, 0) : min(H - y0, h), max(-x0, 0) : min(W - x0, w)]
+    xor = cv2.bitwise_xor(img1_crop, img2_crop)
+    nxor = cv2.bitwise_not(xor)
+
+    ret = image1.copy()
+    ret[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)] = nxor
+    return ret
 
 
 class CoatingLayerBase(
@@ -259,64 +288,8 @@ class CoatingLayerBase(
 
         """
         if not hasattr(self, "_binary_image"):
-            if len(self.image.shape) == 2:
-                gray = self.image
-            elif len(self.image.shape) == 3:
-                ch = self.image.shape[-1]
-                if ch == 1:
-                    gray = self.image
-                elif ch == 3:
-                    gray = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
-                else:
-                    raise TypeError(f"Image with invalid channel: {self.image.shape}")
-            else:
-                raise TypeError(f"Invalid image shape: {self.image.shape}")
-            _, ret = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-            if ret is None:
-                ret = np.empty((0, 0))
-            self._binary_image = ret
+            self._binary_image = binarize(self.image)
         return self._binary_image
-
-    def _match_template(self) -> Tuple[float, Tuple[int, int]]:
-        x0, y0, x1, y1 = self.substrate.reference.templateROI
-        template = self.substrate.reference.image[y0:y1, x0:x1]
-
-        # make channel same
-        if len(self.image.shape) == 2:
-            img_gray = True
-        elif len(self.image.shape) == 3:
-            ch = self.image.shape[-1]
-            if ch == 1:
-                img_gray = True
-            elif ch == 3:
-                img_gray = False
-            else:
-                raise TypeError(f"Image with invalid channel: {self.image.shape}")
-        else:
-            raise TypeError(f"Invalid image shape: {self.image.shape}")
-        if len(template.shape) == 2:
-            tmp_gray = True
-        elif len(template.shape) == 3:
-            ch = template.shape[-1]
-            if ch == 1:
-                tmp_gray = True
-            elif ch == 3:
-                tmp_gray = False
-            else:
-                raise TypeError(f"Image with invalid channel: {template.shape}")
-        else:
-            raise TypeError(f"Invalid image shape: {template.shape}")
-        if img_gray and not tmp_gray:
-            image = self.image
-            template = cv2.cvtColor(template, cv2.COLOR_RGB2GRAY)
-        elif not img_gray and tmp_gray:
-            image = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
-        else:
-            image = self.image
-
-        res = cv2.matchTemplate(image, template, cv2.TM_SQDIFF_NORMED)
-        score, _, loc, _ = cv2.minMaxLoc(res)
-        return (score, loc)
 
     def template_point(self) -> Tuple[int, int]:
         """
@@ -332,7 +305,10 @@ class CoatingLayerBase(
 
         """
         if not hasattr(self, "_template_point"):
-            self._template_score, self._template_point = self._match_template()
+            image = self.binary_image()
+            x0, y0, x1, y1 = self.substrate.reference.templateROI
+            template = self.substrate.reference.binary_image()[y0:y1, x0:x1]
+            self._template_score, self._template_point = match_template(image, template)
         return self._template_point
 
     def template_score(self) -> float:
@@ -350,7 +326,10 @@ class CoatingLayerBase(
 
         """
         if not hasattr(self, "_template_score"):
-            self._template_score, self._template_point = self._match_template()
+            image = self.binary_image()
+            x0, y0, x1, y1 = self.substrate.reference.templateROI
+            template = self.substrate.reference.binary_image()[y0:y1, x0:x1]
+            self._template_score, self._template_point = match_template(image, template)
         return self._template_score
 
     def substrate_point(self) -> Tuple[int, int]:
@@ -394,20 +373,12 @@ class CoatingLayerBase(
                 image[labels == label] = 0
 
             # remove the substrate
-            h, w = self.substrate.image().shape[:2]
-            x1 = x0 + w
-            y1 = y0 + h
-
-            cropped_img = image[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)]
-
-            cropped_subs = self.substrate.binary_image()[
-                max(-y0, 0) : min(H - y0, h), max(-x0, 0) : min(W - x0, w)
-            ]
-            xor = cv2.bitwise_xor(cropped_img, cropped_subs)
-            nxor = cv2.bitwise_not(xor)
-            image[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)] = nxor
+            substImg = self.substrate.binary_image()
+            image = subtract_images(image, substImg, (x0, y0))
 
             # remove the area outside of the ROI
+            h, w = substImg.shape
+            x1, y1 = x0 + w, y0 + h
             image[:y0, :] = 255
             image[:y1, :x0] = 255
             image[:y1, x1:] = 255
@@ -626,19 +597,7 @@ class LayerArea(
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
 
-        if len(image.shape) == 2:
-            ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-        elif len(image.shape) == 3:
-            ch = image.shape[-1]
-            if ch == 1:
-                ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-            elif ch == 3:
-                ret = image.copy()
-            else:
-                raise TypeError(f"Image with invalid channel: {image.shape}")
-        else:
-            raise TypeError(f"Invalid image shape: {image.shape}")
-
+        ret = colorize(image)
         if self.draw_options.decorate:
             ret[~self.extract_layer().astype(bool)] = self.deco_options.layer_color
         return ret

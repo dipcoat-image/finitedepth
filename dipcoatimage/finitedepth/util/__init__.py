@@ -4,7 +4,7 @@ Utilities
 
 :mod:`dipcoatimage.finitedepth.util` provides utility functions.
 
-.. automodule:: dipcoatimage.finitedepth.util.geometry
+.. automodule:: dipcoatimage.finitedepth.util.imgprocess
    :members:
 
 .. automodule:: dipcoatimage.finitedepth.util.importing
@@ -24,7 +24,7 @@ Utilities
 
 """
 
-from .geometry import intrsct_pt_polar
+from .imgprocess import intrsct_pt_polar, binarize, colorize
 from .importing import import_variable, ImportStatus, Importer
 from .path import get_samples_path, cwd
 from .typing import DataclassProtocol, OptionalROI, IntROI
@@ -37,6 +37,8 @@ from .testing import dict_includes
 
 __all__ = [
     "intrsct_pt_polar",
+    "binarize",
+    "colorize",
     "import_variable",
     "ImportStatus",
     "Importer",

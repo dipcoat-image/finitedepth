@@ -125,7 +125,7 @@ It then analyzes the coating layer image using the geometery from the substrate 
    >>> coat = LayerArea(coat_img, subst)
    >>> coat.draw_options.draw_substrate = False
    >>> coat.analyze()
-   LayerAreaData(Area=41283)
+   LayerAreaData(Area=41747)
    >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
 GUI
