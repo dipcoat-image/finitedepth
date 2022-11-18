@@ -5,20 +5,8 @@ GUI core
 Core objects for GUI.
 
 """
-import dataclasses
+
 import enum
-from dipcoatimage.finitedepth import (
-    ExperimentBase,
-    SubstrateReferenceBase,
-    SubstrateBase,
-    CoatingLayerBase,
-    ExperimentArgs,
-    ReferenceArgs,
-    SubstrateArgs,
-    CoatingLayerArgs,
-)
-from dipcoatimage.finitedepth.util import OptionalROI, DataclassProtocol, Importer
-from typing import Any, Optional, TypeVar, Type
 
 
 __all__ = [
