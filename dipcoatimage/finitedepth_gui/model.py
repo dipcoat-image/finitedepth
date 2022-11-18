@@ -532,7 +532,7 @@ class ExperimentDataModel(QAbstractItemModel):
                 IndexRole.SUBST_DRAWOPTIONS,
             ]:
                 dataArgs = DataArgFlag.SUBSTRATE
-                WorkerUpdateFlag.SUBSTRATE
+                workerUpdateFlag = WorkerUpdateFlag.SUBSTRATE
             elif indexRole in [
                 IndexRole.LAYER_TYPE,
                 IndexRole.LAYER_PARAMETERS,
