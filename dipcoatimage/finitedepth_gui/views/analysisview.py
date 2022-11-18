@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QStyledItemDelegate,
 )
 from dipcoatimage.finitedepth import Analyzer, AnalysisArgs
-from dipcoatimage.finitedepth_gui.core import DataArgs
+from dipcoatimage.finitedepth_gui.core import DataArgFlag
 from dipcoatimage.finitedepth_gui.worker import AnalysisState, WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
@@ -269,7 +269,7 @@ class AnalysisArgsDelegate(QStyledItemDelegate):
 
                 topLevelIndex = model.getTopLevelIndex(index)
                 model.updateWorker(topLevelIndex, WorkerUpdateFlag.ANALYSIS)
-                model.emitExperimentDataChanged(topLevelIndex, DataArgs.ANALYSIS)
+                model.emitExperimentDataChanged(topLevelIndex, DataArgFlag.ANALYSIS)
 
         super().setModelData(editor, model, index)
 

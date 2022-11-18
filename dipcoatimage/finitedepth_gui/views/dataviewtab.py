@@ -7,10 +7,10 @@ V2 for controlwidgets/controlwidget.py
 
 from PySide6.QtCore import Signal, Slot
 from PySide6.QtWidgets import QTabWidget, QScrollArea
-from dipcoatimage.finitedepth_gui.core import DataMember
+from dipcoatimage.finitedepth_gui.core import DataMember, ROIDrawMode
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from .exptview import ExperimentView
-from .refview import ReferenceView, ROIDrawFlag
+from .refview import ReferenceView
 from .substview import SubstrateView
 from .layerview import CoatingLayerView
 from .analysisview import AnalysisView
@@ -59,7 +59,7 @@ class DataViewTab(QTabWidget):
     """
 
     currentViewChanged = Signal(DataMember)
-    roiDrawFlagChanged = Signal(ROIDrawFlag)
+    roiDrawModeChanged = Signal(ROIDrawMode)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -71,7 +71,7 @@ class DataViewTab(QTabWidget):
         self._analysisView = AnalysisView()
 
         self.currentChanged.connect(self._onCurrentChange)
-        self._refView.roiDrawFlagChanged.connect(self.roiDrawFlagChanged)
+        self._refView.roiDrawModeChanged.connect(self.roiDrawModeChanged)
 
         exptScroll = QScrollArea()
         exptScroll.setWidgetResizable(True)
@@ -104,7 +104,7 @@ class DataViewTab(QTabWidget):
     def _onCurrentChange(self, index: int):
         self._refView._tempROIDrawButton.setChecked(False)
         self._refView._substROIDrawButton.setChecked(False)
-        self.roiDrawFlagChanged.emit(ROIDrawFlag.NONE)
+        self.roiDrawModeChanged.emit(ROIDrawMode.NONE)
 
         widget = self.widget(index)
         if not isinstance(widget, QScrollArea):

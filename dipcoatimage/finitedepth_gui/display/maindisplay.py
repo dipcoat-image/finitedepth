@@ -7,7 +7,8 @@ from dipcoatimage.finitedepth_gui.core import (
     VisualizationMode,
     DataMember,
     FrameSource,
-    DataArgs,
+    DataArgFlag,
+    ROIDrawMode,
 )
 from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import (
@@ -15,7 +16,6 @@ from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
     ExperimentSignalBlocker,
 )
-from dipcoatimage.finitedepth_gui.views import ROIDrawFlag
 from PySide6.QtCore import Signal, Slot, Qt, QUrl, QModelIndex
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
 from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaRecorder, QMediaPlayer
@@ -126,9 +126,9 @@ class MainDisplayWindow(QMainWindow):
     def setCamera(self, camera: Optional[QCamera]):
         self._displayToolBar.setCamera(camera)
 
-    @Slot(ROIDrawFlag)
-    def setROIDrawFlag(self, flag: ROIDrawFlag):
-        self._displayLabel.setROIDrawFlag(flag)
+    @Slot(ROIDrawMode)
+    def setROIDrawMode(self, flag: ROIDrawMode):
+        self._displayLabel.setROIDrawMode(flag)
 
     @Slot(str)
     def _onImageCapture(self, path: str):
@@ -150,7 +150,7 @@ class MainDisplayWindow(QMainWindow):
                 pathIdx = model.index(row, 0, coatPathsIdx)
                 model.setData(pathIdx, path, role=model.Role_CoatPath)
             model.updateWorker(index, WorkerUpdateFlag.ANALYSIS)
-            model.emitExperimentDataChanged(index, DataArgs.COATPATHS)
+            model.emitExperimentDataChanged(index, DataArgFlag.COATPATHS)
 
     @Slot(str)
     def _onVideoRecord(self, url: QUrl):
@@ -172,4 +172,4 @@ class MainDisplayWindow(QMainWindow):
                 pathIdx = model.index(row, 0, coatPathsIdx)
                 model.setData(pathIdx, path, role=model.Role_CoatPath)
             model.updateWorker(index, WorkerUpdateFlag.ANALYSIS)
-            model.emitExperimentDataChanged(index, DataArgs.COATPATHS)
+            model.emitExperimentDataChanged(index, DataArgFlag.COATPATHS)
