@@ -14,6 +14,7 @@ from dipcoatimage.finitedepth import (
     SubstrateBase,
     CoatingLayerBase,
     ExperimentBase,
+    ImportArgs,
 )
 from dipcoatimage.finitedepth.util import Importer
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
@@ -133,35 +134,34 @@ class ExperimentDataItem(object):
 class IndexRole(enum.Enum):
     """Role of the ``QModelIndex`` of :class:`ExperimentDataModel`."""
 
-    UNKNOWN = 0
-    EXPTDATA = 1
-    REFPATH = 2
-    COATPATHS = 3
-    REFARGS = 4
-    SUBSTARGS = 5
-    LAYERARGS = 6
-    EXPTARGS = 7
-    ANALYSISARGS = 8
+    UNKNOWN = enum.auto()
+    EXPTDATA = enum.auto()
+    REFPATH = enum.auto()
+    COATPATHS = enum.auto()
+    REFARGS = enum.auto()
+    SUBSTARGS = enum.auto()
+    LAYERARGS = enum.auto()
+    EXPTARGS = enum.auto()
+    ANALYSISARGS = enum.auto()
 
-    COATPATH = 9
+    COATPATH = enum.auto()
 
-    REF_TYPE = 10
-    REF_TEMPLATEROI = 11
-    REF_SUBSTRATEROI = 12
-    REF_PARAMETERS = 13
-    REF_DRAWOPTIONS = 14
+    REF_TYPE = enum.auto()
+    REF_TEMPLATEROI = enum.auto()
+    REF_SUBSTRATEROI = enum.auto()
+    REF_PARAMETERS = enum.auto()
+    REF_DRAWOPTIONS = enum.auto()
 
-    SUBST_TYPE = 15
-    SUBST_PARAMETERS = 16
-    SUBST_DRAWOPTIONS = 17
+    SUBST_PARAMETERS = enum.auto()
+    SUBST_DRAWOPTIONS = enum.auto()
 
-    LAYER_TYPE = 18
-    LAYER_PARAMETERS = 19
-    LAYER_DRAWOPTIONS = 20
-    LAYER_DECOOPTIONS = 21
+    LAYER_TYPE = enum.auto()
+    LAYER_PARAMETERS = enum.auto()
+    LAYER_DRAWOPTIONS = enum.auto()
+    LAYER_DECOOPTIONS = enum.auto()
 
-    EXPT_TYPE = 22
-    EXPT_PARAMETERS = 23
+    EXPT_TYPE = enum.auto()
+    EXPT_PARAMETERS = enum.auto()
 
 
 class ExperimentDataModel(QAbstractItemModel):
@@ -190,7 +190,6 @@ class ExperimentDataModel(QAbstractItemModel):
             * REF_PARAMETERS
             * REF_DRAWOPTIONS
         * SUBSTARGS
-            * SUBST_TYPE
             * SUBST_PARAMETERS
             * SUBST_DRAWOPTIONS
         * LAYERARGS
@@ -243,9 +242,8 @@ class ExperimentDataModel(QAbstractItemModel):
     Row_RefParameters = 3
     Row_RefDrawOptions = 4
 
-    Row_SubstType = 0
-    Row_SubstParameters = 1
-    Row_SubstDrawOptions = 2
+    Row_SubstParameters = 0
+    Row_SubstDrawOptions = 1
 
     Row_LayerType = 0
     Row_LayerParameters = 1
@@ -309,9 +307,7 @@ class ExperimentDataModel(QAbstractItemModel):
         substArgs = exptData.substrate
         substArgsItem = ExperimentDataItem()
         substArgsItem.setParent(item)
-        substTypeItem = ExperimentDataItem()
-        substTypeItem.setData(cls.Role_ImportArgs, substArgs.type)
-        substTypeItem.setParent(substArgsItem)
+        substArgsItem.setData(cls.Role_ImportArgs, substArgs.type)
         substType, _ = Importer(substArgs.type.name, substArgs.type.module).try_import()
         substParametersItem = ExperimentDataItem()
         substDrawOptionsItem = ExperimentDataItem()
@@ -398,8 +394,7 @@ class ExperimentDataModel(QAbstractItemModel):
         data.reference.draw_options = refDrawOpts
 
         substArgsIdx = self.getIndexFor(IndexRole.SUBSTARGS, index)
-        substTypeIdx = self.getIndexFor(IndexRole.SUBST_TYPE, substArgsIdx)
-        substType = substTypeIdx.data(self.Role_ImportArgs)
+        substType = substArgsIdx.data(self.Role_ImportArgs)
         data.substrate.type = substType
         substParamsIdx = self.getIndexFor(IndexRole.SUBST_PARAMETERS, substArgsIdx)
         substParams = substParamsIdx.data(self.Role_DataclassData)
@@ -491,9 +486,48 @@ class ExperimentDataModel(QAbstractItemModel):
         if isinstance(dataItem, ExperimentDataItem):
             dataItem.setData(role, value)
             self.dataChanged.emit(index, index, [role])
-            topLevelIndex = self.getTopLevelIndex(index)
-            # Update worker
             indexRole = self.whatsThisIndex(index)
+
+            # reject direct manipulation of dependant datclass type
+            if (
+                indexRole
+                in [
+                    IndexRole.SUBST_PARAMETERS,
+                    IndexRole.SUBST_DRAWOPTIONS,
+                ]
+                and role == self.Role_DataclassType
+            ):
+                return False
+
+            # update subitems
+            if (
+                indexRole == IndexRole.SUBSTARGS
+                and role == self.Role_ImportArgs
+                and isinstance(value, ImportArgs)
+            ):
+                substType, _ = Importer(value.name, value.module).try_import()
+                if isinstance(substType, type) and issubclass(substType, SubstrateBase):
+                    paramType = substType.Parameters
+                    drawOptType = substType.DrawOptions
+                else:
+                    paramType = None
+                    drawOptType = None
+                substParamIdx = self.getIndexFor(IndexRole.SUBST_PARAMETERS, index)
+                substParamItem = substParamIdx.internalPointer()
+                if isinstance(substParamItem, ExperimentDataItem):
+                    substParamItem.setData(self.Role_DataclassType, paramType)
+                    self.dataChanged.emit(
+                        substParamIdx, substParamIdx, [self.Role_DataclassType]
+                    )
+                substDrawOptIdx = self.getIndexFor(IndexRole.SUBST_DRAWOPTIONS, index)
+                substDrawOptItem = substDrawOptIdx.internalPointer()
+                if isinstance(substDrawOptItem, ExperimentDataItem):
+                    substDrawOptItem.setData(self.Role_DataclassType, drawOptType)
+                    self.dataChanged.emit(
+                        substDrawOptIdx, substDrawOptIdx, [self.Role_DataclassType]
+                    )
+
+            # update worker and emit signals
             if indexRole in [
                 IndexRole.REFPATH,
             ]:
@@ -522,7 +556,7 @@ class ExperimentDataModel(QAbstractItemModel):
                 dataArgs = DataArgFlag.REFERENCE
                 workerUpdateFlag = WorkerUpdateFlag.REFERENCE
             elif indexRole in [
-                IndexRole.SUBST_TYPE,
+                IndexRole.SUBSTARGS,
                 IndexRole.SUBST_PARAMETERS,
             ]:
                 dataArgs = DataArgFlag.SUBSTRATE
@@ -533,7 +567,7 @@ class ExperimentDataModel(QAbstractItemModel):
                 IndexRole.SUBST_DRAWOPTIONS,
             ]:
                 dataArgs = DataArgFlag.SUBSTRATE
-                WorkerUpdateFlag.SUBSTRATE
+                workerUpdateFlag = WorkerUpdateFlag.SUBSTRATE
             elif indexRole in [
                 IndexRole.LAYER_TYPE,
                 IndexRole.LAYER_PARAMETERS,
@@ -561,6 +595,7 @@ class ExperimentDataModel(QAbstractItemModel):
             else:
                 dataArgs = DataArgFlag.NULL
                 workerUpdateFlag = WorkerUpdateFlag.NULL
+            topLevelIndex = self.getTopLevelIndex(index)
             self.updateWorker(topLevelIndex, workerUpdateFlag)
             self.emitExperimentDataChanged(topLevelIndex, dataArgs)
             return True
@@ -863,8 +898,6 @@ class ExperimentDataModel(QAbstractItemModel):
                 return IndexRole.REF_DRAWOPTIONS
 
         if parentRole == IndexRole.SUBSTARGS:
-            if row == cls.Row_SubstType:
-                return IndexRole.SUBST_TYPE
             if row == cls.Row_SubstParameters:
                 return IndexRole.SUBST_PARAMETERS
             if row == cls.Row_SubstDrawOptions:
@@ -925,8 +958,6 @@ class ExperimentDataModel(QAbstractItemModel):
                 return self.index(self.Row_RefDrawOptions, 0, parent)
 
         if parentRole == IndexRole.SUBSTARGS:
-            if indexRole == IndexRole.SUBST_TYPE:
-                return self.index(self.Row_SubstType, 0, parent)
             if indexRole == IndexRole.SUBST_PARAMETERS:
                 return self.index(self.Row_SubstParameters, 0, parent)
             if indexRole == IndexRole.SUBST_DRAWOPTIONS:
