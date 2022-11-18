@@ -14,20 +14,17 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QVBoxLayout,
     QHBoxLayout,
-    QStyledItemDelegate,
 )
-from dipcoatimage.finitedepth import ImportArgs
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
     IndexRole,
 )
-from .importview import ImportDataView
+from .importview import ImportDataView, ImportArgsDelegate
 from typing import Optional
 
 
 __all__ = [
     "SubstrateView",
-    "SubstrateTypeDelegate",
     "SubstrateArgsDelegate",
 ]
 
@@ -78,7 +75,7 @@ class SubstrateView(QWidget):
         self._importView.editingFinished.connect(self._typeMapper.submit)
         self._typeMapper.setOrientation(Qt.Orientation.Vertical)
         self._typeMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
-        self._typeMapper.setItemDelegate(SubstrateTypeDelegate())
+        self._typeMapper.setItemDelegate(ImportArgsDelegate())
         self._paramStackWidget.currentDataEdited.connect(self._paramMapper.submit)
         self._drawOptStackWidget.currentDataEdited.connect(self._drawOptMapper.submit)
         self._paramMapper.setOrientation(Qt.Orientation.Vertical)
@@ -146,27 +143,6 @@ class SubstrateView(QWidget):
             self._importView.clear()
             self._paramStackWidget.setCurrentIndex(0)
             self._drawOptStackWidget.setCurrentIndex(0)
-
-
-class SubstrateTypeDelegate(QStyledItemDelegate):
-    def setModelData(self, editor, model, index):
-        if isinstance(model, ExperimentDataModel) and isinstance(
-            editor, ImportDataView
-        ):
-            importArgs = ImportArgs(editor.variableName(), editor.moduleName())
-            model.setData(index, importArgs, role=model.Role_ImportArgs)
-        super().setModelData(editor, model, index)
-
-    def setEditorData(self, editor, index):
-        model = index.model()
-        if isinstance(model, ExperimentDataModel) and isinstance(
-            editor, ImportDataView
-        ):
-            importArgs = model.data(index, role=model.Role_ImportArgs)
-            if isinstance(importArgs, ImportArgs):
-                editor.setVariableName(importArgs.name)
-                editor.setModuleName(importArgs.module)
-        super().setEditorData(editor, index)
 
 
 class SubstrateArgsDelegate(dawiq.DataclassDelegate):

@@ -10,7 +10,7 @@ from .exptlistview import (
     ExperimentDataListView,
     ExperimentNameDelegate,
 )
-from .importview import ImportDataView
+from .importview import ImportDataView, ImportArgsDelegate
 from .roiview import ROISpinBox, ROIView
 from .exptview import ExperimentView, ExperimentArgsDelegate
 from .refview import (
@@ -28,6 +28,7 @@ __all__ = [
     "ExperimentNameDelegate",
     "DataFileTypeEnum",
     "ImportDataView",
+    "ImportArgsDelegate",
     "ROISpinBox",
     "ROIView",
     "ExperimentView",

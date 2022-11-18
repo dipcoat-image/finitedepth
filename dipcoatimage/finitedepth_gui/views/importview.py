@@ -5,16 +5,20 @@ Import data view
 V2 for importwidget.py
 """
 
+from dipcoatimage.finitedepth import ImportArgs
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QGroupBox,
     QLineEdit,
     QVBoxLayout,
+    QStyledItemDelegate,
 )
+from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 
 
 __all__ = [
     "ImportDataView",
+    "ImportArgsDelegate",
 ]
 
 
@@ -55,3 +59,24 @@ class ImportDataView(QGroupBox):
     def clear(self):
         self._varNameLineEdit.clear()
         self._moduleNameLineEdit.clear()
+
+
+class ImportArgsDelegate(QStyledItemDelegate):
+    def setModelData(self, editor, model, index):
+        if isinstance(model, ExperimentDataModel) and isinstance(
+            editor, ImportDataView
+        ):
+            importArgs = ImportArgs(editor.variableName(), editor.moduleName())
+            model.setData(index, importArgs, role=model.Role_ImportArgs)
+        super().setModelData(editor, model, index)
+
+    def setEditorData(self, editor, index):
+        model = index.model()
+        if isinstance(model, ExperimentDataModel) and isinstance(
+            editor, ImportDataView
+        ):
+            importArgs = model.data(index, role=model.Role_ImportArgs)
+            if isinstance(importArgs, ImportArgs):
+                editor.setVariableName(importArgs.name)
+                editor.setModuleName(importArgs.module)
+        super().setEditorData(editor, index)
