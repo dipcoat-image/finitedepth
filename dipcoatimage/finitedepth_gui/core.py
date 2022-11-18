@@ -11,7 +11,7 @@ import enum
 
 __all__ = [
     "DataMember",
-    "DataArgs",
+    "DataArgFlag",
     "VisualizationMode",
     "FrameSource",
 ]
@@ -34,7 +34,7 @@ class DataMember(enum.Enum):
     ANALYSIS = 5
 
 
-class DataArgs(enum.Flag):
+class DataArgFlag(enum.Flag):
     """
     Flag to represent the arguments of :class:`ExperimentData`.
     """

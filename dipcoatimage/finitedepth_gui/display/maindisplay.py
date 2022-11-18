@@ -7,7 +7,7 @@ from dipcoatimage.finitedepth_gui.core import (
     VisualizationMode,
     DataMember,
     FrameSource,
-    DataArgs,
+    DataArgFlag,
 )
 from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import (
@@ -150,7 +150,7 @@ class MainDisplayWindow(QMainWindow):
                 pathIdx = model.index(row, 0, coatPathsIdx)
                 model.setData(pathIdx, path, role=model.Role_CoatPath)
             model.updateWorker(index, WorkerUpdateFlag.ANALYSIS)
-            model.emitExperimentDataChanged(index, DataArgs.COATPATHS)
+            model.emitExperimentDataChanged(index, DataArgFlag.COATPATHS)
 
     @Slot(str)
     def _onVideoRecord(self, url: QUrl):
@@ -172,4 +172,4 @@ class MainDisplayWindow(QMainWindow):
                 pathIdx = model.index(row, 0, coatPathsIdx)
                 model.setData(pathIdx, path, role=model.Role_CoatPath)
             model.updateWorker(index, WorkerUpdateFlag.ANALYSIS)
-            model.emitExperimentDataChanged(index, DataArgs.COATPATHS)
+            model.emitExperimentDataChanged(index, DataArgFlag.COATPATHS)

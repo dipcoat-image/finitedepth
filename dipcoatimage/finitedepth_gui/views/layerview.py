@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 )
 from dipcoatimage.finitedepth import CoatingLayerBase, ImportArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
-from dipcoatimage.finitedepth_gui.core import DataArgs
+from dipcoatimage.finitedepth_gui.core import DataArgFlag
 from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
@@ -253,7 +253,7 @@ class CoatingLayerArgsDelegate(dawiq.DataclassDelegate):
 
                 topLevelIndex = model.getTopLevelIndex(index)
                 model.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
-                model.emitExperimentDataChanged(topLevelIndex, DataArgs.COATINGLAYER)
+                model.emitExperimentDataChanged(topLevelIndex, DataArgFlag.COATINGLAYER)
 
         super().setModelData(editor, model, index)
 

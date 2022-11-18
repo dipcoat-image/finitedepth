@@ -12,7 +12,7 @@ from dipcoatimage.finitedepth.coatinglayer import match_template, subtract_image
 from dipcoatimage.finitedepth.util import OptionalROI, binarize
 from dipcoatimage.finitedepth_gui.core import (
     DataMember,
-    DataArgs,
+    DataArgFlag,
     FrameSource,
     VisualizationMode,
 )
@@ -233,8 +233,8 @@ class VisualizeManager(QObject):
             display.setExperimentKind(exptKind)
             display.setActivatedIndex(index)
 
-    @Slot(QModelIndex, DataArgs)
-    def _onExptDataChange(self, index: QModelIndex, flag: DataArgs):
+    @Slot(QModelIndex, DataArgFlag)
+    def _onExptDataChange(self, index: QModelIndex, flag: DataArgFlag):
         model = index.model()
         if not isinstance(model, ExperimentDataModel):
             return
@@ -244,7 +244,7 @@ class VisualizeManager(QObject):
         if worker is None:
             return
 
-        if flag & DataArgs.COATPATHS:
+        if flag & DataArgFlag.COATPATHS:
             oldExptKind = self._exptKind
             if (
                 oldExptKind == ExperimentKind.VIDEO
@@ -279,19 +279,21 @@ class VisualizeManager(QObject):
             return
 
         if self._currentView == DataMember.REFERENCE:
-            if flag & (DataArgs.REFPATH | DataArgs.REFERENCE):
+            if flag & (DataArgFlag.REFPATH | DataArgFlag.REFERENCE):
                 self._displayFromWorker(worker)
         elif self._currentView == DataMember.SUBSTRATE:
-            if flag & (DataArgs.REFPATH | DataArgs.REFERENCE | DataArgs.SUBSTRATE):
+            if flag & (
+                DataArgFlag.REFPATH | DataArgFlag.REFERENCE | DataArgFlag.SUBSTRATE
+            ):
                 self._displayFromWorker(worker)
         else:
             if flag & (
-                DataArgs.COATPATHS
-                | DataArgs.REFPATH
-                | DataArgs.REFERENCE
-                | DataArgs.SUBSTRATE
-                | DataArgs.COATINGLAYER
-                | DataArgs.EXPERIMENT
+                DataArgFlag.COATPATHS
+                | DataArgFlag.REFPATH
+                | DataArgFlag.REFERENCE
+                | DataArgFlag.SUBSTRATE
+                | DataArgFlag.COATINGLAYER
+                | DataArgFlag.EXPERIMENT
             ):
                 self._displayFromWorker(worker)
 

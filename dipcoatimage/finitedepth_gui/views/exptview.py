@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
 )
 from dipcoatimage.finitedepth import ExperimentBase, ImportArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
-from dipcoatimage.finitedepth_gui.core import DataArgs
+from dipcoatimage.finitedepth_gui.core import DataArgFlag
 from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
@@ -188,7 +188,7 @@ class ExperimentView(QWidget):
 
         topLevelIndex = model.getTopLevelIndex(parent)
         model.updateWorker(topLevelIndex, WorkerUpdateFlag.ANALYSIS)
-        model.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
+        model.emitExperimentDataChanged(topLevelIndex, DataArgFlag.COATPATHS)
 
     @Slot()
     def deleteSelectedPaths(self):
@@ -210,7 +210,7 @@ class ExperimentView(QWidget):
 
         topLevelIndex = model.getTopLevelIndex(parent)
         model.updateWorker(topLevelIndex, WorkerUpdateFlag.ANALYSIS)
-        model.emitExperimentDataChanged(topLevelIndex, DataArgs.COATPATHS)
+        model.emitExperimentDataChanged(topLevelIndex, DataArgFlag.COATPATHS)
 
     def parametersStackedWidget(self) -> dawiq.DataclassStackedWidget:
         return self._paramStackWidget
@@ -291,7 +291,7 @@ class ExperimentArgsDelegate(dawiq.DataclassDelegate):
 
                 topLevelIndex = model.getTopLevelIndex(index)
                 model.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
-                model.emitExperimentDataChanged(topLevelIndex, DataArgs.EXPERIMENT)
+                model.emitExperimentDataChanged(topLevelIndex, DataArgFlag.EXPERIMENT)
 
         super().setModelData(editor, model, index)
 
