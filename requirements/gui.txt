@@ -1,5 +1,4 @@
 araviq6
-dataclass2PySide6 >= 1.8.3
 dawiq
 imagesize
 PySide6

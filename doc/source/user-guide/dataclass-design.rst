@@ -111,7 +111,7 @@ Making dataclass managable by GUI
 =================================
 
 DipcoatImage-Finitedepth provides GUI to preview analysis result with various parameters and options.
-To dynamically create widget by field type, it uses `dataclass2PySide6 <https://pypi.org/project/dataclass2PySide6>`_ package.
+To dynamically create widget by field type, it uses `DaWiQ <https://pypi.org/project/dawiq>`_ package.
 
 We want to construct a widget for ``MyData2``.
 We expect that
@@ -119,7 +119,7 @@ We expect that
 2. It contains combo box for ``MyData1.x``.
 3. It contains integer line edit for ``MyData1.y``.
 
-`dataclass2PySide6 <https://pypi.org/project/dataclass2PySide6>`_ is powerful enough to construct widgets for ``MyData1`` and ``MyData1.x``, but we should specify the widget type and converters for ``MyObj`` type of ``MyData1.y``.
+`DaWiQ <https://pypi.org/project/dawiq>`_ is powerful enough to construct widgets for ``MyData1`` and ``MyData1.x``, but we should specify the widget type and converters for ``MyObj`` type of ``MyData1.y``.
 As explained in the package document, this is done by adding ``Qt_typehint``, ``fromQt_converter``, and ``toQt_converter`` metadata to the dataclass fields.
 
 The following is the complete code for dataclass which can be converted to GUI.
@@ -143,10 +143,10 @@ And the following code creates the GUI from ``MyData2``.
 
 >>> from PySide6.QtWidgets import QApplication
 >>> import sys
->>> from dataclass2PySide6 import DataclassWidget
+>>> from dawiq import dataclass2Widget
 >>> def runGUI():
 ...     app = QApplication(sys.argv)
-...     widget = DataclassWidget.fromDataclass(MyData2)
+...     widget = dataclass2Widget(MyData2)
 ...     widget.show()
 ...     app.exec()
 ...     app.quit()
