@@ -490,6 +490,7 @@ class ExperimentDataModel(QAbstractItemModel):
         dataItem = index.internalPointer()
         if isinstance(dataItem, ExperimentDataItem):
             dataItem.setData(role, value)
+            self.dataChanged.emit(index, index, [role])
             topLevelIndex = self.getTopLevelIndex(index)
             # Update worker
             indexRole = self.whatsThisIndex(index)
@@ -561,7 +562,6 @@ class ExperimentDataModel(QAbstractItemModel):
                 dataArgs = DataArgFlag.NULL
                 workerUpdateFlag = WorkerUpdateFlag.NULL
             self.updateWorker(topLevelIndex, workerUpdateFlag)
-            self.dataChanged.emit(index, index, [role])
             self.emitExperimentDataChanged(topLevelIndex, dataArgs)
             return True
         return False
