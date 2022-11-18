@@ -14,6 +14,7 @@ __all__ = [
     "DataArgFlag",
     "VisualizationMode",
     "FrameSource",
+    "ROIDrawFlag",
 ]
 
 
@@ -78,3 +79,9 @@ class FrameSource(enum.Enum):
     NULL = 0
     FILE = 1
     CAMERA = 2
+
+
+class ROIDrawFlag(enum.IntFlag):
+    NONE = 0
+    TEMPLATE = 1
+    SUBSTRATE = 2

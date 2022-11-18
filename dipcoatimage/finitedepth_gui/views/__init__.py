@@ -14,7 +14,6 @@ from .importview import ImportDataView
 from .roiview import ROISpinBox, ROIView
 from .exptview import ExperimentView, ExperimentArgsDelegate
 from .refview import (
-    ROIDrawFlag,
     ReferenceView,
     ReferencePathDelegate,
     ReferenceArgsDelegate,
@@ -33,7 +32,6 @@ __all__ = [
     "ROIView",
     "ExperimentView",
     "ExperimentArgsDelegate",
-    "ROIDrawFlag",
     "ReferenceView",
     "ReferencePathDelegate",
     "ReferenceArgsDelegate",

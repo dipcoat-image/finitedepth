@@ -8,6 +8,7 @@ from dipcoatimage.finitedepth_gui.core import (
     DataMember,
     FrameSource,
     DataArgFlag,
+    ROIDrawFlag,
 )
 from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import (
@@ -15,7 +16,6 @@ from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
     ExperimentSignalBlocker,
 )
-from dipcoatimage.finitedepth_gui.views import ROIDrawFlag
 from PySide6.QtCore import Signal, Slot, Qt, QUrl, QModelIndex
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
 from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaRecorder, QMediaPlayer

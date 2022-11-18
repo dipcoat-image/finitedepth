@@ -7,7 +7,6 @@ V2 for controlwidgets/refwidget.py
 
 import dataclasses
 import dawiq
-import enum
 import imagesize  # type: ignore
 from PySide6.QtCore import Qt, Signal, Slot, QModelIndex
 from PySide6.QtWidgets import (
@@ -24,7 +23,7 @@ from PySide6.QtWidgets import (
 )
 from dipcoatimage.finitedepth import SubstrateReferenceBase, ImportArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
-from dipcoatimage.finitedepth_gui.core import DataArgFlag
+from dipcoatimage.finitedepth_gui.core import DataArgFlag, ROIDrawFlag
 from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
@@ -37,17 +36,10 @@ from typing import Optional, Type, Union
 
 
 __all__ = [
-    "ROIDrawFlag",
     "ReferenceView",
     "ReferencePathDelegate",
     "ReferenceArgsDelegate",
 ]
-
-
-class ROIDrawFlag(enum.IntFlag):
-    NONE = 0
-    TEMPLATE = 1
-    SUBSTRATE = 2
 
 
 class ReferenceView(QWidget):

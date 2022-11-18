@@ -7,10 +7,10 @@ V2 for controlwidgets/controlwidget.py
 
 from PySide6.QtCore import Signal, Slot
 from PySide6.QtWidgets import QTabWidget, QScrollArea
-from dipcoatimage.finitedepth_gui.core import DataMember
+from dipcoatimage.finitedepth_gui.core import DataMember, ROIDrawFlag
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from .exptview import ExperimentView
-from .refview import ReferenceView, ROIDrawFlag
+from .refview import ReferenceView
 from .substview import SubstrateView
 from .layerview import CoatingLayerView
 from .analysisview import AnalysisView
