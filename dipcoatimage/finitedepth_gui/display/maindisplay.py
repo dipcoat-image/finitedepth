@@ -8,7 +8,7 @@ from dipcoatimage.finitedepth_gui.core import (
     DataMember,
     FrameSource,
     DataArgFlag,
-    ROIDrawFlag,
+    ROIDrawMode,
 )
 from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import (
@@ -126,9 +126,9 @@ class MainDisplayWindow(QMainWindow):
     def setCamera(self, camera: Optional[QCamera]):
         self._displayToolBar.setCamera(camera)
 
-    @Slot(ROIDrawFlag)
-    def setROIDrawFlag(self, flag: ROIDrawFlag):
-        self._displayLabel.setROIDrawFlag(flag)
+    @Slot(ROIDrawMode)
+    def setROIDrawMode(self, flag: ROIDrawMode):
+        self._displayLabel.setROIDrawMode(flag)
 
     @Slot(str)
     def _onImageCapture(self, path: str):

@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
 )
 from dipcoatimage.finitedepth import SubstrateReferenceBase, ImportArgs
 from dipcoatimage.finitedepth.util import DataclassProtocol, Importer
-from dipcoatimage.finitedepth_gui.core import DataArgFlag, ROIDrawFlag
+from dipcoatimage.finitedepth_gui.core import DataArgFlag, ROIDrawMode
 from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
@@ -72,7 +72,7 @@ class ReferenceView(QWidget):
 
     """
 
-    roiDrawFlagChanged = Signal(ROIDrawFlag)
+    roiDrawModeChanged = Signal(ROIDrawMode)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -200,16 +200,16 @@ class ReferenceView(QWidget):
     def _onTempROIDrawClick(self, checked: bool):
         if checked:
             self._substROIDrawButton.setChecked(False)
-            self.roiDrawFlagChanged.emit(ROIDrawFlag.TEMPLATE)
+            self.roiDrawModeChanged.emit(ROIDrawMode.TEMPLATE)
         else:
-            self.roiDrawFlagChanged.emit(ROIDrawFlag.NONE)
+            self.roiDrawModeChanged.emit(ROIDrawMode.NONE)
 
     def _onSubstROIDrawClick(self, checked: bool):
         if checked:
             self._tempROIDrawButton.setChecked(False)
-            self.roiDrawFlagChanged.emit(ROIDrawFlag.SUBSTRATE)
+            self.roiDrawModeChanged.emit(ROIDrawMode.SUBSTRATE)
         else:
-            self.roiDrawFlagChanged.emit(ROIDrawFlag.NONE)
+            self.roiDrawModeChanged.emit(ROIDrawMode.NONE)
 
     def parametersStackedWidget(self) -> dawiq.DataclassStackedWidget:
         return self._paramStackWidget

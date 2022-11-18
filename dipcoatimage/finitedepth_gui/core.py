@@ -14,7 +14,7 @@ __all__ = [
     "DataArgFlag",
     "VisualizationMode",
     "FrameSource",
-    "ROIDrawFlag",
+    "ROIDrawMode",
 ]
 
 
@@ -81,7 +81,7 @@ class FrameSource(enum.Enum):
     CAMERA = 2
 
 
-class ROIDrawFlag(enum.IntFlag):
+class ROIDrawMode(enum.Enum):
     NONE = 0
     TEMPLATE = 1
     SUBSTRATE = 2

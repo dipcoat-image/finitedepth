@@ -55,7 +55,7 @@ class MainWindow(QMainWindow):
         self._dataViewTab.currentViewChanged.connect(
             self._visualizeManager.setCurrentView
         )
-        self._dataViewTab.roiDrawFlagChanged.connect(self._display.setROIDrawFlag)
+        self._dataViewTab.roiDrawModeChanged.connect(self._display.setROIDrawMode)
         self._display.visualizationModeChanged.connect(
             self._visualizeManager.setVisualizationMode
         )

@@ -1,7 +1,7 @@
 from araviq6 import NDArrayLabel
 from PySide6.QtCore import Slot, QSize, QRect, QPoint, Qt, QModelIndex
 from PySide6.QtGui import QPainter, QBrush, QColor
-from dipcoatimage.finitedepth_gui.core import ROIDrawFlag
+from dipcoatimage.finitedepth_gui.core import ROIDrawMode
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel, IndexRole
 from typing import Union, Tuple
 
@@ -21,19 +21,19 @@ class NDArrayROILabel(NDArrayLabel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._currentModelIndex = QModelIndex()
-        self._roiDrawFlag = ROIDrawFlag.NONE
+        self._roiDrawMode = ROIDrawMode.NONE
         self._drawing = False
         self._drawnROI = (-1, -1, -1, -1)
 
     def setActivatedIndex(self, index: QModelIndex):
         self._currentModelIndex = index
 
-    def roiDrawFlag(self) -> ROIDrawFlag:
-        return self._roiDrawFlag
+    def roiDrawMode(self) -> ROIDrawMode:
+        return self._roiDrawMode
 
-    @Slot(ROIDrawFlag)
-    def setROIDrawFlag(self, flag: ROIDrawFlag):
-        self._roiDrawFlag = flag
+    @Slot(ROIDrawMode)
+    def setROIDrawMode(self, flag: ROIDrawMode):
+        self._roiDrawMode = flag
         self.update()
 
     def paintEvent(self, event):
@@ -48,10 +48,10 @@ class NDArrayROILabel(NDArrayLabel):
             if not isinstance(model, ExperimentDataModel):
                 return
             refArgsIdx = model.getIndexFor(IndexRole.REFARGS, index)
-            drawFlag = self._roiDrawFlag
-            if drawFlag == ROIDrawFlag.TEMPLATE:
+            drawMode = self._roiDrawMode
+            if drawMode == ROIDrawMode.TEMPLATE:
                 roiIdx = model.getIndexFor(IndexRole.REF_TEMPLATEROI, refArgsIdx)
-            elif drawFlag == ROIDrawFlag.SUBSTRATE:
+            elif drawMode == ROIDrawMode.SUBSTRATE:
                 roiIdx = model.getIndexFor(IndexRole.REF_SUBSTRATEROI, refArgsIdx)
             else:
                 return
@@ -114,10 +114,10 @@ class NDArrayROILabel(NDArrayLabel):
         if not isinstance(model, ExperimentDataModel):
             return
         refArgsIdx = model.getIndexFor(IndexRole.REFARGS, index)
-        drawFlag = self._roiDrawFlag
-        if drawFlag == ROIDrawFlag.TEMPLATE:
+        drawMode = self._roiDrawMode
+        if drawMode == ROIDrawMode.TEMPLATE:
             roiIdx = model.getIndexFor(IndexRole.REF_TEMPLATEROI, refArgsIdx)
-        elif drawFlag == ROIDrawFlag.SUBSTRATE:
+        elif drawMode == ROIDrawMode.SUBSTRATE:
             roiIdx = model.getIndexFor(IndexRole.REF_SUBSTRATEROI, refArgsIdx)
         else:
             return
