@@ -5,6 +5,7 @@ Analysis worker
 V2 for workers
 """
 
+import cattrs
 import cv2  # type: ignore
 import enum
 import numpy as np
@@ -211,7 +212,7 @@ class ExperimentWorker(QObject):
                         self.experiment = None
                     else:
                         self.experiment = expt
-                except TypeError:
+                except (TypeError, cattrs.ClassValidationError):
                     self.experiment = None
             self.analysisWorker.experiment = self.experiment
 
@@ -230,7 +231,7 @@ class ExperimentWorker(QObject):
                 ref = refArgs.as_reference(refImg)
                 if not ref.valid():
                     ref = None
-            except TypeError:
+            except (TypeError, cattrs.ClassValidationError):
                 ref = None
         return ref
 
@@ -245,7 +246,7 @@ class ExperimentWorker(QObject):
                 subst = substArgs.as_substrate(ref)
                 if not subst.valid():
                     subst = None
-            except TypeError:
+            except (TypeError, cattrs.ClassValidationError):
                 subst = None
         return subst
 
