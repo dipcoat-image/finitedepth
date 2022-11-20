@@ -7,7 +7,7 @@ V2 for controlwidgets/analysiswidget.py
 
 import dawiq
 import os
-from PySide6.QtCore import Slot, QModelIndex
+from PySide6.QtCore import Qt, Slot, QModelIndex
 from PySide6.QtWidgets import (
     QWidget,
     QLineEdit,
@@ -20,13 +20,10 @@ from PySide6.QtWidgets import (
     QStyledItemDelegate,
 )
 from dipcoatimage.finitedepth import Analyzer, AnalysisArgs
-from dipcoatimage.finitedepth_gui.core import DataArgFlag
-from dipcoatimage.finitedepth_gui.worker import AnalysisState, WorkerUpdateFlag
+from dipcoatimage.finitedepth_gui.worker import AnalysisState
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
-    getTopLevelIndex,
     IndexRole,
-    ExperimentSignalBlocker,
 )
 from typing import Optional
 
@@ -98,6 +95,7 @@ class AnalysisView(QWidget):
         self._fpsLineEdit.editingFinished.connect(self._analyzeArgsMapper.submit)
         self._fpsLineEdit.setValidator(dawiq.EmptyFloatValidator())
         self._analyzeButton.toggled.connect(self._onAnalyzeButtonToggle)
+        self._analyzeArgsMapper.setOrientation(Qt.Orientation.Vertical)
         self._analyzeArgsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._analyzeArgsMapper.setItemDelegate(AnalysisArgsDelegate())
 
@@ -145,13 +143,14 @@ class AnalysisView(QWidget):
             )
             oldModel.analysisProgressValueChanged.disconnect(self._progressBar.setValue)
         self._model = model
+        self._analyzeArgsMapper.clearMapping()
         self._analyzeArgsMapper.setModel(model)
-        self._analyzeArgsMapper.addMapping(self, 0)
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
             model.analysisStateChanged.connect(self._onAnalysisStateChange)
             model.analysisProgressMaximumChanged.connect(self._progressBar.setMaximum)
             model.analysisProgressValueChanged.connect(self._progressBar.setValue)
+            self._analyzeArgsMapper.addMapping(self, model.Row_AnalysisArgs)
 
     def dataPathName(self) -> str:
         return self._dataPathLineEdit.text()
@@ -202,15 +201,13 @@ class AnalysisView(QWidget):
         model = index.model()
         if isinstance(model, ExperimentDataModel):
             self._analyzeArgsMapper.setRootIndex(index)
-            analysisIndex = model.getIndexFor(IndexRole.ANALYSISARGS, index)
-            self._analyzeArgsMapper.setCurrentModelIndex(analysisIndex)
-            self._analyzeButton.setCheckable(True)
+            self._analyzeArgsMapper.toFirst()
         else:
+            self._analyzeArgsMapper.setCurrentModelIndex(QModelIndex())
             self._dataPathLineEdit.clear()
             self._imgPathLineEdit.clear()
             self._vidPathLineEdit.clear()
             self._fpsLineEdit.clear()
-            self._analyzeArgsMapper.setCurrentModelIndex(QModelIndex())
             self._analyzeButton.setCheckable(False)
 
     def _onAnalyzeButtonToggle(self, checked: bool):
@@ -241,38 +238,34 @@ class AnalysisArgsDelegate(QStyledItemDelegate):
         if isinstance(model, ExperimentDataModel):
             indexRole = model.whatsThisIndex(index)
             if indexRole == IndexRole.ANALYSISARGS and isinstance(editor, AnalysisView):
-                with ExperimentSignalBlocker(model):
-                    dataPathName = editor.dataPathName()
-                    dataPathExt = editor.dataPathExtension()
-                    if not dataPathName:
-                        dataPath = ""
-                    else:
-                        dataPath = dataPathName + dataPathExt
+                dataPathName = editor.dataPathName()
+                dataPathExt = editor.dataPathExtension()
+                if not dataPathName:
+                    dataPath = ""
+                else:
+                    dataPath = dataPathName + dataPathExt
 
-                    imgPathName = editor.imagePathName()
-                    imgPathExt = editor.imagePathExtension()
-                    if not imgPathName:
-                        imgPath = ""
-                    else:
-                        imgPath = imgPathName + imgPathExt
+                imgPathName = editor.imagePathName()
+                imgPathExt = editor.imagePathExtension()
+                if not imgPathName:
+                    imgPath = ""
+                else:
+                    imgPath = imgPathName + imgPathExt
 
-                    vidPathName = editor.videoPathName()
-                    vidPathExt = editor.videoPathExtension()
-                    if not vidPathName:
-                        vidPath = ""
-                    else:
-                        vidPath = vidPathName + vidPathExt
+                vidPathName = editor.videoPathName()
+                vidPathExt = editor.videoPathExtension()
+                if not vidPathName:
+                    vidPath = ""
+                else:
+                    vidPath = vidPathName + vidPathExt
 
-                    fps = editor.fps()
+                fps = editor.fps()
 
-                    analysisArgs = AnalysisArgs(dataPath, imgPath, vidPath, fps)
-                    model.setData(index, analysisArgs, role=model.Role_AnalysisArgs)
+                analysisArgs = AnalysisArgs(dataPath, imgPath, vidPath, fps)
+                model.cacheData(index, analysisArgs, model.Role_AnalysisArgs)
 
-                topLevelIndex = getTopLevelIndex(index)
-                model.updateWorker(topLevelIndex, WorkerUpdateFlag.ANALYSIS)
-                model.emitExperimentDataChanged(topLevelIndex, DataArgFlag.ANALYSIS)
-
-        super().setModelData(editor, model, index)
+        else:
+            super().setModelData(editor, model, index)
 
     def setEditorData(self, editor, index):
         model = index.model()
