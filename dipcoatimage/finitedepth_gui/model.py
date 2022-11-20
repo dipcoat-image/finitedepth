@@ -148,7 +148,6 @@ class IndexRole(enum.Enum):
 
     COATPATH = enum.auto()
 
-    REF_TYPE = enum.auto()
     REF_TEMPLATEROI = enum.auto()
     REF_SUBSTRATEROI = enum.auto()
     REF_PARAMETERS = enum.auto()
@@ -186,7 +185,6 @@ class ExperimentDataModel(QAbstractItemModel):
         * COATPATHS
             * COATPATH (can be inserted/removed)
         * REFARGS
-            * REF_TYPE
             * REF_TEMPLATEROI
             * REF_SUBSTRATEROI
             * REF_PARAMETERS
@@ -238,11 +236,10 @@ class ExperimentDataModel(QAbstractItemModel):
     Row_ExptArgs = 5
     Row_AnalysisArgs = 6
 
-    Row_RefType = 0
-    Row_RefTemplateROI = 1
-    Row_RefSubstrateROI = 2
-    Row_RefParameters = 3
-    Row_RefDrawOptions = 4
+    Row_RefTemplateROI = 0
+    Row_RefSubstrateROI = 1
+    Row_RefParameters = 2
+    Row_RefDrawOptions = 3
 
     Row_SubstParameters = 0
     Row_SubstDrawOptions = 1
@@ -287,9 +284,7 @@ class ExperimentDataModel(QAbstractItemModel):
         refArgs = exptData.reference
         refArgsItem = ExperimentDataItem()
         refArgsItem.setParent(item)
-        refTypeItem = ExperimentDataItem()
-        refTypeItem.setData(cls.Role_ImportArgs, refArgs.type)
-        refTypeItem.setParent(refArgsItem)
+        refArgsItem.setData(cls.Role_ImportArgs, refArgs.type)
         templateROIItem = ExperimentDataItem()
         templateROIItem.setData(cls.Role_ROI, refArgs.templateROI)
         templateROIItem.setParent(refArgsItem)
@@ -380,8 +375,7 @@ class ExperimentDataModel(QAbstractItemModel):
         data.coat_paths = coatPaths
 
         refArgsIdx = self.getIndexFor(IndexRole.REFARGS, index)
-        refTypeIdx = self.getIndexFor(IndexRole.REF_TYPE, refArgsIdx)
-        refType = refTypeIdx.data(self.Role_ImportArgs)
+        refType = refArgsIdx.data(self.Role_ImportArgs)
         data.reference.type = refType
         tempROIIdx = self.getIndexFor(IndexRole.REF_TEMPLATEROI, refArgsIdx)
         tempROI = tempROIIdx.data(self.Role_ROI)
@@ -546,6 +540,8 @@ class ExperimentDataModel(QAbstractItemModel):
         subDataclassIndices = [
             IndexRole.SUBST_PARAMETERS,
             IndexRole.SUBST_DRAWOPTIONS,
+            IndexRole.REF_PARAMETERS,
+            IndexRole.REF_DRAWOPTIONS,
         ]
         if indexRole in subDataclassIndices and dataRole == self.Role_DataclassType:
             return False
@@ -578,6 +574,37 @@ class ExperimentDataModel(QAbstractItemModel):
                     paramIdx, paramIdx, [typeRole]
                 )
             drawOptIdxRole = IndexRole.SUBST_DRAWOPTIONS
+            drawOptIdx = self.getIndexFor(drawOptIdxRole, index)
+            drawOptItem = drawOptIdx.internalPointer()
+            if isinstance(drawOptItem, ExperimentDataItem):
+                drawOptItem.setData(typeRole, drawOptType)
+                self.dataChanged.emit(  # type: ignore[attr-defined]
+                    drawOptIdx, drawOptIdx, [typeRole]
+                )
+        elif (
+            indexRole == IndexRole.REFARGS
+            and dataRole == self.Role_ImportArgs
+            and isinstance(value, ImportArgs)
+        ):
+            refType, _ = Importer(value.name, value.module).try_import()
+            if isinstance(refType, type) and issubclass(
+                refType, SubstrateReferenceBase
+            ):
+                paramType = refType.Parameters
+                drawOptType = refType.DrawOptions
+            else:
+                paramType = None
+                drawOptType = None
+            typeRole = self.Role_DataclassType
+            paramIdxRole = IndexRole.REF_PARAMETERS
+            paramIdx = self.getIndexFor(paramIdxRole, index)
+            paramItem = paramIdx.internalPointer()
+            if isinstance(paramItem, ExperimentDataItem):
+                paramItem.setData(typeRole, paramType)
+                self.dataChanged.emit(  # type: ignore[attr-defined]
+                    paramIdx, paramIdx, [typeRole]
+                )
+            drawOptIdxRole = IndexRole.REF_DRAWOPTIONS
             drawOptIdx = self.getIndexFor(drawOptIdxRole, index)
             drawOptItem = drawOptIdx.internalPointer()
             if isinstance(drawOptItem, ExperimentDataItem):
@@ -875,8 +902,6 @@ class ExperimentDataModel(QAbstractItemModel):
             return IndexRole.COATPATH
 
         if parentRole == IndexRole.REFARGS:
-            if row == cls.Row_RefType:
-                return IndexRole.REF_TYPE
             if row == cls.Row_RefTemplateROI:
                 return IndexRole.REF_TEMPLATEROI
             if row == cls.Row_RefSubstrateROI:
@@ -935,8 +960,6 @@ class ExperimentDataModel(QAbstractItemModel):
                 return self.index(self.Row_AnalysisArgs, 0, parent)
 
         if parentRole == IndexRole.REFARGS:
-            if indexRole == IndexRole.REF_TYPE:
-                return self.index(self.Row_RefType, 0, parent)
             if indexRole == IndexRole.REF_TEMPLATEROI:
                 return self.index(self.Row_RefTemplateROI, 0, parent)
             if indexRole == IndexRole.REF_SUBSTRATEROI:
@@ -985,10 +1008,11 @@ def modelDataChanges(
             | WorkerUpdateFlag.EXPERIMENT
         )
     elif indexRole in [
-        IndexRole.REF_TYPE,
+        IndexRole.REFARGS,
         IndexRole.REF_TEMPLATEROI,
         IndexRole.REF_SUBSTRATEROI,
         IndexRole.REF_PARAMETERS,
+        IndexRole.REF_DRAWOPTIONS,
     ]:
         dataArgs = DataArgFlag.REFERENCE
         workerUpdateFlag = (
@@ -997,21 +1021,12 @@ def modelDataChanges(
             | WorkerUpdateFlag.EXPERIMENT
         )
     elif indexRole in [
-        IndexRole.REF_DRAWOPTIONS,
-    ]:
-        dataArgs = DataArgFlag.REFERENCE
-        workerUpdateFlag = WorkerUpdateFlag.REFERENCE
-    elif indexRole in [
         IndexRole.SUBSTARGS,
         IndexRole.SUBST_PARAMETERS,
-    ]:
-        dataArgs = DataArgFlag.SUBSTRATE
-        workerUpdateFlag = WorkerUpdateFlag.SUBSTRATE | WorkerUpdateFlag.EXPERIMENT
-    elif indexRole in [
         IndexRole.SUBST_DRAWOPTIONS,
     ]:
         dataArgs = DataArgFlag.SUBSTRATE
-        workerUpdateFlag = WorkerUpdateFlag.SUBSTRATE
+        workerUpdateFlag = WorkerUpdateFlag.SUBSTRATE | WorkerUpdateFlag.EXPERIMENT
     elif indexRole in [
         IndexRole.LAYER_TYPE,
         IndexRole.LAYER_PARAMETERS,
