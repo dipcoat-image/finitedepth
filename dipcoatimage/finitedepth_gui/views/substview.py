@@ -69,21 +69,17 @@ class SubstrateView(QWidget):
         self._drawOptStackWidget = dawiq.DataclassStackedWidget()
 
         self._typeMapper = QDataWidgetMapper()
-        self._paramMapper = QDataWidgetMapper()
-        self._drawOptMapper = QDataWidgetMapper()
+        self._argsMapper = QDataWidgetMapper()
 
         self._importView.editingFinished.connect(self._typeMapper.submit)
         self._typeMapper.setOrientation(Qt.Orientation.Vertical)
         self._typeMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
         self._typeMapper.setItemDelegate(ImportArgsDelegate())
-        self._paramStackWidget.currentDataEdited.connect(self._paramMapper.submit)
-        self._drawOptStackWidget.currentDataEdited.connect(self._drawOptMapper.submit)
-        self._paramMapper.setOrientation(Qt.Orientation.Vertical)
-        self._paramMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
-        self._paramMapper.setItemDelegate(SubstrateArgsDelegate())
-        self._drawOptMapper.setOrientation(Qt.Orientation.Vertical)
-        self._drawOptMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
-        self._drawOptMapper.setItemDelegate(SubstrateArgsDelegate())
+        self._paramStackWidget.currentDataEdited.connect(self._argsMapper.submit)
+        self._drawOptStackWidget.currentDataEdited.connect(self._argsMapper.submit)
+        self._argsMapper.setOrientation(Qt.Orientation.Vertical)
+        self._argsMapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
+        self._argsMapper.setItemDelegate(SubstrateArgsDelegate())
 
         self._importView.setTitle("Substrate type")
         self._paramStackWidget.addWidget(
@@ -110,18 +106,16 @@ class SubstrateView(QWidget):
             oldModel.activatedIndexChanged.disconnect(self.setActivatedIndex)
         self._model = model
         self._typeMapper.clearMapping()
-        self._paramMapper.clearMapping()
-        self._drawOptMapper.clearMapping()
+        self._argsMapper.clearMapping()
         self._typeMapper.setModel(model)
-        self._paramMapper.setModel(model)
-        self._drawOptMapper.setModel(model)
+        self._argsMapper.setModel(model)
         if model is not None:
             model.activatedIndexChanged.connect(self.setActivatedIndex)
             self._typeMapper.addMapping(self._importView, model.Row_SubstArgs)
-            self._paramMapper.addMapping(
+            self._argsMapper.addMapping(
                 self._paramStackWidget, model.Row_SubstParameters
             )
-            self._drawOptMapper.addMapping(
+            self._argsMapper.addMapping(
                 self._drawOptStackWidget, model.Row_SubstDrawOptions
             )
 
@@ -132,14 +126,11 @@ class SubstrateView(QWidget):
             self._typeMapper.setRootIndex(index)
             self._typeMapper.toFirst()
             substArgsIndex = model.getIndexFor(IndexRole.SUBSTARGS, index)
-            self._paramMapper.setRootIndex(substArgsIndex)
-            self._paramMapper.toFirst()
-            self._drawOptMapper.setRootIndex(substArgsIndex)
-            self._drawOptMapper.toFirst()
+            self._argsMapper.setRootIndex(substArgsIndex)
+            self._argsMapper.toFirst()
         else:
             self._typeMapper.setCurrentModelIndex(QModelIndex())
-            self._paramMapper.setCurrentModelIndex(QModelIndex())
-            self._drawOptMapper.setCurrentModelIndex(QModelIndex())
+            self._argsMapper.setCurrentModelIndex(QModelIndex())
             self._importView.clear()
             self._paramStackWidget.setCurrentIndex(0)
             self._drawOptStackWidget.setCurrentIndex(0)
