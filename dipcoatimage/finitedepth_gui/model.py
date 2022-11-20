@@ -553,7 +553,7 @@ class ExperimentDataModel(QAbstractItemModel):
         if not isinstance(dataItem, ExperimentDataItem):
             return False
         dataItem.setData(dataRole, value)
-        self.dataChanged.emit(index, index, [dataRole])
+        self.dataChanged.emit(index, index, [dataRole])  # type: ignore[attr-defined]
 
         # update subitems
         if (
@@ -574,13 +574,17 @@ class ExperimentDataModel(QAbstractItemModel):
             paramItem = paramIdx.internalPointer()
             if isinstance(paramItem, ExperimentDataItem):
                 paramItem.setData(typeRole, paramType)
-                self.dataChanged.emit(paramIdx, paramIdx, [typeRole])
+                self.dataChanged.emit(  # type: ignore[attr-defined]
+                    paramIdx, paramIdx, [typeRole]
+                )
             drawOptIdxRole = IndexRole.SUBST_DRAWOPTIONS
             drawOptIdx = self.getIndexFor(drawOptIdxRole, index)
             drawOptItem = drawOptIdx.internalPointer()
             if isinstance(drawOptItem, ExperimentDataItem):
                 drawOptItem.setData(typeRole, drawOptType)
-                self.dataChanged.emit(drawOptIdx, drawOptIdx, [typeRole])
+                self.dataChanged.emit(  # type: ignore[attr-defined]
+                    drawOptIdx, drawOptIdx, [typeRole]
+                )
         return True
 
     def revert(self):
