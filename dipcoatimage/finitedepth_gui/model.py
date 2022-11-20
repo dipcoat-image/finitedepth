@@ -470,7 +470,6 @@ class ExperimentDataModel(QAbstractItemModel):
         ret = self._setData(index, indexRole, value, role)
         if not ret:
             return False
-
         # update worker and emit signals
         topLevelIndex = getTopLevelIndex(index)
         (dataArgs, workerUpdateFlag) = self.modelDataChanges(indexRole, role)
@@ -667,6 +666,8 @@ class ExperimentDataModel(QAbstractItemModel):
     def modelDataChanges(
         cls, indexRole: IndexRole, dataRole: Qt.ItemDataRole
     ) -> Tuple[DataArgFlag, WorkerUpdateFlag]:
+        if dataRole == Qt.ItemDataRole.EditRole:
+            dataRole = Qt.ItemDataRole.DisplayRole
         if indexRole in [IndexRole.REFPATH] and dataRole in [cls.Role_RefPath]:
             dataArgs = DataArgFlag.REFPATH
             workerUpdateFlag = (
