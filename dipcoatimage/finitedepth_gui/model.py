@@ -20,7 +20,7 @@ from dipcoatimage.finitedepth.util import Importer
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
 from .core import DataArgFlag
 from .worker import AnalysisState, WorkerUpdateFlag, ExperimentWorker
-from typing import Optional, Any, Union, Tuple, List
+from typing import Optional, Any, Union, Tuple, List, Dict
 
 
 __all__ = [
@@ -47,7 +47,7 @@ class ExperimentDataItem(object):
     __slots__ = ("_data", "_children", "_parent")
 
     def __init__(self):
-        self._data = dict()
+        self._data: Dict[Qt.ItemDataRole, Any] = dict()
         self._children = []
         self._parent = None
 
@@ -262,9 +262,10 @@ class ExperimentDataModel(QAbstractItemModel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._rootItem = ExperimentDataItem()
+        self._dataCache: Dict[QModelIndex, Dict[Qt.ItemDataRole, Any]] = dict()
+        self._workers: List[ExperimentWorker] = []
         self._activatedIndex = QModelIndex()
         self._blockExperimentSignals = False
-        self._workers: List[ExperimentWorker] = []
 
     @classmethod
     def _itemFromExperimentData(cls, exptData: ExperimentData) -> ExperimentDataItem:
@@ -481,125 +482,152 @@ class ExperimentDataModel(QAbstractItemModel):
             return dataItem.data(role)
         return None
 
-    def setData(self, index, value, role=Qt.EditRole):
-        dataItem = index.internalPointer()
-        if isinstance(dataItem, ExperimentDataItem):
-            dataItem.setData(role, value)
-            self.dataChanged.emit(index, index, [role])
+    def setData(self, index, value, role=Qt.ItemDataRole.EditRole) -> bool:
+        indexRole = self.whatsThisIndex(index)
+        ret = self._setData(index, indexRole, value, role)
+        if not ret:
+            return False
+
+        # update worker and emit signals
+        if indexRole in [
+            IndexRole.REFPATH,
+        ]:
+            dataArgs = DataArgFlag.REFPATH
+            workerUpdateFlag = (
+                WorkerUpdateFlag.REFIMAGE
+                | WorkerUpdateFlag.REFERENCE
+                | WorkerUpdateFlag.SUBSTRATE
+                | WorkerUpdateFlag.EXPERIMENT
+            )
+        elif indexRole in [
+            IndexRole.REF_TYPE,
+            IndexRole.REF_TEMPLATEROI,
+            IndexRole.REF_SUBSTRATEROI,
+            IndexRole.REF_PARAMETERS,
+        ]:
+            dataArgs = DataArgFlag.REFERENCE
+            workerUpdateFlag = (
+                WorkerUpdateFlag.REFERENCE
+                | WorkerUpdateFlag.SUBSTRATE
+                | WorkerUpdateFlag.EXPERIMENT
+            )
+        elif indexRole in [
+            IndexRole.REF_DRAWOPTIONS,
+        ]:
+            dataArgs = DataArgFlag.REFERENCE
+            workerUpdateFlag = WorkerUpdateFlag.REFERENCE
+        elif indexRole in [
+            IndexRole.SUBSTARGS,
+            IndexRole.SUBST_PARAMETERS,
+        ]:
+            dataArgs = DataArgFlag.SUBSTRATE
+            workerUpdateFlag = WorkerUpdateFlag.SUBSTRATE | WorkerUpdateFlag.EXPERIMENT
+        elif indexRole in [
+            IndexRole.SUBST_DRAWOPTIONS,
+        ]:
+            dataArgs = DataArgFlag.SUBSTRATE
+            workerUpdateFlag = WorkerUpdateFlag.SUBSTRATE
+        elif indexRole in [
+            IndexRole.LAYER_TYPE,
+            IndexRole.LAYER_PARAMETERS,
+            IndexRole.LAYER_DRAWOPTIONS,
+            IndexRole.LAYER_DECOOPTIONS,
+        ]:
+            dataArgs = DataArgFlag.COATINGLAYER
+            workerUpdateFlag = WorkerUpdateFlag.EXPERIMENT
+        elif indexRole in [
+            IndexRole.EXPT_TYPE,
+            IndexRole.EXPT_PARAMETERS,
+        ]:
+            dataArgs = DataArgFlag.EXPERIMENT
+            workerUpdateFlag = WorkerUpdateFlag.EXPERIMENT
+        elif indexRole in [
+            IndexRole.COATPATH,
+        ]:
+            dataArgs = DataArgFlag.COATPATHS
+            workerUpdateFlag = WorkerUpdateFlag.ANALYSIS
+        elif indexRole in [
+            IndexRole.ANALYSISARGS,
+        ]:
+            dataArgs = DataArgFlag.ANALYSIS
+            workerUpdateFlag = WorkerUpdateFlag.ANALYSIS
+        else:
+            dataArgs = DataArgFlag.NULL
+            workerUpdateFlag = WorkerUpdateFlag.NULL
+        topLevelIndex = self.getTopLevelIndex(index)
+        self.updateWorker(topLevelIndex, workerUpdateFlag)
+        self.emitExperimentDataChanged(topLevelIndex, dataArgs)
+        return True
+
+    def cacheData(self, index: QModelIndex, value: Any, role: Qt.ItemDataRole) -> bool:
+        if index.model() != self:
+            return False
+        if not index.isValid():
+            return False
+        idxCache = self._dataCache.get(index)
+        if idxCache is None:
+            idxCache = dict()
+            self._dataCache[index] = idxCache
+        idxCache[role] = value
+        return True
+
+    def submit(self) -> bool:
+        for index, data in self._dataCache.items():
             indexRole = self.whatsThisIndex(index)
+            for dataRole, value in data.items():
+                self._setData(index, indexRole, value, dataRole)
+        self._dataCache = dict()
+        return True
 
-            # reject direct manipulation of dependant datclass type
-            if (
-                indexRole
-                in [
-                    IndexRole.SUBST_PARAMETERS,
-                    IndexRole.SUBST_DRAWOPTIONS,
-                ]
-                and role == self.Role_DataclassType
-            ):
-                return False
+    def _setData(
+        self,
+        index: QModelIndex,
+        indexRole: IndexRole,
+        value: Any,
+        dataRole: Qt.ItemDataRole,
+    ) -> bool:
+        subDataclassIndices = [
+            IndexRole.SUBST_PARAMETERS,
+            IndexRole.SUBST_DRAWOPTIONS,
+        ]
+        if indexRole in subDataclassIndices and dataRole == self.Role_DataclassType:
+            return False
+        dataItem = index.internalPointer()
+        if not isinstance(dataItem, ExperimentDataItem):
+            return False
+        dataItem.setData(dataRole, value)
+        self.dataChanged.emit(index, index, [dataRole])
 
-            # update subitems
-            if (
-                indexRole == IndexRole.SUBSTARGS
-                and role == self.Role_ImportArgs
-                and isinstance(value, ImportArgs)
-            ):
-                substType, _ = Importer(value.name, value.module).try_import()
-                if isinstance(substType, type) and issubclass(substType, SubstrateBase):
-                    paramType = substType.Parameters
-                    drawOptType = substType.DrawOptions
-                else:
-                    paramType = None
-                    drawOptType = None
-                substParamIdx = self.getIndexFor(IndexRole.SUBST_PARAMETERS, index)
-                substParamItem = substParamIdx.internalPointer()
-                if isinstance(substParamItem, ExperimentDataItem):
-                    substParamItem.setData(self.Role_DataclassType, paramType)
-                    self.dataChanged.emit(
-                        substParamIdx, substParamIdx, [self.Role_DataclassType]
-                    )
-                substDrawOptIdx = self.getIndexFor(IndexRole.SUBST_DRAWOPTIONS, index)
-                substDrawOptItem = substDrawOptIdx.internalPointer()
-                if isinstance(substDrawOptItem, ExperimentDataItem):
-                    substDrawOptItem.setData(self.Role_DataclassType, drawOptType)
-                    self.dataChanged.emit(
-                        substDrawOptIdx, substDrawOptIdx, [self.Role_DataclassType]
-                    )
-
-            # update worker and emit signals
-            if indexRole in [
-                IndexRole.REFPATH,
-            ]:
-                dataArgs = DataArgFlag.REFPATH
-                workerUpdateFlag = (
-                    WorkerUpdateFlag.REFIMAGE
-                    | WorkerUpdateFlag.REFERENCE
-                    | WorkerUpdateFlag.SUBSTRATE
-                    | WorkerUpdateFlag.EXPERIMENT
-                )
-            elif indexRole in [
-                IndexRole.REF_TYPE,
-                IndexRole.REF_TEMPLATEROI,
-                IndexRole.REF_SUBSTRATEROI,
-                IndexRole.REF_PARAMETERS,
-            ]:
-                dataArgs = DataArgFlag.REFERENCE
-                workerUpdateFlag = (
-                    WorkerUpdateFlag.REFERENCE
-                    | WorkerUpdateFlag.SUBSTRATE
-                    | WorkerUpdateFlag.EXPERIMENT
-                )
-            elif indexRole in [
-                IndexRole.REF_DRAWOPTIONS,
-            ]:
-                dataArgs = DataArgFlag.REFERENCE
-                workerUpdateFlag = WorkerUpdateFlag.REFERENCE
-            elif indexRole in [
-                IndexRole.SUBSTARGS,
-                IndexRole.SUBST_PARAMETERS,
-            ]:
-                dataArgs = DataArgFlag.SUBSTRATE
-                workerUpdateFlag = (
-                    WorkerUpdateFlag.SUBSTRATE | WorkerUpdateFlag.EXPERIMENT
-                )
-            elif indexRole in [
-                IndexRole.SUBST_DRAWOPTIONS,
-            ]:
-                dataArgs = DataArgFlag.SUBSTRATE
-                workerUpdateFlag = WorkerUpdateFlag.SUBSTRATE
-            elif indexRole in [
-                IndexRole.LAYER_TYPE,
-                IndexRole.LAYER_PARAMETERS,
-                IndexRole.LAYER_DRAWOPTIONS,
-                IndexRole.LAYER_DECOOPTIONS,
-            ]:
-                dataArgs = DataArgFlag.COATINGLAYER
-                workerUpdateFlag = WorkerUpdateFlag.EXPERIMENT
-            elif indexRole in [
-                IndexRole.EXPT_TYPE,
-                IndexRole.EXPT_PARAMETERS,
-            ]:
-                dataArgs = DataArgFlag.EXPERIMENT
-                workerUpdateFlag = WorkerUpdateFlag.EXPERIMENT
-            elif indexRole in [
-                IndexRole.COATPATH,
-            ]:
-                dataArgs = DataArgFlag.COATPATHS
-                workerUpdateFlag = WorkerUpdateFlag.ANALYSIS
-            elif indexRole in [
-                IndexRole.ANALYSISARGS,
-            ]:
-                dataArgs = DataArgFlag.ANALYSIS
-                workerUpdateFlag = WorkerUpdateFlag.ANALYSIS
+        # update subitems
+        if (
+            indexRole == IndexRole.SUBSTARGS
+            and dataRole == self.Role_ImportArgs
+            and isinstance(value, ImportArgs)
+        ):
+            substType, _ = Importer(value.name, value.module).try_import()
+            if isinstance(substType, type) and issubclass(substType, SubstrateBase):
+                paramType = substType.Parameters
+                drawOptType = substType.DrawOptions
             else:
-                dataArgs = DataArgFlag.NULL
-                workerUpdateFlag = WorkerUpdateFlag.NULL
-            topLevelIndex = self.getTopLevelIndex(index)
-            self.updateWorker(topLevelIndex, workerUpdateFlag)
-            self.emitExperimentDataChanged(topLevelIndex, dataArgs)
-            return True
-        return False
+                paramType = None
+                drawOptType = None
+            typeRole = self.Role_DataclassType
+            paramIdxRole = IndexRole.SUBST_PARAMETERS
+            paramIdx = self.getIndexFor(paramIdxRole, index)
+            paramItem = paramIdx.internalPointer()
+            if isinstance(paramItem, ExperimentDataItem):
+                paramItem.setData(typeRole, paramType)
+                self.dataChanged.emit(paramIdx, paramIdx, [typeRole])
+            drawOptIdxRole = IndexRole.SUBST_DRAWOPTIONS
+            drawOptIdx = self.getIndexFor(drawOptIdxRole, index)
+            drawOptItem = drawOptIdx.internalPointer()
+            if isinstance(drawOptItem, ExperimentDataItem):
+                drawOptItem.setData(typeRole, drawOptType)
+                self.dataChanged.emit(drawOptIdx, drawOptIdx, [typeRole])
+        return True
+
+    def revert(self):
+        self._dataCache = dict()
 
     def emitExperimentDataChanged(self, index: QModelIndex, dataArgs: DataArgFlag):
         if not dataArgs:
