@@ -153,13 +153,11 @@ class SubstrateArgsDelegate(dawiq.DataclassDelegate):
     def ignoreMissing(self) -> bool:
         return False
 
-    def setModelData(self, editor, model, index):
-        if isinstance(model, ExperimentDataModel) and isinstance(
-            editor, dawiq.DataclassStackedWidget
-        ):
-            self.setModelData(editor.currentWidget(), model, index)
+    def cacheModelData(cls, model, index, value, role):
+        if isinstance(model, ExperimentDataModel):
+            model.cacheData(index, value, role)
         else:
-            super().setModelData(editor, model, index)
+            super().cacheModelData(model, index, value, role)
 
     def setEditorData(self, editor, index):
         model = index.model()

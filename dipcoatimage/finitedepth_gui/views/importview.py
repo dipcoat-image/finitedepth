@@ -67,7 +67,7 @@ class ImportArgsDelegate(QStyledItemDelegate):
             editor, ImportDataView
         ):
             importArgs = ImportArgs(editor.variableName(), editor.moduleName())
-            model.setData(index, importArgs, role=model.Role_ImportArgs)
+            model.cacheData(index, importArgs, role=model.Role_ImportArgs)
         super().setModelData(editor, model, index)
 
     def setEditorData(self, editor, index):

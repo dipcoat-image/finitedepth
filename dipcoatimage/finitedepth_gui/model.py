@@ -510,10 +510,29 @@ class ExperimentDataModel(QAbstractItemModel):
         return True
 
     def submit(self) -> bool:
+        topLevel_flags: Dict[QModelIndex, Tuple[DataArgFlag, WorkerUpdateFlag]] = {}
         for index, data in self._dataCache.items():
+            topLevelIndex = getTopLevelIndex(index)
+            flags = topLevel_flags.get(topLevelIndex)
+            if flags is None:
+                flags = (DataArgFlag.NULL, WorkerUpdateFlag.NULL)
+                topLevel_flags[topLevelIndex] = flags
+            (dataArgs, workerUpdateFlag) = flags
+
             indexRole = self.whatsThisIndex(index)
             for dataRole, value in data.items():
-                self._setData(index, indexRole, value, dataRole)
+                ok = self._setData(index, indexRole, value, dataRole)
+                if not ok:
+                    continue
+                daf, wuf = modelDataChanges(indexRole, dataRole)
+                dataArgs |= daf
+                workerUpdateFlag |= wuf
+            topLevel_flags[topLevelIndex] = (dataArgs, workerUpdateFlag)
+
+        for topLevelIndex, (dataArgs, workerUpdateFlag) in topLevel_flags.items():
+            self.updateWorker(topLevelIndex, workerUpdateFlag)
+            self.emitExperimentDataChanged(topLevelIndex, dataArgs)
+
         self._dataCache = dict()
         return True
 
@@ -949,7 +968,7 @@ class ExperimentDataModel(QAbstractItemModel):
 
 
 def modelDataChanges(
-    indexRole: IndexRole, dataRole: Qt.ItemDAtaRole
+    indexRole: IndexRole, dataRole: Qt.ItemDataRole
 ) -> Tuple[DataArgFlag, WorkerUpdateFlag]:
     if indexRole in [
         IndexRole.REFPATH,
