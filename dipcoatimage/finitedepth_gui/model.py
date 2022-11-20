@@ -160,7 +160,6 @@ class IndexRole(enum.Enum):
     LAYER_DRAWOPTIONS = enum.auto()
     LAYER_DECOOPTIONS = enum.auto()
 
-    EXPT_TYPE = enum.auto()
     EXPT_PARAMETERS = enum.auto()
 
 
@@ -196,7 +195,6 @@ class ExperimentDataModel(QAbstractItemModel):
             * LAYER_DRAWOPTIONS
             * LAYER_DECOOPTIONS
         * EXPTARGS
-            * EXPT_TYPE
             * EXPT_PARAMETERS
         * ANALYSISARGS
 
@@ -246,8 +244,7 @@ class ExperimentDataModel(QAbstractItemModel):
     Row_LayerDrawOptions = 1
     Row_LayerDecoOptions = 2
 
-    Row_ExptType = 0
-    Row_ExptParameters = 1
+    Row_ExptParameters = 0
 
     experimentDataChanged = Signal(QModelIndex, DataArgFlag)
     activatedIndexChanged = Signal(QModelIndex)
@@ -336,9 +333,7 @@ class ExperimentDataModel(QAbstractItemModel):
         exptArgs = exptData.experiment
         exptArgsItem = ExperimentDataItem()
         exptArgsItem.setParent(item)
-        exptTypeItem = ExperimentDataItem()
-        exptTypeItem.setData(cls.Role_ImportArgs, exptArgs.type)
-        exptTypeItem.setParent(exptArgsItem)
+        exptArgsItem.setData(cls.Role_ImportArgs, exptArgs.type)
         exptType, _ = Importer(exptArgs.type.name, exptArgs.type.module).try_import()
         exptParametersItem = ExperimentDataItem()
         if isinstance(exptType, type) and issubclass(exptType, ExperimentBase):
@@ -409,8 +404,7 @@ class ExperimentDataModel(QAbstractItemModel):
         data.coatinglayer.deco_options = layerDecoOpts
 
         exptArgsIdx = self.getIndexFor(IndexRole.EXPTARGS, index)
-        exptTypeIdx = self.getIndexFor(IndexRole.EXPT_TYPE, exptArgsIdx)
-        exptType = exptTypeIdx.data(self.Role_ImportArgs)
+        exptType = exptArgsIdx.data(self.Role_ImportArgs)
         data.experiment.type = exptType
         exptParamsIdx = self.getIndexFor(IndexRole.EXPT_PARAMETERS, exptArgsIdx)
         exptParams = exptParamsIdx.data(self.Role_DataclassData)
@@ -539,6 +533,7 @@ class ExperimentDataModel(QAbstractItemModel):
             IndexRole.LAYER_PARAMETERS,
             IndexRole.LAYER_DRAWOPTIONS,
             IndexRole.LAYER_DECOOPTIONS,
+            IndexRole.EXPT_PARAMETERS,
         ]
         if indexRole in subDataclassIndices and dataRole == self.Role_DataclassType:
             return False
@@ -647,6 +642,25 @@ class ExperimentDataModel(QAbstractItemModel):
                 decoOptItem.setData(typeRole, decoOptType)
                 self.dataChanged.emit(  # type: ignore[attr-defined]
                     decoOptIdx, decoOptIdx, [typeRole]
+                )
+        elif (
+            indexRole == IndexRole.EXPTARGS
+            and dataRole == self.Role_ImportArgs
+            and isinstance(value, ImportArgs)
+        ):
+            exptType, _ = Importer(value.name, value.module).try_import()
+            if isinstance(exptType, type) and issubclass(exptType, ExperimentBase):
+                paramType = exptType.Parameters
+            else:
+                paramType = None
+            typeRole = self.Role_DataclassType
+            paramIdxRole = IndexRole.EXPT_PARAMETERS
+            paramIdx = self.getIndexFor(paramIdxRole, index)
+            paramItem = paramIdx.internalPointer()
+            if isinstance(paramItem, ExperimentDataItem):
+                paramItem.setData(typeRole, paramType)
+                self.dataChanged.emit(  # type: ignore[attr-defined]
+                    paramIdx, paramIdx, [typeRole]
                 )
         return True
 
@@ -962,8 +976,6 @@ class ExperimentDataModel(QAbstractItemModel):
                 return IndexRole.LAYER_DECOOPTIONS
 
         if parentRole == IndexRole.EXPTARGS:
-            if row == cls.Row_ExptType:
-                return IndexRole.EXPT_TYPE
             if row == cls.Row_ExptParameters:
                 return IndexRole.EXPT_PARAMETERS
 
@@ -1018,8 +1030,6 @@ class ExperimentDataModel(QAbstractItemModel):
                 return self.index(self.Row_LayerDecoOptions, 0, parent)
 
         if parentRole == IndexRole.EXPTARGS:
-            if indexRole == IndexRole.EXPT_TYPE:
-                return self.index(self.Row_ExptType, 0, parent)
             if indexRole == IndexRole.EXPT_PARAMETERS:
                 return self.index(self.Row_ExptParameters, 0, parent)
 
@@ -1068,7 +1078,7 @@ def modelDataChanges(
         dataArgs = DataArgFlag.COATINGLAYER
         workerUpdateFlag = WorkerUpdateFlag.EXPERIMENT
     elif indexRole in [
-        IndexRole.EXPT_TYPE,
+        IndexRole.EXPTARGS,
         IndexRole.EXPT_PARAMETERS,
     ]:
         dataArgs = DataArgFlag.EXPERIMENT
