@@ -24,6 +24,7 @@ from dipcoatimage.finitedepth_gui.core import DataArgFlag
 from dipcoatimage.finitedepth_gui.worker import AnalysisState, WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
+    getTopLevelIndex,
     IndexRole,
     ExperimentSignalBlocker,
 )
@@ -267,7 +268,7 @@ class AnalysisArgsDelegate(QStyledItemDelegate):
                     analysisArgs = AnalysisArgs(dataPath, imgPath, vidPath, fps)
                     model.setData(index, analysisArgs, role=model.Role_AnalysisArgs)
 
-                topLevelIndex = model.getTopLevelIndex(index)
+                topLevelIndex = getTopLevelIndex(index)
                 model.updateWorker(topLevelIndex, WorkerUpdateFlag.ANALYSIS)
                 model.emitExperimentDataChanged(topLevelIndex, DataArgFlag.ANALYSIS)
 

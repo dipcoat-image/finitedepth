@@ -27,6 +27,7 @@ from dipcoatimage.finitedepth_gui.core import DataArgFlag
 from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
+    getTopLevelIndex,
     IndexRole,
     ExperimentSignalBlocker,
 )
@@ -186,7 +187,7 @@ class ExperimentView(QWidget):
                 index = model.index(row + i, 0, parent)
                 model.setData(index, path, role=model.Role_CoatPath)
 
-        topLevelIndex = model.getTopLevelIndex(parent)
+        topLevelIndex = getTopLevelIndex(parent)
         model.updateWorker(topLevelIndex, WorkerUpdateFlag.ANALYSIS)
         model.emitExperimentDataChanged(topLevelIndex, DataArgFlag.COATPATHS)
 
@@ -208,7 +209,7 @@ class ExperimentView(QWidget):
             for row_list in reversed(continuous_rows):
                 model.removeRows(row_list[0], len(row_list), parent)
 
-        topLevelIndex = model.getTopLevelIndex(parent)
+        topLevelIndex = getTopLevelIndex(parent)
         model.updateWorker(topLevelIndex, WorkerUpdateFlag.ANALYSIS)
         model.emitExperimentDataChanged(topLevelIndex, DataArgFlag.COATPATHS)
 
@@ -289,7 +290,7 @@ class ExperimentArgsDelegate(dawiq.DataclassDelegate):
                         editor.currentParametersWidget(), model, paramIndex
                     )
 
-                topLevelIndex = model.getTopLevelIndex(index)
+                topLevelIndex = getTopLevelIndex(index)
                 model.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
                 model.emitExperimentDataChanged(topLevelIndex, DataArgFlag.EXPERIMENT)
 

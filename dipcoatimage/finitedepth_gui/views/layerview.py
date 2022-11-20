@@ -21,6 +21,7 @@ from dipcoatimage.finitedepth_gui.core import DataArgFlag
 from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
+    getTopLevelIndex,
     IndexRole,
     ExperimentSignalBlocker,
 )
@@ -251,7 +252,7 @@ class CoatingLayerArgsDelegate(dawiq.DataclassDelegate):
                         editor.currentDecoOptionsWidget(), model, decoOptIndex
                     )
 
-                topLevelIndex = model.getTopLevelIndex(index)
+                topLevelIndex = getTopLevelIndex(index)
                 model.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
                 model.emitExperimentDataChanged(topLevelIndex, DataArgFlag.COATINGLAYER)
 

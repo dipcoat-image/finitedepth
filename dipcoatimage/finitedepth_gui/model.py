@@ -27,6 +27,7 @@ __all__ = [
     "ExperimentDataItem",
     "IndexRole",
     "ExperimentDataModel",
+    "getTopLevelIndex",
     "ExperimentSignalBlocker",
 ]
 
@@ -554,7 +555,7 @@ class ExperimentDataModel(QAbstractItemModel):
         else:
             dataArgs = DataArgFlag.NULL
             workerUpdateFlag = WorkerUpdateFlag.NULL
-        topLevelIndex = self.getTopLevelIndex(index)
+        topLevelIndex = getTopLevelIndex(index)
         self.updateWorker(topLevelIndex, workerUpdateFlag)
         self.emitExperimentDataChanged(topLevelIndex, dataArgs)
         return True
@@ -687,7 +688,7 @@ class ExperimentDataModel(QAbstractItemModel):
                 newItem.setParent(parent.internalPointer(), row)
             self.endInsertRows()
 
-            topLevelIndex = self.getTopLevelIndex(parent)
+            topLevelIndex = getTopLevelIndex(parent)
             self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
             self.emitExperimentDataChanged(topLevelIndex, DataArgFlag.COATPATHS)
             return True
@@ -789,7 +790,7 @@ class ExperimentDataModel(QAbstractItemModel):
                 item.setParent(parentDataItem, destinationChild)
             self.endInsertRows()
 
-            topLevelIndex = self.getTopLevelIndex(sourceParent)
+            topLevelIndex = getTopLevelIndex(sourceParent)
             self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
             self.emitExperimentDataChanged(topLevelIndex, DataArgFlag.COATPATHS)
         return False
@@ -824,7 +825,7 @@ class ExperimentDataModel(QAbstractItemModel):
                 dataItem.remove(row)
             self.endRemoveRows()
 
-            topLevelIndex = self.getTopLevelIndex(parent)
+            topLevelIndex = getTopLevelIndex(parent)
             self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
             self.emitExperimentDataChanged(topLevelIndex, DataArgFlag.COATPATHS)
             return True
@@ -1009,17 +1010,13 @@ class ExperimentDataModel(QAbstractItemModel):
 
         return QModelIndex()
 
-    def getTopLevelIndex(self, index: QModelIndex) -> QModelIndex:
-        """
-        Get the index with :obj:`IndexRole.EXPTDATA` that *index* belongs to.
 
-        If there is no top level index for *index*, return invalid index.
-        """
-        if not index.isValid():
-            return QModelIndex()
-        while index.parent().isValid():
-            index = index.parent()
-        return index
+def getTopLevelIndex(index: QModelIndex) -> QModelIndex:
+    if not index.isValid():
+        return QModelIndex()
+    while index.parent().isValid():
+        index = index.parent()
+    return index
 
 
 class ExperimentSignalBlocker:

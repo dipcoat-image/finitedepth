@@ -27,6 +27,7 @@ from dipcoatimage.finitedepth_gui.core import DataArgFlag, ROIDrawMode
 from dipcoatimage.finitedepth_gui.worker import WorkerUpdateFlag
 from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
+    getTopLevelIndex,
     IndexRole,
     ExperimentSignalBlocker,
 )
@@ -335,7 +336,7 @@ class ReferenceArgsDelegate(dawiq.DataclassDelegate):
                         editor.currentDrawOptionsWidget(), model, drawOptIndex
                     )
 
-                topLevelIndex = model.getTopLevelIndex(index)
+                topLevelIndex = getTopLevelIndex(index)
                 flag = (
                     WorkerUpdateFlag.REFERENCE
                     | WorkerUpdateFlag.SUBSTRATE
