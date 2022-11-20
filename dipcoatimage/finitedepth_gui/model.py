@@ -28,6 +28,7 @@ __all__ = [
     "IndexRole",
     "ExperimentDataModel",
     "getTopLevelIndex",
+    "modelDataChanges",
     "ExperimentSignalBlocker",
 ]
 
@@ -490,72 +491,8 @@ class ExperimentDataModel(QAbstractItemModel):
             return False
 
         # update worker and emit signals
-        if indexRole in [
-            IndexRole.REFPATH,
-        ]:
-            dataArgs = DataArgFlag.REFPATH
-            workerUpdateFlag = (
-                WorkerUpdateFlag.REFIMAGE
-                | WorkerUpdateFlag.REFERENCE
-                | WorkerUpdateFlag.SUBSTRATE
-                | WorkerUpdateFlag.EXPERIMENT
-            )
-        elif indexRole in [
-            IndexRole.REF_TYPE,
-            IndexRole.REF_TEMPLATEROI,
-            IndexRole.REF_SUBSTRATEROI,
-            IndexRole.REF_PARAMETERS,
-        ]:
-            dataArgs = DataArgFlag.REFERENCE
-            workerUpdateFlag = (
-                WorkerUpdateFlag.REFERENCE
-                | WorkerUpdateFlag.SUBSTRATE
-                | WorkerUpdateFlag.EXPERIMENT
-            )
-        elif indexRole in [
-            IndexRole.REF_DRAWOPTIONS,
-        ]:
-            dataArgs = DataArgFlag.REFERENCE
-            workerUpdateFlag = WorkerUpdateFlag.REFERENCE
-        elif indexRole in [
-            IndexRole.SUBSTARGS,
-            IndexRole.SUBST_PARAMETERS,
-        ]:
-            dataArgs = DataArgFlag.SUBSTRATE
-            workerUpdateFlag = WorkerUpdateFlag.SUBSTRATE | WorkerUpdateFlag.EXPERIMENT
-        elif indexRole in [
-            IndexRole.SUBST_DRAWOPTIONS,
-        ]:
-            dataArgs = DataArgFlag.SUBSTRATE
-            workerUpdateFlag = WorkerUpdateFlag.SUBSTRATE
-        elif indexRole in [
-            IndexRole.LAYER_TYPE,
-            IndexRole.LAYER_PARAMETERS,
-            IndexRole.LAYER_DRAWOPTIONS,
-            IndexRole.LAYER_DECOOPTIONS,
-        ]:
-            dataArgs = DataArgFlag.COATINGLAYER
-            workerUpdateFlag = WorkerUpdateFlag.EXPERIMENT
-        elif indexRole in [
-            IndexRole.EXPT_TYPE,
-            IndexRole.EXPT_PARAMETERS,
-        ]:
-            dataArgs = DataArgFlag.EXPERIMENT
-            workerUpdateFlag = WorkerUpdateFlag.EXPERIMENT
-        elif indexRole in [
-            IndexRole.COATPATH,
-        ]:
-            dataArgs = DataArgFlag.COATPATHS
-            workerUpdateFlag = WorkerUpdateFlag.ANALYSIS
-        elif indexRole in [
-            IndexRole.ANALYSISARGS,
-        ]:
-            dataArgs = DataArgFlag.ANALYSIS
-            workerUpdateFlag = WorkerUpdateFlag.ANALYSIS
-        else:
-            dataArgs = DataArgFlag.NULL
-            workerUpdateFlag = WorkerUpdateFlag.NULL
         topLevelIndex = getTopLevelIndex(index)
+        (dataArgs, workerUpdateFlag) = modelDataChanges(indexRole, role)
         self.updateWorker(topLevelIndex, workerUpdateFlag)
         self.emitExperimentDataChanged(topLevelIndex, dataArgs)
         return True
@@ -1009,6 +946,77 @@ class ExperimentDataModel(QAbstractItemModel):
                 return self.index(self.Row_ExptParameters, 0, parent)
 
         return QModelIndex()
+
+
+def modelDataChanges(
+    indexRole: IndexRole, dataRole: Qt.ItemDAtaRole
+) -> Tuple[DataArgFlag, WorkerUpdateFlag]:
+    if indexRole in [
+        IndexRole.REFPATH,
+    ]:
+        dataArgs = DataArgFlag.REFPATH
+        workerUpdateFlag = (
+            WorkerUpdateFlag.REFIMAGE
+            | WorkerUpdateFlag.REFERENCE
+            | WorkerUpdateFlag.SUBSTRATE
+            | WorkerUpdateFlag.EXPERIMENT
+        )
+    elif indexRole in [
+        IndexRole.REF_TYPE,
+        IndexRole.REF_TEMPLATEROI,
+        IndexRole.REF_SUBSTRATEROI,
+        IndexRole.REF_PARAMETERS,
+    ]:
+        dataArgs = DataArgFlag.REFERENCE
+        workerUpdateFlag = (
+            WorkerUpdateFlag.REFERENCE
+            | WorkerUpdateFlag.SUBSTRATE
+            | WorkerUpdateFlag.EXPERIMENT
+        )
+    elif indexRole in [
+        IndexRole.REF_DRAWOPTIONS,
+    ]:
+        dataArgs = DataArgFlag.REFERENCE
+        workerUpdateFlag = WorkerUpdateFlag.REFERENCE
+    elif indexRole in [
+        IndexRole.SUBSTARGS,
+        IndexRole.SUBST_PARAMETERS,
+    ]:
+        dataArgs = DataArgFlag.SUBSTRATE
+        workerUpdateFlag = WorkerUpdateFlag.SUBSTRATE | WorkerUpdateFlag.EXPERIMENT
+    elif indexRole in [
+        IndexRole.SUBST_DRAWOPTIONS,
+    ]:
+        dataArgs = DataArgFlag.SUBSTRATE
+        workerUpdateFlag = WorkerUpdateFlag.SUBSTRATE
+    elif indexRole in [
+        IndexRole.LAYER_TYPE,
+        IndexRole.LAYER_PARAMETERS,
+        IndexRole.LAYER_DRAWOPTIONS,
+        IndexRole.LAYER_DECOOPTIONS,
+    ]:
+        dataArgs = DataArgFlag.COATINGLAYER
+        workerUpdateFlag = WorkerUpdateFlag.EXPERIMENT
+    elif indexRole in [
+        IndexRole.EXPT_TYPE,
+        IndexRole.EXPT_PARAMETERS,
+    ]:
+        dataArgs = DataArgFlag.EXPERIMENT
+        workerUpdateFlag = WorkerUpdateFlag.EXPERIMENT
+    elif indexRole in [
+        IndexRole.COATPATH,
+    ]:
+        dataArgs = DataArgFlag.COATPATHS
+        workerUpdateFlag = WorkerUpdateFlag.ANALYSIS
+    elif indexRole in [
+        IndexRole.ANALYSISARGS,
+    ]:
+        dataArgs = DataArgFlag.ANALYSIS
+        workerUpdateFlag = WorkerUpdateFlag.ANALYSIS
+    else:
+        dataArgs = DataArgFlag.NULL
+        workerUpdateFlag = WorkerUpdateFlag.NULL
+    return (dataArgs, workerUpdateFlag)
 
 
 def getTopLevelIndex(index: QModelIndex) -> QModelIndex:
