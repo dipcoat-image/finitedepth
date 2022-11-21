@@ -836,63 +836,64 @@ class ExperimentDataModel(QAbstractItemModel):
         Copy *count* rows starting with *sourceRow* under parent *sourceParent*
         to row *destinationChild* under parent *destinationParent*.
 
-        Every node of the tree and its data is copied.
-
-        Returns True on successs; otherwise return False.
+        Returns True on successs, otherwise return False.
 
         """
         if sourceParent != destinationParent:
             return False
+
         if not sourceParent.isValid():
             activatedIndex = self.activatedIndex()
             activatedRow = activatedIndex.row()
             activatedColumn = activatedIndex.column()
             reactivate = (
-                sourceParent == activatedIndex.parent()
-            ) and destinationChild <= activatedRow
+                self.whatsThisIndex(activatedIndex) == IndexRole.EXPTDATA
+                and destinationChild <= activatedRow
+            )
 
-            newItems = []
-            newWorkers = []
+            newItems, exptData = [], []
             for i in range(count):
-                oldIdx = self.index(sourceRow + i, 0, sourceParent)
-                oldItem = oldIdx.internalPointer()
-                oldData = self.indexToExperimentData(oldIdx)
-                newItem = self._itemFromExperimentData(copy.deepcopy(oldData))
-                newItem.setData(self.Role_ExptName, oldItem.data(self.Role_ExptName))
-                newItems.append(newItem)
-                newWorker = ExperimentWorker(self)
-                newWorkers.append(newWorker)
-                newWorker.setExperimentData(
-                    oldData, reduce(lambda x, y: x | y, WorkerUpdateFlag)
-                )
+                sourceIdx = self.index(sourceRow + i, 0, sourceParent)
+                sourceItem = sourceIdx.internalPointer()
+                newItems.append(copy.deepcopy(sourceItem))
+                exptData.append(self.indexToExperimentData(sourceIdx))
+
             self.beginInsertRows(
                 sourceParent, destinationChild, destinationChild + count - 1
             )
-            for item, worker in zip(reversed(newItems), reversed(newWorkers)):
-                item.setParent(self._rootItem, destinationChild)
-                self._workers.insert(destinationChild, worker)
+            for i in reversed(range(count)):
+                newItem = newItems[-i - 1]
+                newItem.setParent(self._rootItem, destinationChild)
+            self.endInsertRows()
+
+            for i in reversed(range(count)):
+                newWorker = ExperimentWorker(self)
+                newWorker.setExperimentData(
+                    exptData[-i - 1], reduce(lambda x, y: x | y, WorkerUpdateFlag)
+                )
+                self._workers.insert(destinationChild, newWorker)
 
             if reactivate:
                 newRow = activatedRow + count
                 newIndex = self.index(newRow, activatedColumn, sourceParent)
                 self.setActivatedIndex(newIndex)
-            self.endInsertRows()
             return True
+
         elif self.whatsThisIndex(sourceParent) == IndexRole.COATPATHS:
-            parentDataItem = destinationParent.internalPointer()
-            if not isinstance(parentDataItem, ExperimentDataItem):
-                return False
-            newItems = []
+
+            newItems, exptData = [], []
             for i in range(count):
-                oldItem = self.index(sourceRow + i, 0, sourceParent).internalPointer()
-                newItem = ExperimentDataItem()
-                newItem.setData(self.Role_ExptName, oldItem.data(self.Role_ExptName))
-                newItems.append(newItem)
+                sourceIdx = self.index(sourceRow + i, 0, sourceParent)
+                sourceItem = sourceIdx.internalPointer()
+                newItems.append(copy.deepcopy(sourceItem))
+                exptData.append(self.indexToExperimentData(sourceIdx))
+
             self.beginInsertRows(
                 sourceParent, destinationChild, destinationChild + count - 1
             )
-            for item in reversed(newItems):
-                item.setParent(parentDataItem, destinationChild)
+            for i in reversed(range(count)):
+                newItem = newItems[-i - 1]
+                newItem.setParent(self._rootItem, destinationChild)
             self.endInsertRows()
 
             topLevelIndex = getTopLevelIndex(sourceParent)
