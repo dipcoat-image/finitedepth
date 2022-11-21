@@ -2,7 +2,6 @@
 Analysis view
 =============
 
-V2 for controlwidgets/analysiswidget.py
 """
 
 import dawiq

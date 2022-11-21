@@ -2,7 +2,6 @@
 Reference view
 ==============
 
-V2 for controlwidgets/refwidget.py
 """
 
 import dataclasses

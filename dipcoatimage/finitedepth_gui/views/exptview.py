@@ -2,7 +2,6 @@
 Experiment view
 ===============
 
-V2 for controlwidgets/exptwidget.py
 """
 
 import dataclasses

@@ -2,7 +2,6 @@
 Substrate view
 ==============
 
-V2 for controlwidgets/substwidget.py
 """
 
 import dataclasses

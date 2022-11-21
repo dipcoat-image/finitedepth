@@ -2,7 +2,6 @@
 Experiment data model
 =====================
 
-V2 for inventory.py
 """
 
 import copy

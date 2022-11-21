@@ -2,7 +2,6 @@
 Coating layer view
 ==================
 
-V2 for controlwidgets/layerwidget.py
 """
 
 import dataclasses

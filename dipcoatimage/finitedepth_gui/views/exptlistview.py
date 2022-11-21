@@ -2,7 +2,6 @@
 Experiment data list view
 =========================
 
-V2 for inventory.py
 """
 
 import enum

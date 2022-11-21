@@ -2,7 +2,6 @@
 Import data view
 ================
 
-V2 for importwidget.py
 """
 
 from dipcoatimage.finitedepth import ImportArgs
