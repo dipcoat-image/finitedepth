@@ -821,9 +821,9 @@ class ExperimentDataModel(QAbstractItemModel):
 
         self.beginInsertRows(QModelIndex(), row, row + count - 1)
         for i in reversed(range(count)):
-            data = exptData[-i-1]
+            data = exptData[-i - 1]
             newItem = self._itemFromExperimentData(data)
-            newItem.setData(self.Role_ExptName, names[-i-1])
+            newItem.setData(self.Role_ExptName, names[-i - 1])
             newItem.setParent(self._rootItem, row)
             worker = ExperimentWorker(self)
             self._workers.insert(row, worker)
