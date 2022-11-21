@@ -14,18 +14,20 @@ from dipcoatimage.finitedepth import (
     SubstrateBase,
     CoatingLayerBase,
     ExperimentBase,
+    ImportArgs,
 )
 from dipcoatimage.finitedepth.util import Importer
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt, Signal
 from .core import DataArgFlag
 from .worker import AnalysisState, WorkerUpdateFlag, ExperimentWorker
-from typing import Optional, Any, Union, Tuple, List
+from typing import Optional, Any, Union, Tuple, List, Dict
 
 
 __all__ = [
     "ExperimentDataItem",
     "IndexRole",
     "ExperimentDataModel",
+    "getTopLevelIndex",
     "ExperimentSignalBlocker",
 ]
 
@@ -46,7 +48,7 @@ class ExperimentDataItem(object):
     __slots__ = ("_data", "_children", "_parent")
 
     def __init__(self):
-        self._data = dict()
+        self._data: Dict[Qt.ItemDataRole, Any] = dict()
         self._children = []
         self._parent = None
 
@@ -133,35 +135,31 @@ class ExperimentDataItem(object):
 class IndexRole(enum.Enum):
     """Role of the ``QModelIndex`` of :class:`ExperimentDataModel`."""
 
-    UNKNOWN = 0
-    EXPTDATA = 1
-    REFPATH = 2
-    COATPATHS = 3
-    REFARGS = 4
-    SUBSTARGS = 5
-    LAYERARGS = 6
-    EXPTARGS = 7
-    ANALYSISARGS = 8
+    UNKNOWN = enum.auto()
+    EXPTDATA = enum.auto()
+    REFPATH = enum.auto()
+    COATPATHS = enum.auto()
+    REFARGS = enum.auto()
+    SUBSTARGS = enum.auto()
+    LAYERARGS = enum.auto()
+    EXPTARGS = enum.auto()
+    ANALYSISARGS = enum.auto()
 
-    COATPATH = 9
+    COATPATH = enum.auto()
 
-    REF_TYPE = 10
-    REF_TEMPLATEROI = 11
-    REF_SUBSTRATEROI = 12
-    REF_PARAMETERS = 13
-    REF_DRAWOPTIONS = 14
+    REF_TEMPLATEROI = enum.auto()
+    REF_SUBSTRATEROI = enum.auto()
+    REF_PARAMETERS = enum.auto()
+    REF_DRAWOPTIONS = enum.auto()
 
-    SUBST_TYPE = 15
-    SUBST_PARAMETERS = 16
-    SUBST_DRAWOPTIONS = 17
+    SUBST_PARAMETERS = enum.auto()
+    SUBST_DRAWOPTIONS = enum.auto()
 
-    LAYER_TYPE = 18
-    LAYER_PARAMETERS = 19
-    LAYER_DRAWOPTIONS = 20
-    LAYER_DECOOPTIONS = 21
+    LAYER_PARAMETERS = enum.auto()
+    LAYER_DRAWOPTIONS = enum.auto()
+    LAYER_DECOOPTIONS = enum.auto()
 
-    EXPT_TYPE = 22
-    EXPT_PARAMETERS = 23
+    EXPT_PARAMETERS = enum.auto()
 
 
 class ExperimentDataModel(QAbstractItemModel):
@@ -184,22 +182,18 @@ class ExperimentDataModel(QAbstractItemModel):
         * COATPATHS
             * COATPATH (can be inserted/removed)
         * REFARGS
-            * REF_TYPE
             * REF_TEMPLATEROI
             * REF_SUBSTRATEROI
             * REF_PARAMETERS
             * REF_DRAWOPTIONS
         * SUBSTARGS
-            * SUBST_TYPE
             * SUBST_PARAMETERS
             * SUBST_DRAWOPTIONS
         * LAYERARGS
-            * LAYER_TYPE
             * LAYER_PARAMETERS
             * LAYER_DRAWOPTIONS
             * LAYER_DECOOPTIONS
         * EXPTARGS
-            * EXPT_TYPE
             * EXPT_PARAMETERS
         * ANALYSISARGS
 
@@ -237,23 +231,19 @@ class ExperimentDataModel(QAbstractItemModel):
     Row_ExptArgs = 5
     Row_AnalysisArgs = 6
 
-    Row_RefType = 0
-    Row_RefTemplateROI = 1
-    Row_RefSubstrateROI = 2
-    Row_RefParameters = 3
-    Row_RefDrawOptions = 4
+    Row_RefTemplateROI = 0
+    Row_RefSubstrateROI = 1
+    Row_RefParameters = 2
+    Row_RefDrawOptions = 3
 
-    Row_SubstType = 0
-    Row_SubstParameters = 1
-    Row_SubstDrawOptions = 2
+    Row_SubstParameters = 0
+    Row_SubstDrawOptions = 1
 
-    Row_LayerType = 0
-    Row_LayerParameters = 1
-    Row_LayerDrawOptions = 2
-    Row_LayerDecoOptions = 3
+    Row_LayerParameters = 0
+    Row_LayerDrawOptions = 1
+    Row_LayerDecoOptions = 2
 
-    Row_ExptType = 0
-    Row_ExptParameters = 1
+    Row_ExptParameters = 0
 
     experimentDataChanged = Signal(QModelIndex, DataArgFlag)
     activatedIndexChanged = Signal(QModelIndex)
@@ -264,9 +254,10 @@ class ExperimentDataModel(QAbstractItemModel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._rootItem = ExperimentDataItem()
+        self._dataCache: Dict[QModelIndex, Dict[Qt.ItemDataRole, Any]] = dict()
+        self._workers: List[ExperimentWorker] = []
         self._activatedIndex = QModelIndex()
         self._blockExperimentSignals = False
-        self._workers: List[ExperimentWorker] = []
 
     @classmethod
     def _itemFromExperimentData(cls, exptData: ExperimentData) -> ExperimentDataItem:
@@ -286,9 +277,7 @@ class ExperimentDataModel(QAbstractItemModel):
         refArgs = exptData.reference
         refArgsItem = ExperimentDataItem()
         refArgsItem.setParent(item)
-        refTypeItem = ExperimentDataItem()
-        refTypeItem.setData(cls.Role_ImportArgs, refArgs.type)
-        refTypeItem.setParent(refArgsItem)
+        refArgsItem.setData(cls.Role_ImportArgs, refArgs.type)
         templateROIItem = ExperimentDataItem()
         templateROIItem.setData(cls.Role_ROI, refArgs.templateROI)
         templateROIItem.setParent(refArgsItem)
@@ -309,9 +298,7 @@ class ExperimentDataModel(QAbstractItemModel):
         substArgs = exptData.substrate
         substArgsItem = ExperimentDataItem()
         substArgsItem.setParent(item)
-        substTypeItem = ExperimentDataItem()
-        substTypeItem.setData(cls.Role_ImportArgs, substArgs.type)
-        substTypeItem.setParent(substArgsItem)
+        substArgsItem.setData(cls.Role_ImportArgs, substArgs.type)
         substType, _ = Importer(substArgs.type.name, substArgs.type.module).try_import()
         substParametersItem = ExperimentDataItem()
         substDrawOptionsItem = ExperimentDataItem()
@@ -326,9 +313,7 @@ class ExperimentDataModel(QAbstractItemModel):
         layerArgs = exptData.coatinglayer
         layerArgsItem = ExperimentDataItem()
         layerArgsItem.setParent(item)
-        layerTypeItem = ExperimentDataItem()
-        layerTypeItem.setData(cls.Role_ImportArgs, layerArgs.type)
-        layerTypeItem.setParent(layerArgsItem)
+        layerArgsItem.setData(cls.Role_ImportArgs, layerArgs.type)
         layerType, _ = Importer(layerArgs.type.name, layerArgs.type.module).try_import()
         layerParametersItem = ExperimentDataItem()
         layerDrawOptionsItem = ExperimentDataItem()
@@ -347,9 +332,7 @@ class ExperimentDataModel(QAbstractItemModel):
         exptArgs = exptData.experiment
         exptArgsItem = ExperimentDataItem()
         exptArgsItem.setParent(item)
-        exptTypeItem = ExperimentDataItem()
-        exptTypeItem.setData(cls.Role_ImportArgs, exptArgs.type)
-        exptTypeItem.setParent(exptArgsItem)
+        exptArgsItem.setData(cls.Role_ImportArgs, exptArgs.type)
         exptType, _ = Importer(exptArgs.type.name, exptArgs.type.module).try_import()
         exptParametersItem = ExperimentDataItem()
         if isinstance(exptType, type) and issubclass(exptType, ExperimentBase):
@@ -381,8 +364,7 @@ class ExperimentDataModel(QAbstractItemModel):
         data.coat_paths = coatPaths
 
         refArgsIdx = self.getIndexFor(IndexRole.REFARGS, index)
-        refTypeIdx = self.getIndexFor(IndexRole.REF_TYPE, refArgsIdx)
-        refType = refTypeIdx.data(self.Role_ImportArgs)
+        refType = refArgsIdx.data(self.Role_ImportArgs)
         data.reference.type = refType
         tempROIIdx = self.getIndexFor(IndexRole.REF_TEMPLATEROI, refArgsIdx)
         tempROI = tempROIIdx.data(self.Role_ROI)
@@ -398,8 +380,7 @@ class ExperimentDataModel(QAbstractItemModel):
         data.reference.draw_options = refDrawOpts
 
         substArgsIdx = self.getIndexFor(IndexRole.SUBSTARGS, index)
-        substTypeIdx = self.getIndexFor(IndexRole.SUBST_TYPE, substArgsIdx)
-        substType = substTypeIdx.data(self.Role_ImportArgs)
+        substType = substArgsIdx.data(self.Role_ImportArgs)
         data.substrate.type = substType
         substParamsIdx = self.getIndexFor(IndexRole.SUBST_PARAMETERS, substArgsIdx)
         substParams = substParamsIdx.data(self.Role_DataclassData)
@@ -409,8 +390,7 @@ class ExperimentDataModel(QAbstractItemModel):
         data.substrate.draw_options = substDrawOpts
 
         layerArgsIdx = self.getIndexFor(IndexRole.LAYERARGS, index)
-        layerTypeIdx = self.getIndexFor(IndexRole.LAYER_TYPE, layerArgsIdx)
-        layerType = layerTypeIdx.data(self.Role_ImportArgs)
+        layerType = layerArgsIdx.data(self.Role_ImportArgs)
         data.coatinglayer.type = layerType
         layerParamsIdx = self.getIndexFor(IndexRole.LAYER_PARAMETERS, layerArgsIdx)
         layerParams = layerParamsIdx.data(self.Role_DataclassData)
@@ -423,8 +403,7 @@ class ExperimentDataModel(QAbstractItemModel):
         data.coatinglayer.deco_options = layerDecoOpts
 
         exptArgsIdx = self.getIndexFor(IndexRole.EXPTARGS, index)
-        exptTypeIdx = self.getIndexFor(IndexRole.EXPT_TYPE, exptArgsIdx)
-        exptType = exptTypeIdx.data(self.Role_ImportArgs)
+        exptType = exptArgsIdx.data(self.Role_ImportArgs)
         data.experiment.type = exptType
         exptParamsIdx = self.getIndexFor(IndexRole.EXPT_PARAMETERS, exptArgsIdx)
         exptParams = exptParamsIdx.data(self.Role_DataclassData)
@@ -486,85 +465,287 @@ class ExperimentDataModel(QAbstractItemModel):
             return dataItem.data(role)
         return None
 
-    def setData(self, index, value, role=Qt.EditRole):
-        dataItem = index.internalPointer()
-        if isinstance(dataItem, ExperimentDataItem):
-            dataItem.setData(role, value)
-            topLevelIndex = self.getTopLevelIndex(index)
-            # Update worker
+    def setData(self, index, value, role=Qt.ItemDataRole.EditRole) -> bool:
+        indexRole = self.whatsThisIndex(index)
+        ret = self._setData(index, indexRole, value, role)
+        if not ret:
+            return False
+        # update worker and emit signals
+        topLevelIndex = getTopLevelIndex(index)
+        (dataArgs, workerUpdateFlag) = self.modelDataChanges(indexRole, role)
+        self.updateWorker(topLevelIndex, workerUpdateFlag)
+        self.emitExperimentDataChanged(topLevelIndex, dataArgs)
+        return True
+
+    def cacheData(self, index: QModelIndex, value: Any, role: Qt.ItemDataRole) -> bool:
+        if index.model() != self:
+            return False
+        if not index.isValid():
+            return False
+        idxCache = self._dataCache.get(index)
+        if idxCache is None:
+            idxCache = dict()
+            self._dataCache[index] = idxCache
+        idxCache[role] = value
+        return True
+
+    def submit(self) -> bool:
+        topLevel_flags: Dict[QModelIndex, Tuple[DataArgFlag, WorkerUpdateFlag]] = {}
+        for index, data in self._dataCache.items():
+            topLevelIndex = getTopLevelIndex(index)
+            flags = topLevel_flags.get(topLevelIndex)
+            if flags is None:
+                flags = (DataArgFlag.NULL, WorkerUpdateFlag.NULL)
+                topLevel_flags[topLevelIndex] = flags
+            (dataArgs, workerUpdateFlag) = flags
+
             indexRole = self.whatsThisIndex(index)
-            if indexRole in [
-                IndexRole.REFPATH,
-            ]:
-                dataArgs = DataArgFlag.REFPATH
-                workerUpdateFlag = (
-                    WorkerUpdateFlag.REFIMAGE
-                    | WorkerUpdateFlag.REFERENCE
-                    | WorkerUpdateFlag.SUBSTRATE
-                    | WorkerUpdateFlag.EXPERIMENT
-                )
-            elif indexRole in [
-                IndexRole.REF_TYPE,
-                IndexRole.REF_TEMPLATEROI,
-                IndexRole.REF_SUBSTRATEROI,
-                IndexRole.REF_PARAMETERS,
-            ]:
-                dataArgs = DataArgFlag.REFERENCE
-                workerUpdateFlag = (
-                    WorkerUpdateFlag.REFERENCE
-                    | WorkerUpdateFlag.SUBSTRATE
-                    | WorkerUpdateFlag.EXPERIMENT
-                )
-            elif indexRole in [
-                IndexRole.REF_DRAWOPTIONS,
-            ]:
-                dataArgs = DataArgFlag.REFERENCE
-                workerUpdateFlag = WorkerUpdateFlag.REFERENCE
-            elif indexRole in [
-                IndexRole.SUBST_TYPE,
-                IndexRole.SUBST_PARAMETERS,
-            ]:
-                dataArgs = DataArgFlag.SUBSTRATE
-                workerUpdateFlag = (
-                    WorkerUpdateFlag.SUBSTRATE | WorkerUpdateFlag.EXPERIMENT
-                )
-            elif indexRole in [
-                IndexRole.SUBST_DRAWOPTIONS,
-            ]:
-                dataArgs = DataArgFlag.SUBSTRATE
-                workerUpdateFlag = WorkerUpdateFlag.SUBSTRATE
-            elif indexRole in [
-                IndexRole.LAYER_TYPE,
-                IndexRole.LAYER_PARAMETERS,
-                IndexRole.LAYER_DRAWOPTIONS,
-                IndexRole.LAYER_DECOOPTIONS,
-            ]:
-                dataArgs = DataArgFlag.COATINGLAYER
-                workerUpdateFlag = WorkerUpdateFlag.EXPERIMENT
-            elif indexRole in [
-                IndexRole.EXPT_TYPE,
-                IndexRole.EXPT_PARAMETERS,
-            ]:
-                dataArgs = DataArgFlag.EXPERIMENT
-                workerUpdateFlag = WorkerUpdateFlag.EXPERIMENT
-            elif indexRole in [
-                IndexRole.COATPATH,
-            ]:
-                dataArgs = DataArgFlag.COATPATHS
-                workerUpdateFlag = WorkerUpdateFlag.ANALYSIS
-            elif indexRole in [
-                IndexRole.ANALYSISARGS,
-            ]:
-                dataArgs = DataArgFlag.ANALYSIS
-                workerUpdateFlag = WorkerUpdateFlag.ANALYSIS
-            else:
-                dataArgs = DataArgFlag.NULL
-                workerUpdateFlag = WorkerUpdateFlag.NULL
+            for dataRole, value in data.items():
+                ok = self._setData(index, indexRole, value, dataRole)
+                if not ok:
+                    continue
+                daf, wuf = self.modelDataChanges(indexRole, dataRole)
+                dataArgs |= daf
+                workerUpdateFlag |= wuf
+            topLevel_flags[topLevelIndex] = (dataArgs, workerUpdateFlag)
+
+        for topLevelIndex, (dataArgs, workerUpdateFlag) in topLevel_flags.items():
             self.updateWorker(topLevelIndex, workerUpdateFlag)
-            self.dataChanged.emit(index, index, [role])
             self.emitExperimentDataChanged(topLevelIndex, dataArgs)
-            return True
-        return False
+
+        self._dataCache = dict()
+        return True
+
+    def _setData(
+        self,
+        index: QModelIndex,
+        indexRole: IndexRole,
+        value: Any,
+        dataRole: Qt.ItemDataRole,
+    ) -> bool:
+        subDataclassIndices = [
+            IndexRole.SUBST_PARAMETERS,
+            IndexRole.SUBST_DRAWOPTIONS,
+            IndexRole.REF_PARAMETERS,
+            IndexRole.REF_DRAWOPTIONS,
+            IndexRole.LAYER_PARAMETERS,
+            IndexRole.LAYER_DRAWOPTIONS,
+            IndexRole.LAYER_DECOOPTIONS,
+            IndexRole.EXPT_PARAMETERS,
+        ]
+        if indexRole in subDataclassIndices and dataRole == self.Role_DataclassType:
+            return False
+        dataItem = index.internalPointer()
+        if not isinstance(dataItem, ExperimentDataItem):
+            return False
+        dataItem.setData(dataRole, value)
+        self.dataChanged.emit(index, index, [dataRole])  # type: ignore[attr-defined]
+
+        # update subitems
+        if (
+            indexRole == IndexRole.REFARGS
+            and dataRole == self.Role_ImportArgs
+            and isinstance(value, ImportArgs)
+        ):
+            refType, _ = Importer(value.name, value.module).try_import()
+            if isinstance(refType, type) and issubclass(
+                refType, SubstrateReferenceBase
+            ):
+                paramType = refType.Parameters
+                drawOptType = refType.DrawOptions
+            else:
+                paramType = None
+                drawOptType = None
+            typeRole = self.Role_DataclassType
+            paramIdxRole = IndexRole.REF_PARAMETERS
+            paramIdx = self.getIndexFor(paramIdxRole, index)
+            paramItem = paramIdx.internalPointer()
+            if isinstance(paramItem, ExperimentDataItem):
+                paramItem.setData(typeRole, paramType)
+                self.dataChanged.emit(  # type: ignore[attr-defined]
+                    paramIdx, paramIdx, [typeRole]
+                )
+            drawOptIdxRole = IndexRole.REF_DRAWOPTIONS
+            drawOptIdx = self.getIndexFor(drawOptIdxRole, index)
+            drawOptItem = drawOptIdx.internalPointer()
+            if isinstance(drawOptItem, ExperimentDataItem):
+                drawOptItem.setData(typeRole, drawOptType)
+                self.dataChanged.emit(  # type: ignore[attr-defined]
+                    drawOptIdx, drawOptIdx, [typeRole]
+                )
+        elif (
+            indexRole == IndexRole.SUBSTARGS
+            and dataRole == self.Role_ImportArgs
+            and isinstance(value, ImportArgs)
+        ):
+            substType, _ = Importer(value.name, value.module).try_import()
+            if isinstance(substType, type) and issubclass(substType, SubstrateBase):
+                paramType = substType.Parameters
+                drawOptType = substType.DrawOptions
+            else:
+                paramType = None
+                drawOptType = None
+            typeRole = self.Role_DataclassType
+            paramIdxRole = IndexRole.SUBST_PARAMETERS
+            paramIdx = self.getIndexFor(paramIdxRole, index)
+            paramItem = paramIdx.internalPointer()
+            if isinstance(paramItem, ExperimentDataItem):
+                paramItem.setData(typeRole, paramType)
+                self.dataChanged.emit(  # type: ignore[attr-defined]
+                    paramIdx, paramIdx, [typeRole]
+                )
+            drawOptIdxRole = IndexRole.SUBST_DRAWOPTIONS
+            drawOptIdx = self.getIndexFor(drawOptIdxRole, index)
+            drawOptItem = drawOptIdx.internalPointer()
+            if isinstance(drawOptItem, ExperimentDataItem):
+                drawOptItem.setData(typeRole, drawOptType)
+                self.dataChanged.emit(  # type: ignore[attr-defined]
+                    drawOptIdx, drawOptIdx, [typeRole]
+                )
+        elif (
+            indexRole == IndexRole.LAYERARGS
+            and dataRole == self.Role_ImportArgs
+            and isinstance(value, ImportArgs)
+        ):
+            layerType, _ = Importer(value.name, value.module).try_import()
+            if isinstance(layerType, type) and issubclass(layerType, CoatingLayerBase):
+                paramType = layerType.Parameters
+                drawOptType = layerType.DrawOptions
+                decoOptType = layerType.DecoOptions
+            else:
+                paramType = None
+                drawOptType = None
+                decoOptType = None
+            typeRole = self.Role_DataclassType
+            paramIdxRole = IndexRole.LAYER_PARAMETERS
+            paramIdx = self.getIndexFor(paramIdxRole, index)
+            paramItem = paramIdx.internalPointer()
+            if isinstance(paramItem, ExperimentDataItem):
+                paramItem.setData(typeRole, paramType)
+                self.dataChanged.emit(  # type: ignore[attr-defined]
+                    paramIdx, paramIdx, [typeRole]
+                )
+            drawOptIdxRole = IndexRole.LAYER_DRAWOPTIONS
+            drawOptIdx = self.getIndexFor(drawOptIdxRole, index)
+            drawOptItem = drawOptIdx.internalPointer()
+            if isinstance(drawOptItem, ExperimentDataItem):
+                drawOptItem.setData(typeRole, drawOptType)
+                self.dataChanged.emit(  # type: ignore[attr-defined]
+                    drawOptIdx, drawOptIdx, [typeRole]
+                )
+            decoOptIdxRole = IndexRole.LAYER_DECOOPTIONS
+            decoOptIdx = self.getIndexFor(decoOptIdxRole, index)
+            decoOptItem = decoOptIdx.internalPointer()
+            if isinstance(decoOptItem, ExperimentDataItem):
+                decoOptItem.setData(typeRole, decoOptType)
+                self.dataChanged.emit(  # type: ignore[attr-defined]
+                    decoOptIdx, decoOptIdx, [typeRole]
+                )
+        elif (
+            indexRole == IndexRole.EXPTARGS
+            and dataRole == self.Role_ImportArgs
+            and isinstance(value, ImportArgs)
+        ):
+            exptType, _ = Importer(value.name, value.module).try_import()
+            if isinstance(exptType, type) and issubclass(exptType, ExperimentBase):
+                paramType = exptType.Parameters
+            else:
+                paramType = None
+            typeRole = self.Role_DataclassType
+            paramIdxRole = IndexRole.EXPT_PARAMETERS
+            paramIdx = self.getIndexFor(paramIdxRole, index)
+            paramItem = paramIdx.internalPointer()
+            if isinstance(paramItem, ExperimentDataItem):
+                paramItem.setData(typeRole, paramType)
+                self.dataChanged.emit(  # type: ignore[attr-defined]
+                    paramIdx, paramIdx, [typeRole]
+                )
+        return True
+
+    @classmethod
+    def modelDataChanges(
+        cls, indexRole: IndexRole, dataRole: Qt.ItemDataRole
+    ) -> Tuple[DataArgFlag, WorkerUpdateFlag]:
+        if dataRole == Qt.ItemDataRole.EditRole:
+            dataRole = Qt.ItemDataRole.DisplayRole
+        if indexRole in [IndexRole.REFPATH] and dataRole in [cls.Role_RefPath]:
+            dataArgs = DataArgFlag.REFPATH
+            workerUpdateFlag = (
+                WorkerUpdateFlag.REFIMAGE
+                | WorkerUpdateFlag.REFERENCE
+                | WorkerUpdateFlag.SUBSTRATE
+                | WorkerUpdateFlag.EXPERIMENT
+            )
+        elif indexRole in [IndexRole.REFARGS] and dataRole in [cls.Role_ImportArgs]:
+            dataArgs = DataArgFlag.REFERENCE
+            workerUpdateFlag = (
+                WorkerUpdateFlag.REFERENCE
+                | WorkerUpdateFlag.SUBSTRATE
+                | WorkerUpdateFlag.EXPERIMENT
+            )
+        elif indexRole in [
+            IndexRole.REF_TEMPLATEROI,
+            IndexRole.REF_SUBSTRATEROI,
+        ] and dataRole in [cls.Role_ROI]:
+            dataArgs = DataArgFlag.REFERENCE
+            workerUpdateFlag = (
+                WorkerUpdateFlag.REFERENCE
+                | WorkerUpdateFlag.SUBSTRATE
+                | WorkerUpdateFlag.EXPERIMENT
+            )
+        elif indexRole in [
+            IndexRole.REF_PARAMETERS,
+            IndexRole.REF_DRAWOPTIONS,
+        ] and dataRole in [cls.Role_DataclassType, cls.Role_DataclassData]:
+            dataArgs = DataArgFlag.REFERENCE
+            workerUpdateFlag = (
+                WorkerUpdateFlag.REFERENCE
+                | WorkerUpdateFlag.SUBSTRATE
+                | WorkerUpdateFlag.EXPERIMENT
+            )
+        elif indexRole in [IndexRole.SUBSTARGS] and dataRole in [cls.Role_ImportArgs]:
+            dataArgs = DataArgFlag.SUBSTRATE
+            workerUpdateFlag = WorkerUpdateFlag.SUBSTRATE | WorkerUpdateFlag.EXPERIMENT
+        elif indexRole in [
+            IndexRole.SUBST_PARAMETERS,
+            IndexRole.SUBST_DRAWOPTIONS,
+        ] and dataRole in [cls.Role_DataclassType, cls.Role_DataclassData]:
+            dataArgs = DataArgFlag.SUBSTRATE
+            workerUpdateFlag = WorkerUpdateFlag.SUBSTRATE | WorkerUpdateFlag.EXPERIMENT
+        elif indexRole in [IndexRole.LAYERARGS] and dataRole in [cls.Role_ImportArgs]:
+            dataArgs = DataArgFlag.COATINGLAYER
+            workerUpdateFlag = WorkerUpdateFlag.EXPERIMENT
+        elif indexRole in [
+            IndexRole.LAYER_PARAMETERS,
+            IndexRole.LAYER_DRAWOPTIONS,
+            IndexRole.LAYER_DECOOPTIONS,
+        ] and dataRole in [cls.Role_DataclassType, cls.Role_DataclassData]:
+            dataArgs = DataArgFlag.COATINGLAYER
+            workerUpdateFlag = WorkerUpdateFlag.EXPERIMENT
+        elif indexRole in [IndexRole.EXPTARGS] and dataRole in [cls.Role_ImportArgs]:
+            dataArgs = DataArgFlag.EXPERIMENT
+            workerUpdateFlag = WorkerUpdateFlag.EXPERIMENT
+        elif indexRole in [IndexRole.EXPT_PARAMETERS] and dataRole in [
+            cls.Role_DataclassType,
+            cls.Role_DataclassData,
+        ]:
+            dataArgs = DataArgFlag.EXPERIMENT
+            workerUpdateFlag = WorkerUpdateFlag.EXPERIMENT
+        elif indexRole in [IndexRole.COATPATH] and dataRole in [cls.Role_CoatPath]:
+            dataArgs = DataArgFlag.COATPATHS
+            workerUpdateFlag = WorkerUpdateFlag.ANALYSIS
+        elif indexRole in [IndexRole.ANALYSISARGS] and dataRole in [
+            cls.Role_AnalysisArgs
+        ]:
+            dataArgs = DataArgFlag.ANALYSIS
+            workerUpdateFlag = WorkerUpdateFlag.ANALYSIS
+        else:
+            dataArgs = DataArgFlag.NULL
+            workerUpdateFlag = WorkerUpdateFlag.NULL
+        return (dataArgs, workerUpdateFlag)
+
+    def revert(self):
+        self._dataCache = dict()
 
     def emitExperimentDataChanged(self, index: QModelIndex, dataArgs: DataArgFlag):
         if not dataArgs:
@@ -593,57 +774,27 @@ class ExperimentDataModel(QAbstractItemModel):
         worker.setExperimentData(exptData, flag)
         return True
 
-    def insertRows(self, row, count, parent=QModelIndex()):
-        if not parent.isValid():
-            activatedIndex = self.activatedIndex()
-            activatedRow = activatedIndex.row()
-            activatedColumn = activatedIndex.column()
-            reactivate = (parent == activatedIndex.parent()) and row <= activatedRow
-
-            self.beginInsertRows(parent, row, row + count - 1)
-            for _ in reversed(range(count)):
-                exptData = ExperimentData()
-                newItem = self._itemFromExperimentData(exptData)
-                newItem.setParent(self._rootItem, row)
-                worker = ExperimentWorker(self)
-                self._workers.insert(row, worker)
-                worker.setExperimentData(
-                    exptData, reduce(lambda x, y: x | y, WorkerUpdateFlag)
-                )
-
-            if reactivate:
-                newRow = activatedRow + count
-                newIndex = self.index(newRow, activatedColumn, parent)
-                self.setActivatedIndex(newIndex)
-            self.endInsertRows()
-            return True
-        elif self.whatsThisIndex(parent) == IndexRole.COATPATHS:
-            self.beginInsertRows(parent, row, row + count - 1)
-            for _ in reversed(range(count)):
-                newItem = ExperimentDataItem()
-                newItem.setParent(parent.internalPointer(), row)
-            self.endInsertRows()
-
-            topLevelIndex = self.getTopLevelIndex(parent)
-            self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
-            self.emitExperimentDataChanged(topLevelIndex, DataArgFlag.COATPATHS)
-            return True
-        return False
-
     def insertExperimentDataRows(
         self, row: int, count: int, names: List[str], exptData: List[ExperimentData]
     ) -> bool:
         activatedIndex = self.activatedIndex()
         activatedRow = activatedIndex.row()
         activatedColumn = activatedIndex.column()
-        reactivate = row <= activatedRow
+        reactivate = (
+            self.whatsThisIndex(activatedIndex) == IndexRole.EXPTDATA
+            and row <= activatedRow
+        )
 
         self.beginInsertRows(QModelIndex(), row, row + count - 1)
         for i in reversed(range(count)):
-            data = exptData[i]
+            data = exptData[-i - 1]
             newItem = self._itemFromExperimentData(data)
-            newItem.setData(self.Role_ExptName, names[i])
+            newItem.setData(self.Role_ExptName, names[-i - 1])
             newItem.setParent(self._rootItem, row)
+        self.endInsertRows()
+
+        for i in reversed(range(count)):
+            data = exptData[-i - 1]
             worker = ExperimentWorker(self)
             self._workers.insert(row, worker)
             worker.setExperimentData(data, reduce(lambda x, y: x | y, WorkerUpdateFlag))
@@ -652,8 +803,29 @@ class ExperimentDataModel(QAbstractItemModel):
             newRow = activatedRow + count
             newIndex = self.index(newRow, activatedColumn, QModelIndex())
             self.setActivatedIndex(newIndex)
-        self.endInsertRows()
         return True
+
+    def insertRows(self, row, count, parent=QModelIndex()):
+        if not parent.isValid():
+            ok = self.insertExperimentDataRows(
+                row,
+                count,
+                ["" for _ in range(count)],
+                [ExperimentData() for _ in range(count)],
+            )
+            return ok
+        elif self.whatsThisIndex(parent) == IndexRole.COATPATHS:
+            self.beginInsertRows(parent, row, row + count - 1)
+            for _ in reversed(range(count)):
+                newItem = ExperimentDataItem()
+                newItem.setParent(parent.internalPointer(), row)
+            self.endInsertRows()
+
+            topLevelIndex = getTopLevelIndex(parent)
+            self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
+            self.emitExperimentDataChanged(topLevelIndex, DataArgFlag.COATPATHS)
+            return True
+        return False
 
     def copyRows(
         self,
@@ -667,66 +839,67 @@ class ExperimentDataModel(QAbstractItemModel):
         Copy *count* rows starting with *sourceRow* under parent *sourceParent*
         to row *destinationChild* under parent *destinationParent*.
 
-        Every node of the tree and its data is copied.
-
-        Returns True on successs; otherwise return False.
+        Returns True on successs, otherwise return False.
 
         """
         if sourceParent != destinationParent:
             return False
+
         if not sourceParent.isValid():
             activatedIndex = self.activatedIndex()
             activatedRow = activatedIndex.row()
             activatedColumn = activatedIndex.column()
             reactivate = (
-                sourceParent == activatedIndex.parent()
-            ) and destinationChild <= activatedRow
+                self.whatsThisIndex(activatedIndex) == IndexRole.EXPTDATA
+                and destinationChild <= activatedRow
+            )
 
-            newItems = []
-            newWorkers = []
+            newItems, exptData = [], []
             for i in range(count):
-                oldIdx = self.index(sourceRow + i, 0, sourceParent)
-                oldItem = oldIdx.internalPointer()
-                oldData = self.indexToExperimentData(oldIdx)
-                newItem = self._itemFromExperimentData(copy.deepcopy(oldData))
-                newItem.setData(self.Role_ExptName, oldItem.data(self.Role_ExptName))
-                newItems.append(newItem)
-                newWorker = ExperimentWorker(self)
-                newWorkers.append(newWorker)
-                newWorker.setExperimentData(
-                    oldData, reduce(lambda x, y: x | y, WorkerUpdateFlag)
-                )
+                sourceIdx = self.index(sourceRow + i, 0, sourceParent)
+                sourceItem = sourceIdx.internalPointer()
+                newItems.append(copy.deepcopy(sourceItem))
+                exptData.append(self.indexToExperimentData(sourceIdx))
+
             self.beginInsertRows(
                 sourceParent, destinationChild, destinationChild + count - 1
             )
-            for item, worker in zip(reversed(newItems), reversed(newWorkers)):
-                item.setParent(self._rootItem, destinationChild)
-                self._workers.insert(destinationChild, worker)
+            for i in reversed(range(count)):
+                newItem = newItems[-i - 1]
+                newItem.setParent(self._rootItem, destinationChild)
+            self.endInsertRows()
+
+            for i in reversed(range(count)):
+                newWorker = ExperimentWorker(self)
+                newWorker.setExperimentData(
+                    exptData[-i - 1], reduce(lambda x, y: x | y, WorkerUpdateFlag)
+                )
+                self._workers.insert(destinationChild, newWorker)
 
             if reactivate:
                 newRow = activatedRow + count
                 newIndex = self.index(newRow, activatedColumn, sourceParent)
                 self.setActivatedIndex(newIndex)
-            self.endInsertRows()
             return True
+
         elif self.whatsThisIndex(sourceParent) == IndexRole.COATPATHS:
-            parentDataItem = destinationParent.internalPointer()
-            if not isinstance(parentDataItem, ExperimentDataItem):
-                return False
-            newItems = []
+
+            newItems, exptData = [], []
             for i in range(count):
-                oldItem = self.index(sourceRow + i, 0, sourceParent).internalPointer()
-                newItem = ExperimentDataItem()
-                newItem.setData(self.Role_ExptName, oldItem.data(self.Role_ExptName))
-                newItems.append(newItem)
+                sourceIdx = self.index(sourceRow + i, 0, sourceParent)
+                sourceItem = sourceIdx.internalPointer()
+                newItems.append(copy.deepcopy(sourceItem))
+                exptData.append(self.indexToExperimentData(sourceIdx))
+
             self.beginInsertRows(
                 sourceParent, destinationChild, destinationChild + count - 1
             )
-            for item in reversed(newItems):
-                item.setParent(parentDataItem, destinationChild)
+            for i in reversed(range(count)):
+                newItem = newItems[-i - 1]
+                newItem.setParent(self._rootItem, destinationChild)
             self.endInsertRows()
 
-            topLevelIndex = self.getTopLevelIndex(sourceParent)
+            topLevelIndex = getTopLevelIndex(sourceParent)
             self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
             self.emitExperimentDataChanged(topLevelIndex, DataArgFlag.COATPATHS)
         return False
@@ -747,12 +920,13 @@ class ExperimentDataModel(QAbstractItemModel):
                 self._rootItem.remove(row)
                 worker = self._workers.pop(row)
                 worker.setAnalysisState(AnalysisState.Stopped)
+            self.endRemoveRows()
+
             if reactivate:
                 if activatedRow >= row + count:
                     newRow = activatedRow - count
                     newIndex = self.index(newRow, activatedColumn, parent)
                     self.setActivatedIndex(newIndex)
-            self.endRemoveRows()
             return True
         elif self.whatsThisIndex(parent) == IndexRole.COATPATHS:
             self.beginRemoveRows(parent, row, row + count - 1)
@@ -761,7 +935,7 @@ class ExperimentDataModel(QAbstractItemModel):
                 dataItem.remove(row)
             self.endRemoveRows()
 
-            topLevelIndex = self.getTopLevelIndex(parent)
+            topLevelIndex = getTopLevelIndex(parent)
             self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
             self.emitExperimentDataChanged(topLevelIndex, DataArgFlag.COATPATHS)
             return True
@@ -823,7 +997,7 @@ class ExperimentDataModel(QAbstractItemModel):
     @classmethod
     def whatsThisIndex(cls, index: QModelIndex) -> IndexRole:
         """Return the role of *index* in the model."""
-        if not isinstance(index.model(), cls):
+        if not isinstance(index.model(), cls) or not index.isValid():
             return IndexRole.UNKNOWN
         if not index.parent().isValid():
             return IndexRole.EXPTDATA
@@ -851,8 +1025,6 @@ class ExperimentDataModel(QAbstractItemModel):
             return IndexRole.COATPATH
 
         if parentRole == IndexRole.REFARGS:
-            if row == cls.Row_RefType:
-                return IndexRole.REF_TYPE
             if row == cls.Row_RefTemplateROI:
                 return IndexRole.REF_TEMPLATEROI
             if row == cls.Row_RefSubstrateROI:
@@ -863,16 +1035,12 @@ class ExperimentDataModel(QAbstractItemModel):
                 return IndexRole.REF_DRAWOPTIONS
 
         if parentRole == IndexRole.SUBSTARGS:
-            if row == cls.Row_SubstType:
-                return IndexRole.SUBST_TYPE
             if row == cls.Row_SubstParameters:
                 return IndexRole.SUBST_PARAMETERS
             if row == cls.Row_SubstDrawOptions:
                 return IndexRole.SUBST_DRAWOPTIONS
 
         if parentRole == IndexRole.LAYERARGS:
-            if row == cls.Row_LayerType:
-                return IndexRole.LAYER_TYPE
             if row == cls.Row_LayerParameters:
                 return IndexRole.LAYER_PARAMETERS
             if row == cls.Row_LayerDrawOptions:
@@ -881,8 +1049,6 @@ class ExperimentDataModel(QAbstractItemModel):
                 return IndexRole.LAYER_DECOOPTIONS
 
         if parentRole == IndexRole.EXPTARGS:
-            if row == cls.Row_ExptType:
-                return IndexRole.EXPT_TYPE
             if row == cls.Row_ExptParameters:
                 return IndexRole.EXPT_PARAMETERS
 
@@ -913,8 +1079,6 @@ class ExperimentDataModel(QAbstractItemModel):
                 return self.index(self.Row_AnalysisArgs, 0, parent)
 
         if parentRole == IndexRole.REFARGS:
-            if indexRole == IndexRole.REF_TYPE:
-                return self.index(self.Row_RefType, 0, parent)
             if indexRole == IndexRole.REF_TEMPLATEROI:
                 return self.index(self.Row_RefTemplateROI, 0, parent)
             if indexRole == IndexRole.REF_SUBSTRATEROI:
@@ -925,16 +1089,12 @@ class ExperimentDataModel(QAbstractItemModel):
                 return self.index(self.Row_RefDrawOptions, 0, parent)
 
         if parentRole == IndexRole.SUBSTARGS:
-            if indexRole == IndexRole.SUBST_TYPE:
-                return self.index(self.Row_SubstType, 0, parent)
             if indexRole == IndexRole.SUBST_PARAMETERS:
                 return self.index(self.Row_SubstParameters, 0, parent)
             if indexRole == IndexRole.SUBST_DRAWOPTIONS:
                 return self.index(self.Row_SubstDrawOptions, 0, parent)
 
         if parentRole == IndexRole.LAYERARGS:
-            if indexRole == IndexRole.LAYER_TYPE:
-                return self.index(self.Row_LayerType, 0, parent)
             if indexRole == IndexRole.LAYER_PARAMETERS:
                 return self.index(self.Row_LayerParameters, 0, parent)
             if indexRole == IndexRole.LAYER_DRAWOPTIONS:
@@ -943,24 +1103,18 @@ class ExperimentDataModel(QAbstractItemModel):
                 return self.index(self.Row_LayerDecoOptions, 0, parent)
 
         if parentRole == IndexRole.EXPTARGS:
-            if indexRole == IndexRole.EXPT_TYPE:
-                return self.index(self.Row_ExptType, 0, parent)
             if indexRole == IndexRole.EXPT_PARAMETERS:
                 return self.index(self.Row_ExptParameters, 0, parent)
 
         return QModelIndex()
 
-    def getTopLevelIndex(self, index: QModelIndex) -> QModelIndex:
-        """
-        Get the index with :obj:`IndexRole.EXPTDATA` that *index* belongs to.
 
-        If there is no top level index for *index*, return invalid index.
-        """
-        if not index.isValid():
-            return QModelIndex()
-        while index.parent().isValid():
-            index = index.parent()
-        return index
+def getTopLevelIndex(index: QModelIndex) -> QModelIndex:
+    if not index.isValid():
+        return QModelIndex()
+    while index.parent().isValid():
+        index = index.parent()
+    return index
 
 
 class ExperimentSignalBlocker:
