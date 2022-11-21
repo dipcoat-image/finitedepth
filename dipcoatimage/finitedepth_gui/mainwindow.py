@@ -2,7 +2,6 @@
 Main Window
 ===========
 
-V2 for analysisgui.py
 """
 
 from PySide6.QtCore import Qt

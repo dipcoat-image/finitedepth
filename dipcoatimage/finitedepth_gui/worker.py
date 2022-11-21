@@ -2,7 +2,6 @@
 Analysis worker
 ===============
 
-V2 for workers
 """
 
 import cattrs

@@ -2,7 +2,6 @@
 Experiment data view
 ====================
 
-V2 for inventory.py and controlwidgets
 """
 
 from .exptlistview import (

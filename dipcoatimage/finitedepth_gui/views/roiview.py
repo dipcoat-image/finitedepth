@@ -2,7 +2,6 @@
 ROI view
 ========
 
-V2 for roimodel.py
 """
 
 from dipcoatimage.finitedepth.util import OptionalROI

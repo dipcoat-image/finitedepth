@@ -2,7 +2,6 @@
 Data view tab
 =============
 
-V2 for controlwidgets/controlwidget.py
 """
 
 from PySide6.QtCore import Signal, Slot
