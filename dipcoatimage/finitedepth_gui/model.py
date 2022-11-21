@@ -774,50 +774,16 @@ class ExperimentDataModel(QAbstractItemModel):
         worker.setExperimentData(exptData, flag)
         return True
 
-    def insertRows(self, row, count, parent=QModelIndex()):
-        if not parent.isValid():
-            activatedIndex = self.activatedIndex()
-            activatedRow = activatedIndex.row()
-            activatedColumn = activatedIndex.column()
-            reactivate = (parent == activatedIndex.parent()) and row <= activatedRow
-
-            self.beginInsertRows(parent, row, row + count - 1)
-            for _ in reversed(range(count)):
-                exptData = ExperimentData()
-                newItem = self._itemFromExperimentData(exptData)
-                newItem.setParent(self._rootItem, row)
-                worker = ExperimentWorker(self)
-                self._workers.insert(row, worker)
-                worker.setExperimentData(
-                    exptData, reduce(lambda x, y: x | y, WorkerUpdateFlag)
-                )
-
-            if reactivate:
-                newRow = activatedRow + count
-                newIndex = self.index(newRow, activatedColumn, parent)
-                self.setActivatedIndex(newIndex)
-            self.endInsertRows()
-            return True
-        elif self.whatsThisIndex(parent) == IndexRole.COATPATHS:
-            self.beginInsertRows(parent, row, row + count - 1)
-            for _ in reversed(range(count)):
-                newItem = ExperimentDataItem()
-                newItem.setParent(parent.internalPointer(), row)
-            self.endInsertRows()
-
-            topLevelIndex = getTopLevelIndex(parent)
-            self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
-            self.emitExperimentDataChanged(topLevelIndex, DataArgFlag.COATPATHS)
-            return True
-        return False
-
     def insertExperimentDataRows(
         self, row: int, count: int, names: List[str], exptData: List[ExperimentData]
     ) -> bool:
         activatedIndex = self.activatedIndex()
         activatedRow = activatedIndex.row()
         activatedColumn = activatedIndex.column()
-        reactivate = row <= activatedRow
+        reactivate = (
+            self.whatsThisIndex(activatedIndex) == IndexRole.EXPTDATA
+            and row <= activatedRow
+        )
 
         self.beginInsertRows(QModelIndex(), row, row + count - 1)
         for i in reversed(range(count)):
@@ -835,6 +801,28 @@ class ExperimentDataModel(QAbstractItemModel):
             self.setActivatedIndex(newIndex)
         self.endInsertRows()
         return True
+
+    def insertRows(self, row, count, parent=QModelIndex()):
+        if not parent.isValid():
+            ok = self.insertExperimentDataRows(
+                row,
+                count,
+                ["" for _ in range(count)],
+                [ExperimentData() for _ in range(count)],
+            )
+            return ok
+        elif self.whatsThisIndex(parent) == IndexRole.COATPATHS:
+            self.beginInsertRows(parent, row, row + count - 1)
+            for _ in reversed(range(count)):
+                newItem = ExperimentDataItem()
+                newItem.setParent(parent.internalPointer(), row)
+            self.endInsertRows()
+
+            topLevelIndex = getTopLevelIndex(parent)
+            self.updateWorker(topLevelIndex, WorkerUpdateFlag.EXPERIMENT)
+            self.emitExperimentDataChanged(topLevelIndex, DataArgFlag.COATPATHS)
+            return True
+        return False
 
     def copyRows(
         self,
@@ -1004,7 +992,7 @@ class ExperimentDataModel(QAbstractItemModel):
     @classmethod
     def whatsThisIndex(cls, index: QModelIndex) -> IndexRole:
         """Return the role of *index* in the model."""
-        if not isinstance(index.model(), cls):
+        if not isinstance(index.model(), cls) or not index.isValid():
             return IndexRole.UNKNOWN
         if not index.parent().isValid():
             return IndexRole.EXPTDATA
