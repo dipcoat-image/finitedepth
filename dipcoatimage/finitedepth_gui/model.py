@@ -791,6 +791,10 @@ class ExperimentDataModel(QAbstractItemModel):
             newItem = self._itemFromExperimentData(data)
             newItem.setData(self.Role_ExptName, names[-i - 1])
             newItem.setParent(self._rootItem, row)
+        self.endInsertRows()
+
+        for i in reversed(range(count)):
+            data = exptData[-i - 1]
             worker = ExperimentWorker(self)
             self._workers.insert(row, worker)
             worker.setExperimentData(data, reduce(lambda x, y: x | y, WorkerUpdateFlag))
@@ -799,7 +803,6 @@ class ExperimentDataModel(QAbstractItemModel):
             newRow = activatedRow + count
             newIndex = self.index(newRow, activatedColumn, QModelIndex())
             self.setActivatedIndex(newIndex)
-        self.endInsertRows()
         return True
 
     def insertRows(self, row, count, parent=QModelIndex()):
@@ -917,12 +920,13 @@ class ExperimentDataModel(QAbstractItemModel):
                 self._rootItem.remove(row)
                 worker = self._workers.pop(row)
                 worker.setAnalysisState(AnalysisState.Stopped)
+            self.endRemoveRows()
+
             if reactivate:
                 if activatedRow >= row + count:
                     newRow = activatedRow - count
                     newIndex = self.index(newRow, activatedColumn, parent)
                     self.setActivatedIndex(newIndex)
-            self.endRemoveRows()
             return True
         elif self.whatsThisIndex(parent) == IndexRole.COATPATHS:
             self.beginRemoveRows(parent, row, row + count - 1)
