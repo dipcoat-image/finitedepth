@@ -15,5 +15,5 @@ and :mod:`dipcoatimage.finitedepth_gui`.
    coatinglayer
    experiment
    analysis
-   finitedepth-gui
    util
+   finitedepth-gui
