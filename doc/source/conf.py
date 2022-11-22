@@ -14,6 +14,11 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
+autodoc_mock_imports = [
+    "PySide6",
+    "dawiq.qt_compat",
+    "dipcoatimage.finitedepth_gui.datarole",
+]
 
 # -- Project information -----------------------------------------------------
 
@@ -53,6 +58,8 @@ intersphinx_mapping = {
     "numpy": ("https://numpy.org/doc/stable/", None),
     "cattrs": ("https://cattrs.readthedocs.io/en/latest/", None),
 }
+
+numpydoc_show_class_members = False
 
 # -- Options for HTML output -------------------------------------------------
 
