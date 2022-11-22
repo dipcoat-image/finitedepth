@@ -1,0 +1,1 @@
+.. automodule:: dipcoatimage.finitedepth.serialize
