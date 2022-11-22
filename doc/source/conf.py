@@ -14,7 +14,11 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
-autodoc_mock_imports = ["dawiq.qt_compat", "PySide6"]
+autodoc_mock_imports = [
+    "PySide6",
+    "dawiq.qt_compat",
+    "dipcoatimage.finitedepth_gui.datarole",
+]
 
 # -- Project information -----------------------------------------------------
 
