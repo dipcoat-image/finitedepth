@@ -59,6 +59,8 @@ intersphinx_mapping = {
     "cattrs": ("https://cattrs.readthedocs.io/en/latest/", None),
 }
 
+numpydoc_show_class_members = False
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
