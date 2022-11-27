@@ -4,9 +4,9 @@ Introduction
 
 .. currentmodule:: dipcoatimage.finitedepth
 
-DipCoatImage-FiniteDepth is a Python package to perform image analysis on the coating layer shape from batch dip coating process with finite depth.
+DipCoatImage-FiniteDepth is a Python package to perform image analysis on the coating layer shape from batch dip coating process with finite immersion depth.
 
-Dip coating with finite immersion depth is commonly used to apply liquid film onto a three-dimensional object.
+Dip coating with finite depth is commonly used to partially apply liquid film onto a three-dimensional object.
 The image below shows how the finite depth dip coating is performed.
 
 .. figure:: ./_images/finite-depth-dip-coating.jpg
@@ -14,7 +14,7 @@ The image below shows how the finite depth dip coating is performed.
 
    Finite depth dip coating process; immersion, deposition, termination and fluid redistribution.
 
-The termination of the process is goverened by the lower end effect of the system, where the capillary bridge is formed between the bulk fluid and the coating layer and soon ruptures.
+The termination of the process is governed by the lower end effect of the system, where the capillary bridge is formed between the bulk fluid and the coating layer and soon ruptures.
 After the capillary bridge breaks, coating layer changes its shape over time by fluid redistribution.
 This temporal evolution of the coating layer must be analyzed to optimize the coating process.
 
@@ -49,7 +49,7 @@ Below are the images of the bare substrate and the coated substrate from acutal 
    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
    plt.show()
 
-From these two images, the coating layer region can be extracted and further analyzed to yield the quantitative data (i.e., coating layer thickness).
+From these two images, the coating layer region can be extracted and further analyzed to yield the quantitative data (e.g., coating layer thickness).
 Temporal evolution of the coating layer can be assessed by analyzing the series of coated substrate images from the coating process.
 
 .. plot::
@@ -69,26 +69,26 @@ Temporal evolution of the coating layer can be assessed by analyzing the series 
    plt.axis("off")
    plt.imshow(coat.draw())
 
-Analysis classes
-================
+Image processing classes
+========================
 
-:mod:`dipcoatimage.finitedepth` defines three kind of classes for image analysis:
+:mod:`dipcoatimage.finitedepth` defines three kind of classes for image processing:
 
 1. Substrate reference
 2. Substrate
 3. Coating layer
 
-Substrate reference
--------------------
+Substrate reference class
+-------------------------
 
-Substrate reference class is a container for the bare substrate image and two ROIs; template ROI and substrate ROI.
+Substrate reference class(or in short, reference class) is a container for the bare substrate image and two ROIs; template ROI and substrate ROI.
 
 The first ROI specifies the template region for the coating layer class, and the second specifies the substrate region for the substrate class.
 
 .. plot::
    :context: reset
    :include-source:
-   :caption: Template ROI (green), substrate ROI (red)
+   :caption: Template ROI (green) and substrate ROI (red) visuaized by :class:`.SubstrateReference`
    :align: center
 
    >>> import cv2
@@ -100,14 +100,11 @@ The first ROI specifies the template region for the coating layer class, and the
    >>> ref = SubstrateReference(ref_img, templateROI, substrateROI)
    >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
-:class:`.SubstrateReferenceBase` is an abstract base class of substrate reference classes.
-Every substrate reference class must be its implementation by subclassing it.
-
-Substrate
----------
+Substrate class
+---------------
 
 Substrate class detects the geometry of the substrate.
-It uses the bare substrate image cropped by the substrarte reference instance.
+It uses the substrate region from the substrate reference instance.
 
 .. plot::
    :context: close-figs
@@ -123,16 +120,13 @@ It uses the bare substrate image cropped by the substrarte reference instance.
    >>> subst.draw_options.draw_lines = False
    >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
-:class:`.SubstrateBase` is an abstract base class of substrate classes.
-Every substrate class must be its implementation by subclassing it.
+Coating layer class
+-------------------
 
-Coating layer
--------------
+Coating layer class extracts the coating layer region from the coated substrate image using the substrate instance.
+It then retrieves quantitative data and visualized image from it.
 
-Coating layer class extracts the coating layer region from the coated substrate image and the bare substrate image, and then retrieves quantitative data.
-
-To extract the coating layer region, it performs template matching between the template region from the substrate reference instance and the coated substrate image.
-To analyze the coating layer shape, it uses the substrate geometry information detected by the substrate instance.
+To analyze the coating layer shape, the coating layer instance uses the substrate geometry information detected by the substrate instance.
 
 .. plot::
    :context: close-figs
@@ -149,8 +143,37 @@ To analyze the coating layer shape, it uses the substrate geometry information d
    LayerAreaData(Area=41747)
    >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
-:class:`.CoatingLayerBase` is an abstract base class of coating layer classes.
-Every coating layer class must be its implementation by subclassing it.
+Analysis classes
+================
+
+Analyzing the coating experiment usually involves processing multiple images(e.g., frames from the coating process video) of a coated substrate with respect to a single bare substrate image.
+
+:mod:`dipcoatimage.finitedepth` provides systematic way to construct multiple coating layer instances, to save the analysis results, and to serialize the analysis parameters into file.
+
+Experiment class
+----------------
+
+Experiment class is a factory for coating layer instance.
+
+An experiment instance stores the parameters and constructs multiple coating layer instances from different images.
+It can refer to the previous coating layer instance when constructing the new one, which allows different parameters to be applied to consecutive images.
+
+Analyzer class
+--------------
+
+:class:`.Analyzer` collects the data and the visualized images from multiple coating layer instance, and saves them as files.
+
+An analyzer instance orchestrates the construction and the analysis of the coating layer instances.
+It defines which files to analyze and where to save the result, and performs the analysis.
+
+Experiment data class
+---------------------
+
+:class:`.ExperimentData` is a dataclass which describes a whole finite depth dip coating experiment.
+It can also automatically construct a :class:`.Analyzer` instance from the data and perform the analysis.
+
+Serializing and deserializing the experiment data can be done by :obj:`.data_converter`, which is a :class:`cattrs.Converter`.
+This allows configuration for the analysis to be saved to and loaded from file.
 
 GUI
 ===
@@ -159,15 +182,14 @@ GUI
 
 Its main features are:
 
-1. Construct the classes from :mod:`dipcoatimage.finitedepth` by specifying the parameters.
-2. Visualize the constructed classes.
-3. Save and load the serialized parameters.
-4. Real-time visualization of the image stream from the camera.
-5. Capturing the image and recording the video from the camera.
-6. Analyzing the experiment using constructed classes.
+1. Construct the classes from :mod:`dipcoatimage.finitedepth` by specifying the parameters and visualize them.
+2. Save and load the serialized parameters.
+3. Real-time visualization of the image stream from the camera.
+4. Capturing the image and recording the video from the camera.
+5. Analyzing the experiment using constructed classes and saving to file.
 
 The following code runs the GUI.
-Style sheet is set to highlight the mandatory field widgets.
+Note that style sheet is set to highlight the mandatory field widgets.
 
 .. code-block:: python
 
