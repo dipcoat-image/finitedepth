@@ -217,6 +217,9 @@ class VisualizeManager(QObject):
                 DataMember.SUBSTRATE,
             )
         ):
+            state = self._videoPlayer.playbackState()
+            if state == QMediaPlayer.PlaybackState.PlayingState:
+                self._videoPlayer.stop()
             self._videoPlayer.setVideoSink(None)
             self._arrayConverter.arrayChanged.disconnect(self._displayImageFromVideo)
         exptKind = experiment_kind(coatPaths)
@@ -268,6 +271,9 @@ class VisualizeManager(QObject):
                     DataMember.SUBSTRATE,
                 )
             ):
+                state = self._videoPlayer.playbackState()
+                if state == QMediaPlayer.PlaybackState.PlayingState:
+                    self._videoPlayer.stop()
                 self._videoPlayer.setVideoSink(None)
                 self._arrayConverter.arrayChanged.disconnect(
                     self._displayImageFromVideo
@@ -334,6 +340,9 @@ class VisualizeManager(QObject):
                 DataMember.REFERENCE,
                 DataMember.SUBSTRATE,
             ):
+                state = self._videoPlayer.playbackState()
+                if state == QMediaPlayer.PlaybackState.PlayingState:
+                    self._videoPlayer.stop()
                 self._videoPlayer.setVideoSink(None)
                 self._arrayConverter.arrayChanged.disconnect(
                     self._displayImageFromVideo
@@ -382,6 +391,9 @@ class VisualizeManager(QObject):
                 self._frameSource == FrameSource.FILE
                 and self._exptKind == ExperimentKind.VIDEO
             ):
+                state = self._videoPlayer.playbackState()
+                if state == QMediaPlayer.PlaybackState.PlayingState:
+                    self._videoPlayer.stop()
                 self._videoPlayer.setVideoSink(None)
                 self._arrayConverter.arrayChanged.disconnect(
                     self._displayImageFromVideo
