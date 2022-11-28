@@ -1,2 +1,2 @@
-.. automodule:: dipcoatimage.finitedepth_gui.pipeline
+.. automodule:: dipcoatimage.finitedepth_gui.visualize
    :members:

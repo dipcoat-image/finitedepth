@@ -507,27 +507,27 @@ class VisualizeManager(QObject):
     @Slot(np.ndarray)
     def _displayImageFromVideo(self, array: npt.NDArray[np.uint8]):
         self._lastVideoFrame = array.copy()
-        if array.size != 0:
-            array = cv2.cvtColor(array, cv2.COLOR_BGR2RGB)
-        if self._currentView == DataMember.REFERENCE:
-            h, w = array.shape[:2]
-            self.roiMaximumChanged.emit(h, w)
-        self._displayImage(array)
 
-    @Slot(np.ndarray)
-    def _displayImageFromCamera(self, array: npt.NDArray[np.uint8]):
-        if array.size != 0:
-            array = cv2.cvtColor(array, cv2.COLOR_BGR2RGB)
-        if self._currentView == DataMember.REFERENCE:
-            h, w = array.shape[:2]
-            self.roiMaximumChanged.emit(h, w)
-        self._displayImage(array)
-
-    @Slot(np.ndarray)
-    def _displayImage(self, array: npt.NDArray[np.uint8]):
         processor = self._imageProcessor
         if not processor.ready():
             return
+        if array.size != 0:
+            array = cv2.cvtColor(array, cv2.COLOR_BGR2RGB)
+        if self._currentView == DataMember.REFERENCE:
+            h, w = array.shape[:2]
+            self.roiMaximumChanged.emit(h, w)
+        self._processRequested.emit(array)
+
+    @Slot(np.ndarray)
+    def _displayImageFromCamera(self, array: npt.NDArray[np.uint8]):
+        processor = self._imageProcessor
+        if not processor.ready():
+            return
+        if array.size != 0:
+            array = cv2.cvtColor(array, cv2.COLOR_BGR2RGB)
+        if self._currentView == DataMember.REFERENCE:
+            h, w = array.shape[:2]
+            self.roiMaximumChanged.emit(h, w)
         self._processRequested.emit(array)
 
     def display(self) -> Optional[DisplayProtocol]:
