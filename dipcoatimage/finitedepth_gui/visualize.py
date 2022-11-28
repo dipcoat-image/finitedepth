@@ -4,7 +4,7 @@ Visualization
 
 """
 
-from araviq6 import NDArrayVideoPlayer, NDArrayMediaCaptureSession
+from araviq6 import FrameToArrayConverter
 import cv2  # type: ignore[import]
 import numpy as np
 import numpy.typing as npt
@@ -21,7 +21,14 @@ from dipcoatimage.finitedepth_gui.core import (
 from dipcoatimage.finitedepth_gui.worker import ExperimentWorker
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from PySide6.QtCore import QObject, Signal, Slot, QUrl, QThread, QModelIndex
-from PySide6.QtMultimedia import QCamera, QMediaPlayer, QImageCapture, QMediaRecorder
+from PySide6.QtMultimedia import (
+    QCamera,
+    QMediaPlayer,
+    QMediaCaptureSession,
+    QVideoSink,
+    QImageCapture,
+    QMediaRecorder,
+)
 from typing import Optional, Protocol
 
 
@@ -149,20 +156,22 @@ class VisualizeManager(QObject):
         self._frameSource = FrameSource.NULL
         self._currentView = DataMember.NULL
         self._visualizeMode = VisualizationMode.OFF
-        self._videoPlayer = NDArrayVideoPlayer()
+        self._videoPlayer = QMediaPlayer()
         self._lastVideoFrame = np.empty((0, 0, 0), dtype=np.uint8)
         self._camera = QCamera()
-        self._captureSession = NDArrayMediaCaptureSession()
-        self._imageProcessor = ImageProcessor()
-        self._display = None
-
+        self._captureSession = QMediaCaptureSession()
         self._imageCapture = QImageCapture()
         self._mediaRecorder = QMediaRecorder()
+        self._videoSink = QVideoSink()
+        self._arrayConverter = FrameToArrayConverter()
+        self._imageProcessor = ImageProcessor()
+        self._display = None
 
         self._camera.activeChanged.connect(self._onCameraActiveChange)
         self._captureSession.setCamera(self._camera)
         self._captureSession.setImageCapture(self._imageCapture)
         self._captureSession.setRecorder(self._mediaRecorder)
+        self._videoSink.videoFrameChanged.connect(self._arrayConverter.setVideoFrame)
 
         self._processorThread = QThread()
         self._imageProcessor.moveToThread(self._processorThread)
@@ -208,14 +217,16 @@ class VisualizeManager(QObject):
                 DataMember.SUBSTRATE,
             )
         ):
-            self._videoPlayer.arrayChanged.disconnect(self._displayImageFromVideo)
+            self._videoPlayer.setVideoSink(None)
+            self._arrayConverter.arrayChanged.disconnect(self._displayImageFromVideo)
         exptKind = experiment_kind(coatPaths)
         if exptKind == ExperimentKind.VIDEO:
             if self._frameSource == FrameSource.FILE and self._currentView not in (
                 DataMember.REFERENCE,
                 DataMember.SUBSTRATE,
             ):
-                self._videoPlayer.arrayChanged.connect(self._displayImageFromVideo)
+                self._videoPlayer.setVideoSink(self._videoSink)
+                self._arrayConverter.arrayChanged.connect(self._displayImageFromVideo)
             source = QUrl.fromLocalFile(coatPaths[0])
             self._videoPlayer.setSource(source)
         else:
@@ -257,7 +268,10 @@ class VisualizeManager(QObject):
                     DataMember.SUBSTRATE,
                 )
             ):
-                self._videoPlayer.arrayChanged.disconnect(self._displayImageFromVideo)
+                self._videoPlayer.setVideoSink(None)
+                self._arrayConverter.arrayChanged.disconnect(
+                    self._displayImageFromVideo
+                )
             coatPaths = worker.exptData.coat_paths
             exptKind = experiment_kind(coatPaths)
             if exptKind == ExperimentKind.VIDEO:
@@ -265,7 +279,10 @@ class VisualizeManager(QObject):
                     DataMember.REFERENCE,
                     DataMember.SUBSTRATE,
                 ):
-                    self._videoPlayer.arrayChanged.connect(self._displayImageFromVideo)
+                    self._videoPlayer.setVideoSink(self._videoSink)
+                    self._arrayConverter.arrayChanged.connect(
+                        self._displayImageFromVideo
+                    )
                 source = QUrl.fromLocalFile(coatPaths[0])
                 self._videoPlayer.setSource(source)
             else:
@@ -310,24 +327,30 @@ class VisualizeManager(QObject):
     def setFrameSource(self, frameSource: FrameSource):
         oldSource = self._frameSource
         if oldSource == FrameSource.CAMERA:
-            self._captureSession.arrayChanged.disconnect(self._displayImageFromCamera)
+            self._captureSession.setVideoSink(None)
+            self._arrayConverter.arrayChanged.disconnect(self._displayImageFromCamera)
         elif oldSource == FrameSource.FILE:
             if self._exptKind == ExperimentKind.VIDEO and self._currentView not in (
                 DataMember.REFERENCE,
                 DataMember.SUBSTRATE,
             ):
-                self._videoPlayer.arrayChanged.disconnect(self._displayImageFromVideo)
+                self._videoPlayer.setVideoSink(None)
+                self._arrayConverter.arrayChanged.disconnect(
+                    self._displayImageFromVideo
+                )
         else:
             pass
         self._frameSource = frameSource
         if frameSource == FrameSource.CAMERA:
-            self._captureSession.arrayChanged.connect(self._displayImageFromCamera)
+            self._captureSession.setVideoSink(self._videoSink)
+            self._arrayConverter.arrayChanged.connect(self._displayImageFromCamera)
         elif frameSource == FrameSource.FILE:
             if self._exptKind == ExperimentKind.VIDEO and self._currentView not in (
                 DataMember.REFERENCE,
                 DataMember.SUBSTRATE,
             ):
-                self._videoPlayer.arrayChanged.connect(self._displayImageFromVideo)
+                self._videoPlayer.setVideoSink(self._videoSink)
+                self._arrayConverter.arrayChanged.connect(self._displayImageFromVideo)
         else:
             pass
 
@@ -359,7 +382,10 @@ class VisualizeManager(QObject):
                 self._frameSource == FrameSource.FILE
                 and self._exptKind == ExperimentKind.VIDEO
             ):
-                self._videoPlayer.arrayChanged.disconnect(self._displayImageFromVideo)
+                self._videoPlayer.setVideoSink(None)
+                self._arrayConverter.arrayChanged.disconnect(
+                    self._displayImageFromVideo
+                )
             if (
                 self._videoPlayer.playbackState()
                 == QMediaPlayer.PlaybackState.PlayingState
@@ -370,7 +396,8 @@ class VisualizeManager(QObject):
                 self._frameSource == FrameSource.FILE
                 and self._exptKind == ExperimentKind.VIDEO
             ):
-                self._videoPlayer.arrayChanged.connect(self._displayImageFromVideo)
+                self._videoPlayer.setVideoSink(self._videoSink)
+                self._arrayConverter.arrayChanged.connect(self._displayImageFromVideo)
         self._currentView = currentView
 
         self._imageProcessor.setCurrentView(currentView)
