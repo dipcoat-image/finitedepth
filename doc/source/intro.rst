@@ -168,6 +168,7 @@ It can refer to the previous coating layer instance when constructing the new on
    >>> expt = Experiment(subst, LayerArea)
    >>> vid_path = get_samples_path("coat3.mp4")
    >>> cap = cv2.VideoCapture(vid_path); cap.set(cv2.CAP_PROP_POS_FRAMES, 11)
+   True
    >>> _, img1 = cap.read(); _, img2 = cap.read(); cap.release()
    >>> coat1 = expt.construct_coatinglayer(img1)
    >>> coat2 = expt.construct_coatinglayer(img2, coat1)
