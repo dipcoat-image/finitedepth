@@ -1,8 +1,8 @@
 coat1:
   analysis:
-    data_path: ''
+    data_path: 'coat1_result.csv'
     fps: null
-    image_path: ''
+    image_path: 'coat1_result.png'
     video_path: ''
   coat_paths:
   - coat1.png
@@ -45,6 +45,63 @@ coat1:
     - 36
     - 1326
     - 234
+    type:
+      module: dipcoatimage.finitedepth
+      name: SubstrateReference
+  substrate:
+    draw_options: {}
+    parameters: {}
+    type:
+      module: dipcoatimage.finitedepth
+      name: Substrate
+
+coat3:
+  analysis:
+    data_path: 'coat3_result.csv'
+    fps: null
+    image_path: ''
+    video_path: 'coat3_result.mp4'
+  coat_paths:
+  - coat3.mp4
+  coatinglayer:
+    deco_options: {}
+    draw_options: {}
+    parameters: {}
+    type:
+      module: dipcoatimage.finitedepth
+      name: LayerArea
+  experiment:
+    parameters: {}
+    type:
+      module: dipcoatimage.finitedepth
+      name: Experiment
+  ref_path: ref3.png
+  reference:
+    draw_options:
+      draw_mode: ORIGINAL
+      draw_substrateROI: true
+      draw_templateROI: true
+      substrateROI_color: !!python/tuple
+      - 255
+      - 0
+      - 0
+      substrateROI_thickness: 1
+      templateROI_color: !!python/tuple
+      - 0
+      - 255
+      - 0
+      templateROI_thickness: 1
+    parameters: {}
+    substrateROI: !!python/tuple
+    - 200
+    - 50
+    - 1000
+    - 600
+    templateROI: !!python/tuple
+    - 50
+    - 50
+    - 1200
+    - 200
     type:
       module: dipcoatimage.finitedepth
       name: SubstrateReference

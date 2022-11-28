@@ -13,7 +13,7 @@ This is the central page for all documents.
    tutorial/index
    user-guide/index
    explanation/index
-   API reference <reference/index>
+   reference/index
    dev-guide/index
 
 Indices and tables
