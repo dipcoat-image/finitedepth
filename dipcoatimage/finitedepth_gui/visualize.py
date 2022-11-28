@@ -1,5 +1,7 @@
 """
-Video streaming pipeline
+Visualization
+=============
+
 """
 
 from araviq6 import NDArrayVideoPlayer, NDArrayMediaCaptureSession

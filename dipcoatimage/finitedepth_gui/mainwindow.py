@@ -11,7 +11,7 @@ from dipcoatimage.finitedepth_gui.core import FrameSource
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from dipcoatimage.finitedepth_gui.views import ExperimentDataListView, DataViewTab
 from dipcoatimage.finitedepth_gui.display import MainDisplayWindow
-from dipcoatimage.finitedepth_gui.pipeline import VisualizeManager
+from dipcoatimage.finitedepth_gui.visualize import VisualizeManager
 
 
 __all__ = [

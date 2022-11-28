@@ -10,6 +10,6 @@ DipCoatImage-FiniteDepth GUI
    finitedepth-gui.worker
    finitedepth-gui.model
    finitedepth-gui.views
-   finitedepth-gui.pipeline
+   finitedepth-gui.visualize
    finitedepth-gui.display
    finitedepth-gui.mainwindow
