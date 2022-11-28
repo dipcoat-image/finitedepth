@@ -158,6 +158,22 @@ Experiment class is a factory for coating layer instance.
 An experiment instance stores the parameters and constructs multiple coating layer instances from different images.
 It can refer to the previous coating layer instance when constructing the new one, which allows different parameters to be applied to consecutive images.
 
+.. plot::
+   :context: close-figs
+   :include-source:
+   :caption: :class:`.LayerArea` instances constructed by :class:`.Experiment` with consecutive images
+   :align: center
+
+   >>> from dipcoatimage.finitedepth import Experiment
+   >>> expt = Experiment(subst, LayerArea)
+   >>> vid_path = get_samples_path("coat3.mp4")
+   >>> cap = cv2.VideoCapture(vid_path); cap.set(cv2.CAP_PROP_POS_FRAMES, 11)
+   >>> _, img1 = cap.read(); _, img2 = cap.read(); cap.release()
+   >>> coat1 = expt.construct_coatinglayer(img1)
+   >>> coat2 = expt.construct_coatinglayer(img2, coat1)
+   >>> plt.subplot(121); plt.imshow(coat1.draw()) #doctest: +SKIP
+   >>> plt.subplot(122); plt.imshow(coat2.draw()) #doctest: +SKIP
+
 Analyzer class
 --------------
 
@@ -165,6 +181,11 @@ Analyzer class
 
 An analyzer instance orchestrates the construction and the analysis of the coating layer instances.
 It defines which files to analyze and where to save the result, and performs the analysis.
+
+>>> from dipcoatimage.finitedepth import Analyzer
+>>> analyzer = Analyzer([vid_path], expt)
+>>> analyzer.analyze(data_path="data.csv", video_path="video.mp4") #doctest: +SKIP
+100%|████████████████████████████████████████████| 15/15 [00:01<00:00, 14.66it/s]
 
 Experiment data class
 ---------------------
@@ -175,10 +196,27 @@ It can also automatically construct a :class:`.Analyzer` instance from the data 
 Serializing and deserializing the experiment data can be done by :obj:`.data_converter`, which is a :class:`cattrs.Converter`.
 This allows configuration for the analysis to be saved to and loaded from file.
 
+>>> import os
+>>> import yaml
+>>> from dipcoatimage.finitedepth import data_converter, ExperimentData
+>>> os.chdir(get_samples_path())
+>>> with open(get_samples_path("config.yml")) as f:
+...   parameters = yaml.load(f, Loader=yaml.FullLoader)
+>>> for name, data in parameters.items(): #doctest: +SKIP
+...   exptData = data_converter.structure(data, ExperimentData)
+...   exptData.analyze(name)
+coat1: 100%|█████████████████████████████████████| 1/1 [00:00<00:00,  7.55it/s]
+coat3: 100%|█████████████████████████████████████| 15/15 [00:01<00:00, 14.37it/s]
+
 GUI
 ===
 
 :mod:`dipcoatimage.finitedepth_gui` provides the GUI to perform visualization and analysis.
+
+.. figure:: ./_images/finitedepth-gui.jpg
+   :align: center
+
+   Finite depth analysis GUI
 
 Its main features are:
 
