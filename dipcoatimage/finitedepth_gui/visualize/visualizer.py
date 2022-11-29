@@ -10,15 +10,17 @@ from PySide6.QtMultimedia import (
     QImageCapture,
     QMediaRecorder,
 )
-from .base import VisualizeManagerBase
+from .base import VisualizerBase
 
 
 __all__ = [
-    "VisualizeManager",
+    "PySide6Visualizer",
 ]
 
 
-class VisualizeManager(VisualizeManagerBase):
+class PySide6Visualizer(VisualizerBase):
+    """Visualizer using :mod:`PySide6.QtMultimedia`."""
+
     def __init__(self, parent=None):
         super().__init__(parent)
 

@@ -11,7 +11,7 @@ from dipcoatimage.finitedepth_gui.core import FrameSource
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from dipcoatimage.finitedepth_gui.views import ExperimentDataListView, DataViewTab
 from dipcoatimage.finitedepth_gui.display import MainDisplayWindow
-from dipcoatimage.finitedepth_gui.visualize import VisualizeManager
+from dipcoatimage.finitedepth_gui.visualize import PySide6Visualizer
 
 
 __all__ = [
@@ -40,7 +40,7 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
 
         self._model = ExperimentDataModel()
-        self._visualizeManager = VisualizeManager()
+        self._visualizer = PySide6Visualizer()
         self._listView = ExperimentDataListView()
         self._dataViewTab = DataViewTab()
         self._display = MainDisplayWindow()
@@ -48,24 +48,20 @@ class MainWindow(QMainWindow):
 
         self._listView.setModel(self._model)
         self._dataViewTab.setModel(self._model)
-        self._visualizeManager.setModel(self._model)
+        self._visualizer.setModel(self._model)
         self._display.setModel(self._model)
 
-        self._visualizeManager.roiMaximumChanged.connect(
-            self._dataViewTab.setROIMaximum
-        )
-        self._visualizeManager.arrayChanged.connect(self._display.setArray)
-        self._dataViewTab.currentViewChanged.connect(
-            self._visualizeManager.setCurrentView
-        )
+        self._visualizer.roiMaximumChanged.connect(self._dataViewTab.setROIMaximum)
+        self._visualizer.arrayChanged.connect(self._display.setArray)
+        self._dataViewTab.currentViewChanged.connect(self._visualizer.setCurrentView)
         self._dataViewTab.currentViewChanged.connect(self._display.setCurrentView)
         self._dataViewTab.roiDrawModeChanged.connect(self._display.setROIDrawMode)
-        self._display.setPlayer(self._visualizeManager.videoPlayer())
-        self._display.setCamera(self._visualizeManager.camera())
-        self._display.setImageCapture(self._visualizeManager.imageCapture())
-        self._display.setMediaRecorder(self._visualizeManager.mediaRecorder())
+        self._display.setPlayer(self._visualizer.videoPlayer())
+        self._display.setCamera(self._visualizer.camera())
+        self._display.setImageCapture(self._visualizer.imageCapture())
+        self._display.setMediaRecorder(self._visualizer.mediaRecorder())
         self._display.visualizationModeChanged.connect(
-            self._visualizeManager.setVisualizationMode
+            self._visualizer.setVisualizationMode
         )
         self._cwdButton.clicked.connect(self.browseCWD)
         self.statusBar().addPermanentWidget(self._cwdButton)
@@ -82,7 +78,7 @@ class MainWindow(QMainWindow):
         self._cwdButton.setText("Browse")
         self._cwdButton.setToolTip("Change current directory")
 
-        self._visualizeManager.setFrameSource(FrameSource.FILE)
+        self._visualizer.setFrameSource(FrameSource.FILE)
 
     @Slot()
     def browseCWD(self):
@@ -101,5 +97,5 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(path)
 
     def closeEvent(self, event):
-        self._visualizeManager.stop()
+        self._visualizer.stop()
         super().closeEvent(event)

@@ -5,13 +5,13 @@ Visualization
 """
 
 from .imgprocess import ImageProcessor, fastVisualize
-from .base import VisualizeManagerBase
-from .visualizer import VisualizeManager
+from .base import VisualizerBase
+from .visualizer import PySide6Visualizer
 
 
 __all__ = [
     "ImageProcessor",
-    "VisualizeManagerBase",
-    "VisualizeManager",
+    "VisualizerBase",
+    "PySide6Visualizer",
     "fastVisualize",
 ]

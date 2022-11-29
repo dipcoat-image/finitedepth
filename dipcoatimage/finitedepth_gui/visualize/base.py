@@ -30,7 +30,7 @@ except ImportError:
 
 __all__ = [
     "VideoPlaybackState",
-    "VisualizeManagerBase",
+    "VisualizerBase",
 ]
 
 
@@ -40,7 +40,7 @@ class VideoPlaybackState(enum.Enum):
     PausedState = 2
 
 
-class VisualizeManagerBase(QObject):
+class VisualizerBase(QObject):
     """
     Abstract base class for the visualization interface.
     """
