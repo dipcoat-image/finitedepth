@@ -1,3 +1,6 @@
+from .abc import (
+    AbstractObjectType,
+)
 from .typing import (
     VideoPlayerProtocol,
     CameraProtocol,
@@ -9,6 +12,7 @@ from .typing import (
 
 
 __all__ = [
+    "AbstractObjectType",
     "VideoPlayerProtocol",
     "CameraProtocol",
     "CaptureSessionProtocol",
