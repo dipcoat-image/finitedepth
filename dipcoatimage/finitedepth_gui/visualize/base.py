@@ -5,6 +5,7 @@ import numpy.typing as npt
 from dipcoatimage.finitedepth import ExperimentKind, experiment_kind
 from dipcoatimage.finitedepth.reference import sanitize_ROI
 from PySide6.QtCore import QObject, Signal, Slot, QUrl, QThread, QModelIndex
+from PySide6.QtMultimedia import QMediaPlayer
 from dipcoatimage.finitedepth_gui.core import (
     DataMember,
     DataArgFlag,
@@ -14,7 +15,6 @@ from dipcoatimage.finitedepth_gui.core import (
 from dipcoatimage.finitedepth_gui.worker import ExperimentWorker
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
 from dipcoatimage.finitedepth_gui.util import (
-    VideoPlayerProtocol,
     CameraProtocol,
     ImageCaptureProtocol,
     MediaRecorderProtocol,
@@ -82,7 +82,7 @@ class VisualizerBase(QObject):
             model.activatedIndexChanged.connect(self._onActivatedIndexChange)
             model.experimentDataChanged.connect(self._onExptDataChange)
 
-    def videoPlayer(self) -> VideoPlayerProtocol:
+    def videoPlayer(self) -> QMediaPlayer:
         raise NotImplementedError
 
     def videoPlaybackState(self) -> PlaybackState:

@@ -1,6 +1,5 @@
 from .typing import (
     SignalProtocol,
-    VideoPlayerProtocol,
     CameraProtocol,
     ImageCaptureProtocol,
     MediaRecorderProtocol,
@@ -9,7 +8,6 @@ from .typing import (
 
 __all__ = [
     "SignalProtocol",
-    "VideoPlayerProtocol",
     "CameraProtocol",
     "ImageCaptureProtocol",
     "MediaRecorderProtocol",
