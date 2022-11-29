@@ -215,6 +215,7 @@ class ExperimentWorker(QObject):
                     TypeError,
                     ValueError,
                     ImportError,
+                    ModuleNotFoundError,
                     cattrs.ClassValidationError,
                 ):
                     self.experiment = None
@@ -235,7 +236,13 @@ class ExperimentWorker(QObject):
                 ref = refArgs.as_reference(refImg)
                 if not ref.valid():
                     ref = None
-            except (TypeError, ValueError, ImportError, cattrs.ClassValidationError):
+            except (
+                TypeError,
+                ValueError,
+                ImportError,
+                ModuleNotFoundError,
+                cattrs.ClassValidationError,
+            ):
                 ref = None
         return ref
 
@@ -250,7 +257,13 @@ class ExperimentWorker(QObject):
                 subst = substArgs.as_substrate(ref)
                 if not subst.valid():
                     subst = None
-            except (TypeError, ValueError, ImportError, cattrs.ClassValidationError):
+            except (
+                TypeError,
+                ValueError,
+                ImportError,
+                ModuleNotFoundError,
+                cattrs.ClassValidationError,
+            ):
                 subst = None
         return subst
 
