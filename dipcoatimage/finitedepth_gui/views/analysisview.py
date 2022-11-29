@@ -201,6 +201,7 @@ class AnalysisView(QWidget):
         if isinstance(model, ExperimentDataModel):
             self._analyzeArgsMapper.setRootIndex(index)
             self._analyzeArgsMapper.toFirst()
+            self._analyzeButton.setCheckable(True)
         else:
             self._analyzeArgsMapper.setCurrentModelIndex(QModelIndex())
             self._dataPathLineEdit.clear()
