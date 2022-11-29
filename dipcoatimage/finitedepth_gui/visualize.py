@@ -6,6 +6,7 @@ Visualization
 
 from araviq6 import FrameToArrayConverter
 import cv2  # type: ignore[import]
+import enum
 import numpy as np
 import numpy.typing as npt
 from dipcoatimage.finitedepth import ExperimentKind, experiment_kind
@@ -20,6 +21,12 @@ from dipcoatimage.finitedepth_gui.core import (
 )
 from dipcoatimage.finitedepth_gui.worker import ExperimentWorker
 from dipcoatimage.finitedepth_gui.model import ExperimentDataModel
+from dipcoatimage.finitedepth_gui.util import (
+    VideoPlayerProtocol,
+    CameraProtocol,
+    ImageCaptureProtocol,
+    MediaRecorderProtocol,
+)
 from PySide6.QtCore import QObject, Signal, Slot, QUrl, QThread, QModelIndex
 from PySide6.QtMultimedia import (
     QCamera,
@@ -31,10 +38,18 @@ from PySide6.QtMultimedia import (
 )
 from typing import Optional
 
+try:
+    from typing import TypeAlias  # type: ignore[attr-defined]
+except ImportError:
+    from typing_extensions import TypeAlias
+
 
 __all__ = [
     "ImageProcessor",
+    "VisualizeManagerBase",
     "VisualizeManager",
+    "crop",
+    "fastVisualize",
 ]
 
 
@@ -112,7 +127,18 @@ class ImageProcessor(QObject):
         return self._ready
 
 
-class VisualizeManager(QObject):
+class VideoPlaybackState(enum.Enum):
+    StoppedState = 0
+    PlayingState = 1
+    PausedState = 2
+
+
+class VisualizeManagerBase(QObject):
+    """
+    Abstract base class for the visualization interface.
+    """
+
+    PlaybackState: TypeAlias = VideoPlaybackState
 
     _processRequested = Signal(np.ndarray)
     arrayChanged = Signal(np.ndarray)
@@ -127,26 +153,7 @@ class VisualizeManager(QObject):
         self._currentView = DataMember.NULL
         self._visualizeMode = VisualizationMode.OFF
 
-        self._videoPlayer = QMediaPlayer()
-        self._playerSink = QVideoSink()
-        self._lastVideoFrame = np.empty((0, 0, 0), dtype=np.uint8)
-
-        self._camera = QCamera()
-        self._captureSession = QMediaCaptureSession()
-        self._imageCapture = QImageCapture()
-        self._mediaRecorder = QMediaRecorder()
-        self._cameraSink = QVideoSink()
-        self._arrayConverter = FrameToArrayConverter()
-
         self._imageProcessor = ImageProcessor()
-
-        self._videoPlayer.setVideoSink(self._playerSink)
-
-        self._camera.activeChanged.connect(self._onCameraActiveChange)
-        self._captureSession.setCamera(self._camera)
-        self._captureSession.setImageCapture(self._imageCapture)
-        self._captureSession.setRecorder(self._mediaRecorder)
-        self._captureSession.setVideoSink(self._cameraSink)
 
         self._processorThread = QThread()
         self._imageProcessor.moveToThread(self._processorThread)
@@ -168,41 +175,40 @@ class VisualizeManager(QObject):
             model.activatedIndexChanged.connect(self._onActivatedIndexChange)
             model.experimentDataChanged.connect(self._onExptDataChange)
 
-    def videoPlayer(self) -> QMediaPlayer:
-        return self._videoPlayer
+    def videoPlayer(self) -> VideoPlayerProtocol:
+        raise NotImplementedError
 
-    def camera(self) -> QCamera:
-        return self._camera
+    def videoPlaybackState(self) -> PlaybackState:
+        raise NotImplementedError
 
-    def imageCapture(self) -> QImageCapture:
-        return self._imageCapture
+    def camera(self) -> CameraProtocol:
+        """
+        Abstract interface for camera.
 
-    def mediaRecorder(self) -> QMediaRecorder:
-        return self._mediaRecorder
+        Implementation must detect the camera activation/deactivation and call
+        :meth:`setFrameSource` with proper :class:`FrameSource`.
+        """
+        raise NotImplementedError
+
+    def imageCapture(self) -> ImageCaptureProtocol:
+        raise NotImplementedError
+
+    def mediaRecorder(self) -> MediaRecorderProtocol:
+        raise NotImplementedError
 
     def togglePlayerPipeline(self, toggle: bool):
-        if toggle:
-            self._playerSink.videoFrameChanged.connect(
-                self._arrayConverter.setVideoFrame
-            )
-            self._arrayConverter.arrayChanged.connect(self._displayImageFromPlayer)
-        else:
-            self._playerSink.videoFrameChanged.disconnect(
-                self._arrayConverter.setVideoFrame
-            )
-            self._arrayConverter.arrayChanged.disconnect(self._displayImageFromPlayer)
+        """
+        Connect or disconnect the array pipeline from :meth:`videoPlayer` to
+        :meth:`visualizeImageFromPlayer`
+        """
+        raise NotImplementedError
 
     def toggleCameraPipeline(self, toggle: bool):
-        if toggle:
-            self._cameraSink.videoFrameChanged.connect(
-                self._arrayConverter.setVideoFrame
-            )
-            self._arrayConverter.arrayChanged.connect(self._displayImageFromCamera)
-        else:
-            self._cameraSink.videoFrameChanged.disconnect(
-                self._arrayConverter.setVideoFrame
-            )
-            self._arrayConverter.arrayChanged.disconnect(self._displayImageFromCamera)
+        """
+        Connect or disconnect the array pipeline from :meth:`camera` to
+        :meth:`visualizeImageFromCamera`
+        """
+        raise NotImplementedError
 
     @Slot(QModelIndex)
     def _onActivatedIndexChange(self, index: QModelIndex):
@@ -218,6 +224,7 @@ class VisualizeManager(QObject):
             coatPaths = []
         self._imageProcessor.setWorker(worker)
 
+        videoPlayer = self.videoPlayer()
         oldExptKind = self._exptKind
         if (
             oldExptKind == ExperimentKind.VIDEO
@@ -228,9 +235,9 @@ class VisualizeManager(QObject):
                 DataMember.SUBSTRATE,
             )
         ):
-            state = self._videoPlayer.playbackState()
-            if state == QMediaPlayer.PlaybackState.PlayingState:
-                self._videoPlayer.stop()
+            state = self.videoPlaybackState()
+            if state == self.PlaybackState.PlayingState:
+                videoPlayer.stop()
             self.togglePlayerPipeline(False)
         exptKind = experiment_kind(coatPaths)
         if exptKind == ExperimentKind.VIDEO:
@@ -240,9 +247,9 @@ class VisualizeManager(QObject):
             ):
                 self.togglePlayerPipeline(True)
             source = QUrl.fromLocalFile(coatPaths[0])
-            self._videoPlayer.setSource(source)
+            videoPlayer.setSource(source)
         else:
-            self._videoPlayer.setSource(QUrl())
+            videoPlayer.setSource(QUrl())
         self._exptKind = exptKind
 
         if self._frameSource == FrameSource.CAMERA:
@@ -251,7 +258,7 @@ class VisualizeManager(QObject):
             img = np.empty((0, 0, 0), dtype=np.uint8)
             self.arrayChanged.emit(img)
         else:
-            self._displayFromWorker(worker)
+            self.visualizeFromWorker(worker)
 
     @Slot(QModelIndex, DataArgFlag)
     def _onExptDataChange(self, index: QModelIndex, flag: DataArgFlag):
@@ -265,6 +272,7 @@ class VisualizeManager(QObject):
             return
 
         if flag & DataArgFlag.COATPATHS:
+            videoPlayer = self.videoPlayer()
             oldExptKind = self._exptKind
             if (
                 oldExptKind == ExperimentKind.VIDEO
@@ -275,9 +283,9 @@ class VisualizeManager(QObject):
                     DataMember.SUBSTRATE,
                 )
             ):
-                state = self._videoPlayer.playbackState()
-                if state == QMediaPlayer.PlaybackState.PlayingState:
-                    self._videoPlayer.stop()
+                state = self.videoPlaybackState()
+                if state == self.PlaybackState.PlayingState:
+                    videoPlayer.stop()
                 self.togglePlayerPipeline(False)
             coatPaths = worker.exptData.coat_paths
             exptKind = experiment_kind(coatPaths)
@@ -288,9 +296,9 @@ class VisualizeManager(QObject):
                 ):
                     self.togglePlayerPipeline(True)
                 source = QUrl.fromLocalFile(coatPaths[0])
-                self._videoPlayer.setSource(source)
+                videoPlayer.setSource(source)
             else:
-                self._videoPlayer.setSource(QUrl())
+                videoPlayer.setSource(QUrl())
             self._exptKind = exptKind
 
         self._imageProcessor.setWorker(worker)
@@ -300,12 +308,12 @@ class VisualizeManager(QObject):
 
         if self._currentView == DataMember.REFERENCE:
             if flag & (DataArgFlag.REFPATH | DataArgFlag.REFERENCE):
-                self._displayFromWorker(worker)
+                self.visualizeFromWorker(worker)
         elif self._currentView == DataMember.SUBSTRATE:
             if flag & (
                 DataArgFlag.REFPATH | DataArgFlag.REFERENCE | DataArgFlag.SUBSTRATE
             ):
-                self._displayFromWorker(worker)
+                self.visualizeFromWorker(worker)
         else:
             if flag & (
                 DataArgFlag.COATPATHS
@@ -315,15 +323,7 @@ class VisualizeManager(QObject):
                 | DataArgFlag.COATINGLAYER
                 | DataArgFlag.EXPERIMENT
             ):
-                self._displayFromWorker(worker)
-
-    @Slot(bool)
-    def _onCameraActiveChange(self, active: bool):
-        if active:
-            frameSource = FrameSource.CAMERA
-        else:
-            frameSource = FrameSource.FILE
-        self.setFrameSource(frameSource)
+                self.visualizeFromWorker(worker)
 
     def setFrameSource(self, frameSource: FrameSource):
         oldSource = self._frameSource
@@ -334,9 +334,10 @@ class VisualizeManager(QObject):
                 DataMember.REFERENCE,
                 DataMember.SUBSTRATE,
             ):
-                state = self._videoPlayer.playbackState()
-                if state == QMediaPlayer.PlaybackState.PlayingState:
-                    self._videoPlayer.stop()
+                videoPlayer = self.videoPlayer()
+                state = self.videoPlaybackState()
+                if state == self.PlaybackState.PlayingState:
+                    videoPlayer.stop()
                 self.togglePlayerPipeline(False)
         else:
             pass
@@ -363,7 +364,7 @@ class VisualizeManager(QObject):
             img = np.empty((0, 0, 0), dtype=np.uint8)
             self.arrayChanged.emit(img)
         else:
-            self._displayFromWorker(worker)
+            self.visualizeFromWorker(worker)
 
     @Slot(DataMember)
     def setCurrentView(self, currentView: DataMember):
@@ -372,19 +373,17 @@ class VisualizeManager(QObject):
 
         oldView = self._currentView
         if isExptView(oldView) and not isExptView(currentView):
+            videoPlayer = self.videoPlayer()
+            state = self.videoPlaybackState()
             if (
                 self._frameSource == FrameSource.FILE
                 and self._exptKind == ExperimentKind.VIDEO
             ):
-                state = self._videoPlayer.playbackState()
-                if state == QMediaPlayer.PlaybackState.PlayingState:
-                    self._videoPlayer.stop()
+                if state == self.PlaybackState.PlayingState:
+                    videoPlayer.stop()
                 self.togglePlayerPipeline(False)
-            if (
-                self._videoPlayer.playbackState()
-                == QMediaPlayer.PlaybackState.PlayingState
-            ):
-                self._videoPlayer.pause()
+            if state == self.PlaybackState.PlayingState:
+                videoPlayer.pause()
         elif not isExptView(oldView) and isExptView(currentView):
             if (
                 self._frameSource == FrameSource.FILE
@@ -406,7 +405,7 @@ class VisualizeManager(QObject):
             img = np.empty((0, 0, 0), dtype=np.uint8)
             self.arrayChanged.emit(img)
         else:
-            self._displayFromWorker(worker)
+            self.visualizeFromWorker(worker)
 
     @Slot(VisualizationMode)
     def setVisualizationMode(self, mode: VisualizationMode):
@@ -424,9 +423,9 @@ class VisualizeManager(QObject):
             img = np.empty((0, 0, 0), dtype=np.uint8)
             self.arrayChanged.emit(img)
         else:
-            self._displayFromWorker(worker)
+            self.visualizeFromWorker(worker)
 
-    def _displayFromWorker(self, worker: ExperimentWorker):
+    def visualizeFromWorker(self, worker: ExperimentWorker):
         currentView = self._currentView
         if currentView == DataMember.REFERENCE:
             if self._visualizeMode == VisualizationMode.FULL:
@@ -461,10 +460,10 @@ class VisualizeManager(QObject):
             ):
                 img = cv2.imread(coatPaths[0])
             elif exptKind == ExperimentKind.VIDEO:
-                state = self._videoPlayer.playbackState()
-                if state == QMediaPlayer.PlaybackState.PlayingState:
+                state = self.videoPlaybackState()
+                if state == self.PlaybackState.PlayingState:
                     return
-                elif state == QMediaPlayer.PlaybackState.StoppedState:
+                elif state == self.PlaybackState.StoppedState:
                     cap = cv2.VideoCapture(coatPaths[0])
                     ok, img = cap.read()
                     cap.release()
@@ -482,7 +481,7 @@ class VisualizeManager(QObject):
                 self.arrayChanged.emit(img)
 
     @Slot(np.ndarray)
-    def _displayImageFromPlayer(self, array: npt.NDArray[np.uint8]):
+    def visualizeImageFromPlayer(self, array: npt.NDArray[np.uint8]):
         self._lastVideoFrame = array.copy()
 
         processor = self._imageProcessor
@@ -496,7 +495,7 @@ class VisualizeManager(QObject):
         self._processRequested.emit(array)
 
     @Slot(np.ndarray)
-    def _displayImageFromCamera(self, array: npt.NDArray[np.uint8]):
+    def visualizeImageFromCamera(self, array: npt.NDArray[np.uint8]):
         processor = self._imageProcessor
         if not processor.ready():
             return
@@ -510,6 +509,86 @@ class VisualizeManager(QObject):
     def stop(self):
         self._processorThread.quit()
         self._processorThread.wait()
+
+
+class VisualizeManager(VisualizeManagerBase):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self._videoPlayer = QMediaPlayer()
+        self._playerSink = QVideoSink()
+        self._lastVideoFrame = np.empty((0, 0, 0), dtype=np.uint8)
+
+        self._camera = QCamera()
+        self._captureSession = QMediaCaptureSession()
+        self._imageCapture = QImageCapture()
+        self._mediaRecorder = QMediaRecorder()
+        self._cameraSink = QVideoSink()
+        self._arrayConverter = FrameToArrayConverter()
+
+        self._videoPlayer.setVideoSink(self._playerSink)
+
+        self._camera.activeChanged.connect(self._onCameraActiveChange)
+        self._captureSession.setCamera(self._camera)
+        self._captureSession.setImageCapture(self._imageCapture)
+        self._captureSession.setRecorder(self._mediaRecorder)
+        self._captureSession.setVideoSink(self._cameraSink)
+
+    def videoPlayer(self) -> QMediaPlayer:
+        return self._videoPlayer
+
+    def videoPlaybackState(self):
+        state = self._videoPlayer.playbackState()
+        if state == QMediaPlayer.PlaybackState.StoppedState:
+            ret = self.PlaybackState.StoppedState
+        elif state == QMediaPlayer.PlaybackState.PlayingState:
+            ret = self.PlaybackState.PlayingState
+        elif state == QMediaPlayer.PlaybackState.PausedState:
+            ret = self.PlaybackState.PausedState
+        else:
+            raise ValueError(f"Unknown playback state: {state}")
+        return ret
+
+    def camera(self) -> QCamera:
+        return self._camera
+
+    def imageCapture(self) -> QImageCapture:
+        return self._imageCapture
+
+    def mediaRecorder(self) -> QMediaRecorder:
+        return self._mediaRecorder
+
+    @Slot(bool)
+    def _onCameraActiveChange(self, active: bool):
+        if active:
+            frameSource = FrameSource.CAMERA
+        else:
+            frameSource = FrameSource.FILE
+        self.setFrameSource(frameSource)
+
+    def togglePlayerPipeline(self, toggle: bool):
+        if toggle:
+            self._playerSink.videoFrameChanged.connect(
+                self._arrayConverter.setVideoFrame
+            )
+            self._arrayConverter.arrayChanged.connect(self.visualizeImageFromPlayer)
+        else:
+            self._playerSink.videoFrameChanged.disconnect(
+                self._arrayConverter.setVideoFrame
+            )
+            self._arrayConverter.arrayChanged.disconnect(self.visualizeImageFromPlayer)
+
+    def toggleCameraPipeline(self, toggle: bool):
+        if toggle:
+            self._cameraSink.videoFrameChanged.connect(
+                self._arrayConverter.setVideoFrame
+            )
+            self._arrayConverter.arrayChanged.connect(self.visualizeImageFromCamera)
+        else:
+            self._cameraSink.videoFrameChanged.disconnect(
+                self._arrayConverter.setVideoFrame
+            )
+            self._arrayConverter.arrayChanged.disconnect(self.visualizeImageFromCamera)
 
 
 def crop(img: npt.NDArray[np.uint8], roi: OptionalROI):
