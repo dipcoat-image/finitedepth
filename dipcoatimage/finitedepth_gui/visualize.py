@@ -33,13 +33,13 @@ from typing import Optional
 
 
 __all__ = [
-    "ImageProcessor",
+    "ArrayProcessor",
     "VisualizeManager",
 ]
 
 
-class ImageProcessor(QObject):
-    """Object to process the incoming image from video or camera."""
+class ArrayProcessor(QObject):
+    """Object to process the incoming array from video or camera."""
 
     arrayChanged = Signal(np.ndarray)
 
@@ -138,7 +138,7 @@ class VisualizeManager(QObject):
         self._cameraSink = QVideoSink()
         self._arrayConverter = FrameToArrayConverter()
 
-        self._imageProcessor = ImageProcessor()
+        self._arrayProcessor = ArrayProcessor()
 
         self._videoPlayer.setVideoSink(self._playerSink)
 
@@ -149,11 +149,11 @@ class VisualizeManager(QObject):
         self._captureSession.setVideoSink(self._cameraSink)
 
         self._processorThread = QThread()
-        self._imageProcessor.moveToThread(self._processorThread)
+        self._arrayProcessor.moveToThread(self._processorThread)
         self._processorThread.start()
 
-        self._processRequested.connect(self._imageProcessor.setArray)
-        self._imageProcessor.arrayChanged.connect(self.arrayChanged)
+        self._processRequested.connect(self._arrayProcessor.setArray)
+        self._arrayProcessor.arrayChanged.connect(self.arrayChanged)
 
     def model(self) -> Optional[ExperimentDataModel]:
         return self._model
@@ -185,24 +185,24 @@ class VisualizeManager(QObject):
             self._playerSink.videoFrameChanged.connect(
                 self._arrayConverter.setVideoFrame
             )
-            self._arrayConverter.arrayChanged.connect(self._displayImageFromPlayer)
+            self._arrayConverter.arrayChanged.connect(self._processArrayFromPlayer)
         else:
             self._playerSink.videoFrameChanged.disconnect(
                 self._arrayConverter.setVideoFrame
             )
-            self._arrayConverter.arrayChanged.disconnect(self._displayImageFromPlayer)
+            self._arrayConverter.arrayChanged.disconnect(self._processArrayFromPlayer)
 
     def toggleCameraPipeline(self, toggle: bool):
         if toggle:
             self._cameraSink.videoFrameChanged.connect(
                 self._arrayConverter.setVideoFrame
             )
-            self._arrayConverter.arrayChanged.connect(self._displayImageFromCamera)
+            self._arrayConverter.arrayChanged.connect(self._processArrayFromCamera)
         else:
             self._cameraSink.videoFrameChanged.disconnect(
                 self._arrayConverter.setVideoFrame
             )
-            self._arrayConverter.arrayChanged.disconnect(self._displayImageFromCamera)
+            self._arrayConverter.arrayChanged.disconnect(self._processArrayFromCamera)
 
     @Slot(QModelIndex)
     def _onActivatedIndexChange(self, index: QModelIndex):
@@ -216,7 +216,7 @@ class VisualizeManager(QObject):
         else:
             worker = None
             coatPaths = []
-        self._imageProcessor.setWorker(worker)
+        self._arrayProcessor.setWorker(worker)
 
         oldExptKind = self._exptKind
         if (
@@ -293,7 +293,7 @@ class VisualizeManager(QObject):
                 self._videoPlayer.setSource(QUrl())
             self._exptKind = exptKind
 
-        self._imageProcessor.setWorker(worker)
+        self._arrayProcessor.setWorker(worker)
 
         if self._frameSource == FrameSource.CAMERA:
             return
@@ -393,7 +393,7 @@ class VisualizeManager(QObject):
                 self.togglePlayerPipeline(True)
         self._currentView = currentView
 
-        self._imageProcessor.setCurrentView(currentView)
+        self._arrayProcessor.setCurrentView(currentView)
 
         model = self.model()
         if model is None:
@@ -410,7 +410,7 @@ class VisualizeManager(QObject):
 
     @Slot(VisualizationMode)
     def setVisualizationMode(self, mode: VisualizationMode):
-        self._imageProcessor.setVisualizationMode(mode)
+        self._arrayProcessor.setVisualizationMode(mode)
         self._visualizeMode = mode
 
         model = self.model()
@@ -476,16 +476,16 @@ class VisualizeManager(QObject):
                 img = None
             if img is not None:
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                self._imageProcessor.setArray(img)
+                self._arrayProcessor.setArray(img)
             else:
                 img = np.empty((0, 0, 0), dtype=np.uint8)
                 self.arrayChanged.emit(img)
 
     @Slot(np.ndarray)
-    def _displayImageFromPlayer(self, array: npt.NDArray[np.uint8]):
+    def _processArrayFromPlayer(self, array: npt.NDArray[np.uint8]):
         self._lastVideoFrame = array.copy()
 
-        processor = self._imageProcessor
+        processor = self._arrayProcessor
         if not processor.ready():
             return
         if array.size != 0:
@@ -496,8 +496,8 @@ class VisualizeManager(QObject):
         self._processRequested.emit(array)
 
     @Slot(np.ndarray)
-    def _displayImageFromCamera(self, array: npt.NDArray[np.uint8]):
-        processor = self._imageProcessor
+    def _processArrayFromCamera(self, array: npt.NDArray[np.uint8]):
+        processor = self._arrayProcessor
         if not processor.ready():
             return
         if array.size != 0:
