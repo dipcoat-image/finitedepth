@@ -36,4 +36,8 @@ class ImageCaptureProtocol(Protocol):
 
 
 class MediaRecorderProtocol(Protocol):
-    ...
+    def record(self):
+        ...
+
+    def stop(self):
+        ...

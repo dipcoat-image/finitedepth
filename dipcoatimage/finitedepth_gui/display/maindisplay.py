@@ -22,7 +22,7 @@ from dipcoatimage.finitedepth_gui.util import (
     CameraProtocol,
 )
 from typing import Optional
-from .toolbar import DisplayWidgetToolBar
+from .toolbar import PySide6ToolBar
 from .roidisplay import NDArrayROILabel
 
 
@@ -52,7 +52,7 @@ class MainDisplayWindow(QMainWindow):
 
         self._displayLabel = NDArrayROILabel()
         self._videoController = MediaController()
-        self._displayToolBar = DisplayWidgetToolBar()
+        self._displayToolBar = PySide6ToolBar()
 
         self._displayLabel.setAlignment(Qt.AlignCenter)
         self._videoController.setVisible(False)

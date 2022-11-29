@@ -58,13 +58,13 @@ class PySide6Visualizer(VisualizerBase):
             raise ValueError(f"Unknown playback state: {state}")
         return ret
 
-    def camera(self) -> QCamera:
+    def camera(self):
         return self._camera
 
-    def imageCapture(self) -> QImageCapture:
+    def imageCapture(self):
         return self._imageCapture
 
-    def mediaRecorder(self) -> QMediaRecorder:
+    def mediaRecorder(self):
         return self._mediaRecorder
 
     @Slot(bool)

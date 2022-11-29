@@ -13,18 +13,23 @@ import dipcoatimage.finitedepth_gui
 from dipcoatimage.finitedepth_gui.core import VisualizationMode
 from dipcoatimage.finitedepth_gui.util import (
     CameraProtocol,
+    ImageCaptureProtocol,
+    MediaRecorderProtocol,
 )
 from typing import Optional
 
 
 __all__ = [
-    "DisplayWidgetToolBar",
+    "ToolBarBase",
+    "PySide6ToolBar",
     "get_icons_path",
 ]
 
 
-class DisplayWidgetToolBar(QToolBar):
-    """Toolbar to controll the overall display."""
+class ToolBarBase(QToolBar):
+    """
+    Abstract base class for the toolbar.
+    """
 
     visualizationModeChanged = Signal(VisualizationMode)
     imageCaptured = Signal(str)
@@ -36,15 +41,12 @@ class DisplayWidgetToolBar(QToolBar):
         self._visualizeAction = QAction("Toggle visualization")
         self._fastVisualizeAction = QAction("Toggle fast visualization")
         self._visualizeActionGroup = QActionGroup(self)
-        self._camera = None
         self._cameraDeviceComboBox = QComboBox()
         self._cameraAction = QAction()
-        self._imageCapture = None
         self._capturePathLineEdit = QLineEdit()
         self._captureFormatComboBox = QComboBox()
         self._captureButton = QToolButton()
         self._captureAndAddAction = QAction()
-        self._mediaRecorder = None
         self._recordPathLineEdit = QLineEdit()
         self._recordFormatComboBox = QComboBox()
         self._recordButton = QToolButton()
@@ -58,19 +60,10 @@ class DisplayWidgetToolBar(QToolBar):
             QActionGroup.ExclusionPolicy.ExclusiveOptional
         )
         self._visualizeActionGroup.triggered.connect(self._onVisualizeActionTrigger)
-        self._cameraDeviceComboBox.currentIndexChanged.connect(
-            self._onCameraDeviceComboBoxChange
-        )
         self._cameraAction.setCheckable(True)
         self._cameraAction.toggled.connect(self._onCameraActionToggle)
-        self._captureFormatComboBox.currentIndexChanged.connect(
-            self._onCaptureFormatComboBoxChange
-        )
         self._captureButton.clicked.connect(self._onCaptureButtonClick)
         self._recordPathLineEdit.editingFinished.connect(self._onRecordPathEdited)
-        self._recordFormatComboBox.currentIndexChanged.connect(
-            self._onRecordFormatComboBoxChange
-        )
         self._recordButton.setCheckable(True)
         self._recordButton.toggled.connect(self._onRecordActionToggle)
 
@@ -132,6 +125,21 @@ class DisplayWidgetToolBar(QToolBar):
         self.loadImageFileFormats()
         self.loadMediaFileFormats()
 
+    def camera(self) -> Optional[CameraProtocol]:
+        """
+        Abstract interface for camera.
+
+        Implementation must detect the camera activation/deactivation and call
+        :meth:`setFrameSource` with proper :class:`FrameSource`.
+        """
+        raise NotImplementedError
+
+    def imageCapture(self) -> Optional[ImageCaptureProtocol]:
+        raise NotImplementedError
+
+    def mediaRecorder(self) -> Optional[MediaRecorderProtocol]:
+        raise NotImplementedError
+
     def _onVisualizeActionTrigger(self, action: QAction):
         if action.isChecked() and action == self._visualizeAction:
             mode = VisualizationMode.FULL
@@ -141,17 +149,58 @@ class DisplayWidgetToolBar(QToolBar):
             mode = VisualizationMode.OFF
         self.visualizationModeChanged.emit(mode)
 
-    @Slot(VisualizationMode)
-    def setVisualizationMode(self, mode: VisualizationMode):
-        if mode == VisualizationMode.OFF:
-            self._visualizeAction.setChecked(False)
-            self._fastVisualizeAction.setChecked(False)
-        elif mode == VisualizationMode.FAST:
-            self._visualizeAction.setChecked(False)
-            self._fastVisualizeAction.setChecked(True)
-        elif mode == VisualizationMode.FULL:
-            self._fastVisualizeAction.setChecked(False)
-            self._visualizeAction.setChecked(True)
+    def _onCameraActionToggle(self, checked: bool):
+        camera = self.camera()
+        if camera is not None:
+            camera.setActive(checked)
+
+    def _onCaptureButtonClick(self):
+        path = self._capturePathLineEdit.text()
+        imageCapture = self.imageCapture()
+        if imageCapture is not None:
+            imageCapture.captureToFile(os.path.abspath(path))
+
+    def _onRecordPathEdited(self):
+        path = os.path.abspath(self._recordPathLineEdit.text())
+        self.mediaRecorder().setOutputLocation(QUrl.fromLocalFile(path))
+
+    def _onRecordActionToggle(self, checked: bool):
+        recorder = self.mediaRecorder()
+        if recorder is not None:
+            if checked:
+                recorder.record()
+            else:
+                recorder.stop()
+
+    def loadCameraDevices(self):
+        raise NotImplementedError
+
+    def loadImageFileFormats(self):
+        raise NotImplementedError
+
+    def loadMediaFileFormats(self):
+        raise NotImplementedError
+
+
+class PySide6ToolBar(ToolBarBase):
+    """Toolbar using :mod:`PySide6.QtMultimedia`."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self._camera = None
+        self._imageCapture = None
+        self._mediaRecorder = None
+
+        self._cameraDeviceComboBox.currentIndexChanged.connect(
+            self._onCameraDeviceComboBoxChange
+        )
+        self._captureFormatComboBox.currentIndexChanged.connect(
+            self._onCaptureFormatComboBoxChange
+        )
+        self._recordFormatComboBox.currentIndexChanged.connect(
+            self._onRecordFormatComboBoxChange
+        )
 
     def camera(self) -> Optional[CameraProtocol]:
         return self._camera
@@ -192,11 +241,6 @@ class DisplayWidgetToolBar(QToolBar):
     def _onCameraDeviceChange(self, device: QCameraDevice):
         index = self._cameraDeviceComboBox.findData(device)
         self._cameraDeviceComboBox.setCurrentIndex(index)
-
-    def _onCameraActionToggle(self, checked: bool):
-        camera = self.camera()
-        if camera is not None:
-            camera.setActive(checked)
 
     @Slot(bool)
     def _onCameraActiveChange(self, active: bool):
@@ -245,18 +289,12 @@ class DisplayWidgetToolBar(QToolBar):
         index = self._captureFormatComboBox.findData(form)
         self._captureFormatComboBox.setCurrentIndex(index)
 
-    def _onCaptureButtonClick(self):
-        path = self._capturePathLineEdit.text()
-        imageCapture = self.imageCapture()
-        if imageCapture is not None:
-            imageCapture.captureToFile(os.path.abspath(path))
-
     @Slot(int, str)
     def _onImageSave(self, id: int, path: str):
         if id != -1 and self._captureAndAddAction.isChecked():
             self.imageCaptured.emit(path)
 
-    def mediaRecorder(self) -> Optional[QMediaRecorder]:
+    def mediaRecorder(self):
         return self._mediaRecorder
 
     def setMediaRecorder(self, recorder: Optional[QMediaRecorder]):
@@ -289,10 +327,6 @@ class DisplayWidgetToolBar(QToolBar):
             name = QMediaFormat.fileFormatName(form)
             self._recordFormatComboBox.addItem(name, userData=form)
 
-    def _onRecordPathEdited(self):
-        path = os.path.abspath(self._recordPathLineEdit.text())
-        self.mediaRecorder().setOutputLocation(QUrl.fromLocalFile(path))
-
     @Slot(QUrl)
     def _onRecordLocationChange(self, location: QUrl):
         path = os.path.relpath(location.toLocalFile())
@@ -313,14 +347,6 @@ class DisplayWidgetToolBar(QToolBar):
             form = recorder.mediaFormat().fileFormat()
             index = self._recordFormatComboBox.findData(form)
             self._recordFormatComboBox.setCurrentIndex(index)
-
-    def _onRecordActionToggle(self, checked: bool):
-        recorder = self.mediaRecorder()
-        if recorder is not None:
-            if checked:
-                recorder.record()
-            else:
-                recorder.stop()
 
     @Slot(QMediaRecorder.RecorderState)
     def _onRecorderStateChange(self, state: QMediaRecorder.RecorderState):
