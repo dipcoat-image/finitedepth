@@ -2,6 +2,9 @@ from araviq6 import MediaController
 import numpy as np
 import numpy.typing as npt
 from dipcoatimage.finitedepth import ExperimentKind, experiment_kind
+from PySide6.QtCore import Signal, Slot, Qt, QUrl, QModelIndex
+from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
+from PySide6.QtMultimedia import QImageCapture, QMediaRecorder, QMediaPlayer
 from dipcoatimage.finitedepth_gui.core import (
     VisualizationMode,
     DataMember,
@@ -15,9 +18,9 @@ from dipcoatimage.finitedepth_gui.model import (
     ExperimentDataModel,
     ExperimentSignalBlocker,
 )
-from PySide6.QtCore import Signal, Slot, Qt, QUrl, QModelIndex
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
-from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaRecorder, QMediaPlayer
+from dipcoatimage.finitedepth_gui.util import (
+    CameraProtocol,
+)
 from typing import Optional
 from .toolbar import DisplayWidgetToolBar
 from .roidisplay import NDArrayROILabel
@@ -163,10 +166,10 @@ class MainDisplayWindow(QMainWindow):
     def setMediaRecorder(self, mediaRecorder: Optional[QMediaRecorder]):
         self._displayToolBar.setMediaRecorder(mediaRecorder)
 
-    def camera(self) -> Optional[QCamera]:
+    def camera(self) -> Optional[CameraProtocol]:
         return self._camera
 
-    def setCamera(self, camera: Optional[QCamera]):
+    def setCamera(self, camera: Optional[CameraProtocol]):
         oldCamera = self.camera()
         if oldCamera is not None:
             oldCamera.activeChanged.disconnect(  # type: ignore[attr-defined]

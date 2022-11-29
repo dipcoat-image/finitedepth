@@ -1,16 +1,18 @@
-import dipcoatimage.finitedepth_gui
-from dipcoatimage.finitedepth_gui.core import VisualizationMode
 import os
 from PySide6.QtCore import Signal, QSize, Slot, QUrl
 from PySide6.QtGui import QAction, QActionGroup, QIcon
 from PySide6.QtWidgets import QToolBar, QComboBox, QLineEdit, QToolButton, QMenu, QStyle
 from PySide6.QtMultimedia import (
-    QCamera,
     QCameraDevice,
     QMediaDevices,
     QImageCapture,
     QMediaRecorder,
     QMediaFormat,
+)
+import dipcoatimage.finitedepth_gui
+from dipcoatimage.finitedepth_gui.core import VisualizationMode
+from dipcoatimage.finitedepth_gui.util import (
+    CameraProtocol,
 )
 from typing import Optional
 
@@ -151,10 +153,10 @@ class DisplayWidgetToolBar(QToolBar):
             self._fastVisualizeAction.setChecked(False)
             self._visualizeAction.setChecked(True)
 
-    def camera(self) -> Optional[QCamera]:
+    def camera(self) -> Optional[CameraProtocol]:
         return self._camera
 
-    def setCamera(self, camera: Optional[QCamera]):
+    def setCamera(self, camera: Optional[CameraProtocol]):
         oldCamera = self.camera()
         if oldCamera is not None:
             oldCamera.cameraDeviceChanged.disconnect(  # type: ignore[attr-defined]
