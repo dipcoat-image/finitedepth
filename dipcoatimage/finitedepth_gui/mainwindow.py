@@ -49,14 +49,21 @@ class MainWindow(QMainWindow):
         self._listView.setModel(self._model)
         self._dataViewTab.setModel(self._model)
         self._visualizeManager.setModel(self._model)
-        self._visualizeManager.setDisplay(self._display)
+        self._display.setModel(self._model)
+
         self._visualizeManager.roiMaximumChanged.connect(
             self._dataViewTab.setROIMaximum
         )
+        self._visualizeManager.arrayChanged.connect(self._display.setArray)
         self._dataViewTab.currentViewChanged.connect(
             self._visualizeManager.setCurrentView
         )
+        self._dataViewTab.currentViewChanged.connect(self._display.setCurrentView)
         self._dataViewTab.roiDrawModeChanged.connect(self._display.setROIDrawMode)
+        self._display.setPlayer(self._visualizeManager.videoPlayer())
+        self._display.setCamera(self._visualizeManager.camera())
+        self._display.setImageCapture(self._visualizeManager.imageCapture())
+        self._display.setMediaRecorder(self._visualizeManager.mediaRecorder())
         self._display.visualizationModeChanged.connect(
             self._visualizeManager.setVisualizationMode
         )
