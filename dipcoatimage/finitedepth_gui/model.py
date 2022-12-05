@@ -864,17 +864,16 @@ class ExperimentDataModel(QAbstractItemModel):
             self.beginInsertRows(
                 sourceParent, destinationChild, destinationChild + count - 1
             )
-            for i in reversed(range(count)):
-                newItem = newItems[-i - 1]
-                newItem.setParent(self._rootItem, destinationChild)
+            for i in range(count):
+                newItems[i].setParent(self._rootItem, destinationChild + i)
             self.endInsertRows()
 
-            for i in reversed(range(count)):
+            for i in range(count):
                 newWorker = ExperimentWorker(self)
                 newWorker.setExperimentData(
-                    exptData[-i - 1], reduce(lambda x, y: x | y, WorkerUpdateFlag)
+                    exptData[i], reduce(lambda x, y: x | y, WorkerUpdateFlag)
                 )
-                self._workers.insert(destinationChild, newWorker)
+                self._workers.insert(destinationChild + i, newWorker)
 
             if reactivate:
                 newRow = activatedRow + count
