@@ -786,17 +786,17 @@ class ExperimentDataModel(QAbstractItemModel):
         )
 
         self.beginInsertRows(QModelIndex(), row, row + count - 1)
-        for i in reversed(range(count)):
-            data = exptData[-i - 1]
+        for i in range(count):
+            data = exptData[i]
             newItem = self._itemFromExperimentData(data)
-            newItem.setData(self.Role_ExptName, names[-i - 1])
-            newItem.setParent(self._rootItem, row)
+            newItem.setData(self.Role_ExptName, names[i])
+            newItem.setParent(self._rootItem, row + i)
         self.endInsertRows()
 
-        for i in reversed(range(count)):
-            data = exptData[-i - 1]
+        for i in range(count):
+            data = exptData[i]
             worker = ExperimentWorker(self)
-            self._workers.insert(row, worker)
+            self._workers.insert(row + i, worker)
             worker.setExperimentData(data, reduce(lambda x, y: x | y, WorkerUpdateFlag))
 
         if reactivate:
@@ -816,9 +816,9 @@ class ExperimentDataModel(QAbstractItemModel):
             return ok
         elif self.whatsThisIndex(parent) == IndexRole.COATPATHS:
             self.beginInsertRows(parent, row, row + count - 1)
-            for _ in reversed(range(count)):
+            for i in range(count):
                 newItem = ExperimentDataItem()
-                newItem.setParent(parent.internalPointer(), row)
+                newItem.setParent(parent.internalPointer(), row + i)
             self.endInsertRows()
 
             topLevelIndex = getTopLevelIndex(parent)
@@ -893,9 +893,9 @@ class ExperimentDataModel(QAbstractItemModel):
             self.beginInsertRows(
                 sourceParent, destinationChild, destinationChild + count - 1
             )
-            for i in reversed(range(count)):
-                newItem = newItems[-i - 1]
-                newItem.setParent(self._rootItem, destinationChild)
+            for i in range(count):
+                newItem = newItems[i]
+                newItem.setParent(self._rootItem, destinationChild + i)
             self.endInsertRows()
 
             topLevelIndex = getTopLevelIndex(sourceParent)
