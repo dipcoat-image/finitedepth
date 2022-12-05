@@ -234,6 +234,11 @@ class ExperimentDataListView(QWidget):
             elif selectedFilter == DataFileTypeEnum.YAML:
                 yaml.dump(data, f)
 
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Delete:
+            self.deleteSelectedRows()
+        super().keyPressEvent(event)
+
 
 class ExperimentNameDelegate(QStyledItemDelegate):
     """Delegate to mark activated experiment."""
