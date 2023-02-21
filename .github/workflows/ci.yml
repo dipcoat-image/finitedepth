@@ -11,10 +11,10 @@ jobs:
     steps: 
 
       - name: get repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
 
       - name: install dependencies
         run: |
@@ -26,7 +26,7 @@ jobs:
 
       - name: lint with black
         run: |
-          black --check -v .
+          black --check .
 
   type-check:
 
@@ -37,10 +37,10 @@ jobs:
     steps: 
 
       - name: get repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
 
       - name: install package
         run: |
@@ -66,10 +66,10 @@ jobs:
     steps:
 
       - name: get repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
 
@@ -101,10 +101,10 @@ jobs:
     steps: 
 
       - name: get repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
 
       - name: install package
         run: |

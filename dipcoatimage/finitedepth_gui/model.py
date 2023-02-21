@@ -882,7 +882,6 @@ class ExperimentDataModel(QAbstractItemModel):
             return True
 
         elif self.whatsThisIndex(sourceParent) == IndexRole.COATPATHS:
-
             newItems, exptData = [], []
             for i in range(count):
                 sourceIdx = self.index(sourceRow + i, 0, sourceParent)

@@ -381,26 +381,12 @@ class RectLayerArea(
 
     def analyze_layer(self) -> Tuple[int, int, int, int, int]:
         layer_label = self.label_layer()
-        val, counts = np.unique(layer_label, return_counts=True)
+        unique_count = dict(zip(*np.unique(layer_label, return_counts=True)))
 
-        i = self.Region_Left
-        count = counts[np.where(val == i)]
-        (left_a,) = count if count.size > 0 else (0,)
-
-        i = self.Region_Left | self.Region_Bottom
-        count = counts[np.where(val == i)]
-        (leftcorner_a,) = count if count.size > 0 else (0,)
-
-        i = self.Region_Bottom
-        count = counts[np.where(val == i)]
-        (bottom_a,) = count if count.size > 0 else (0,)
-
-        i = self.Region_Bottom | self.Region_Right
-        count = counts[np.where(val == i)]
-        (rightcorner_a,) = count if count.size > 0 else (0,)
-
-        i = self.Region_Right
-        count = counts[np.where(val == i)]
-        (right_a,) = count if count.size > 0 else (0,)
+        left_a = unique_count.get(self.Region_Left, 0)
+        leftcorner_a = unique_count.get(self.Region_Left | self.Region_Bottom, 0)
+        bottom_a = unique_count.get(self.Region_Bottom, 0)
+        rightcorner_a = unique_count.get(self.Region_Bottom | self.Region_Right, 0)
+        right_a = unique_count.get(self.Region_Right, 0)
 
         return (left_a, leftcorner_a, bottom_a, rightcorner_a, right_a)
