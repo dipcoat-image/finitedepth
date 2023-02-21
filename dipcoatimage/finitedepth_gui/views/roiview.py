@@ -21,7 +21,6 @@ class ROISpinBox(QSpinBox):
 
 
 class ROIView(QWidget):
-
     editingFinished = Signal()
 
     def __init__(self, parent=None):

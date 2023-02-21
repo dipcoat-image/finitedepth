@@ -234,7 +234,6 @@ class ExperimentView(QWidget):
 
 
 class ExperimentArgsDelegate(dawiq.DataclassDelegate):
-
     TypeRole = ExperimentDataModel.Role_DataclassType
     DataRole = ExperimentDataModel.Role_DataclassData
 

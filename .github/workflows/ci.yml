@@ -26,7 +26,7 @@ jobs:
 
       - name: lint with black
         run: |
-          black --check -v .
+          black --check .
 
   type-check:
 

@@ -113,7 +113,6 @@ class ArrayProcessor(QObject):
 
 
 class VisualizeManager(QObject):
-
     _processRequested = Signal(np.ndarray)
     arrayChanged = Signal(np.ndarray)
     roiMaximumChanged = Signal(int, int)

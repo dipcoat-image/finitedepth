@@ -145,7 +145,6 @@ class CoatingLayerView(QWidget):
 
 
 class CoatingLayerArgsDelegate(dawiq.DataclassDelegate):
-
     TypeRole = ExperimentDataModel.Role_DataclassType
     DataRole = ExperimentDataModel.Role_DataclassData
 

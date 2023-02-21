@@ -225,7 +225,6 @@ class ReferenceView(QWidget):
 
 
 class ReferencePathDelegate(QStyledItemDelegate):
-
     roiMaximumChanged = Signal(int, int)
 
     def setEditorData(self, editor, index):
@@ -243,7 +242,6 @@ class ReferencePathDelegate(QStyledItemDelegate):
 
 
 class ReferenceArgsDelegate(dawiq.DataclassDelegate):
-
     TypeRole = ExperimentDataModel.Role_DataclassType
     DataRole = ExperimentDataModel.Role_DataclassData
 

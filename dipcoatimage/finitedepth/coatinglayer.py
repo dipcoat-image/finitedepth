@@ -367,7 +367,7 @@ class CoatingLayerBase(
 
             image = np.full((H, W), 255, dtype=binimg.dtype)
             x0, y0 = self.substrate_point()
-            for (x, y) in self.substrate.nestled_points():
+            for x, y in self.substrate.nestled_points():
                 label_point = (x0 + x, y0 + y)
                 label = labels[label_point[::-1]]
                 image[labels == label] = 0

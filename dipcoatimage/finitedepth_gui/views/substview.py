@@ -136,7 +136,6 @@ class SubstrateView(QWidget):
 
 
 class SubstrateArgsDelegate(dawiq.DataclassDelegate):
-
     TypeRole = ExperimentDataModel.Role_DataclassType
     DataRole = ExperimentDataModel.Role_DataclassData
 
