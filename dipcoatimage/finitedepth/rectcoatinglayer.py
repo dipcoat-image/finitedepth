@@ -330,8 +330,6 @@ class RectLayerArea(
     Data = RectLayerAreaData
 
     DrawMode: TypeAlias = BinaryImageDrawMode
-    Draw_Original = BinaryImageDrawMode.ORIGINAL
-    Draw_Binary = BinaryImageDrawMode.BINARY
 
     def examine(self) -> None:
         return None
@@ -340,9 +338,9 @@ class RectLayerArea(
         draw_mode = self.draw_options.draw_mode
         if self.draw_options.remove_substrate:
             image = self.extract_layer()
-        elif draw_mode == self.Draw_Original:
+        elif draw_mode == self.DrawMode.ORIGINAL:
             image = self.image
-        elif draw_mode == self.Draw_Binary:
+        elif draw_mode == self.DrawMode.BINARY:
             image = self.binary_image()
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
