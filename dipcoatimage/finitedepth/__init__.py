@@ -41,7 +41,11 @@ from .coatinglayer import (
     CoatingLayerBase,
     LayerArea,
 )
-from .rectcoatinglayer import RectCoatingLayerBase, RectLayerArea
+from .rectcoatinglayer import (
+    RectCoatingLayerBase,
+    RectLayerArea,
+    RectLayerShape,
+)
 from .experiment import ExperimentError, ExperimentBase, Experiment
 from .analysis import ExperimentKind, experiment_kind, Analyzer
 from .serialize import (
@@ -80,6 +84,7 @@ __all__ = [
     "LayerArea",
     "RectCoatingLayerBase",
     "RectLayerArea",
+    "RectLayerShape",
     "ExperimentError",
     "ExperimentBase",
     "Experiment",

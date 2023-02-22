@@ -51,6 +51,11 @@ __all__ = [
     "RectLayerAreaDecoOptions",
     "RectLayerAreaData",
     "RectLayerArea",
+    "RectLayerShapeParameters",
+    "RectLayerShapeDrawOptions",
+    "RectLayerShapeDecoOptions",
+    "RectLayerShapeData",
+    "RectLayerShape",
 ]
 
 
@@ -381,3 +386,45 @@ class RectLayerArea(
         right_a = unique_count.get(self.RegionFlag.RIGHT, 0)
 
         return (left_a, leftcorner_a, bottom_a, rightcorner_a, right_a)
+
+
+@dataclasses.dataclass(frozen=True)
+class RectLayerShapeParameters:
+    """Analysis parameters for :class:`RectLayerShape` instance."""
+
+    pass
+
+
+@dataclasses.dataclass(frozen=True)
+class RectLayerShapeDrawOptions:
+    """Drawing options for :class:`RectLayerShape` instance."""
+
+    pass
+
+
+@dataclasses.dataclass(frozen=True)
+class RectLayerShapeDecoOptions:
+    """Decorating options for :class:`RectLayerShape` instance."""
+
+    pass
+
+
+@dataclasses.dataclass(frozen=True)
+class RectLayerShapeData:
+    """Analysis data for :class:`RectLayerShape` instance."""
+
+    pass
+
+
+class RectLayerShape(
+    RectCoatingLayerBase[
+        RectLayerShapeParameters,
+        RectLayerShapeDrawOptions,
+        RectLayerShapeDecoOptions,
+        RectLayerShapeData,
+    ]
+):
+    Parameters = RectLayerShapeParameters
+    DrawOptions = RectLayerShapeDrawOptions
+    DecoOptions = RectLayerShapeDecoOptions
+    Data = RectLayerShapeData
