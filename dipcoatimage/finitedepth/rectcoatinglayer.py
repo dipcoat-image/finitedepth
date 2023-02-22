@@ -220,7 +220,7 @@ class RectLayerAreaData:
     ==========
 
     LeftArea, LeftCornerArea, BottomArea, RightCornerArea, RightArea
-        Number of the pixels in cross section image of coating layer regions.
+        Number of the pixels in each coating layer region.
 
     """
 
