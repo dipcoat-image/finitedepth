@@ -413,7 +413,10 @@ class RectLayerShapeDecoOptions:
 class RectLayerShapeData:
     """Analysis data for :class:`RectLayerShape` instance."""
 
-    pass
+    Area: int
+
+    LayerLength_Left: float
+    LayerLength_Right: float
 
 
 class RectLayerShape(
@@ -424,7 +427,14 @@ class RectLayerShape(
         RectLayerShapeData,
     ]
 ):
+    """
+    Class for analyzing the shape and thickness of the coating layer over
+    rectangular substrate.
+    """
     Parameters = RectLayerShapeParameters
     DrawOptions = RectLayerShapeDrawOptions
     DecoOptions = RectLayerShapeDecoOptions
     Data = RectLayerShapeData
+
+    def examine(self) -> None:
+        return None
