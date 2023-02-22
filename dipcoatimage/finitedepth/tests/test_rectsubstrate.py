@@ -30,16 +30,16 @@ def test_RectSubstrate(rectsubst):
         for k, v in rectsubst.edge_lines().items()
     }
     assert edge_lines == {
-        rectsubst.Line_Left: (117.0, 0.0),
-        rectsubst.Line_Right: (517.0, 0.0),
-        rectsubst.Line_Top: (49.0, 1.57),
-        rectsubst.Line_Bottom: (331.0, 1.57),
+        rectsubst.LineType.LEFT: (117.0, 0.0),
+        rectsubst.LineType.RIGHT: (517.0, 0.0),
+        rectsubst.LineType.TOP: (49.0, 1.57),
+        rectsubst.LineType.BOTTOM: (331.0, 1.57),
     }
     assert rectsubst.vertex_points() == {
-        rectsubst.Point_TopLeft: (117, 48),
-        rectsubst.Point_TopRight: (517, 48),
-        rectsubst.Point_BottomLeft: (117, 330),
-        rectsubst.Point_BottomRight: (517, 330),
+        rectsubst.PointType.TOPLEFT: (117, 48),
+        rectsubst.PointType.TOPRIGHT: (517, 48),
+        rectsubst.PointType.BOTTOMLEFT: (117, 330),
+        rectsubst.PointType.BOTTOMRIGHT: (517, 330),
     }
 
 
@@ -57,8 +57,8 @@ def test_RectSubstrate_lines_notNone():
 
 
 def test_RectSubstrate_drawoptions(rectsubst):
-    rectsubst.draw_options.draw_type = rectsubst.Draw_Binary
+    rectsubst.draw_options.draw_type = rectsubst.DrawMode.BINARY
     rectsubst.draw()
 
-    rectsubst.draw_options.draw_type = rectsubst.Draw_Edges
+    rectsubst.draw_options.draw_type = rectsubst.DrawMode.EDGES
     rectsubst.draw()

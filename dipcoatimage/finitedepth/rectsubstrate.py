@@ -192,18 +192,7 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     DrawOptions: Type[DrawOptionsType]
 
     LineType: TypeAlias = RectSubstrateLineType
-    Line_Unknown = RectSubstrateLineType.UNKNOWN
-    Line_Left = RectSubstrateLineType.LEFT
-    Line_Right = RectSubstrateLineType.RIGHT
-    Line_Top = RectSubstrateLineType.TOP
-    Line_Bottom = RectSubstrateLineType.BOTTOM
-
     PointType: TypeAlias = RectSubstratePointType
-    Point_Unknown = RectSubstratePointType.UNKNOWN
-    Point_TopLeft = RectSubstratePointType.TOPLEFT
-    Point_BottomLeft = RectSubstratePointType.BOTTOMLEFT
-    Point_BottomRight = RectSubstratePointType.BOTTOMRIGHT
-    Point_TopRight = RectSubstratePointType.TOPRIGHT
 
     def canny_image(self) -> npt.NDArray[np.uint8]:
         """
@@ -249,17 +238,17 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         )
         is_vertical = any(isclose(theta, a, abs_tol=0.2) for a in (0, np.pi, 2 * np.pi))
 
-        ret = self.Line_Unknown
+        ret = self.LineType.UNKNOWN
         if is_horizontal:
             if r <= h / 2:
-                ret = self.Line_Top
+                ret = self.LineType.TOP
             else:
-                ret = self.Line_Bottom
+                ret = self.LineType.BOTTOM
         elif is_vertical:
             if r <= w / 2:
-                ret = self.Line_Left
+                ret = self.LineType.LEFT
             else:
-                ret = self.Line_Right
+                ret = self.LineType.RIGHT
         return ret
 
     def edge_lines(self) -> Dict[RectSubstrateLineType, Tuple[float, float]]:
@@ -300,23 +289,23 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         """
         if not hasattr(self, "_vertex_points"):
-            left = self.edge_lines().get(self.Line_Left, None)
-            right = self.edge_lines().get(self.Line_Right, None)
-            top = self.edge_lines().get(self.Line_Top, None)
-            bottom = self.edge_lines().get(self.Line_Bottom, None)
+            left = self.edge_lines().get(self.LineType.LEFT, None)
+            right = self.edge_lines().get(self.LineType.RIGHT, None)
+            top = self.edge_lines().get(self.LineType.TOP, None)
+            bottom = self.edge_lines().get(self.LineType.BOTTOM, None)
             points = {}
             if top and left:
                 x, y = intrsct_pt_polar(*top, *left)
-                points[self.Point_TopLeft] = (int(x), int(y))
+                points[self.PointType.TOPLEFT] = (int(x), int(y))
             if top and right:
                 x, y = intrsct_pt_polar(*top, *right)
-                points[self.Point_TopRight] = (int(x), int(y))
+                points[self.PointType.TOPRIGHT] = (int(x), int(y))
             if bottom and left:
                 x, y = intrsct_pt_polar(*bottom, *left)
-                points[self.Point_BottomLeft] = (int(x), int(y))
+                points[self.PointType.BOTTOMLEFT] = (int(x), int(y))
             if bottom and right:
                 x, y = intrsct_pt_polar(*bottom, *right)
-                points[self.Point_BottomRight] = (int(x), int(y))
+                points[self.PointType.BOTTOMRIGHT] = (int(x), int(y))
             self._vertex_points = points  # type: ignore
         return self._vertex_points  # type: ignore
 
@@ -330,13 +319,13 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         else:
             msg_tmpl = "Cannot detect %s of the substrate"
             missing = []
-            if self.Line_Left not in self.edge_lines():
+            if self.LineType.LEFT not in self.edge_lines():
                 missing.append("left wall")
-            if self.Line_Right not in self.edge_lines():
+            if self.LineType.RIGHT not in self.edge_lines():
                 missing.append("right wall")
-            if self.Line_Top not in self.edge_lines():
+            if self.LineType.TOP not in self.edge_lines():
                 missing.append("top wall")
-            if self.Line_Bottom not in self.edge_lines():
+            if self.LineType.BOTTOM not in self.edge_lines():
                 missing.append("bottom wall")
 
             if missing:
@@ -460,19 +449,16 @@ class RectSubstrate(
     DrawOptions = RectSubstrateDrawOptions
 
     DrawMode: TypeAlias = RectSubstrateDrawMode
-    Draw_Original = RectSubstrateDrawMode.ORIGINAL
-    Draw_Binary = RectSubstrateDrawMode.BINARY
-    Draw_Edges = RectSubstrateDrawMode.EDGES
 
     def draw(self) -> npt.NDArray[np.uint8]:
         h, w = self.image().shape[:2]
 
         draw_mode = self.draw_options.draw_mode
-        if draw_mode is self.Draw_Original:
+        if draw_mode is self.DrawMode.ORIGINAL:
             image = self.image()
-        elif draw_mode is self.Draw_Binary:
+        elif draw_mode is self.DrawMode.BINARY:
             image = self.binary_image()
-        elif draw_mode is self.Draw_Edges:
+        elif draw_mode is self.DrawMode.EDGES:
             image = self.canny_image()
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
@@ -502,10 +488,10 @@ class RectSubstrate(
 
         if self.draw_options.Draw_Edges:
             vertex_points = self.vertex_points()
-            topleft = vertex_points.get(self.Point_TopLeft, None)
-            topright = vertex_points.get(self.Point_TopRight, None)
-            bottomleft = vertex_points.get(self.Point_BottomLeft, None)
-            bottomright = vertex_points.get(self.Point_BottomRight, None)
+            topleft = vertex_points.get(self.PointType.TOPLEFT, None)
+            topright = vertex_points.get(self.PointType.TOPRIGHT, None)
+            bottomleft = vertex_points.get(self.PointType.BOTTOMLEFT, None)
+            bottomright = vertex_points.get(self.PointType.BOTTOMRIGHT, None)
 
             color = self.draw_options.edge_color
             thickness = self.draw_options.edge_thickness

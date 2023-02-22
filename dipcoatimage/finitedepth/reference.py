@@ -390,17 +390,15 @@ class SubstrateReference(
     DrawOptions = SubstrateReferenceDrawOptions
 
     DrawMode: TypeAlias = BinaryImageDrawMode
-    Draw_Original = BinaryImageDrawMode.ORIGINAL
-    Draw_Binary = BinaryImageDrawMode.BINARY
 
     def examine(self) -> None:
         return None
 
     def draw(self) -> npt.NDArray[np.uint8]:
         draw_mode = self.draw_options.draw_mode
-        if draw_mode == self.Draw_Original:
+        if draw_mode == self.DrawMode.ORIGINAL:
             image = self.image
-        elif draw_mode == self.Draw_Binary:
+        elif draw_mode == self.DrawMode.BINARY:
             image = self.binary_image()
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
