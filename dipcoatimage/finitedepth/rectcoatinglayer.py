@@ -470,10 +470,10 @@ class RectLayerShape(
             # to remove large specks
             p0 = np.array(self.substrate_point())
             B = p0 + np.array(
-                self.substrate.vertex_points()[self.substrate.Point_BottomLeft]
+                self.substrate.vertex_points()[self.substrate.PointType.BOTTOMLEFT]
             )
             C = p0 + np.array(
-                self.substrate.vertex_points()[self.substrate.Point_BottomRight]
+                self.substrate.vertex_points()[self.substrate.PointType.BOTTOMRIGHT]
             )
             comps, labels = cv2.connectedComponents(cv2.bitwise_not(img_closed))
             dist_thres = self.parameters.ReconstructRadius
@@ -488,8 +488,8 @@ class RectLayerShape(
 
             # get contact line points
             layer_label = self.label_layer().copy()
-            layer_label[np.where(~labels.astype(bool))] = self.Region_Background
-            left_row, left_col = np.where(layer_label == self.Region_LeftBand)
+            layer_label[np.where(~labels.astype(bool))] = self.Region.BACKGROUND
+            left_row, left_col = np.where(layer_label == self.Region.LEFT)
             left_points = np.stack([left_col, left_row], axis=1)
             if left_points.size != 0:
                 left_x, left_y = left_points.T
@@ -498,7 +498,7 @@ class RectLayerShape(
                 leftp_y = int(left_y[leftp_idx])
             else:
                 leftp_x, leftp_y = [int(i) for i in B]
-            right_row, right_col = np.where(layer_label == self.Region_RightBand)
+            right_row, right_col = np.where(layer_label == self.Region.RIGHT)
             right_points = np.stack([right_col, right_row], axis=1)
             if right_points.size != 0:
                 right_x, right_y = right_points.T
