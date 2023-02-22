@@ -62,6 +62,7 @@ from .util import (
     get_samples_path,
     CannyParameters,
     HoughLinesParameters,
+    MorphologyClosingParameters,
 )
 
 
@@ -102,4 +103,5 @@ __all__ = [
     "get_samples_path",
     "CannyParameters",
     "HoughLinesParameters",
+    "MorphologyClosingParameters",
 ]

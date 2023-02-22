@@ -37,7 +37,11 @@ from .coatinglayer import (
     LayerAreaParameters,
     LayerAreaDrawOptions,
 )
-from .util import DataclassProtocol, BinaryImageDrawMode
+from .util import (
+    DataclassProtocol,
+    BinaryImageDrawMode,
+    MorphologyClosingParameters,
+)
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -56,6 +60,7 @@ __all__ = [
     "RectLayerShapeDecoOptions",
     "RectLayerShapeData",
     "RectLayerShape",
+    "get_extended_line",
 ]
 
 
@@ -376,13 +381,9 @@ class RectLayerArea(
         unique_count = dict(zip(*np.unique(layer_label, return_counts=True)))
 
         left_a = unique_count.get(self.Region.LEFT, 0)
-        leftcorner_a = unique_count.get(
-            self.Region.LEFT | self.Region.BOTTOM, 0
-        )
+        leftcorner_a = unique_count.get(self.Region.LEFT | self.Region.BOTTOM, 0)
         bottom_a = unique_count.get(self.Region.BOTTOM, 0)
-        rightcorner_a = unique_count.get(
-            self.Region.BOTTOM | self.Region.RIGHT, 0
-        )
+        rightcorner_a = unique_count.get(self.Region.BOTTOM | self.Region.RIGHT, 0)
         right_a = unique_count.get(self.Region.RIGHT, 0)
 
         return (left_a, leftcorner_a, bottom_a, rightcorner_a, right_a)
@@ -392,7 +393,8 @@ class RectLayerArea(
 class RectLayerShapeParameters:
     """Analysis parameters for :class:`RectLayerShape` instance."""
 
-    pass
+    MorphologyClosing: MorphologyClosingParameters
+    ReconstructRadius: int
 
 
 @dataclasses.dataclass(frozen=True)
@@ -431,6 +433,12 @@ class RectLayerShape(
     Class for analyzing the shape and thickness of the coating layer over
     rectangular substrate.
     """
+
+    __slots__ = (
+        "_contactline_points",
+        "_refined_layer",
+    )
+
     Parameters = RectLayerShapeParameters
     DrawOptions = RectLayerShapeDrawOptions
     DecoOptions = RectLayerShapeDecoOptions
@@ -438,3 +446,158 @@ class RectLayerShape(
 
     def examine(self) -> None:
         return None
+
+    def contactline_points(self) -> Tuple[int, int, int, int]:
+        """
+        Get the coordinates of the contact line points of the layer.
+
+        Return value as ``(left x, left y, right x, right y)``.
+        """
+        if not hasattr(self, "_contactline_points"):
+            # perform closing to remove error pixels
+            img = self.extract_layer()
+            closingParams = self.parameters.MorphologyClosing
+            kernel = np.ones(closingParams.kernelSize)
+            img_closed = cv2.morphologyEx(
+                img,
+                cv2.MORPH_CLOSE,
+                kernel,
+                anchor=closingParams.anchor,
+                iterations=closingParams.iterations,
+            )
+
+            # reconstruct the remaining components around the lower corners
+            # to remove large specks
+            p0 = np.array(self.substrate_point())
+            B = p0 + np.array(
+                self.substrate.vertex_points()[self.substrate.Point_BottomLeft]
+            )
+            C = p0 + np.array(
+                self.substrate.vertex_points()[self.substrate.Point_BottomRight]
+            )
+            comps, labels = cv2.connectedComponents(cv2.bitwise_not(img_closed))
+            dist_thres = self.parameters.ReconstructRadius
+            for i in range(1, comps):
+                row, col = np.where(labels == i)
+                points = np.stack([col, row], axis=1)
+                left_dist = np.linalg.norm(points - B, axis=1)
+                right_dist = np.linalg.norm(points - C, axis=1)
+                if np.min(left_dist) > dist_thres and np.min(right_dist) > dist_thres:
+                    labels[row, col] = 0
+            labels[np.where(labels)] = 255  # binarize
+
+            # get contact line points
+            layer_label = self.label_layer().copy()
+            layer_label[np.where(~labels.astype(bool))] = self.Region_Background
+            left_row, left_col = np.where(layer_label == self.Region_LeftBand)
+            left_points = np.stack([left_col, left_row], axis=1)
+            if left_points.size != 0:
+                left_x, left_y = left_points.T
+                leftp_idx = np.argmin(left_y)
+                leftp_x = int(left_x[leftp_idx])
+                leftp_y = int(left_y[leftp_idx])
+            else:
+                leftp_x, leftp_y = [int(i) for i in B]
+            right_row, right_col = np.where(layer_label == self.Region_RightBand)
+            right_points = np.stack([right_col, right_row], axis=1)
+            if right_points.size != 0:
+                right_x, right_y = right_points.T
+                rightp_idx = np.argmin(right_y)
+                rightp_x = int(right_x[rightp_idx])
+                rightp_y = int(right_y[rightp_idx])
+            else:
+                rightp_x, rightp_y = [int(i) for i in C]
+
+            self._contactline_points = (leftp_x, leftp_y, rightp_x, rightp_y)
+
+        return self._contactline_points
+
+    def refine_layer(self) -> npt.NDArray[np.uint8]:
+        """Get the refined coating layer image without error pixels."""
+        if not hasattr(self, "_refined_layer"):
+            layer_img = self.extract_layer().copy()
+            h, w = layer_img.shape[:2]
+            x1, y1, x2, y2 = self.contactline_points()
+            p1, p2 = (x1, y1), (x2, y2)
+            ext_p1, ext_p2 = get_extended_line((h, w), p1, p2)
+            pts = np.array([(0, 0), ext_p1, ext_p2, (w, 0)])
+            # remove every pixels above the contact line
+            cv2.fillPoly(layer_img, [pts], 255)
+            layer_img = cv2.bitwise_not(layer_img)
+
+            self._refined_layer = layer_img
+
+        return self._refined_layer
+
+
+def get_extended_line(
+    frame_shape: Tuple[int, int], p1: Tuple[int, int], p2: Tuple[int, int]
+) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+    """
+    Extends the line and return its cross points with frame edge.
+
+    Parameters
+    ==========
+
+    frame_shape
+        Shape of the frame in ``(height, width)``.
+
+    p1, p2
+        ``(x, y)`` coorindates of the two points of line.
+
+    Returns
+    =======
+
+    ext_p1, ext_p2
+        ``(x, y)`` coorindates of the two points of extended.
+
+    Raises
+    ======
+
+    ZeroDivisionError
+        *p1* and *p2* are same.
+
+    Examples
+    ========
+
+    >>> from dipcoatimage.finitedepth.rectcoatinglayer import get_extended_line
+    >>> get_extended_line((1080, 1920), (192, 108), (1920, 1080))
+    ((0, 0), (1920, 1080))
+    >>> get_extended_line((1080, 1920), (300, 500), (400, 500))
+    ((0, 500), (1920, 500))
+    >>> get_extended_line((1080, 1920), (900, 400), (900, 600))
+    ((900, 0), (900, 1080))
+
+    """
+    h, w = frame_shape
+    x1, y1 = p1
+    x2, y2 = p2
+
+    if x1 == x2 and y1 == y2:
+        raise ZeroDivisionError("Duplicate points: %s and %s" % (p1, p2))
+
+    elif x1 != x2 and y1 != y2:
+        candidates = (
+            (int((x2 - x1) / (y2 - y1) * (0 - y1) + x1), 0),
+            (int((x2 - x1) / (y2 - y1) * (h - y1) + x1), h),
+            (0, int((y2 - y1) / (x2 - x1) * (0 - x1) + y1)),
+            (w, int((y2 - y1) / (x2 - x1) * (w - x1) + y1)),
+        )
+
+        ret = []
+        for x, y in set(candidates):
+            if 0 <= x <= w and 0 <= y <= h:
+                ret.append((x, y))
+        ret.sort()
+
+        ext_p1, ext_p2 = ret
+
+    elif x1 == x2 and y1 != y2:
+        ext_p1 = (x1, 0)
+        ext_p2 = (x1, h)
+
+    elif x1 != x2 and y1 == y2:
+        ext_p1 = (0, y1)
+        ext_p2 = (w, y1)
+
+    return ext_p1, ext_p2

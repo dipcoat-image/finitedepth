@@ -31,6 +31,7 @@ from .typing import DataclassProtocol, OptionalROI, IntROI
 from .parameters import (
     CannyParameters,
     HoughLinesParameters,
+    MorphologyClosingParameters,
     BinaryImageDrawMode,
 )
 from .testing import dict_includes
@@ -49,6 +50,7 @@ __all__ = [
     "IntROI",
     "CannyParameters",
     "HoughLinesParameters",
+    "MorphologyClosingParameters",
     "BinaryImageDrawMode",
     "dict_includes",
 ]

@@ -10,12 +10,14 @@ construct dataclasses for image analysis classes.
 import dataclasses
 import enum
 import numpy as np
+from typing import Tuple
 
 
 __all__ = [
     "CannyParameters",
     "HoughLinesParameters",
     "BinaryImageDrawMode",
+    "MorphologyClosingParameters",
 ]
 
 
@@ -40,6 +42,13 @@ class HoughLinesParameters:
     stn: float = 0.0
     min_theta: float = 0.0
     max_theta: float = np.pi
+
+
+@dataclasses.dataclass(frozen=True)
+class MorphologyClosingParameters:
+    kernelSize: Tuple[int, int]
+    anchor: Tuple[int, int] = (-1, -1)
+    iterations: int = 1
 
 
 class BinaryImageDrawMode(enum.Enum):
