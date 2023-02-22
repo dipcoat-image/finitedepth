@@ -108,10 +108,11 @@ class RectCoatingLayerBase(
 
     def label_layer(self) -> npt.NDArray[np.uint8]:
         """
-        Return the array of coating layer divided and labelled.
+        Return the classification map of the pixels.
 
-        Return value is :class:`numpy.ndarray` with :class:`LayerRegionFlag`
-        elements combined to represent coating layer regions.
+        Pixels are labelled with :class:`LayerRegionFlag` by their location
+        relative to the substrate. The values can be combined to denote the pixel
+        in the corner, i.e. ``LEFT | BOTTOM`` for the lower left region.
 
         """
         if not hasattr(self, "_labelled_layer"):
