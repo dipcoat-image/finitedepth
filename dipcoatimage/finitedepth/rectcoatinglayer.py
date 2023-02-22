@@ -55,9 +55,7 @@ __all__ = [
 
 
 class LayerRegionFlag(enum.IntFlag):
-    """
-    Label for the coating layer regions.
-    """
+    """Label to classify the coating layer pixels by their regions."""
 
     BACKGROUND = 0
     LEFT = 1
@@ -79,15 +77,9 @@ class RectCoatingLayerBase(
     """
     Abstract base class for coating layer over rectangular substrate.
 
-    For rectangular substrate, coating layer is classified into five regions.
-
-    1. Left
-    2. Left corner (bottom and left)
-    3. Bottom
-    4. Right corner (right and bottom)
-    5. Right
-
-    Classified layer can be retrieved by :meth:`label_layer`.
+    :class:`RectCoatingLayerBase` is capable of classifying the coating layer
+    pixels by their location relative to the substrate. To get the classification
+    map, use :meth:`label_layer`.
 
     """
 
@@ -98,11 +90,7 @@ class RectCoatingLayerBase(
     DecoOptions: Type[DecoOptionsType]
     Data: Type[DataType]
 
-    RegionFlag = LayerRegionFlag
-    Region_Background = LayerRegionFlag.BACKGROUND
-    Region_Left = LayerRegionFlag.LEFT
-    Region_Bottom = LayerRegionFlag.BOTTOM
-    Region_Right = LayerRegionFlag.RIGHT
+    RegionFlag: TypeAlias = LayerRegionFlag
 
     def capbridge_broken(self) -> bool:
         x0, y0 = self.substrate_point()
@@ -120,15 +108,16 @@ class RectCoatingLayerBase(
 
     def label_layer(self) -> npt.NDArray[np.uint8]:
         """
-        Return the array of coating layer divided and labelled.
+        Return the classification map of the pixels.
 
-        Return value is :class:`numpy.ndarray` with :class:`LayerRegionFlag`
-        elements combined to represent coating layer regions.
+        Pixels are labelled with :class:`LayerRegionFlag` by their location
+        relative to the substrate. The values can be combined to denote the pixel
+        in the corner, i.e. ``LEFT | BOTTOM`` for the lower left region.
 
         """
         if not hasattr(self, "_labelled_layer"):
             h, w = self.image.shape[:2]
-            ret = np.full((h, w), self.Region_Background)
+            ret = np.full((h, w), self.RegionFlag.BACKGROUND)
 
             mask = cv2.bitwise_not(self.extract_layer()).astype(bool)
             row, col = np.where(mask)
@@ -153,13 +142,13 @@ class RectCoatingLayerBase(
             right_of_CD = np.cross(D - C, points - C) >= 0
 
             left_x, left_y = points[left_of_AB].T
-            ret[left_y, left_x] |= self.Region_Left
+            ret[left_y, left_x] |= self.RegionFlag.LEFT
 
             bottom_x, bottom_y = points[under_BC].T
-            ret[bottom_y, bottom_x] |= self.Region_Bottom
+            ret[bottom_y, bottom_x] |= self.RegionFlag.BOTTOM
 
             right_x, right_y = points[right_of_CD].T
-            ret[right_y, right_x] |= self.Region_Right
+            ret[right_y, right_x] |= self.RegionFlag.RIGHT
             self._labelled_layer = ret
 
         return self._labelled_layer
@@ -231,7 +220,7 @@ class RectLayerAreaData:
     ==========
 
     LeftArea, LeftCornerArea, BottomArea, RightCornerArea, RightArea
-        Number of the pixels in cross section image of coating layer regions.
+        Number of the pixels in each coating layer region.
 
     """
 
@@ -361,30 +350,34 @@ class RectLayerArea(
         if self.draw_options.decorate:
             layer_label = self.label_layer()
             if self.deco_options.paint_Left:
-                color = self.deco_options.Left_color
-                ret[layer_label == self.Region_Left] = color
+                c = self.deco_options.Left_color
+                ret[layer_label == self.RegionFlag.LEFT] = c
             if self.deco_options.paint_LeftCorner:
-                color = self.deco_options.LeftCorner_color
-                ret[layer_label == self.Region_Left | self.Region_Bottom] = color
+                c = self.deco_options.LeftCorner_color
+                ret[layer_label == self.RegionFlag.LEFT | self.RegionFlag.BOTTOM] = c
             if self.deco_options.paint_Bottom:
-                color = self.deco_options.Bottom_color
-                ret[layer_label == self.Region_Bottom] = color
+                c = self.deco_options.Bottom_color
+                ret[layer_label == self.RegionFlag.BOTTOM] = c
             if self.deco_options.paint_RightCorner:
-                color = self.deco_options.RightCorner_color
-                ret[layer_label == self.Region_Bottom | self.Region_Right] = color
+                c = self.deco_options.RightCorner_color
+                ret[layer_label == self.RegionFlag.BOTTOM | self.RegionFlag.RIGHT] = c
             if self.deco_options.paint_Right:
-                color = self.deco_options.Right_color
-                ret[layer_label == self.Region_Right] = color
+                c = self.deco_options.Right_color
+                ret[layer_label == self.RegionFlag.RIGHT] = c
         return ret
 
     def analyze_layer(self) -> Tuple[int, int, int, int, int]:
         layer_label = self.label_layer()
         unique_count = dict(zip(*np.unique(layer_label, return_counts=True)))
 
-        left_a = unique_count.get(self.Region_Left, 0)
-        leftcorner_a = unique_count.get(self.Region_Left | self.Region_Bottom, 0)
-        bottom_a = unique_count.get(self.Region_Bottom, 0)
-        rightcorner_a = unique_count.get(self.Region_Bottom | self.Region_Right, 0)
-        right_a = unique_count.get(self.Region_Right, 0)
+        left_a = unique_count.get(self.RegionFlag.LEFT, 0)
+        leftcorner_a = unique_count.get(
+            self.RegionFlag.LEFT | self.RegionFlag.BOTTOM, 0
+        )
+        bottom_a = unique_count.get(self.RegionFlag.BOTTOM, 0)
+        rightcorner_a = unique_count.get(
+            self.RegionFlag.BOTTOM | self.RegionFlag.RIGHT, 0
+        )
+        right_a = unique_count.get(self.RegionFlag.RIGHT, 0)
 
         return (left_a, leftcorner_a, bottom_a, rightcorner_a, right_a)

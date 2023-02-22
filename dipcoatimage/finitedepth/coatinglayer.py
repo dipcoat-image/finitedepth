@@ -455,7 +455,7 @@ class LayerAreaDrawOptions:
         Flag whether to remove the substrate from the image.
 
     decorate
-        Flag wheter to decorate the coating layer.
+        Flag whether to decorate the coating layer.
 
     """
 
@@ -586,18 +586,20 @@ class LayerArea(
 
     def draw(self) -> npt.NDArray[np.uint8]:
         draw_mode = self.draw_options.draw_mode
-        if self.draw_options.remove_substrate:
-            image = self.extract_layer()
-        elif draw_mode == self.DrawMode.ORIGINAL:
-            image = self.image
+        if draw_mode == self.DrawMode.ORIGINAL:
+            image = self.image.copy()
         elif draw_mode == self.DrawMode.BINARY:
             image = self.binary_image()
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
 
+        mask = self.extract_layer().astype(bool)
+        if self.draw_options.remove_substrate:
+            image[mask] = 255
+
         ret = colorize(image)
         if self.draw_options.decorate:
-            ret[~self.extract_layer().astype(bool)] = self.deco_options.layer_color
+            ret[~mask] = self.deco_options.layer_color
         return ret
 
     def analyze_layer(self) -> Tuple[int]:
