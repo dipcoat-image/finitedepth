@@ -449,19 +449,16 @@ class RectSubstrate(
     DrawOptions = RectSubstrateDrawOptions
 
     DrawMode: TypeAlias = RectSubstrateDrawMode
-    Draw_Original = RectSubstrateDrawMode.ORIGINAL
-    Draw_Binary = RectSubstrateDrawMode.BINARY
-    Draw_Edges = RectSubstrateDrawMode.EDGES
 
     def draw(self) -> npt.NDArray[np.uint8]:
         h, w = self.image().shape[:2]
 
         draw_mode = self.draw_options.draw_mode
-        if draw_mode is self.Draw_Original:
+        if draw_mode is self.DrawMode.ORIGINAL:
             image = self.image()
-        elif draw_mode is self.Draw_Binary:
+        elif draw_mode is self.DrawMode.BINARY:
             image = self.binary_image()
-        elif draw_mode is self.Draw_Edges:
+        elif draw_mode is self.DrawMode.EDGES:
             image = self.canny_image()
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)

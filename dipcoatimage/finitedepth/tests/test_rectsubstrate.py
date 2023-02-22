@@ -57,8 +57,8 @@ def test_RectSubstrate_lines_notNone():
 
 
 def test_RectSubstrate_drawoptions(rectsubst):
-    rectsubst.draw_options.draw_type = rectsubst.Draw_Binary
+    rectsubst.draw_options.draw_type = rectsubst.DrawMode.BINARY
     rectsubst.draw()
 
-    rectsubst.draw_options.draw_type = rectsubst.Draw_Edges
+    rectsubst.draw_options.draw_type = rectsubst.DrawMode.EDGES
     rectsubst.draw()
