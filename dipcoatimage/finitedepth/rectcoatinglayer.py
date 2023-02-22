@@ -136,16 +136,16 @@ class RectCoatingLayerBase(
 
             p0 = np.array(self.substrate_point())
             A = p0 + np.array(
-                self.substrate.vertex_points()[self.substrate.Point_TopLeft]
+                self.substrate.vertex_points()[self.substrate.PointType.TOPLEFT]
             )
             B = p0 + np.array(
-                self.substrate.vertex_points()[self.substrate.Point_BottomLeft]
+                self.substrate.vertex_points()[self.substrate.PointType.BOTTOMLEFT]
             )
             C = p0 + np.array(
-                self.substrate.vertex_points()[self.substrate.Point_BottomRight]
+                self.substrate.vertex_points()[self.substrate.PointType.BOTTOMRIGHT]
             )
             D = p0 + np.array(
-                self.substrate.vertex_points()[self.substrate.Point_TopRight]
+                self.substrate.vertex_points()[self.substrate.PointType.TOPRIGHT]
             )
 
             left_of_AB = np.cross(B - A, points - A) >= 0
