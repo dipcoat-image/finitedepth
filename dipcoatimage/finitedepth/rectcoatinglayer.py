@@ -453,6 +453,56 @@ class RectLayerShape(
     """
     Class for analyzing the shape and thickness of the coating layer over
     rectangular substrate.
+
+    Examples
+    ========
+
+    Construct substrate reference class first.
+
+    .. plot::
+       :include-source:
+       :context: reset
+
+       >>> import cv2
+       >>> from dipcoatimage.finitedepth import (SubstrateReference,
+       ...     get_samples_path)
+       >>> ref_path = get_samples_path("ref1.png")
+       >>> ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+       >>> tempROI = (200, 50, 1200, 200)
+       >>> substROI = (400, 100, 1000, 500)
+       >>> ref = SubstrateReference(ref_img, tempROI, substROI)
+       >>> import matplotlib.pyplot as plt #doctest: +SKIP
+       >>> plt.imshow(ref.draw()) #doctest: +SKIP
+
+    Construct the parameters and substrate instance from reference instance.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> from dipcoatimage.finitedepth import (CannyParameters,
+       ...     HoughLinesParameters, RectSubstrate)
+       >>> cparams = CannyParameters(50, 150)
+       >>> hparams = HoughLinesParameters(1, 0.01, 100)
+       >>> params = RectSubstrate.Parameters(cparams, hparams)
+       >>> subst = RectSubstrate(ref, parameters=params)
+       >>> plt.imshow(subst.draw()) #doctest: +SKIP
+
+    Construct :class:`RectLayerShape` from substrate class. :meth:`analyze`
+    returns the number of pixels in coating area region.
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+
+       >>> from dipcoatimage.finitedepth import (RectLayerShape,
+       ...     MorphologyClosingParameters)
+       >>> coat_path = get_samples_path("coat1.png")
+       >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
+       >>> mparams = MorphologyClosingParameters((1, 1))
+       >>> params = RectLayerShape.Parameters(mparams, 50)
+       >>> coat = RectLayerShape(coat_img, subst, params)
+
     """
 
     __slots__ = (
@@ -604,6 +654,12 @@ class RectLayerShape(
             self._refined_layer = layer_img
 
         return self._refined_layer
+
+    def draw(self) -> npt.NDArray[np.uint8]:
+        raise NotImplementedError
+
+    def analyze_layer(self):
+        raise NotImplementedError
 
 
 def get_extended_line(
