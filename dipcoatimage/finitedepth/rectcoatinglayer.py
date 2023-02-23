@@ -615,7 +615,8 @@ class RectLayerShape(
             # get contact line points
             layer_label = self.label_layer().copy()
             layer_label[np.where(~labels.astype(bool))] = self.Region.BACKGROUND
-            left_row, left_col = np.where(layer_label == self.Region.LEFTWALL)
+            left = (layer_label & self.Region.LEFTHALF).astype(bool)
+            left_row, left_col = np.where(left)
             left_points = np.stack([left_col, left_row], axis=1)
             if left_points.size != 0:
                 left_x, left_y = left_points.T
@@ -624,7 +625,8 @@ class RectLayerShape(
                 leftp_y = int(left_y[leftp_idx])
             else:
                 leftp_x, leftp_y = [int(i) for i in B]
-            right_row, right_col = np.where(layer_label == self.Region.RIGHTWALL)
+            right = (layer_label & ~left).astype(bool)
+            right_row, right_col = np.where(right)
             right_points = np.stack([right_col, right_row], axis=1)
             if right_points.size != 0:
                 right_x, right_y = right_points.T
