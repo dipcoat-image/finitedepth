@@ -421,6 +421,27 @@ class RectLayerShapeData:
     LayerLength_Right: float
 
 
+class LayerRegionFlag2(enum.IntFlag):
+    """
+    Label to classify the coating layer pixels by their regions.
+
+    - BACKGROUND: Null value for pixels that are not the coating layer
+    - LAYER: Denotes that the pixel is in the coating layer
+    - LEFTHALF: Left-hand side w.r.t. the vertical center line
+    - LEFTWALL: Left-hand side w.r.t. the left-hand side substrate wall
+    - RIGHTWALL: Right-hand side w.r.t. the right-hand side substrate wall
+    - BOTTOM: Under the substrate bottom surface
+
+    """
+
+    BACKGROUND = 0
+    LAYER = 1
+    LEFTHALF = 2
+    LEFTWALL = 4
+    RIGHTWALL = 8
+    BOTTOM = 16
+
+
 class RectLayerShape(
     RectCoatingLayerBase[
         RectLayerShapeParameters,
@@ -443,6 +464,61 @@ class RectLayerShape(
     DrawOptions = RectLayerShapeDrawOptions
     DecoOptions = RectLayerShapeDecoOptions
     Data = RectLayerShapeData
+
+    Region: TypeAlias = LayerRegionFlag2
+
+    def label_layer(self) -> npt.NDArray[np.uint8]:
+        """
+        Return the classification map of the pixels.
+
+        Pixels are labelled with :class:`LayerRegionFlag` by their location
+        relative to the substrate. The values can be combined to denote the pixel
+        in the corner, i.e. ``LEFT | BOTTOM`` for the lower left region.
+
+        """
+        if not hasattr(self, "_labelled_layer"):
+            mask = cv2.bitwise_not(self.extract_layer()).astype(bool)
+            row, col = np.where(mask)
+            points = np.stack([col, row], axis=1)
+
+            p0 = np.array(self.substrate_point())
+            A = p0 + np.array(
+                self.substrate.vertex_points()[self.substrate.PointType.TOPLEFT]
+            )
+            B = p0 + np.array(
+                self.substrate.vertex_points()[self.substrate.PointType.BOTTOMLEFT]
+            )
+            C = p0 + np.array(
+                self.substrate.vertex_points()[self.substrate.PointType.BOTTOMRIGHT]
+            )
+            D = p0 + np.array(
+                self.substrate.vertex_points()[self.substrate.PointType.TOPRIGHT]
+            )
+            M1, M2 = (A + D) / 2, (B + C) / 2
+            M1M2 = M2 - M1
+
+            lefthalf = np.cross(M1M2, points - M1) >= 0
+            leftwall = np.cross(B - A, points - A) >= 0
+            rightwall = np.cross(D - C, points - C) >= 0
+            bottom = np.cross(C - B, points - B) >= 0
+
+            h, w = self.image.shape[:2]
+            ret = np.full((h, w), self.Region.BACKGROUND)
+
+            _x, _y = points.T
+            ret[_y, _x] |= self.Region.LAYER
+            _x, _y = points[lefthalf].T
+            ret[_y, _x] |= self.Region.LEFTHALF
+            _x, _y = points[leftwall].T
+            ret[_y, _x] |= self.Region.LEFTWALL
+            _x, _y = points[rightwall].T
+            ret[_y, _x] |= self.Region.RIGHTWALL
+            _x, _y = points[bottom].T
+            ret[_y, _x] |= self.Region.BOTTOM
+
+            self._labelled_layer = ret
+
+        return self._labelled_layer
 
     def examine(self) -> None:
         return None
@@ -489,7 +565,7 @@ class RectLayerShape(
             # get contact line points
             layer_label = self.label_layer().copy()
             layer_label[np.where(~labels.astype(bool))] = self.Region.BACKGROUND
-            left_row, left_col = np.where(layer_label == self.Region.LEFT)
+            left_row, left_col = np.where(layer_label == self.Region.LEFTWALL)
             left_points = np.stack([left_col, left_row], axis=1)
             if left_points.size != 0:
                 left_x, left_y = left_points.T
@@ -498,7 +574,7 @@ class RectLayerShape(
                 leftp_y = int(left_y[leftp_idx])
             else:
                 leftp_x, leftp_y = [int(i) for i in B]
-            right_row, right_col = np.where(layer_label == self.Region.RIGHT)
+            right_row, right_col = np.where(layer_label == self.Region.RIGHTWALL)
             right_points = np.stack([right_col, right_row], axis=1)
             if right_points.size != 0:
                 right_x, right_y = right_points.T
