@@ -123,7 +123,6 @@ def test_SubstrateArgs():
     substargs = SubstrateArgs(
         type=ImportArgs(name="RectSubstrate"),
         parameters=dict(
-            Canny=dict(threshold1=50.0, threshold2=150.0),
             HoughLines=dict(rho=1.0, theta=0.01, threshold=100),
         ),
         draw_options=dict(draw_lines=False),
@@ -152,7 +151,6 @@ def test_CoatingLayerArgs():
     substargs = SubstrateArgs(
         type=ImportArgs(name="RectSubstrate"),
         parameters=dict(
-            Canny=dict(threshold1=50.0, threshold2=150.0),
             HoughLines=dict(rho=1.0, theta=0.01, threshold=100),
         ),
         draw_options=dict(draw_lines=False),

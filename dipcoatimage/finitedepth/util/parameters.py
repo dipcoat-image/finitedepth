@@ -14,21 +14,10 @@ from typing import Tuple
 
 
 __all__ = [
-    "CannyParameters",
     "HoughLinesParameters",
     "BinaryImageDrawMode",
     "MorphologyClosingParameters",
 ]
-
-
-@dataclasses.dataclass(frozen=True)
-class CannyParameters:
-    """Parameters for :func:`cv2.Canny`."""
-
-    threshold1: float
-    threshold2: float
-    apertureSize: int = 3
-    L2gradient: bool = False
 
 
 @dataclasses.dataclass(frozen=True)

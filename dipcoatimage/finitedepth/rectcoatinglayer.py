@@ -279,11 +279,10 @@ class RectLayerArea(
        :include-source:
        :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import (CannyParameters,
-       ...     HoughLinesParameters, RectSubstrate)
-       >>> cparams = CannyParameters(50, 150)
+       >>> from dipcoatimage.finitedepth import (HoughLinesParameters,
+       ...     RectSubstrate)
        >>> hparams = HoughLinesParameters(1, 0.01, 100)
-       >>> params = RectSubstrate.Parameters(cparams, hparams)
+       >>> params = RectSubstrate.Parameters(hparams)
        >>> subst = RectSubstrate(ref, parameters=params)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
@@ -480,11 +479,10 @@ class RectLayerShape(
        :include-source:
        :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import (CannyParameters,
-       ...     HoughLinesParameters, RectSubstrate)
-       >>> cparams = CannyParameters(50, 150)
+       >>> from dipcoatimage.finitedepth import (HoughLinesParameters,
+       ...     RectSubstrate)
        >>> hparams = HoughLinesParameters(1, 0.01, 100)
-       >>> params = RectSubstrate.Parameters(cparams, hparams)
+       >>> params = RectSubstrate.Parameters(hparams)
        >>> subst = RectSubstrate(ref, parameters=params)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 

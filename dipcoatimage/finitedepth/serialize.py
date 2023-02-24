@@ -163,8 +163,7 @@ class SubstrateArgs:
        :context: close-figs
 
        >>> from dipcoatimage.finitedepth import SubstrateArgs, data_converter
-       >>> params = {"Canny": {"threshold1": 50, "threshold2": 150},
-       ...           "HoughLines": {"rho": 1, "theta": 0.01, "threshold": 100}}
+       >>> params = {"HoughLines": {"rho": 1, "theta": 0.01, "threshold": 100}}
        >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)
        >>> substargs = data_converter.structure(arg, SubstrateArgs)
        >>> subst = substargs.as_substrate(ref)
@@ -249,8 +248,7 @@ class CoatingLayerArgs:
        >>> refargs = ReferenceArgs(templateROI=(200, 100, 1200, 500),
        ...                         substrateROI=(300, 50, 1100, 600))
        >>> ref = refargs.as_reference(cv2.imread(get_samples_path("ref1.png")))
-       >>> params = {"Canny": {"threshold1": 50, "threshold2": 150},
-       ...           "HoughLines": {"rho": 1, "theta": 0.01, "threshold": 100}}
+       >>> params = {"HoughLines": {"rho": 1, "theta": 0.01, "threshold": 100}}
        >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)
        >>> substargs = data_converter.structure(arg, SubstrateArgs)
        >>> subst = substargs.as_substrate(ref)

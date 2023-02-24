@@ -112,10 +112,9 @@ It uses the substrate region from the substrate reference instance.
    :caption: Edge of the substrate (blue) detected by :class:`.RectSubstrate`
    :align: center
 
-   >>> from dipcoatimage.finitedepth import CannyParameters, HoughLinesParameters, RectSubstrate
-   >>> cparams = CannyParameters(50, 150)
+   >>> from dipcoatimage.finitedepth import HoughLinesParameters, RectSubstrate
    >>> hparams = HoughLinesParameters(1, 0.01, 50)
-   >>> params = RectSubstrate.Parameters(cparams, hparams)
+   >>> params = RectSubstrate.Parameters(hparams)
    >>> subst = RectSubstrate(ref, parameters=params)
    >>> subst.draw_options.draw_lines = False
    >>> plt.imshow(subst.draw()) #doctest: +SKIP

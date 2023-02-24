@@ -60,7 +60,6 @@ from .serialize import (
 )
 from .util import (
     get_samples_path,
-    CannyParameters,
     HoughLinesParameters,
     MorphologyClosingParameters,
 )
@@ -73,8 +72,6 @@ __all__ = [
     "SubstrateError",
     "SubstrateBase",
     "Substrate",
-    "CannyParameters",
-    "HoughLinesParameters",
     "RectSubstrateError",
     "RectSubstrateBase",
     "RectSubstrateHoughLinesError",
@@ -101,7 +98,6 @@ __all__ = [
     "AnalysisArgs",
     "ExperimentData",
     "get_samples_path",
-    "CannyParameters",
     "HoughLinesParameters",
     "MorphologyClosingParameters",
 ]

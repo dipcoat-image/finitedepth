@@ -52,7 +52,6 @@ from typing import TypeVar, Tuple, Optional, Dict, Type
 from .substrate import SubstrateError, SubstrateBase
 from .util import (
     intrsct_pt_polar,
-    CannyParameters,
     HoughLinesParameters,
     DataclassProtocol,
 )
@@ -87,10 +86,9 @@ class RectSubstrateError(SubstrateError):
 class RectSubstrateParameters:
     """
     Parameters for the rectangular substrate class to detect the substrate edges
-    using Canny edge detection and Hough line transformation.
+    using Hough line transformation.
     """
 
-    Canny: CannyParameters
     HoughLines: HoughLinesParameters
 
 
@@ -182,8 +180,7 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     """
 
     __slots__ = (
-        "_cannyimage",
-        "_lines",
+        "_gradient" "_lines",
         "_edge_lines",
         "_vertex_points",
     )
@@ -194,25 +191,20 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     LineType: TypeAlias = RectSubstrateLineType
     PointType: TypeAlias = RectSubstratePointType
 
-    def canny_image(self) -> npt.NDArray[np.uint8]:
+    def gradient(self) -> Tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]]:
         """
-        Canny edge detection result on :meth:`binary_image`.
-
-        Notes
-        =====
-
-        This property is cached. Do not mutate the result.
-
+        Return the pixel gradient in ``(G_x, G_y)`` using :func:`cv2.Sobel`.
         """
-        if not hasattr(self, "_cannyimage"):
-            cparams = dataclasses.asdict(self.parameters.Canny)
-            self._cannyimage = cv2.Canny(self.binary_image(), **cparams)
-        return self._cannyimage  # type: ignore
+        if not hasattr(self, "_gradient"):
+            Gx = cv2.Sobel(self.binary_image(), cv2.CV_32F, 1, 0)
+            Gy = cv2.Sobel(self.binary_image(), cv2.CV_32F, 0, 1)
+            self._gradient = (Gx, Gy)
+        return self._gradient
 
     def lines(self) -> npt.NDArray[np.uint8]:
         """
-        Feature vectors of straight lines in ``(r, theta)``, detected by
-        :func:`cv2.HoughLines` on :meth:`canny_image`.
+        Feature vectors of straight lines from :meth:`gradient` in
+        ``(r, theta)``, detected by :func:`cv2.HoughLines`.
 
         Notes
         =====
@@ -221,8 +213,10 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         """
         if not hasattr(self, "_lines"):
+            Gx, Gy = self.gradient()
+            G = np.sqrt(Gx**2 + Gy**2)
             hparams = dataclasses.asdict(self.parameters.HoughLines)
-            lines = cv2.HoughLines(self.canny_image(), **hparams)
+            lines = cv2.HoughLines(G.astype(np.uint8), **hparams)
             if lines is None:
                 lines = np.empty((0, 1, 2), dtype=np.float32)
             self._lines = lines
@@ -411,10 +405,10 @@ class RectSubstrate(
        >>> import cv2
        >>> from dipcoatimage.finitedepth import (SubstrateReference,
        ...     get_samples_path)
-       >>> ref_path = get_samples_path("ref1.png")
+       >>> ref_path = get_samples_path("ref3.png")
        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
-       >>> tempROI = (200, 50, 1200, 200)
-       >>> substROI = (400, 100, 1000, 500)
+       >>> tempROI = (100, 50, 1200, 200)
+       >>> substROI = (100, 50, 1200, 600)
        >>> ref = SubstrateReference(img, tempROI, substROI)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
@@ -425,11 +419,10 @@ class RectSubstrate(
        :include-source:
        :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import (CannyParameters,
-       ...     HoughLinesParameters, RectSubstrate)
-       >>> cparams = CannyParameters(50, 150)
+       >>> from dipcoatimage.finitedepth import (HoughLinesParameters,
+       ...     RectSubstrate)
        >>> hparams = HoughLinesParameters(1, 0.01, 100)
-       >>> params = RectSubstrate.Parameters(cparams, hparams)
+       >>> params = RectSubstrate.Parameters(hparams)
        >>> subst = RectSubstrate(ref, parameters=params)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
@@ -459,7 +452,8 @@ class RectSubstrate(
         elif draw_mode is self.DrawMode.BINARY:
             image = self.binary_image()
         elif draw_mode is self.DrawMode.EDGES:
-            image = self.canny_image()
+            Gx, Gy = self.gradient()
+            image = np.sqrt(Gx**2 + Gy**2).astype(bool) * np.uint8(255)
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
         if len(image.shape) == 2:
