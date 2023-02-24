@@ -375,12 +375,12 @@ class RectSubstrateDrawOptions:
         RGB color and thickness to draw the detected lines.
         Ignored if *draw_lines* is false.
 
-    Draw_Edges
+    draw_edges
         Flag to draw the detected four edges of the substrate.
 
     edge_color, edge_thickness
         RGB color and thickness to draw the detected edges.
-        Ignored if *Draw_Edges* is false.
+        Ignored if *draw_edges* is false.
 
     """
 
@@ -388,7 +388,7 @@ class RectSubstrateDrawOptions:
     draw_lines: bool = True
     line_color: Tuple[int, int, int] = (0, 255, 0)
     line_thickness: int = 1
-    Draw_Edges: bool = True
+    draw_edges: bool = True
     edge_color: Tuple[int, int, int] = (0, 0, 255)
     edge_thickness: int = 5
 
@@ -486,7 +486,7 @@ class RectSubstrate(
                 x2, y2 = int(x0 - w * (-ty)), int(y0 - h * tx)
                 cv2.line(ret, (x1, y1), (x2, y2), color, thickness)
 
-        if self.draw_options.Draw_Edges:
+        if self.draw_options.draw_edges:
             vertex_points = self.vertex_points()
             topleft = vertex_points.get(self.PointType.TOPLEFT, None)
             topright = vertex_points.get(self.PointType.TOPRIGHT, None)
