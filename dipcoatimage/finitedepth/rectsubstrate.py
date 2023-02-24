@@ -214,7 +214,7 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         """
         if not hasattr(self, "_lines"):
             Gx, Gy = self.gradient()
-            G = np.sqrt(Gx**2 + Gy**2)
+            G = Gx.astype(bool) | Gy.astype(bool)
             hparams = dataclasses.asdict(self.parameters.HoughLines)
             lines = cv2.HoughLines(G.astype(np.uint8), **hparams)
             if lines is None:
@@ -453,7 +453,7 @@ class RectSubstrate(
             image = self.binary_image()
         elif draw_mode is self.DrawMode.EDGES:
             Gx, Gy = self.gradient()
-            image = np.sqrt(Gx**2 + Gy**2).astype(bool) * np.uint8(255)
+            image = (Gx.astype(bool) | Gy.astype(bool)) * np.uint8(255)
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
         if len(image.shape) == 2:
