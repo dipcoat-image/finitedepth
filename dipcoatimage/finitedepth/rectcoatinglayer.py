@@ -465,11 +465,11 @@ class RectLayerShape(
        >>> import cv2
        >>> from dipcoatimage.finitedepth import (SubstrateReference,
        ...     get_samples_path)
-       >>> ref_path = get_samples_path("ref1.png")
-       >>> ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
-       >>> tempROI = (200, 50, 1200, 200)
-       >>> substROI = (400, 100, 1000, 500)
-       >>> ref = SubstrateReference(ref_img, tempROI, substROI)
+       >>> ref_path = get_samples_path("ref3.png")
+       >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+       >>> tempROI = (100, 50, 1200, 200)
+       >>> substROI = (100, 50, 1200, 600)
+       >>> ref = SubstrateReference(img, tempROI, substROI)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
@@ -495,7 +495,7 @@ class RectLayerShape(
 
        >>> from dipcoatimage.finitedepth import (RectLayerShape,
        ...     MorphologyClosingParameters)
-       >>> coat_path = get_samples_path("coat1.png")
+       >>> coat_path = get_samples_path("coat3.png")
        >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
        >>> mparams = MorphologyClosingParameters((1, 1))
        >>> params = RectLayerShape.Parameters(mparams, 50)
