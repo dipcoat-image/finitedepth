@@ -202,6 +202,21 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             self._gradient = (Gx, Gy)
         return self._gradient
 
+    def tangent(self):
+        contours, _ = cv2.findContours(
+            cv2.bitwise_not(self.binary_image()),
+            cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_NONE,
+        )
+        if len(contours) != 1:
+            raise NotImplementedError
+        cnt, = contours
+        # r(t) for all t := cnt
+        # 0 <= t < cnt.shape[0]
+        # dr = cnt - np.roll(cnt, 1, axis=0)
+        # theta = np.arctan2(*np.transpose(dr))
+        return cnt
+
     def lines(self) -> npt.NDArray[np.uint8]:
         """
         Feature vectors of straight lines from :meth:`gradient` in
