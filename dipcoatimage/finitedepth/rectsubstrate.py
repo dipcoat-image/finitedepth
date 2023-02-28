@@ -180,7 +180,8 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     """
 
     __slots__ = (
-        "_gradient" "_lines",
+        "_gradient",
+        "_lines",
         "_edge_lines",
         "_vertex_points",
     )
