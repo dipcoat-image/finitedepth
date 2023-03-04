@@ -202,6 +202,21 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             self._gradient = (Gx, Gy)
         return self._gradient
 
+    def edge_tangent(self):
+        contours, _ = cv2.findContours(
+            cv2.bitwise_not(self.binary_image()),
+            cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_SIMPLE,
+        )
+        if len(contours) != 1:
+            raise NotImplementedError
+        (cnt,) = contours
+        hull = cv2.convexHull(cnt)
+        # TODO: get more points by interpolating to `hull`
+        tangent = np.gradient(hull, axis=0)
+        # TODO: perform edge tangent flow to get smoother curve
+        return tangent
+
     def lines(self) -> npt.NDArray[np.uint8]:
         """
         Feature vectors of straight lines from :meth:`gradient` in
@@ -394,7 +409,7 @@ class RectSubstrate(
     RectSubstrateBase[RectSubstrateParameters, RectSubstrateDrawOptions]
 ):
     """
-    Simplest implementation of :class:`RectSubstrate`.
+    Simplest implementation of :class:`RectSubstrateBase`.
 
     Examples
     ========
