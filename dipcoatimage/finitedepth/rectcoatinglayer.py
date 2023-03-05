@@ -442,6 +442,9 @@ class LayerRegionFlag2(enum.IntFlag):
     BOTTOM = 16
 
 
+ROTATION_MATRIX = np.array([[0, 1], [-1, 0]])
+
+
 class RectLayerShape(
     RectCoatingLayerBase[
         RectLayerShapeParameters,
@@ -662,6 +665,64 @@ class RectLayerShape(
         if not hasattr(self, "_layer_area"):
             self._layer_area = np.count_nonzero(self.refine_layer())
         return self._layer_area
+
+    def uniform_thickness(self) -> float:
+        subst_point = np.array(self.substrate_point())
+        hull, _ = self.substrate.edge_hull()
+        hull = np.squeeze(hull + subst_point)
+
+        # find projection points from contactline_points to hull and add to hull
+        dh = np.diff(hull, axis=0)
+        dh_dot_dh = np.sum(dh*dh, axis=-1)
+        x1, y1, x2, y2 = self.contactline_points()
+
+        def find_projection(x, y):
+            p = np.array([x, y])
+            h_p = p - hull[:-1, ...]
+            dh_scale_p = np.sum(h_p*dh, axis=-1) / dh_dot_dh
+            p_mask = (0 <= dh_scale_p) & (dh_scale_p <= 1)
+            p_proj_origins = hull[:-1, ...][p_mask, ...]
+            p_proj_vecs = dh_scale_p[p_mask][..., np.newaxis]*dh[p_mask, ...]
+            p_proj_dists = np.linalg.norm(h_p[p_mask] - p_proj_vecs, axis=-1)
+            idx = np.argmin(p_proj_dists)
+            i = np.arange(hull[:-1, ...].shape[0])[p_mask][idx]
+            p_proj = (p_proj_origins + p_proj_vecs)[idx]
+            return i + 1, p_proj
+
+        (i1, proj1), (i2, proj2) = sorted(
+            [find_projection(x1, y1), find_projection(x2, y2)], key=lambda x: x[0]
+        )
+        new_hull = np.insert(hull[i1:i2], 0, proj1, axis=0)
+        new_hull = np.insert(new_hull, new_hull.shape[0], proj2, axis=0)
+        t = np.arange(new_hull.shape[0])
+
+        # find thickness
+        dt = np.diff(t, append=t[-1] + (t[-1] - t[-2]))
+        tangent = np.gradient(new_hull.T, t, axis=1)
+        normal = np.dot(ROTATION_MATRIX, tangent)
+        n = normal/np.linalg.norm(normal, axis=0)
+        dndt = np.gradient(n, t, axis=1)
+        S = self.layer_area()
+
+        L0 = 10  # initial value
+        L_NUM = 100  # interval number
+
+        def findL(l0, l_num):
+            l = np.linspace(0, l0, l_num)
+            dl = np.diff(l, append=l[-1] + (l[-1] - l[-2]))
+            e_t = tangent[..., np.newaxis] + np.tensordot(dndt, l, axes=0)
+            G = np.sum(e_t*e_t, axis=0) - np.tensordot(np.sum(n*dndt, axis=0), l, axes=0)**2
+            dS = np.sqrt(G) * dt[..., np.newaxis] * dl
+            S0_pre = np.sum(dS[..., :-1])
+            d_S0 = np.sum(dS[..., -1])
+            S0 = S0_pre + d_S0
+            k0 = d_S0/dl[-1]
+            newL = max(0, (S - S0)/k0 + L0)
+            if l[-2] <= newL <= l[-1]:
+                return newL
+            return findL(newL, l_num)
+
+        return findL(L0, L_NUM)
 
     def draw(self) -> npt.NDArray[np.uint8]:
         raise NotImplementedError
