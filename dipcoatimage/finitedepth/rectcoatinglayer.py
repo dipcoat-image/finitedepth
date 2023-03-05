@@ -59,6 +59,7 @@ __all__ = [
     "RectLayerShapeDrawOptions",
     "RectLayerShapeDecoOptions",
     "RectLayerShapeData",
+    "LayerRegionFlag2",
     "RectLayerShape",
     "get_extended_line",
 ]
@@ -468,7 +469,7 @@ class RectLayerShape(
        >>> ref_path = get_samples_path("ref3.png")
        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
        >>> tempROI = (100, 50, 1200, 200)
-       >>> substROI = (100, 50, 1200, 600)
+       >>> substROI = (300, 100, 950, 600)
        >>> ref = SubstrateReference(img, tempROI, substROI)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
