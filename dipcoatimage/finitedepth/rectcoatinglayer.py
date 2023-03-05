@@ -507,6 +507,7 @@ class RectLayerShape(
     __slots__ = (
         "_contactline_points",
         "_refined_layer",
+        "_layer_area",
     )
 
     Parameters = RectLayerShapeParameters
@@ -655,6 +656,12 @@ class RectLayerShape(
             self._refined_layer = layer_img
 
         return self._refined_layer
+
+    def layer_area(self) -> int:
+        """Return the number of pixels in coating layer region."""
+        if not hasattr(self, "_layer_area"):
+            self._layer_area = np.count_nonzero(self.refine_layer())
+        return self._layer_area
 
     def draw(self) -> npt.NDArray[np.uint8]:
         raise NotImplementedError
