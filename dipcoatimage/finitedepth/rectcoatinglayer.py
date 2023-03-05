@@ -649,7 +649,7 @@ class RectLayerShape(
             ext_p1, ext_p2 = get_extended_line((h, w), p1, p2)
             pts = np.array([(0, 0), ext_p1, ext_p2, (w, 0)])
             # remove every pixels above the contact line
-            cv2.fillPoly(layer_img, [pts], 255)
+            cv2.fillPoly(layer_img, [pts], 255)  # faster than np.cross
             layer_img = cv2.bitwise_not(layer_img)
 
             self._refined_layer = layer_img
