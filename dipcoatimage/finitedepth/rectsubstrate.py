@@ -202,7 +202,7 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             self._gradient = (Gx, Gy)
         return self._gradient
 
-    def edge_tangent(self):
+    def edge_hull(self) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.float64]]:
         contours, _ = cv2.findContours(
             cv2.bitwise_not(self.binary_image()),
             cv2.RETR_EXTERNAL,
@@ -215,7 +215,7 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         # TODO: get more points by interpolating to `hull`
         tangent = np.gradient(hull, axis=0)
         # TODO: perform edge tangent flow to get smoother curve
-        return tangent
+        return hull, tangent
 
     def lines(self) -> npt.NDArray[np.uint8]:
         """
