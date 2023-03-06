@@ -24,7 +24,7 @@ Utilities
 
 """
 
-from .imgprocess import intrsct_pt_polar, binarize, colorize
+from .imgprocess import binarize, colorize
 from .importing import import_variable, ImportStatus, Importer
 from .path import get_samples_path, cwd
 from .typing import DataclassProtocol, OptionalROI, IntROI
@@ -36,7 +36,6 @@ from .parameters import (
 from .testing import dict_includes
 
 __all__ = [
-    "intrsct_pt_polar",
     "binarize",
     "colorize",
     "import_variable",

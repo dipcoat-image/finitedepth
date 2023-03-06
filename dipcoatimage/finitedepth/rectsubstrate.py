@@ -47,11 +47,11 @@ import dataclasses
 import enum
 from math import isclose
 import numpy as np
+from numpy.linalg import inv
 import numpy.typing as npt
 from typing import TypeVar, Tuple, Optional, Dict, Type
 from .substrate import SubstrateError, SubstrateBase
 from .util import (
-    intrsct_pt_polar,
     HoughLinesParameters,
     DataclassProtocol,
 )
@@ -73,6 +73,7 @@ __all__ = [
     "RectSubstrateDrawMode",
     "RectSubstrateDrawOptions",
     "RectSubstrate",
+    "intrsct_pt_polar",
 ]
 
 
@@ -202,20 +203,20 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             self._gradient = (Gx, Gy)
         return self._gradient
 
-    def tangent(self):
+    def edge_hull(self) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.float64]]:
         contours, _ = cv2.findContours(
             cv2.bitwise_not(self.binary_image()),
             cv2.RETR_EXTERNAL,
-            cv2.CHAIN_APPROX_NONE,
+            cv2.CHAIN_APPROX_SIMPLE,
         )
         if len(contours) != 1:
             raise NotImplementedError
-        cnt, = contours
-        # r(t) for all t := cnt
-        # 0 <= t < cnt.shape[0]
-        # dr = cnt - np.roll(cnt, 1, axis=0)
-        # theta = np.arctan2(*np.transpose(dr))
-        return cnt
+        (cnt,) = contours
+        hull = cv2.convexHull(cnt)
+        # TODO: get more points by interpolating to `hull`
+        tangent = np.gradient(hull, axis=0)
+        # TODO: perform edge tangent flow to get smoother curve
+        return hull, tangent
 
     def lines(self) -> npt.NDArray[np.uint8]:
         """
@@ -299,10 +300,12 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         """
         if not hasattr(self, "_vertex_points"):
-            left = self.edge_lines().get(self.LineType.LEFT, None)
-            right = self.edge_lines().get(self.LineType.RIGHT, None)
-            top = self.edge_lines().get(self.LineType.TOP, None)
-            bottom = self.edge_lines().get(self.LineType.BOTTOM, None)
+            h, w = self.image().shape[:2]
+
+            left = self.edge_lines().get(self.LineType.LEFT, (0, 0))
+            right = self.edge_lines().get(self.LineType.RIGHT, (w, 0))
+            top = self.edge_lines().get(self.LineType.TOP, (0, np.pi / 2))
+            bottom = self.edge_lines().get(self.LineType.BOTTOM, (h, np.pi / 2))
             points = {}
             if top and left:
                 x, y = intrsct_pt_polar(*top, *left)
@@ -407,7 +410,7 @@ class RectSubstrate(
     RectSubstrateBase[RectSubstrateParameters, RectSubstrateDrawOptions]
 ):
     """
-    Simplest implementation of :class:`RectSubstrate`.
+    Simplest implementation of :class:`RectSubstrateBase`.
 
     Examples
     ========
@@ -424,7 +427,7 @@ class RectSubstrate(
        >>> ref_path = get_samples_path("ref3.png")
        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
        >>> tempROI = (100, 50, 1200, 200)
-       >>> substROI = (100, 50, 1200, 600)
+       >>> substROI = (300, 100, 950, 600)
        >>> ref = SubstrateReference(img, tempROI, substROI)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
@@ -515,3 +518,38 @@ class RectSubstrate(
                 cv2.line(ret, bottomleft, topleft, color, thickness)
 
         return ret
+
+
+def intrsct_pt_polar(r1: float, t1: float, r2: float, t2: float) -> Tuple[float, float]:
+    """
+    Find the Cartesian coordinates of the intersecting point of two
+    lines by their polar parameters.
+
+    Parameters
+    ==========
+
+    r1, t1, r2, t2
+        Radius and angle for the first and second line.
+
+    Returns
+    =======
+
+    x, y
+        Cartesian coordinates of the intersecting point.
+
+    Examples
+    ========
+
+    >>> from dipcoatimage.finitedepth.rectsubstrate import intrsct_pt_polar
+    >>> from numpy import pi
+    >>> x, y = intrsct_pt_polar(10, pi/3, 5, pi/6)
+    >>> round(x, 2)
+    -1.34
+    >>> round(y, 2)
+    12.32
+
+    """
+    mat = np.array([[np.cos(t1), np.sin(t1)], [np.cos(t2), np.sin(t2)]])
+    vec = np.array([r1, r2])
+    ret = inv(mat) @ vec
+    return tuple(float(i) for i in ret)  # type: ignore
