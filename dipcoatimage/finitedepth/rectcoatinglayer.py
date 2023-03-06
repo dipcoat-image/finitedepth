@@ -713,11 +713,9 @@ class RectLayerShape(
             e_t = tangent[..., np.newaxis] + np.tensordot(dndt, l, axes=0)
             G = np.sum(e_t*e_t, axis=0) - np.tensordot(np.sum(n*dndt, axis=0), l, axes=0)**2
             dS = np.sqrt(G) * dt[..., np.newaxis] * dl
-            S0_pre = np.sum(dS[..., :-1])
-            d_S0 = np.sum(dS[..., -1])
-            S0 = S0_pre + d_S0
-            k0 = d_S0/dl[-1]
-            newL = max(0, (S - S0)/k0 + L0)
+            S_i = np.cumsum(np.sum(dS, axis=0))
+            k0 = (S_i[-1] - S_i[-2])/dl[-1]
+            newL = max(0, (S - S_i[-1])/k0 + l0)
             if l[-2] <= newL <= l[-1]:
                 return newL
             return findL(newL, l_num)
