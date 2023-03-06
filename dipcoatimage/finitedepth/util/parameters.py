@@ -15,8 +15,9 @@ from typing import Tuple
 
 __all__ = [
     "HoughLinesParameters",
-    "BinaryImageDrawMode",
     "MorphologyClosingParameters",
+    "BinaryImageDrawMode",
+    "SubstrateSubtractionMode",
 ]
 
 
@@ -57,3 +58,27 @@ class BinaryImageDrawMode(enum.Enum):
 
     ORIGINAL = "ORIGINAL"
     BINARY = "BINARY"
+
+
+class SubstrateSubtractionMode(enum.Enum):
+    """
+    Option to determine how the substrate image is subtracted from the
+    coating layer image.
+
+    Attributes
+    ==========
+
+    NONE
+        Do not subtract the substrate.
+
+    TEMPLATE
+        Subtract the template region.
+
+    FULL
+        Subtract every region and leave only the coating layer region.
+
+    """
+
+    NONE = "NONE"
+    TEMPLATE = "TEMPLATE"
+    FULL = "FULL"

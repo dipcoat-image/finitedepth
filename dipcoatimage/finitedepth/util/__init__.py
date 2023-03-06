@@ -32,6 +32,7 @@ from .parameters import (
     HoughLinesParameters,
     MorphologyClosingParameters,
     BinaryImageDrawMode,
+    SubstrateSubtractionMode,
 )
 from .testing import dict_includes
 
@@ -49,5 +50,6 @@ __all__ = [
     "HoughLinesParameters",
     "MorphologyClosingParameters",
     "BinaryImageDrawMode",
+    "SubstrateSubtractionMode",
     "dict_includes",
 ]

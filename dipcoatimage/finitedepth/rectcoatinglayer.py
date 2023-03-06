@@ -41,6 +41,7 @@ from .util import (
     DataclassProtocol,
     BinaryImageDrawMode,
     MorphologyClosingParameters,
+    SubstrateSubtractionMode,
     colorize,
 )
 
@@ -330,6 +331,7 @@ class RectLayerArea(
     Data = RectLayerAreaData
 
     DrawMode: TypeAlias = BinaryImageDrawMode
+    SubtractMode: TypeAlias = SubstrateSubtractionMode
 
     def examine(self) -> None:
         return None
@@ -403,6 +405,7 @@ class RectLayerShapeDrawOptions:
     """Drawing options for :class:`RectLayerShape` instance."""
 
     draw_mode: BinaryImageDrawMode = BinaryImageDrawMode.ORIGINAL
+    subtract_mode: SubstrateSubtractionMode = SubstrateSubtractionMode.NONE
 
 
 @dataclasses.dataclass
@@ -741,6 +744,14 @@ class RectLayerShape(
             image = self.binary_image()
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
+
+        subtract_mode = self.draw_options.subtract_mode
+        if subtract_mode == self.SubtractMode.NONE:
+            pass
+        elif subtract_mode == self.SubtractMode.TEMPLATE:
+            raise NotImplementedError()
+        elif subtract_mode == self.SubtractMode.FULL:
+            image = self.extract_layer()
         return colorize(image)
 
     def analyze_layer(self):
