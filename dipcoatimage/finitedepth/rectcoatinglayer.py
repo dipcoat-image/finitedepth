@@ -41,6 +41,7 @@ from .util import (
     DataclassProtocol,
     BinaryImageDrawMode,
     MorphologyClosingParameters,
+    colorize,
 )
 
 try:
@@ -401,7 +402,7 @@ class RectLayerShapeParameters:
 class RectLayerShapeDrawOptions:
     """Drawing options for :class:`RectLayerShape` instance."""
 
-    pass
+    draw_mode: BinaryImageDrawMode = BinaryImageDrawMode.ORIGINAL
 
 
 @dataclasses.dataclass(frozen=True)
@@ -518,6 +519,8 @@ class RectLayerShape(
     DrawOptions = RectLayerShapeDrawOptions
     DecoOptions = RectLayerShapeDecoOptions
     Data = RectLayerShapeData
+
+    DrawMode: TypeAlias = BinaryImageDrawMode
 
     Region: TypeAlias = LayerRegionFlag2
 
@@ -731,7 +734,14 @@ class RectLayerShape(
         return self._uniform_thickness
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        raise NotImplementedError
+        draw_mode = self.draw_options.draw_mode
+        if draw_mode == self.DrawMode.ORIGINAL:
+            image = self.image
+        elif draw_mode == self.DrawMode.BINARY:
+            image = self.binary_image()
+        else:
+            raise TypeError("Unrecognized draw mode: %s" % draw_mode)
+        return colorize(image)
 
     def analyze_layer(self):
         raise NotImplementedError
