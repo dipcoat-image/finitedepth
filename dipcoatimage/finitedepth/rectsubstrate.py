@@ -326,12 +326,13 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         ret: Optional[RectSubstrateError] = None
 
         missing = [
-            pt for pt in self.PointType
+            pt
+            for pt in self.PointType
             if pt not in self.vertex_points() and pt != self.PointType.UNKNOWN
         ]
         if missing:
             msg = "Vertices missing: %s" % ", ".join([v.name for v in missing])
-            ret =  RectSubstrateEdgeError(msg)
+            ret = RectSubstrateEdgeError(msg)
 
         return ret
 

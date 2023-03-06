@@ -398,21 +398,21 @@ class RectLayerShapeParameters:
     ReconstructRadius: int
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass
 class RectLayerShapeDrawOptions:
     """Drawing options for :class:`RectLayerShape` instance."""
 
     draw_mode: BinaryImageDrawMode = BinaryImageDrawMode.ORIGINAL
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass
 class RectLayerShapeDecoOptions:
     """Decorating options for :class:`RectLayerShape` instance."""
 
     pass
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass
 class RectLayerShapeData:
     """Analysis data for :class:`RectLayerShape` instance."""
 
