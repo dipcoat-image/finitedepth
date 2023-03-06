@@ -323,27 +323,15 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         return self._vertex_points  # type: ignore
 
     def examine(self) -> Optional[RectSubstrateError]:
-        ret = None
+        ret: Optional[RectSubstrateError] = None
 
-        if len(self.lines()) == 0:
-            msg = "No line detected from Hough transformation"
-            ret = RectSubstrateHoughLinesError(msg)
-
-        else:
-            msg_tmpl = "Cannot detect %s of the substrate"
-            missing = []
-            if self.LineType.LEFT not in self.edge_lines():
-                missing.append("left wall")
-            if self.LineType.RIGHT not in self.edge_lines():
-                missing.append("right wall")
-            if self.LineType.TOP not in self.edge_lines():
-                missing.append("top wall")
-            if self.LineType.BOTTOM not in self.edge_lines():
-                missing.append("bottom wall")
-
-            if missing:
-                msg = msg_tmpl % (", ".join(missing))
-                ret = RectSubstrateEdgeError(msg)  # type: ignore
+        missing = [
+            pt for pt in self.PointType
+            if pt not in self.vertex_points() and pt != self.PointType.UNKNOWN
+        ]
+        if missing:
+            msg = "Vertices missing: %s" % ", ".join([v.name for v in missing])
+            ret =  RectSubstrateEdgeError(msg)
 
         return ret
 
