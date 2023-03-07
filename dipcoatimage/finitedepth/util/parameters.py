@@ -78,7 +78,7 @@ class SubstrateSubtractionMode(enum.Enum):
         Subtract the substrate region without postprocessing.
 
     FULL
-        Perform full substraction with any defined postprocessing.
+        Perform full subtraction with any defined postprocessing.
 
     """
 
