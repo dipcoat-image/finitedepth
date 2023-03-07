@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 from dipcoatimage.finitedepth import ExperimentKind, experiment_kind
 from dipcoatimage.finitedepth.reference import sanitize_ROI
-from dipcoatimage.finitedepth.coatinglayer import match_template, subtract_images
+from dipcoatimage.finitedepth.coatinglayer import match_template, images_XOR
 from dipcoatimage.finitedepth.util import OptionalROI, binarize
 from dipcoatimage.finitedepth_gui.core import (
     DataMember,
@@ -544,5 +544,9 @@ def fastVisualize(
     dx, dy = (substROI[0] - tempROI[0], substROI[1] - tempROI[1])
     x0, y0 = (tx + dx, ty + dy)
 
-    ret = subtract_images(layer_bin, substImg, (x0, y0))
-    return cv2.cvtColor(ret, cv2.COLOR_GRAY2RGB)
+    mask = images_XOR(~layer_bin.astype(bool), ~substImg.astype(bool), (x0, y0))
+    H, W = substImg.shape
+    x1, y1 = x0 + W, y0 + H
+    layer_bin[y0:y1, x0:x1][mask] = 255
+
+    return cv2.cvtColor(layer_bin, cv2.COLOR_GRAY2RGB)

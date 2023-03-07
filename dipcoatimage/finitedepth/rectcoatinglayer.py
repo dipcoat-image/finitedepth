@@ -39,6 +39,7 @@ import numpy.typing as npt
 from typing import TypeVar, Type, Tuple, List, Optional
 from .rectsubstrate import RectSubstrate
 from .coatinglayer import (
+    images_XOR,
     CoatingLayerError,
     CoatingLayerBase,
 )
@@ -563,9 +564,29 @@ class RectLayerShape(
         subtract_mode = self.draw_options.subtract_mode
         if subtract_mode == self.SubtractMode.NONE:
             pass
-        # TODO: implement behavior for SubtractMode.TEMPLATE and SUBSTRATE
-        else:
+        elif subtract_mode == self.SubtractMode.TEMPLATE:
+            x0, y0, x1, y1 = self.substrate.reference.templateROI
+            tempImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
+            X0, Y0 = self.template_point()
+            mask = images_XOR(
+                ~self.binary_image().astype(bool), ~tempImg.astype(bool), (X0, Y0)
+            )
+            H, W = tempImg.shape
+            X1, Y1 = X0 + W, Y0 + H
+            image[Y0:Y1, X0:X1][mask] = 255
+        elif subtract_mode == self.SubtractMode.SUBSTRATE:
+            substImg = self.substrate.binary_image()
+            x0, y0 = self.substrate_point()
+            mask = images_XOR(
+                ~self.binary_image().astype(bool), ~substImg.astype(bool), (x0, y0)
+            )
+            h, w = substImg.shape
+            x1, y1 = x0 + w, y0 + h
+            image[y0:y1, x0:x1][mask] = 255
+        elif subtract_mode == self.SubtractMode.FULL:
             image = cv2.bitwise_not(self.refine_layer())
+        else:
+            raise TypeError("Unrecognized subtraction mode: %s" % subtract_mode)
         image = colorize(image)
 
         layer_opts = self.deco_options.layer
