@@ -33,6 +33,8 @@ from .parameters import (
     MorphologyClosingParameters,
     BinaryImageDrawMode,
     SubstrateSubtractionMode,
+    Color,
+    FeatureDrawingOptions,
 )
 from .testing import dict_includes
 
@@ -51,5 +53,7 @@ __all__ = [
     "MorphologyClosingParameters",
     "BinaryImageDrawMode",
     "SubstrateSubtractionMode",
+    "Color",
+    "FeatureDrawingOptions",
     "dict_includes",
 ]

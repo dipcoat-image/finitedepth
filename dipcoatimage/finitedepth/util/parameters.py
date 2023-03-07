@@ -18,6 +18,8 @@ __all__ = [
     "MorphologyClosingParameters",
     "BinaryImageDrawMode",
     "SubstrateSubtractionMode",
+    "Color",
+    "FeatureDrawingOptions",
 ]
 
 
@@ -86,3 +88,32 @@ class SubstrateSubtractionMode(enum.Enum):
     TEMPLATE = "TEMPLATE"
     SUBSTRATE = "SUBSTRATE"
     FULL = "FULL"
+
+
+@dataclasses.dataclass
+class Color:
+    red: int = 0
+    green: int = 0
+    blue: int = 0
+
+
+@dataclasses.dataclass
+class FeatureDrawingOptions:
+    """
+    Parameters to paint the arbitrary feature in the image.
+
+    Attributes
+    ==========
+
+    color
+        Color in RGB
+
+    thickness
+        Thickness of the line.
+        Zero value is the flag to not draw the feature.
+        Negative value can be the flag to fill the feature interior.
+
+    """
+
+    color: Color = Color(0, 0, 0)
+    thickness: int = 0

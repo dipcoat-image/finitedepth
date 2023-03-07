@@ -42,6 +42,7 @@ from .util import (
     BinaryImageDrawMode,
     MorphologyClosingParameters,
     SubstrateSubtractionMode,
+    FeatureDrawingOptions,
     colorize,
 )
 
@@ -331,7 +332,6 @@ class RectLayerArea(
     Data = RectLayerAreaData
 
     DrawMode: TypeAlias = BinaryImageDrawMode
-    SubtractMode: TypeAlias = SubstrateSubtractionMode
 
     def examine(self) -> None:
         return None
@@ -412,7 +412,7 @@ class RectLayerShapeDrawOptions:
 class RectLayerShapeDecoOptions:
     """Decorating options for :class:`RectLayerShape` instance."""
 
-    pass
+    uniform_layer: FeatureDrawingOptions = FeatureDrawingOptions()
 
 
 @dataclasses.dataclass
@@ -515,7 +515,7 @@ class RectLayerShape(
         "_contactline_points",
         "_refined_layer",
         "_layer_area",
-        "_uniform_thickness",
+        "_uniform_layer",
     )
 
     Parameters = RectLayerShapeParameters
@@ -524,6 +524,7 @@ class RectLayerShape(
     Data = RectLayerShapeData
 
     DrawMode: TypeAlias = BinaryImageDrawMode
+    SubtractMode: TypeAlias = SubstrateSubtractionMode
 
     Region: TypeAlias = LayerRegionFlag2
 
@@ -673,9 +674,12 @@ class RectLayerShape(
             self._layer_area = np.count_nonzero(self.refine_layer())
         return self._layer_area
 
-    def uniform_thickness(self) -> np.float64:
-        """Return uniform layer thickness that satisfies :meth:`layer_area`."""
-        if not hasattr(self, "_uniform_thickness"):
+    def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
+        """
+        Return thickness and points for uniform layer that satisfies
+        :meth:`layer_area`.
+        """
+        if not hasattr(self, "_uniform_layer"):
             subst_point = np.array(self.substrate_point())
             hull, _ = self.substrate.edge_hull()
             hull = np.squeeze(hull + subst_point)
@@ -685,7 +689,7 @@ class RectLayerShape(
             dh_dot_dh = np.sum(dh * dh, axis=-1)
             x1, y1, x2, y2 = self.contactline_points()
 
-            def find_projection(x, y):
+            def find_projection(x, y) -> Tuple[np.int32, npt.NDArray[np.float64]]:
                 p = np.array([x, y])
                 h_p = p - hull[:-1, ...]
                 dh_scale_p = np.sum(h_p * dh, axis=-1) / dh_dot_dh
@@ -701,7 +705,7 @@ class RectLayerShape(
             (i1, proj1), (i2, proj2) = sorted(
                 [find_projection(x1, y1), find_projection(x2, y2)], key=lambda x: x[0]
             )
-            new_hull = np.insert(hull[i1:i2], 0, proj1, axis=0)
+            new_hull = np.insert(hull[int(i1) : int(i2)], 0, proj1, axis=0)
             new_hull = np.insert(new_hull, new_hull.shape[0], proj2, axis=0)
             t = np.arange(new_hull.shape[0])
 
@@ -732,9 +736,10 @@ class RectLayerShape(
                     return newL
                 return findL(newL, l_num)
 
-            self._uniform_thickness = findL(L0, L_NUM)
+            L = findL(L0, L_NUM)
+            self._uniform_layer = (L, new_hull + L * n)
 
-        return self._uniform_thickness
+        return self._uniform_layer
 
     def draw(self) -> npt.NDArray[np.uint8]:
         draw_mode = self.draw_options.draw_mode
@@ -748,9 +753,23 @@ class RectLayerShape(
         subtract_mode = self.draw_options.subtract_mode
         if subtract_mode == self.SubtractMode.NONE:
             pass
+        # TODO: implement behavior for SubtractMode.TEMPLATE and SUBSTRATE
         else:
-            image = self.extract_layer()
-        return colorize(image)
+            image = cv2.bitwise_not(self.refine_layer())
+        image = colorize(image)
+
+        uniform_layer = self.deco_options.uniform_layer
+        if uniform_layer.thickness > 0:
+            _, points = self.uniform_layer()
+            cv2.polylines(
+                image,
+                [points.astype(np.int32)],
+                isClosed=False,
+                color=dataclasses.astuple(uniform_layer.color),
+                thickness=uniform_layer.thickness,
+            )
+
+        return image
 
     def analyze_layer(self):
         raise NotImplementedError
