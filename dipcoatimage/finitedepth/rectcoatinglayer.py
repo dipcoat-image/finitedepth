@@ -413,6 +413,7 @@ class RectLayerShapeDecoOptions:
     """Decorating options for :class:`RectLayerShape` instance."""
 
     layer: FeatureDrawingOptions = FeatureDrawingOptions()
+    thickest_lines: FeatureDrawingOptions = FeatureDrawingOptions()
     uniform_layer: FeatureDrawingOptions = FeatureDrawingOptions()
 
 
@@ -518,6 +519,7 @@ class RectLayerShape(
         "_layer_contours",
         "_layer_area",
         "_uniform_layer",
+        "_thickness_points",
     )
 
     Parameters = RectLayerShapeParameters
@@ -680,6 +682,75 @@ class RectLayerShape(
             self._layer_contours = list(contours)
         return self._layer_contours
 
+    def thickness_points(self) -> npt.NDArray[np.float64]:
+        if not hasattr(self, "_thickness_points"):
+            contours = self.layer_contours()
+            if not contours:
+                cnt_points = np.empty((0, 1, 2), dtype=np.int32)
+            else:
+                cnt_points = np.concatenate(contours, axis=0)
+            cnt_y, cnt_x = cnt_points.T
+
+            cnt_labels = self.label_layer()[cnt_x, cnt_y].T
+            on_layer = (cnt_labels & self.Region.LAYER).astype(bool)
+            is_left = (cnt_labels & self.Region.LEFTWALL).astype(bool)
+            is_bottom = (cnt_labels & self.Region.BOTTOM).astype(bool)
+            is_right = (cnt_labels & self.Region.RIGHTWALL).astype(bool)
+
+            p0 = np.array(self.substrate_point())
+            A = p0 + np.array(
+                self.substrate.vertex_points()[self.substrate.PointType.TOPLEFT]
+            )
+            B = p0 + np.array(
+                self.substrate.vertex_points()[self.substrate.PointType.BOTTOMLEFT]
+            )
+            C = p0 + np.array(
+                self.substrate.vertex_points()[self.substrate.PointType.BOTTOMRIGHT]
+            )
+            D = p0 + np.array(
+                self.substrate.vertex_points()[self.substrate.PointType.TOPRIGHT]
+            )
+
+            def find_thickest(points, A, B):
+                Ap = points - A
+                AB = B - A
+                t = np.dot(Ap, AB) / np.dot(AB, AB)
+                AC = t[..., np.newaxis] * AB
+                dists = np.linalg.norm(Ap - AC, axis=1)
+                mask = dists == np.max(dists)
+                pts = np.stack(
+                    [
+                        np.mean(points[mask], axis=0),
+                        np.mean((A + AC)[mask], axis=0),
+                    ]
+                )
+                return pts
+
+            cnt_left = cnt_points[on_layer & is_left & ~is_bottom]
+            if cnt_left.size == 0:
+                p = A / 2 + B / 2
+                left_p = np.stack([p, p])
+            else:
+                left_p = find_thickest(cnt_left, A, B)
+
+            cnt_bottom = cnt_points[on_layer & is_bottom]
+            if cnt_bottom.size == 0:
+                p = B / 2 + C / 2
+                bottom_p = np.stack([p, p])
+            else:
+                bottom_p = find_thickest(cnt_bottom, B, C)
+
+            cnt_right = cnt_points[on_layer & is_right & ~is_bottom]
+            if cnt_right.size == 0:
+                p = C / 2 + D / 2
+                right_p = np.stack([p, p])
+            else:
+                right_p = find_thickest(cnt_right, C, D)
+
+            self._thickness_points = np.stack([left_p, bottom_p, right_p])
+
+        return self._thickness_points
+
     def layer_area(self) -> int:
         """Return the number of pixels in coating layer region."""
         if not hasattr(self, "_layer_area"):
@@ -780,6 +851,18 @@ class RectLayerShape(
                 dataclasses.astuple(layer_opts.color),
                 layer_opts.thickness,
             )
+
+        lines_opts = self.deco_options.thickest_lines
+        if lines_opts.thickness > 0:
+            points = self.thickness_points()
+            for p1, p2 in points:
+                cv2.line(
+                    image,
+                    p1.astype(np.int32),
+                    p2.astype(np.int32),
+                    dataclasses.astuple(lines_opts.color),
+                    lines_opts.thickness,
+                )
 
         uniformlayer_opts = self.deco_options.uniform_layer
         if uniformlayer_opts.thickness > 0:
