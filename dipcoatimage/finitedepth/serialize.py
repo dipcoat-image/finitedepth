@@ -65,9 +65,9 @@ class ReferenceArgs:
 
        >>> import cv2
        >>> from dipcoatimage.finitedepth import ReferenceArgs, get_samples_path
-       >>> refargs = ReferenceArgs(templateROI=(200, 100, 1200, 500),
-       ...                         substrateROI=(300, 50, 1100, 600))
-       >>> ref = refargs.as_reference(cv2.imread(get_samples_path("ref1.png")))
+       >>> refargs = ReferenceArgs(templateROI=(100, 50, 1200, 200),
+       ...                         substrateROI=(300, 100, 950, 600))
+       >>> ref = refargs.as_reference(cv2.imread(get_samples_path("ref3.png")))
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
@@ -152,9 +152,9 @@ class SubstrateArgs:
 
        >>> import cv2
        >>> from dipcoatimage.finitedepth import ReferenceArgs, get_samples_path
-       >>> refargs = ReferenceArgs(templateROI=(200, 100, 1200, 500),
-       ...                         substrateROI=(300, 50, 1100, 600))
-       >>> ref = refargs.as_reference(cv2.imread(get_samples_path("ref1.png")))
+       >>> refargs = ReferenceArgs(templateROI=(100, 50, 1200, 200),
+       ...                         substrateROI=(300, 100, 950, 600))
+       >>> ref = refargs.as_reference(cv2.imread(get_samples_path("ref3.png")))
 
     Construct substrate instance from the data.
 
@@ -245,9 +245,9 @@ class CoatingLayerArgs:
        >>> import cv2
        >>> from dipcoatimage.finitedepth import (data_converter, ReferenceArgs,
        ...     SubstrateArgs, get_samples_path)
-       >>> refargs = ReferenceArgs(templateROI=(200, 100, 1200, 500),
-       ...                         substrateROI=(300, 50, 1100, 600))
-       >>> ref = refargs.as_reference(cv2.imread(get_samples_path("ref1.png")))
+       >>> refargs = ReferenceArgs(templateROI=(100, 50, 1200, 200),
+       ...                         substrateROI=(300, 100, 950, 600))
+       >>> ref = refargs.as_reference(cv2.imread(get_samples_path("ref3.png")))
        >>> params = {"HoughLines": {"rho": 1, "theta": 0.01, "threshold": 100}}
        >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)
        >>> substargs = data_converter.structure(arg, SubstrateArgs)
@@ -259,11 +259,12 @@ class CoatingLayerArgs:
        :include-source:
        :context: close-figs
 
-       >>> import cv2
        >>> from dipcoatimage.finitedepth import CoatingLayerArgs
-       >>> arg = dict(type={"name": "RectLayerArea"})
+       >>> params = {"MorphologyClosing": {"kernelSize": (0, 0)},
+       ...           "ReconstructRadius": 50}
+       >>> arg = dict(type={"name": "RectLayerShape"}, parameters=params)
        >>> layerargs = data_converter.structure(arg, CoatingLayerArgs)
-       >>> img_path = get_samples_path("coat1.png")
+       >>> img_path = get_samples_path("coat3.png")
        >>> layer = layerargs.as_coatinglayer(cv2.imread(img_path), subst)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(layer.draw()) #doctest: +SKIP
