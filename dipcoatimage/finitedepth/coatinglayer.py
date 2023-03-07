@@ -70,7 +70,8 @@ except ImportError:
 __all__ = [
     "CoatingLayerError",
     "match_template",
-    "subtract_images",
+    "images_AND",
+    "images_XOR",
     "CoatingLayerBase",
     "LayerAreaParameters",
     "LayerAreaDrawOptions",
@@ -101,10 +102,13 @@ def match_template(
     return (score, loc)
 
 
-def subtract_images(
-    image1: npt.NDArray[np.uint8], image2: npt.NDArray[np.uint8], point: Tuple[int, int]
-) -> npt.NDArray[np.uint8]:
-    """Subtract *image2* from *image1* at *point*. Images must be binary."""
+def images_AND(
+    image1: npt.NDArray[np.bool_], image2: npt.NDArray[np.bool_], point: Tuple[int, int]
+) -> npt.NDArray[np.bool_]:
+    """
+    Compare *image2* with *image1* at *point*, and get mask which indicates
+    common pixel location.
+    """
     H, W = image1.shape
     h, w = image2.shape
     x0, y0 = point
@@ -112,12 +116,24 @@ def subtract_images(
     x1, y1 = x0 + w, y0 + h
     img1_crop = image1[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)]
     img2_crop = image2[max(-y0, 0) : min(H - y0, h), max(-x0, 0) : min(W - x0, w)]
-    xor = cv2.bitwise_xor(img1_crop, img2_crop)
-    nxor = cv2.bitwise_not(xor)
+    return img1_crop & img2_crop
 
-    ret = image1.copy()
-    ret[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)] = nxor
-    return ret
+
+def images_XOR(
+    image1: npt.NDArray[np.bool_], image2: npt.NDArray[np.bool_], point: Tuple[int, int]
+) -> npt.NDArray[np.bool_]:
+    """
+    Compare *image2* with *image1* at *point*, and get mask which indicates
+    common pixel location.
+    """
+    H, W = image1.shape
+    h, w = image2.shape
+    x0, y0 = point
+
+    x1, y1 = x0 + w, y0 + h
+    img1_crop = image1[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)]
+    img2_crop = image2[max(-y0, 0) : min(H - y0, h), max(-x0, 0) : min(W - x0, w)]
+    return ~(img1_crop ^ img2_crop)
 
 
 class CoatingLayerBase(
@@ -381,14 +397,16 @@ class CoatingLayerBase(
 
             # remove the substrate
             substImg = self.substrate.binary_image()
-            image = subtract_images(image, substImg, (x0, y0))
+            mask = images_AND(~image.astype(bool), ~substImg.astype(bool), (x0, y0))
 
-            # remove the area outside of the ROI
             h, w = substImg.shape
             x1, y1 = x0 + w, y0 + h
+            image[y0:y1, x0:x1][mask] = 255
+            # remove the area outside of the ROI
             image[:y0, :] = 255
             image[:y1, :x0] = 255
             image[:y1, x1:] = 255
+
             self._extracted_layer = image
         return self._extracted_layer
 
@@ -574,18 +592,38 @@ class LayerArea(
     def draw(self) -> npt.NDArray[np.uint8]:
         draw_mode = self.draw_options.draw_mode
         if draw_mode == self.DrawMode.ORIGINAL:
-            image = self.image
+            image = self.image.copy()
         elif draw_mode == self.DrawMode.BINARY:
-            image = self.binary_image()
+            image = self.binary_image().copy()
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
 
         subtract_mode = self.draw_options.subtract_mode
         if subtract_mode == self.SubtractMode.NONE:
             pass
-        # TODO: implement behavior for SubtractMode.TEMPLATE and SUBSTRATE
-        else:
+        elif subtract_mode == self.SubtractMode.TEMPLATE:
+            x0, y0, x1, y1 = self.substrate.reference.templateROI
+            tempImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
+            X0, Y0 = self.template_point()
+            mask = images_XOR(
+                ~self.binary_image().astype(bool), ~tempImg.astype(bool), (X0, Y0)
+            )
+            H, W = tempImg.shape
+            X1, Y1 = X0 + W, Y0 + H
+            image[Y0:Y1, X0:X1][mask] = 255
+        elif subtract_mode == self.SubtractMode.SUBSTRATE:
+            substImg = self.substrate.binary_image()
+            x0, y0 = self.substrate_point()
+            mask = images_XOR(
+                ~self.binary_image().astype(bool), ~substImg.astype(bool), (x0, y0)
+            )
+            h, w = substImg.shape
+            x1, y1 = x0 + w, y0 + h
+            image[y0:y1, x0:x1][mask] = 255
+        elif subtract_mode == self.SubtractMode.FULL:
             image = self.extract_layer()
+        else:
+            raise TypeError("Unrecognized subtraction mode: %s" % subtract_mode)
         image = colorize(image)
 
         image[~self.extract_layer().astype(bool)] = dataclasses.astuple(
