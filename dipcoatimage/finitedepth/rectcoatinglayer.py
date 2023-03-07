@@ -748,9 +748,7 @@ class RectLayerShape(
         subtract_mode = self.draw_options.subtract_mode
         if subtract_mode == self.SubtractMode.NONE:
             pass
-        elif subtract_mode == self.SubtractMode.TEMPLATE:
-            raise NotImplementedError()
-        elif subtract_mode == self.SubtractMode.FULL:
+        else:
             image = self.extract_layer()
         return colorize(image)
 

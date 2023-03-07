@@ -72,13 +72,17 @@ class SubstrateSubtractionMode(enum.Enum):
         Do not subtract the substrate.
 
     TEMPLATE
-        Subtract the template region.
+        Subtract the template region without postprocessing.
+
+    SUBSTRATE
+        Subtract the substrate region without postprocessing.
 
     FULL
-        Subtract every region and leave only the coating layer region.
+        Perform full substraction with any defined postprocessing.
 
     """
 
     NONE = "NONE"
     TEMPLATE = "TEMPLATE"
+    SUBSTRATE = "SUBSTRATE"
     FULL = "FULL"
