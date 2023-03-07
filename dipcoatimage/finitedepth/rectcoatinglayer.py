@@ -412,6 +412,7 @@ class RectLayerShapeDrawOptions:
 class RectLayerShapeDecoOptions:
     """Decorating options for :class:`RectLayerShape` instance."""
 
+    layer: FeatureDrawingOptions = FeatureDrawingOptions()
     uniform_layer: FeatureDrawingOptions = FeatureDrawingOptions()
 
 
@@ -758,15 +759,31 @@ class RectLayerShape(
             image = cv2.bitwise_not(self.refine_layer())
         image = colorize(image)
 
-        uniform_layer = self.deco_options.uniform_layer
-        if uniform_layer.thickness > 0:
+        layer_opts = self.deco_options.layer
+        if layer_opts.thickness != 0:
+            image[self.refine_layer().astype(bool)] = (255, 255, 255)
+            contours, _ = cv2.findContours(
+                self.refine_layer(),
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_SIMPLE,
+            )
+            cv2.drawContours(
+                image,
+                contours,
+                -1,
+                dataclasses.astuple(layer_opts.color),
+                layer_opts.thickness,
+            )
+
+        uniformlayer_opts = self.deco_options.uniform_layer
+        if uniformlayer_opts.thickness > 0:
             _, points = self.uniform_layer()
             cv2.polylines(
                 image,
                 [points.astype(np.int32)],
                 isClosed=False,
-                color=dataclasses.astuple(uniform_layer.color),
-                thickness=uniform_layer.thickness,
+                color=dataclasses.astuple(uniformlayer_opts.color),
+                thickness=uniformlayer_opts.thickness,
             )
 
         return image
