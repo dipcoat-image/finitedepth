@@ -51,7 +51,13 @@ import dataclasses
 import numpy as np
 import numpy.typing as npt
 from .substrate import SubstrateBase
-from .util import DataclassProtocol, BinaryImageDrawMode, binarize, colorize
+from .util import (
+    DataclassProtocol,
+    BinaryImageDrawMode,
+    Color,
+    binarize,
+    colorize,
+)
 from typing import TypeVar, Generic, Type, Optional, Tuple
 
 try:
@@ -469,15 +475,9 @@ class LayerAreaDecoOptions:
     """
     Coating layer decorating options for :class:`LayerArea`.
 
-    Parameters
-    ==========
-
-    layer_color
-        RGB color to paint the coating layer.
-
     """
 
-    layer_color: Tuple[int, int, int] = (0, 0, 255)
+    layer_color: Color = Color(0, 0, 255)
 
 
 @dataclasses.dataclass
@@ -569,7 +569,7 @@ class LayerArea(
        :include-source:
        :context: close-figs
 
-       >>> coat.deco_options.layer_color = (0, 255, 0)
+       >>> coat.deco_options.layer_color.red = 255
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
     """
@@ -599,7 +599,7 @@ class LayerArea(
 
         ret = colorize(image)
         if self.draw_options.decorate:
-            ret[~mask] = self.deco_options.layer_color
+            ret[~mask] = dataclasses.astuple(self.deco_options.layer_color)
         return ret
 
     def analyze_layer(self) -> Tuple[int]:
