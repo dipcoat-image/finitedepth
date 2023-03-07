@@ -426,6 +426,12 @@ class RectLayerShapeData:
     LayerLength_Left: float
     LayerLength_Right: float
 
+    Thickness_Left: float
+    Thickness_Bottom: float
+    Thickness_right: float
+
+    UniformThickness: float
+
 
 class LayerRegionFlag2(enum.IntFlag):
     """
@@ -877,8 +883,31 @@ class RectLayerShape(
 
         return image
 
-    def analyze_layer(self):
-        raise NotImplementedError
+    def analyze_layer(
+        self,
+    ) -> Tuple[int, float, float, float, float, float, float]:
+        AREA = self.layer_area()
+
+        subst = self.substrate
+        subst_p = np.array(self.substrate_point())
+        bottomleft = subst_p + np.array(
+            subst.vertex_points()[subst.PointType.BOTTOMLEFT]
+        )
+        bottomright = subst_p + np.array(
+            subst.vertex_points()[subst.PointType.BOTTOMRIGHT]
+        )
+        cp_x0, cp_y0, cp_x1, cp_y1 = self.contactline_points()
+        LEN_L = float(np.linalg.norm(bottomleft - np.array([cp_x0, cp_y0])))
+        LEN_R = float(np.linalg.norm(bottomright - np.array([cp_x1, cp_y1])))
+
+        tp_l, tp_b, tp_r = self.thickness_points()
+        THCK_L = float(np.linalg.norm(np.diff(tp_l, axis=0)))
+        THCK_B = float(np.linalg.norm(np.diff(tp_b, axis=0)))
+        THCK_R = float(np.linalg.norm(np.diff(tp_r, axis=0)))
+
+        THCK_U = float(self.uniform_layer()[0])
+
+        return (AREA, LEN_L, LEN_R, THCK_L, THCK_B, THCK_R, THCK_U)
 
 
 def get_extended_line(
