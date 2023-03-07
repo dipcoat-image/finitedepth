@@ -122,14 +122,19 @@ class RectCoatingLayerBase(
 
     def capbridge_broken(self) -> bool:
         x0, y0 = self.substrate_point()
-        top = y0 + max(p[1] for (_, p) in self.substrate.vertex_points().items())
+        vertex_points = np.stack(
+            [p for p in self.substrate.vertex_points() if p.size > 0]
+        )
+        v_y, v_x = vertex_points.transpose(2, 0, 1)
+
+        top = y0 + np.max(v_y).astype(int)
         bot, _ = self.binary_image().shape
         if top > bot:
             # substrate is located outside of the frame
             return False
 
-        left = x0 + min(p[0] for (_, p) in self.substrate.vertex_points().items())
-        right = x0 + max(p[0] for (_, p) in self.substrate.vertex_points().items())
+        left = x0 + np.min(v_x).astype(int)
+        right = x0 + np.max(v_x).astype(int)
 
         roi_binimg = self.binary_image()[top:bot, left:right]
         return bool(np.any(np.all(roi_binimg, axis=1)))
@@ -146,28 +151,21 @@ class RectCoatingLayerBase(
         if not hasattr(self, "_labelled_layer"):
             mask = cv2.bitwise_not(self.extract_layer()).astype(bool)
             row, col = np.where(mask)
-            points = np.stack([col, row], axis=1)
+            points = np.stack([col, row]).T
 
             p0 = np.array(self.substrate_point())
-            A = p0 + np.array(
-                self.substrate.vertex_points()[self.substrate.PointType.TOPLEFT]
-            )
-            B = p0 + np.array(
-                self.substrate.vertex_points()[self.substrate.PointType.BOTTOMLEFT]
-            )
-            C = p0 + np.array(
-                self.substrate.vertex_points()[self.substrate.PointType.BOTTOMRIGHT]
-            )
-            D = p0 + np.array(
-                self.substrate.vertex_points()[self.substrate.PointType.TOPRIGHT]
-            )
+            tl, bl, br, tr = self.substrate.vertex_points()
+            A = p0 + tl
+            B = p0 + bl
+            C = p0 + br
+            D = p0 + tr
             M1, M2 = (A + D) / 2, (B + C) / 2
             M1M2 = M2 - M1
 
-            lefthalf = np.cross(M1M2, points - M1) >= 0
-            leftwall = np.cross(B - A, points - A) >= 0
-            rightwall = np.cross(D - C, points - C) >= 0
-            bottom = np.cross(C - B, points - B) >= 0
+            lefthalf = np.cross(M1M2, points - M1, axis=1) >= 0
+            leftwall = np.cross(B - A, points - A, axis=1) >= 0
+            rightwall = np.cross(D - C, points - C, axis=1) >= 0
+            bottom = np.cross(C - B, points - B, axis=1) >= 0
 
             h, w = self.image.shape[:2]
             ret = np.full((h, w), self.Region.BACKGROUND)
@@ -200,16 +198,16 @@ class RectLayerShapeParameters:
 class RectLayerShapeDrawOptions:
     """Drawing options for :class:`RectLayerShape` instance."""
 
-    draw_mode: BinaryImageDrawMode = BinaryImageDrawMode.ORIGINAL
-    subtract_mode: SubstrateSubtractionMode = SubstrateSubtractionMode.NONE
+    draw_mode: BinaryImageDrawMode = BinaryImageDrawMode.BINARY
+    subtract_mode: SubstrateSubtractionMode = SubstrateSubtractionMode.FULL
 
 
 @dataclasses.dataclass
 class RectLayerShapeDecoOptions:
     """Decorating options for :class:`RectLayerShape` instance."""
 
-    layer: FeatureDrawingOptions = FeatureDrawingOptions()
-    thickest_lines: FeatureDrawingOptions = FeatureDrawingOptions()
+    layer: FeatureDrawingOptions = FeatureDrawingOptions(thickness=1)
+    thickest_lines: FeatureDrawingOptions = FeatureDrawingOptions(thickness=1)
     uniform_layer: FeatureDrawingOptions = FeatureDrawingOptions()
 
 
@@ -291,6 +289,7 @@ class RectLayerShape(
        >>> mparams = MorphologyClosingParameters((1, 1))
        >>> params = RectLayerShape.Parameters(mparams, 50)
        >>> coat = RectLayerShape(coat_img, subst, params)
+       >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
     """
 
@@ -338,19 +337,16 @@ class RectLayerShape(
             # reconstruct the remaining components around the lower corners
             # to remove large specks
             p0 = np.array(self.substrate_point())
-            B = p0 + np.array(
-                self.substrate.vertex_points()[self.substrate.PointType.BOTTOMLEFT]
-            )
-            C = p0 + np.array(
-                self.substrate.vertex_points()[self.substrate.PointType.BOTTOMRIGHT]
-            )
+            _, bl, br, _ = self.substrate.vertex_points()
+            B = p0 + bl
+            C = p0 + br
             comps, labels = cv2.connectedComponents(cv2.bitwise_not(img_closed))
             dist_thres = self.parameters.ReconstructRadius
             for i in range(1, comps):
                 row, col = np.where(labels == i)
-                points = np.stack([col, row], axis=1)
-                left_dist = np.linalg.norm(points - B, axis=1)
-                right_dist = np.linalg.norm(points - C, axis=1)
+                points = np.stack([col, row]).T
+                left_dist = np.linalg.norm(points - B, axis=0)
+                right_dist = np.linalg.norm(points - C, axis=0)
                 if np.min(left_dist) > dist_thres and np.min(right_dist) > dist_thres:
                     labels[row, col] = 0
             labels[np.where(labels)] = 255  # binarize
@@ -417,33 +413,26 @@ class RectLayerShape(
                 cnt_points = np.empty((0, 1, 2), dtype=np.int32)
             else:
                 cnt_points = np.concatenate(contours, axis=0)
-            cnt_y, cnt_x = cnt_points.T
+            cnt_y, cnt_x = cnt_points.transpose(2, 0, 1)
 
-            cnt_labels = self.label_layer()[cnt_x, cnt_y].T
+            cnt_labels = self.label_layer()[cnt_x, cnt_y]
             on_layer = (cnt_labels & self.Region.LAYER).astype(bool)
             is_left = (cnt_labels & self.Region.LEFTWALL).astype(bool)
             is_bottom = (cnt_labels & self.Region.BOTTOM).astype(bool)
             is_right = (cnt_labels & self.Region.RIGHTWALL).astype(bool)
 
             p0 = np.array(self.substrate_point())
-            A = p0 + np.array(
-                self.substrate.vertex_points()[self.substrate.PointType.TOPLEFT]
-            )
-            B = p0 + np.array(
-                self.substrate.vertex_points()[self.substrate.PointType.BOTTOMLEFT]
-            )
-            C = p0 + np.array(
-                self.substrate.vertex_points()[self.substrate.PointType.BOTTOMRIGHT]
-            )
-            D = p0 + np.array(
-                self.substrate.vertex_points()[self.substrate.PointType.TOPRIGHT]
-            )
+            tl, bl, br, tr = self.substrate.vertex_points()
+            A = p0 + tl
+            B = p0 + bl
+            C = p0 + br
+            D = p0 + tr
 
             def find_thickest(points, A, B):
                 Ap = points - A
                 AB = B - A
-                t = np.dot(Ap, AB) / np.dot(AB, AB)
-                AC = t[..., np.newaxis] * AB
+                t = np.dot(Ap, AB.T) / np.dot(AB, AB.T)
+                AC = t * AB
                 dists = np.linalg.norm(Ap - AC, axis=1)
                 mask = dists == np.max(dists)
                 pts = np.stack(
@@ -630,14 +619,10 @@ class RectLayerShape(
     ) -> Tuple[int, float, float, float, float, float, float]:
         AREA = self.layer_area()
 
-        subst = self.substrate
         subst_p = np.array(self.substrate_point())
-        bottomleft = subst_p + np.array(
-            subst.vertex_points()[subst.PointType.BOTTOMLEFT]
-        )
-        bottomright = subst_p + np.array(
-            subst.vertex_points()[subst.PointType.BOTTOMRIGHT]
-        )
+        _, bl, br, _ = self.substrate.vertex_points()
+        bottomleft = subst_p + bl
+        bottomright = subst_p + br
         cp_x0, cp_y0, cp_x1, cp_y1 = self.contactline_points()
         LEN_L = float(np.linalg.norm(bottomleft - np.array([cp_x0, cp_y0])))
         LEN_R = float(np.linalg.norm(bottomright - np.array([cp_x1, cp_y1])))

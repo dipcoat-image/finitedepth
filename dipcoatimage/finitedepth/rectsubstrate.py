@@ -47,7 +47,7 @@ import dataclasses
 import enum
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Tuple, Optional, Dict, Type
+from typing import TypeVar, Tuple, Optional, Type
 from .substrate import SubstrateError, SubstrateBase
 from .util import (
     HoughLinesParameters,
@@ -104,7 +104,7 @@ class RectSubstrateEdgeError(RectSubstrateError):
 
 class RectSubstrateLineType(enum.IntEnum):
     """
-    Type of the line detected in rectangular substrate.
+    Type of the lines detected in rectangular substrate.
 
     Attributes
     ==========
@@ -133,15 +133,12 @@ class RectSubstrateLineType(enum.IntEnum):
     BOTTOM = 4
 
 
-class RectSubstratePointType(enum.Enum):
+class RectSubstratePointType(enum.IntEnum):
     """
-    Type of the point detected in rectangular substrate.
+    Type of the vertex points detected in rectangular substrate.
 
     Attributes
     ==========
-
-    UNKNOWN
-        Unknown point.
 
     TOPLEFT
         Top left-hand side vertex point of the substrate.
@@ -157,11 +154,10 @@ class RectSubstratePointType(enum.Enum):
 
     """
 
-    UNKNOWN = "UNKNOWN"
-    TOPLEFT = "TOPLEFT"
-    BOTTOMLEFT = "BOTTOMLEFT"
-    BOTTOMRIGHT = "BOTTOMRIGHT"
-    TOPRIGHT = "TOPRIGHT"
+    TOPLEFT = 0
+    BOTTOMLEFT = 1
+    BOTTOMRIGHT = 2
+    TOPRIGHT = 3
 
 
 ParametersType = TypeVar("ParametersType", bound=RectSubstrateParameters)
@@ -190,14 +186,17 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     LineType: TypeAlias = RectSubstrateLineType
     PointType: TypeAlias = RectSubstratePointType
 
-    def gradient(self) -> Tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]]:
+    def gradient(self) -> npt.NDArray[np.float32]:
         """
-        Return the pixel gradient in ``(G_x, G_y)`` using :func:`cv2.Sobel`.
+        Acquire the pixel gradient using :func:`cv2.Sobel`.
+
+        The return value has two channels which are x gradient and y gradient
+        values on the pixel position.
         """
         if not hasattr(self, "_gradient"):
             Gx = cv2.Sobel(self.binary_image(), cv2.CV_32F, 1, 0)
             Gy = cv2.Sobel(self.binary_image(), cv2.CV_32F, 0, 1)
-            self._gradient = (Gx, Gy)
+            self._gradient = np.dstack([Gx, Gy])
         return self._gradient
 
     def edge_hull(self) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.float64]]:
@@ -217,8 +216,13 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
     def lines(self) -> npt.NDArray[np.float32]:
         """
-        Feature vectors of straight lines from :meth:`gradient` in
-        ``(r, theta)``, detected by :func:`cv2.HoughLines`.
+        Get :func:`cv2.HoughLines` result from the binary image of *self*.
+
+        This method first acquires the edge image using :meth:`gradient`, and
+        apply Hough line transformation with the parameters defined in
+        :attr:`parameters`.
+
+        If no line can be found, an empty array is returned.
 
         Notes
         =====
@@ -227,29 +231,29 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         """
         if not hasattr(self, "_lines"):
-            Gx, Gy = self.gradient()
-            G = Gx.astype(bool) | Gy.astype(bool)
+            G = np.any(self.gradient().astype(bool), axis=-1)
             hparams = dataclasses.asdict(self.parameters.HoughLines)
             lines = cv2.HoughLines(G.astype(np.uint8), **hparams)
             if lines is None:
                 lines = np.empty((0, 1, 2), dtype=np.float32)
             self._lines = lines
-        return self._lines  # type: ignore
+        return self._lines
 
     def classify_lines(self, lines: npt.NDArray[np.float32]) -> npt.NDArray[np.uint8]:
         """
-        Classify *lines* from :func:`cv2.HoughLines`.
+        Classify *lines* which is the result of :func:`cv2.HoughLines`.
 
-        Values are the members of :attr:`RectSubstrateLineType`.
+        Return value is the label for each line vector. Label values are the
+        members of :attr:`RectSubstrateLineType`.
         """
         TOL = 0.2
 
-        r = lines[..., 0]
+        r, theta = lines.transpose(2, 0, 1)
+
         h, w = self.image().shape[:2]
         is_upper = r <= h / 2
         is_left = r <= w / 2
 
-        theta = lines[..., 1]
         is_horizontal = np.abs(np.cos(theta)) < np.cos(np.pi / 2 - TOL)
         is_vertical = np.abs(np.cos(theta)) > np.cos(TOL)
 
@@ -260,11 +264,20 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         ret[~is_left & is_vertical] = self.LineType.RIGHT
         return ret
 
-    def edge_lines(self) -> Dict[RectSubstrateLineType, Tuple[np.float32, np.float32]]:
+    def edge_lines(
+        self,
+    ) -> Tuple[
+        npt.NDArray[np.float32],
+        npt.NDArray[np.float32],
+        npt.NDArray[np.float32],
+        npt.NDArray[np.float32],
+        npt.NDArray[np.float32],
+    ]:
         """
-        Dictionary of rectangle edges detected from :meth:`lines` using
-        :meth:`classify_lines`.
-        Values are ``(r, theta)`` of the edge line.
+        Return the vectors for the lines of :class:`RectSubstrateLineType`.
+        The vector values are the ``(r, theta)`` of the line.
+
+        Empty array indicates no line for the line type.
 
         Notes
         =====
@@ -276,22 +289,31 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             lines = self.lines()
             labels = self.classify_lines(lines)
 
-            ret = {}
+            ret = []
             for line_type in self.LineType:
-                if line_type == self.LineType.UNKNOWN:
-                    continue
                 good_lines = lines[np.where(labels == line_type)]
                 if good_lines.size != 0:
-                    ret[line_type] = good_lines[0]
+                    line = good_lines[0][np.newaxis, ...]
+                else:
+                    line = np.empty((0, 2), dtype=np.float32)
+                ret.append(line)
 
-            self._edge_lines = ret
+            self._edge_lines = tuple(ret)
 
-        return self._edge_lines
+        return self._edge_lines  # type: ignore[return-value]
 
-    def vertex_points(self) -> Dict[RectSubstratePointType, npt.NDArray[np.float32]]:
+    def vertex_points(
+        self,
+    ) -> Tuple[
+        npt.NDArray[np.float32],
+        npt.NDArray[np.float32],
+        npt.NDArray[np.float32],
+        npt.NDArray[np.float32],
+    ]:
         """
-        Dictionary of rectangle vertices from :meth:`edge_lines`.
-        Values are ``(x, y)`` of the point.
+        Return the coordinates for the points of :class:`RectSubstratePointType`.
+
+        Empty array indicates no point for the vertex type.
 
         Notes
         =====
@@ -302,54 +324,44 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         if not hasattr(self, "_vertex_points"):
             h, w = self.image().shape[:2]
 
-            edge_lines = self.edge_lines()
-            left = edge_lines.get(
-                self.LineType.LEFT,
-                np.array([0, 0], dtype=np.float32),
-            )
-            right = edge_lines.get(
-                self.LineType.RIGHT,
-                np.array([w, 0], dtype=np.float32),
-            )
-            top = edge_lines.get(
-                self.LineType.TOP,
-                np.array([0, np.pi / 2], dtype=np.float32),
-            )
-            bottom = edge_lines.get(
-                self.LineType.BOTTOM,
-                np.array([h, np.pi / 2], dtype=np.float32),
-            )
+            _, left, right, top, bottom = self.edge_lines()
+            if left.size == 0:
+                left = np.array([[0, 0]], dtype=np.float32)
+            if right.size == 0:
+                right = np.array([[w, 0]], dtype=np.float32)
+            if top.size == 0:
+                top = np.array([[0, np.pi / 2]], dtype=np.float32)
+            if bottom.size == 0:
+                bottom = np.array([[h, np.pi / 2]], dtype=np.float32)
 
             def find_intersect(l1, l2):
-                r1, t1 = l1
-                r2, t2 = l2
+                r1, t1 = l1.T
+                r2, t2 = l2.T
                 mat = np.array([[np.cos(t1), np.sin(t1)], [np.cos(t2), np.sin(t2)]])
                 vec = np.array([r1, r2])
-                return np.linalg.inv(mat) @ vec  # returns [x, y]
+                return np.linalg.inv(mat.transpose(2, 0, 1)) @ vec  # returns [x, y]
 
-            points = {
-                self.PointType.TOPLEFT: find_intersect(top, left).reshape(1, 2),
-                self.PointType.TOPRIGHT: find_intersect(top, right).reshape(1, 2),
-                self.PointType.BOTTOMLEFT: find_intersect(bottom, left).reshape(1, 2),
-                self.PointType.BOTTOMRIGHT: find_intersect(bottom, right).reshape(1, 2),
-            }
+            points = [
+                find_intersect(top, left).reshape((1, 2)),
+                find_intersect(bottom, left).reshape((1, 2)),
+                find_intersect(bottom, right).reshape((1, 2)),
+                find_intersect(top, right).reshape((1, 2)),
+            ]
 
-            self._vertex_points = points  # type: ignore
+            self._vertex_points = tuple(points)
 
-        return self._vertex_points  # type: ignore
+        return self._vertex_points  # type: ignore[return-value]
 
     def examine(self) -> Optional[RectSubstrateError]:
         ret: Optional[RectSubstrateError] = None
 
         missing = []
-        for pt in self.PointType:
-            if pt == self.PointType.UNKNOWN:
-                continue
-            if pt not in self.vertex_points():
-                missing.append(pt)
+        for point_type, point in zip(self.PointType, self.vertex_points()):
+            if point.size == 0:
+                missing.append(point_type)
 
         if missing:
-            msg = "Vertices missing: %s" % ", ".join([v.name for v in missing])
+            msg = "Vertices missing: %s" % ", ".join([t.name for t in missing])
             ret = RectSubstrateEdgeError(msg)
 
         return ret
@@ -478,8 +490,7 @@ class RectSubstrate(
         elif draw_mode is self.DrawMode.BINARY:
             image = self.binary_image()
         elif draw_mode is self.DrawMode.EDGES:
-            Gx, Gy = self.gradient()
-            image = (Gx.astype(bool) | Gy.astype(bool)) * np.uint8(255)
+            image = np.any(self.gradient().astype(bool), axis=-1) * np.uint8(255)
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
         if len(image.shape) == 2:
@@ -512,22 +523,10 @@ class RectSubstrate(
                 )
 
         if self.draw_options.draw_edges:
-            vertex_points = self.vertex_points()
-            topleft = vertex_points.get(
-                self.PointType.TOPLEFT, np.empty((0, 2), dtype=np.float32)
-            )
+            topleft, bottomleft, bottomright, topright = self.vertex_points()
             has_topleft = topleft.size > 0
-            topright = vertex_points.get(
-                self.PointType.TOPRIGHT, np.empty((0, 2), dtype=np.float32)
-            )
             has_topright = topright.size > 0
-            bottomleft = vertex_points.get(
-                self.PointType.BOTTOMLEFT, np.empty((0, 2), dtype=np.float32)
-            )
             has_bottomleft = bottomleft.size > 0
-            bottomright = vertex_points.get(
-                self.PointType.BOTTOMRIGHT, np.empty((0, 2), dtype=np.float32)
-            )
             has_bottomright = bottomright.size > 0
 
             if has_topleft and has_topright:
