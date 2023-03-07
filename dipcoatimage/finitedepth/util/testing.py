@@ -7,7 +7,7 @@ unit tests.
 
 """
 
-
+from collections.abc import Iterable
 from typing import Dict
 
 
@@ -21,6 +21,9 @@ def dict_includes(sup: Dict, sub: Dict):
             return False
         if isinstance(value, dict):
             if not dict_includes(sup[key], value):
+                return False
+        elif isinstance(value, Iterable):
+            if not list(value) == list(sup[key]):
                 return False
         else:
             if not value == sup[key]:

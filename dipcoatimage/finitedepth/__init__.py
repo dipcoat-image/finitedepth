@@ -43,7 +43,6 @@ from .coatinglayer import (
 )
 from .rectcoatinglayer import (
     RectCoatingLayerBase,
-    RectLayerArea,
     RectLayerShape,
 )
 from .experiment import ExperimentError, ExperimentBase, Experiment
@@ -81,7 +80,6 @@ __all__ = [
     "CoatingLayerBase",
     "LayerArea",
     "RectCoatingLayerBase",
-    "RectLayerArea",
     "RectLayerShape",
     "ExperimentError",
     "ExperimentBase",

@@ -14,13 +14,19 @@ Base class
 Implementation
 ==============
 
-.. autoclass:: RectLayerAreaDecoOptions
+.. autoclass:: RectLayerShapeParameters
    :members:
 
-.. autoclass:: RectLayerAreaData
+.. autoclass:: RectLayerShapeDrawOptions
    :members:
 
-.. autoclass:: RectLayerArea
+.. autoclass:: RectLayerShapeDecoOptions
+   :members:
+
+.. autoclass:: RectLayerShapeData
+   :members:
+
+.. autoclass:: RectLayerShape
    :members:
 
 """
@@ -30,12 +36,11 @@ import dataclasses
 import enum
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Type, Tuple, List
+from typing import TypeVar, Type, Tuple, List, Optional
 from .rectsubstrate import RectSubstrate
 from .coatinglayer import (
+    CoatingLayerError,
     CoatingLayerBase,
-    LayerAreaParameters,
-    LayerAreaDrawOptions,
 )
 from .util import (
     DataclassProtocol,
@@ -55,26 +60,34 @@ except ImportError:
 __all__ = [
     "LayerRegionFlag",
     "RectCoatingLayerBase",
-    "RectLayerAreaDecoOptions",
-    "RectLayerAreaData",
-    "RectLayerArea",
     "RectLayerShapeParameters",
     "RectLayerShapeDrawOptions",
     "RectLayerShapeDecoOptions",
     "RectLayerShapeData",
-    "LayerRegionFlag2",
     "RectLayerShape",
     "get_extended_line",
 ]
 
 
 class LayerRegionFlag(enum.IntFlag):
-    """Label to classify the coating layer pixels by their regions."""
+    """
+    Label to classify the coating layer pixels by their regions.
+
+    - BACKGROUND: Null value for pixels that are not the coating layer
+    - LAYER: Denotes that the pixel is in the coating layer
+    - LEFTHALF: Left-hand side w.r.t. the vertical center line
+    - LEFTWALL: Left-hand side w.r.t. the left-hand side substrate wall
+    - RIGHTWALL: Right-hand side w.r.t. the right-hand side substrate wall
+    - BOTTOM: Under the substrate bottom surface
+
+    """
 
     BACKGROUND = 0
-    LEFT = 1
-    BOTTOM = 2
-    RIGHT = 4
+    LAYER = 1
+    LEFTHALF = 2
+    LEFTWALL = 4
+    RIGHTWALL = 8
+    BOTTOM = 16
 
 
 ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
@@ -130,9 +143,6 @@ class RectCoatingLayerBase(
 
         """
         if not hasattr(self, "_labelled_layer"):
-            h, w = self.image.shape[:2]
-            ret = np.full((h, w), self.Region.BACKGROUND)
-
             mask = cv2.bitwise_not(self.extract_layer()).astype(bool)
             row, col = np.where(mask)
             points = np.stack([col, row], axis=1)
@@ -150,246 +160,31 @@ class RectCoatingLayerBase(
             D = p0 + np.array(
                 self.substrate.vertex_points()[self.substrate.PointType.TOPRIGHT]
             )
+            M1, M2 = (A + D) / 2, (B + C) / 2
+            M1M2 = M2 - M1
 
-            left_of_AB = np.cross(B - A, points - A) >= 0
-            under_BC = np.cross(C - B, points - B) >= 0
-            right_of_CD = np.cross(D - C, points - C) >= 0
+            lefthalf = np.cross(M1M2, points - M1) >= 0
+            leftwall = np.cross(B - A, points - A) >= 0
+            rightwall = np.cross(D - C, points - C) >= 0
+            bottom = np.cross(C - B, points - B) >= 0
 
-            left_x, left_y = points[left_of_AB].T
-            ret[left_y, left_x] |= self.Region.LEFT
+            h, w = self.image.shape[:2]
+            ret = np.full((h, w), self.Region.BACKGROUND)
 
-            bottom_x, bottom_y = points[under_BC].T
-            ret[bottom_y, bottom_x] |= self.Region.BOTTOM
+            _x, _y = points.T
+            ret[_y, _x] |= self.Region.LAYER
+            _x, _y = points[lefthalf].T
+            ret[_y, _x] |= self.Region.LEFTHALF
+            _x, _y = points[leftwall].T
+            ret[_y, _x] |= self.Region.LEFTWALL
+            _x, _y = points[rightwall].T
+            ret[_y, _x] |= self.Region.RIGHTWALL
+            _x, _y = points[bottom].T
+            ret[_y, _x] |= self.Region.BOTTOM
 
-            right_x, right_y = points[right_of_CD].T
-            ret[right_y, right_x] |= self.Region.RIGHT
             self._labelled_layer = ret
 
         return self._labelled_layer
-
-
-@dataclasses.dataclass
-class RectLayerAreaDecoOptions:
-    """
-    Decorating options for :class:`RectLayerArea`.
-
-    Parameters
-    ==========
-
-    paint_Left
-        Flag to paint the left-side region of the coating layer.
-
-    Left_color
-        RGB color to paint the left-side region of the coating layer.
-        Ignored if *paint_Left* is false.
-
-    paint_LeftCorner
-        Flag to paint the left-side corner region of the coating layer.
-
-    LeftCorner_color
-        RGB color to paint the left-side corner region of the coating layer.
-        Ignored if *paint_LeftCorner* is false.
-
-    paint_Bottom
-        Flag to paint the bottom region of the coating layer.
-
-    Bottom_color
-        RGB color to paint the bottom region of the coating layer.
-        Ignored if *paint_Left* is false.
-
-    paint_RightCorner
-        Flag to paint the right-side corner region of the coating layer.
-
-    RightCorner_color
-        RGB color to paint the right-side corner region of the coating layer.
-        Ignored if *paint_RightCorner* is false.
-
-    paint_Right
-        Flag to paint the right-side region of the coating layer.
-
-    Right_color
-        RGB color to paint the right-side region of the coating layer.
-        Ignored if *paint_Right* is false.
-
-    """
-
-    paint_Left: bool = True
-    Left_color: Tuple[int, int, int] = (0, 0, 255)
-    paint_LeftCorner: bool = True
-    LeftCorner_color: Tuple[int, int, int] = (0, 255, 0)
-    paint_Bottom: bool = True
-    Bottom_color: Tuple[int, int, int] = (0, 0, 255)
-    paint_RightCorner: bool = True
-    RightCorner_color: Tuple[int, int, int] = (0, 255, 0)
-    paint_Right: bool = True
-    Right_color: Tuple[int, int, int] = (0, 0, 255)
-
-
-@dataclasses.dataclass
-class RectLayerAreaData:
-    """
-    Analysis data for :class:`RectLayerArea`.
-
-    Parameters
-    ==========
-
-    LeftArea, LeftCornerArea, BottomArea, RightCornerArea, RightArea
-        Number of the pixels in each coating layer region.
-
-    """
-
-    LeftArea: int
-    LeftCornerArea: int
-    BottomArea: int
-    RightCornerArea: int
-    RightArea: int
-
-
-class RectLayerArea(
-    RectCoatingLayerBase[
-        LayerAreaParameters,
-        LayerAreaDrawOptions,
-        RectLayerAreaDecoOptions,
-        RectLayerAreaData,
-    ]
-):
-    """
-    Class to analyze the cross section area of coating layer regions over
-    rectangular substrate. Area unit is number of pixels.
-
-    Examples
-    ========
-
-    Construct substrate reference class first.
-
-    .. plot::
-       :include-source:
-       :context: reset
-
-       >>> import cv2
-       >>> from dipcoatimage.finitedepth import (SubstrateReference,
-       ...     get_samples_path)
-       >>> ref_path = get_samples_path("ref1.png")
-       >>> ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
-       >>> tempROI = (200, 50, 1200, 200)
-       >>> substROI = (400, 100, 1000, 500)
-       >>> ref = SubstrateReference(ref_img, tempROI, substROI)
-       >>> import matplotlib.pyplot as plt #doctest: +SKIP
-       >>> plt.imshow(ref.draw()) #doctest: +SKIP
-
-    Construct the parameters and substrate instance from reference instance.
-
-    .. plot::
-       :include-source:
-       :context: close-figs
-
-       >>> from dipcoatimage.finitedepth import (HoughLinesParameters,
-       ...     RectSubstrate)
-       >>> hparams = HoughLinesParameters(1, 0.01, 100)
-       >>> params = RectSubstrate.Parameters(hparams)
-       >>> subst = RectSubstrate(ref, parameters=params)
-       >>> plt.imshow(subst.draw()) #doctest: +SKIP
-
-    Construct :class:`RectLayerArea` from substrate class. :meth:`analyze`
-    returns the number of pixels in coating area region.
-
-    .. plot::
-       :include-source:
-       :context: close-figs
-
-       >>> from dipcoatimage.finitedepth import RectLayerArea
-       >>> coat_path = get_samples_path("coat1.png")
-       >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
-       >>> coat = RectLayerArea(coat_img, subst)
-       >>> coat.analyze()
-       RectLayerAreaData(LeftArea=8262, LeftCornerArea=173, BottomArea=27457,
-                         RightCornerArea=193, RightArea=8263)
-       >>> plt.imshow(coat.draw()) #doctest: +SKIP
-
-    :attr:`draw_options` controls the overall visualization.
-
-    .. plot::
-       :include-source:
-       :context: close-figs
-
-       >>> coat.draw_options.remove_substrate = True
-       >>> plt.imshow(coat.draw()) #doctest: +SKIP
-
-    :attr:`deco_options` controls the decoration of coating layer reigon.
-
-    .. plot::
-       :include-source:
-       :context: close-figs
-
-       >>> coat.deco_options.Bottom_color = (255, 0, 0)
-       >>> plt.imshow(coat.draw()) #doctest: +SKIP
-
-    """
-
-    Parameters = LayerAreaParameters
-    DrawOptions = LayerAreaDrawOptions
-    DecoOptions = RectLayerAreaDecoOptions
-    Data = RectLayerAreaData
-
-    DrawMode: TypeAlias = BinaryImageDrawMode
-
-    def examine(self) -> None:
-        return None
-
-    def draw(self) -> npt.NDArray[np.uint8]:
-        draw_mode = self.draw_options.draw_mode
-        if self.draw_options.remove_substrate:
-            image = self.extract_layer()
-        elif draw_mode == self.DrawMode.ORIGINAL:
-            image = self.image
-        elif draw_mode == self.DrawMode.BINARY:
-            image = self.binary_image()
-        else:
-            raise TypeError("Unrecognized draw mode: %s" % draw_mode)
-
-        if len(image.shape) == 2:
-            ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-        elif len(image.shape) == 3:
-            ch = image.shape[-1]
-            if ch == 1:
-                ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-            elif ch == 3:
-                ret = image.copy()
-            else:
-                raise TypeError(f"Image with invalid channel: {image.shape}")
-        else:
-            raise TypeError(f"Invalid image shape: {image.shape}")
-
-        if self.draw_options.decorate:
-            layer_label = self.label_layer()
-            if self.deco_options.paint_Left:
-                color = self.deco_options.Left_color
-                ret[layer_label == self.Region.LEFT] = color
-            if self.deco_options.paint_LeftCorner:
-                color = self.deco_options.LeftCorner_color
-                ret[layer_label == self.Region.LEFT | self.Region.BOTTOM] = color
-            if self.deco_options.paint_Bottom:
-                color = self.deco_options.Bottom_color
-                ret[layer_label == self.Region.BOTTOM] = color
-            if self.deco_options.paint_RightCorner:
-                color = self.deco_options.RightCorner_color
-                ret[layer_label == self.Region.BOTTOM | self.Region.RIGHT] = color
-            if self.deco_options.paint_Right:
-                color = self.deco_options.Right_color
-                ret[layer_label == self.Region.RIGHT] = color
-        return ret
-
-    def analyze_layer(self) -> Tuple[int, int, int, int, int]:
-        layer_label = self.label_layer()
-        unique_count = dict(zip(*np.unique(layer_label, return_counts=True)))
-
-        left_a = unique_count.get(self.Region.LEFT, 0)
-        leftcorner_a = unique_count.get(self.Region.LEFT | self.Region.BOTTOM, 0)
-        bottom_a = unique_count.get(self.Region.BOTTOM, 0)
-        rightcorner_a = unique_count.get(self.Region.BOTTOM | self.Region.RIGHT, 0)
-        right_a = unique_count.get(self.Region.RIGHT, 0)
-
-        return (left_a, leftcorner_a, bottom_a, rightcorner_a, right_a)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -431,27 +226,6 @@ class RectLayerShapeData:
     Thickness_right: float
 
     UniformThickness: float
-
-
-class LayerRegionFlag2(enum.IntFlag):
-    """
-    Label to classify the coating layer pixels by their regions.
-
-    - BACKGROUND: Null value for pixels that are not the coating layer
-    - LAYER: Denotes that the pixel is in the coating layer
-    - LEFTHALF: Left-hand side w.r.t. the vertical center line
-    - LEFTWALL: Left-hand side w.r.t. the left-hand side substrate wall
-    - RIGHTWALL: Right-hand side w.r.t. the right-hand side substrate wall
-    - BOTTOM: Under the substrate bottom surface
-
-    """
-
-    BACKGROUND = 0
-    LAYER = 1
-    LEFTHALF = 2
-    LEFTWALL = 4
-    RIGHTWALL = 8
-    BOTTOM = 16
 
 
 ROTATION_MATRIX = np.array([[0, -1], [1, 0]])
@@ -536,62 +310,9 @@ class RectLayerShape(
     DrawMode: TypeAlias = BinaryImageDrawMode
     SubtractMode: TypeAlias = SubstrateSubtractionMode
 
-    Region: TypeAlias = LayerRegionFlag2
-
-    def label_layer(self) -> npt.NDArray[np.uint8]:
-        """
-        Return the classification map of the pixels.
-
-        Pixels are labelled with :class:`LayerRegionFlag` by their location
-        relative to the substrate. The values can be combined to denote the pixel
-        in the corner, i.e. ``LEFT | BOTTOM`` for the lower left region.
-
-        """
-        if not hasattr(self, "_labelled_layer"):
-            mask = cv2.bitwise_not(self.extract_layer()).astype(bool)
-            row, col = np.where(mask)
-            points = np.stack([col, row], axis=1)
-
-            p0 = np.array(self.substrate_point())
-            A = p0 + np.array(
-                self.substrate.vertex_points()[self.substrate.PointType.TOPLEFT]
-            )
-            B = p0 + np.array(
-                self.substrate.vertex_points()[self.substrate.PointType.BOTTOMLEFT]
-            )
-            C = p0 + np.array(
-                self.substrate.vertex_points()[self.substrate.PointType.BOTTOMRIGHT]
-            )
-            D = p0 + np.array(
-                self.substrate.vertex_points()[self.substrate.PointType.TOPRIGHT]
-            )
-            M1, M2 = (A + D) / 2, (B + C) / 2
-            M1M2 = M2 - M1
-
-            lefthalf = np.cross(M1M2, points - M1) >= 0
-            leftwall = np.cross(B - A, points - A) >= 0
-            rightwall = np.cross(D - C, points - C) >= 0
-            bottom = np.cross(C - B, points - B) >= 0
-
-            h, w = self.image.shape[:2]
-            ret = np.full((h, w), self.Region.BACKGROUND)
-
-            _x, _y = points.T
-            ret[_y, _x] |= self.Region.LAYER
-            _x, _y = points[lefthalf].T
-            ret[_y, _x] |= self.Region.LEFTHALF
-            _x, _y = points[leftwall].T
-            ret[_y, _x] |= self.Region.LEFTWALL
-            _x, _y = points[rightwall].T
-            ret[_y, _x] |= self.Region.RIGHTWALL
-            _x, _y = points[bottom].T
-            ret[_y, _x] |= self.Region.BOTTOM
-
-            self._labelled_layer = ret
-
-        return self._labelled_layer
-
-    def examine(self) -> None:
+    def examine(self) -> Optional[CoatingLayerError]:
+        if not self.capbridge_broken():
+            return CoatingLayerError("Capillary bridge is not broken.")
         return None
 
     def contactline_points(self) -> Tuple[int, int, int, int]:
