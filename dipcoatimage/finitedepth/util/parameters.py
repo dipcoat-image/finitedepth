@@ -10,23 +10,17 @@ construct dataclasses for image analysis classes.
 import dataclasses
 import enum
 import numpy as np
+from typing import Tuple
 
 
 __all__ = [
-    "CannyParameters",
     "HoughLinesParameters",
+    "MorphologyClosingParameters",
     "BinaryImageDrawMode",
+    "SubstrateSubtractionMode",
+    "Color",
+    "FeatureDrawingOptions",
 ]
-
-
-@dataclasses.dataclass(frozen=True)
-class CannyParameters:
-    """Parameters for :func:`cv2.Canny`."""
-
-    threshold1: float
-    threshold2: float
-    apertureSize: int = 3
-    L2gradient: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -40,6 +34,13 @@ class HoughLinesParameters:
     stn: float = 0.0
     min_theta: float = 0.0
     max_theta: float = np.pi
+
+
+@dataclasses.dataclass(frozen=True)
+class MorphologyClosingParameters:
+    kernelSize: Tuple[int, int]
+    anchor: Tuple[int, int] = (-1, -1)
+    iterations: int = 1
 
 
 class BinaryImageDrawMode(enum.Enum):
@@ -59,3 +60,60 @@ class BinaryImageDrawMode(enum.Enum):
 
     ORIGINAL = "ORIGINAL"
     BINARY = "BINARY"
+
+
+class SubstrateSubtractionMode(enum.Enum):
+    """
+    Option to determine how the substrate image is subtracted from the
+    coating layer image.
+
+    Attributes
+    ==========
+
+    NONE
+        Do not subtract the substrate.
+
+    TEMPLATE
+        Subtract the template region without postprocessing.
+
+    SUBSTRATE
+        Subtract the substrate region without postprocessing.
+
+    FULL
+        Perform full subtraction with any defined postprocessing.
+
+    """
+
+    NONE = "NONE"
+    TEMPLATE = "TEMPLATE"
+    SUBSTRATE = "SUBSTRATE"
+    FULL = "FULL"
+
+
+@dataclasses.dataclass
+class Color:
+    red: int = 0
+    green: int = 0
+    blue: int = 0
+
+
+@dataclasses.dataclass
+class FeatureDrawingOptions:
+    """
+    Parameters to paint the arbitrary feature in the image.
+
+    Attributes
+    ==========
+
+    color
+        Color in RGB
+
+    thickness
+        Thickness of the line.
+        Zero value is the flag to not draw the feature.
+        Negative value can be the flag to fill the feature interior.
+
+    """
+
+    color: Color = Color(0, 0, 0)
+    thickness: int = 0

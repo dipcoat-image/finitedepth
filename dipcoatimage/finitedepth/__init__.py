@@ -41,7 +41,11 @@ from .coatinglayer import (
     CoatingLayerBase,
     LayerArea,
 )
-from .rectcoatinglayer import RectCoatingLayerBase, RectLayerArea
+from .rectcoatinglayer import (
+    RectCoatingLayerBase,
+    RectLayerArea,
+    RectLayerShape,
+)
 from .experiment import ExperimentError, ExperimentBase, Experiment
 from .analysis import ExperimentKind, experiment_kind, Analyzer
 from .serialize import (
@@ -56,8 +60,8 @@ from .serialize import (
 )
 from .util import (
     get_samples_path,
-    CannyParameters,
     HoughLinesParameters,
+    MorphologyClosingParameters,
 )
 
 
@@ -68,8 +72,6 @@ __all__ = [
     "SubstrateError",
     "SubstrateBase",
     "Substrate",
-    "CannyParameters",
-    "HoughLinesParameters",
     "RectSubstrateError",
     "RectSubstrateBase",
     "RectSubstrateHoughLinesError",
@@ -80,6 +82,7 @@ __all__ = [
     "LayerArea",
     "RectCoatingLayerBase",
     "RectLayerArea",
+    "RectLayerShape",
     "ExperimentError",
     "ExperimentBase",
     "Experiment",
@@ -95,6 +98,6 @@ __all__ = [
     "AnalysisArgs",
     "ExperimentData",
     "get_samples_path",
-    "CannyParameters",
     "HoughLinesParameters",
+    "MorphologyClosingParameters",
 ]

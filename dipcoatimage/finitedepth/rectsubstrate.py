@@ -47,12 +47,11 @@ import dataclasses
 import enum
 from math import isclose
 import numpy as np
+from numpy.linalg import inv
 import numpy.typing as npt
 from typing import TypeVar, Tuple, Optional, Dict, Type
 from .substrate import SubstrateError, SubstrateBase
 from .util import (
-    intrsct_pt_polar,
-    CannyParameters,
     HoughLinesParameters,
     DataclassProtocol,
 )
@@ -74,6 +73,7 @@ __all__ = [
     "RectSubstrateDrawMode",
     "RectSubstrateDrawOptions",
     "RectSubstrate",
+    "intrsct_pt_polar",
 ]
 
 
@@ -87,10 +87,9 @@ class RectSubstrateError(SubstrateError):
 class RectSubstrateParameters:
     """
     Parameters for the rectangular substrate class to detect the substrate edges
-    using Canny edge detection and Hough line transformation.
+    using Hough line transformation.
     """
 
-    Canny: CannyParameters
     HoughLines: HoughLinesParameters
 
 
@@ -182,7 +181,7 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     """
 
     __slots__ = (
-        "_cannyimage",
+        "_gradient",
         "_lines",
         "_edge_lines",
         "_vertex_points",
@@ -194,25 +193,35 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     LineType: TypeAlias = RectSubstrateLineType
     PointType: TypeAlias = RectSubstratePointType
 
-    def canny_image(self) -> npt.NDArray[np.uint8]:
+    def gradient(self) -> Tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]]:
         """
-        Canny edge detection result on :meth:`binary_image`.
-
-        Notes
-        =====
-
-        This property is cached. Do not mutate the result.
-
+        Return the pixel gradient in ``(G_x, G_y)`` using :func:`cv2.Sobel`.
         """
-        if not hasattr(self, "_cannyimage"):
-            cparams = dataclasses.asdict(self.parameters.Canny)
-            self._cannyimage = cv2.Canny(self.binary_image(), **cparams)
-        return self._cannyimage  # type: ignore
+        if not hasattr(self, "_gradient"):
+            Gx = cv2.Sobel(self.binary_image(), cv2.CV_32F, 1, 0)
+            Gy = cv2.Sobel(self.binary_image(), cv2.CV_32F, 0, 1)
+            self._gradient = (Gx, Gy)
+        return self._gradient
+
+    def edge_hull(self) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.float64]]:
+        contours, _ = cv2.findContours(
+            cv2.bitwise_not(self.binary_image()),
+            cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_SIMPLE,
+        )
+        if len(contours) != 1:
+            raise NotImplementedError
+        (cnt,) = contours
+        hull = cv2.convexHull(cnt)
+        # TODO: get more points by interpolating to `hull`
+        tangent = np.gradient(hull, axis=0)
+        # TODO: perform edge tangent flow to get smoother curve
+        return hull, tangent
 
     def lines(self) -> npt.NDArray[np.uint8]:
         """
-        Feature vectors of straight lines in ``(r, theta)``, detected by
-        :func:`cv2.HoughLines` on :meth:`canny_image`.
+        Feature vectors of straight lines from :meth:`gradient` in
+        ``(r, theta)``, detected by :func:`cv2.HoughLines`.
 
         Notes
         =====
@@ -221,8 +230,10 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         """
         if not hasattr(self, "_lines"):
+            Gx, Gy = self.gradient()
+            G = Gx.astype(bool) | Gy.astype(bool)
             hparams = dataclasses.asdict(self.parameters.HoughLines)
-            lines = cv2.HoughLines(self.canny_image(), **hparams)
+            lines = cv2.HoughLines(G.astype(np.uint8), **hparams)
             if lines is None:
                 lines = np.empty((0, 1, 2), dtype=np.float32)
             self._lines = lines
@@ -289,10 +300,12 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         """
         if not hasattr(self, "_vertex_points"):
-            left = self.edge_lines().get(self.LineType.LEFT, None)
-            right = self.edge_lines().get(self.LineType.RIGHT, None)
-            top = self.edge_lines().get(self.LineType.TOP, None)
-            bottom = self.edge_lines().get(self.LineType.BOTTOM, None)
+            h, w = self.image().shape[:2]
+
+            left = self.edge_lines().get(self.LineType.LEFT, (0, 0))
+            right = self.edge_lines().get(self.LineType.RIGHT, (w, 0))
+            top = self.edge_lines().get(self.LineType.TOP, (0, np.pi / 2))
+            bottom = self.edge_lines().get(self.LineType.BOTTOM, (h, np.pi / 2))
             points = {}
             if top and left:
                 x, y = intrsct_pt_polar(*top, *left)
@@ -310,27 +323,16 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         return self._vertex_points  # type: ignore
 
     def examine(self) -> Optional[RectSubstrateError]:
-        ret = None
+        ret: Optional[RectSubstrateError] = None
 
-        if len(self.lines()) == 0:
-            msg = "No line detected from Hough transformation"
-            ret = RectSubstrateHoughLinesError(msg)
-
-        else:
-            msg_tmpl = "Cannot detect %s of the substrate"
-            missing = []
-            if self.LineType.LEFT not in self.edge_lines():
-                missing.append("left wall")
-            if self.LineType.RIGHT not in self.edge_lines():
-                missing.append("right wall")
-            if self.LineType.TOP not in self.edge_lines():
-                missing.append("top wall")
-            if self.LineType.BOTTOM not in self.edge_lines():
-                missing.append("bottom wall")
-
-            if missing:
-                msg = msg_tmpl % (", ".join(missing))
-                ret = RectSubstrateEdgeError(msg)  # type: ignore
+        missing = [
+            pt
+            for pt in self.PointType
+            if pt not in self.vertex_points() and pt != self.PointType.UNKNOWN
+        ]
+        if missing:
+            msg = "Vertices missing: %s" % ", ".join([v.name for v in missing])
+            ret = RectSubstrateEdgeError(msg)
 
         return ret
 
@@ -375,12 +377,12 @@ class RectSubstrateDrawOptions:
         RGB color and thickness to draw the detected lines.
         Ignored if *draw_lines* is false.
 
-    Draw_Edges
+    draw_edges
         Flag to draw the detected four edges of the substrate.
 
     edge_color, edge_thickness
         RGB color and thickness to draw the detected edges.
-        Ignored if *Draw_Edges* is false.
+        Ignored if *draw_edges* is false.
 
     """
 
@@ -388,7 +390,7 @@ class RectSubstrateDrawOptions:
     draw_lines: bool = True
     line_color: Tuple[int, int, int] = (0, 255, 0)
     line_thickness: int = 1
-    Draw_Edges: bool = True
+    draw_edges: bool = True
     edge_color: Tuple[int, int, int] = (0, 0, 255)
     edge_thickness: int = 5
 
@@ -397,7 +399,7 @@ class RectSubstrate(
     RectSubstrateBase[RectSubstrateParameters, RectSubstrateDrawOptions]
 ):
     """
-    Simplest implementation of :class:`RectSubstrate`.
+    Simplest implementation of :class:`RectSubstrateBase`.
 
     Examples
     ========
@@ -411,10 +413,10 @@ class RectSubstrate(
        >>> import cv2
        >>> from dipcoatimage.finitedepth import (SubstrateReference,
        ...     get_samples_path)
-       >>> ref_path = get_samples_path("ref1.png")
+       >>> ref_path = get_samples_path("ref3.png")
        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
-       >>> tempROI = (200, 50, 1200, 200)
-       >>> substROI = (400, 100, 1000, 500)
+       >>> tempROI = (100, 50, 1200, 200)
+       >>> substROI = (300, 100, 950, 600)
        >>> ref = SubstrateReference(img, tempROI, substROI)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
@@ -425,11 +427,10 @@ class RectSubstrate(
        :include-source:
        :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import (CannyParameters,
-       ...     HoughLinesParameters, RectSubstrate)
-       >>> cparams = CannyParameters(50, 150)
+       >>> from dipcoatimage.finitedepth import (HoughLinesParameters,
+       ...     RectSubstrate)
        >>> hparams = HoughLinesParameters(1, 0.01, 100)
-       >>> params = RectSubstrate.Parameters(cparams, hparams)
+       >>> params = RectSubstrate.Parameters(hparams)
        >>> subst = RectSubstrate(ref, parameters=params)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
@@ -459,7 +460,8 @@ class RectSubstrate(
         elif draw_mode is self.DrawMode.BINARY:
             image = self.binary_image()
         elif draw_mode is self.DrawMode.EDGES:
-            image = self.canny_image()
+            Gx, Gy = self.gradient()
+            image = (Gx.astype(bool) | Gy.astype(bool)) * np.uint8(255)
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
         if len(image.shape) == 2:
@@ -486,7 +488,7 @@ class RectSubstrate(
                 x2, y2 = int(x0 - w * (-ty)), int(y0 - h * tx)
                 cv2.line(ret, (x1, y1), (x2, y2), color, thickness)
 
-        if self.draw_options.Draw_Edges:
+        if self.draw_options.draw_edges:
             vertex_points = self.vertex_points()
             topleft = vertex_points.get(self.PointType.TOPLEFT, None)
             topright = vertex_points.get(self.PointType.TOPRIGHT, None)
@@ -505,3 +507,38 @@ class RectSubstrate(
                 cv2.line(ret, bottomleft, topleft, color, thickness)
 
         return ret
+
+
+def intrsct_pt_polar(r1: float, t1: float, r2: float, t2: float) -> Tuple[float, float]:
+    """
+    Find the Cartesian coordinates of the intersecting point of two
+    lines by their polar parameters.
+
+    Parameters
+    ==========
+
+    r1, t1, r2, t2
+        Radius and angle for the first and second line.
+
+    Returns
+    =======
+
+    x, y
+        Cartesian coordinates of the intersecting point.
+
+    Examples
+    ========
+
+    >>> from dipcoatimage.finitedepth.rectsubstrate import intrsct_pt_polar
+    >>> from numpy import pi
+    >>> x, y = intrsct_pt_polar(10, pi/3, 5, pi/6)
+    >>> round(x, 2)
+    -1.34
+    >>> round(y, 2)
+    12.32
+
+    """
+    mat = np.array([[np.cos(t1), np.sin(t1)], [np.cos(t2), np.sin(t2)]])
+    vec = np.array([r1, r2])
+    ret = inv(mat) @ vec
+    return tuple(float(i) for i in ret)  # type: ignore

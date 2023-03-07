@@ -70,12 +70,8 @@ def cwd(path: str):
     ...     print(cv2.imread('coat1.png') is None)
     False
 
-    Reference
-    =========
-
-    https://stackoverflow.com/a/37996581/11501976
-
     """
+    # https://stackoverflow.com/a/37996581/11501976
     old_cwd = os.getcwd()
     os.chdir(path)
     try:

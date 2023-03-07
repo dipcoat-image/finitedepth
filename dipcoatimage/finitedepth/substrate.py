@@ -166,6 +166,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
 
     def image(self) -> npt.NDArray[np.uint8]:
         """Substrate image from :meth:`reference`."""
+        # not property since it's not directly from the argument
         return self.reference.substrate_image()
 
     def binary_image(self) -> npt.NDArray[np.uint8]:

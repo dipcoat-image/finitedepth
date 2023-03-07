@@ -2,7 +2,6 @@ import cv2  # type: ignore
 import pytest
 from dipcoatimage.finitedepth import (
     SubstrateReference,
-    CannyParameters,
     HoughLinesParameters,
     RectSubstrate,
     get_samples_path,
@@ -16,9 +15,8 @@ def rectsubst():
     tempROI = (200, 50, 1200, 200)
     substROI = (400, 100, 1000, 500)
     ref = SubstrateReference(img, tempROI, substROI)
-    cparams = CannyParameters(50, 150)
     hparams = HoughLinesParameters(1, 0.01, 100)
-    params = RectSubstrate.Parameters(cparams, hparams)
+    params = RectSubstrate.Parameters(hparams)
     subst = RectSubstrate(ref, parameters=params)
     return subst
 
@@ -49,9 +47,8 @@ def test_RectSubstrate_lines_notNone():
     tempROI = (200, 50, 1200, 200)
     substROI = (400, 100, 1000, 500)
     ref = SubstrateReference(img, tempROI, substROI)
-    cparams = CannyParameters(50, 150)
     hparams = HoughLinesParameters(1, 0.01, 1000000000)
-    params = RectSubstrate.Parameters(cparams, hparams)
+    params = RectSubstrate.Parameters(hparams)
     subst = RectSubstrate(ref, parameters=params)
     assert subst.lines().shape == (0, 1, 2)
 
