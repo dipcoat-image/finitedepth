@@ -54,6 +54,7 @@ from .substrate import SubstrateBase
 from .util import (
     DataclassProtocol,
     BinaryImageDrawMode,
+    SubstrateSubtractionMode,
     Color,
     binarize,
     colorize,
@@ -449,25 +450,10 @@ class LayerAreaParameters:
 
 @dataclasses.dataclass
 class LayerAreaDrawOptions:
-    """
-    Basic drawing options for :class:`LayerArea` instance.
-
-    Parameters
-    ==========
-
-    draw_mode
-
-    remove_substrate
-        Flag whether to remove the substrate from the image.
-
-    decorate
-        Flag whether to decorate the coating layer.
-
-    """
+    """Basic drawing options for :class:`LayerArea` instance."""
 
     draw_mode: BinaryImageDrawMode = BinaryImageDrawMode.ORIGINAL
-    remove_substrate: bool = False
-    decorate: bool = True
+    subtract_mode: SubstrateSubtractionMode = SubstrateSubtractionMode.NONE
 
 
 @dataclasses.dataclass
@@ -560,7 +546,7 @@ class LayerArea(
        :include-source:
        :context: close-figs
 
-       >>> coat.draw_options.remove_substrate = True
+       >>> coat.draw_options.subtract_mode = coat.SubtractMode.FULL
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
     :attr:`deco_options` controls the decoration of coating layer reigon.
@@ -580,6 +566,7 @@ class LayerArea(
     Data = LayerAreaData
 
     DrawMode: TypeAlias = BinaryImageDrawMode
+    SubtractMode: TypeAlias = SubstrateSubtractionMode
 
     def examine(self) -> None:
         return None
@@ -587,20 +574,25 @@ class LayerArea(
     def draw(self) -> npt.NDArray[np.uint8]:
         draw_mode = self.draw_options.draw_mode
         if draw_mode == self.DrawMode.ORIGINAL:
-            image = self.image.copy()
+            image = self.image
         elif draw_mode == self.DrawMode.BINARY:
             image = self.binary_image()
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
 
-        mask = self.extract_layer().astype(bool)
-        if self.draw_options.remove_substrate:
-            image[mask] = 255
+        subtract_mode = self.draw_options.subtract_mode
+        if subtract_mode == self.SubtractMode.NONE:
+            pass
+        # TODO: implement behavior for SubtractMode.TEMPLATE and SUBSTRATE
+        else:
+            image = self.extract_layer()
+        image = colorize(image)
 
-        ret = colorize(image)
-        if self.draw_options.decorate:
-            ret[~mask] = dataclasses.astuple(self.deco_options.layer_color)
-        return ret
+        image[~self.extract_layer().astype(bool)] = dataclasses.astuple(
+            self.deco_options.layer_color
+        )
+
+        return image
 
     def analyze_layer(self) -> Tuple[int]:
         layer_img = self.extract_layer()
