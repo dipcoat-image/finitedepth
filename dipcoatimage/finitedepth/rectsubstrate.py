@@ -241,7 +241,7 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
     def classify_line(self, r: float, theta: float) -> RectSubstrateLineType:
         """Classify a line by its distance *r* and angle *theta*."""
-        h, w = self.image.shape[:2]
+        h, w = self.image().shape[:2]
         r = abs(r)
 
         is_horizontal = any(
@@ -300,7 +300,7 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         """
         if not hasattr(self, "_vertex_points"):
-            h, w = self.image.shape[:2]
+            h, w = self.image().shape[:2]
 
             left = self.edge_lines().get(self.LineType.LEFT, (0, 0))
             right = self.edge_lines().get(self.LineType.RIGHT, (w, 0))
@@ -452,11 +452,11 @@ class RectSubstrate(
     DrawMode: TypeAlias = RectSubstrateDrawMode
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        h, w = self.image.shape[:2]
+        h, w = self.image().shape[:2]
 
         draw_mode = self.draw_options.draw_mode
         if draw_mode is self.DrawMode.ORIGINAL:
-            image = self.image
+            image = self.image()
         elif draw_mode is self.DrawMode.BINARY:
             image = self.binary_image()
         elif draw_mode is self.DrawMode.EDGES:
