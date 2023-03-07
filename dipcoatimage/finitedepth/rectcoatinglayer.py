@@ -30,7 +30,7 @@ import dataclasses
 import enum
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Type, Tuple
+from typing import TypeVar, Type, Tuple, List
 from .rectsubstrate import RectSubstrate
 from .coatinglayer import (
     CoatingLayerBase,
@@ -515,6 +515,7 @@ class RectLayerShape(
     __slots__ = (
         "_contactline_points",
         "_refined_layer",
+        "_layer_contours",
         "_layer_area",
         "_uniform_layer",
     )
@@ -669,6 +670,16 @@ class RectLayerShape(
 
         return self._refined_layer
 
+    def layer_contours(self) -> List[npt.NDArray[np.int32]]:
+        if not hasattr(self, "_layer_contours"):
+            contours, _ = cv2.findContours(
+                self.refine_layer(),
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_SIMPLE,
+            )
+            self._layer_contours = list(contours)
+        return self._layer_contours
+
     def layer_area(self) -> int:
         """Return the number of pixels in coating layer region."""
         if not hasattr(self, "_layer_area"):
@@ -762,14 +773,9 @@ class RectLayerShape(
         layer_opts = self.deco_options.layer
         if layer_opts.thickness != 0:
             image[self.refine_layer().astype(bool)] = (255, 255, 255)
-            contours, _ = cv2.findContours(
-                self.refine_layer(),
-                cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_SIMPLE,
-            )
             cv2.drawContours(
                 image,
-                contours,
+                self.layer_contours(),
                 -1,
                 dataclasses.astuple(layer_opts.color),
                 layer_opts.thickness,
