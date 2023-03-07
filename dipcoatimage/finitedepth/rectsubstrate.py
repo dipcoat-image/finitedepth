@@ -52,6 +52,7 @@ from .substrate import SubstrateError, SubstrateBase
 from .util import (
     HoughLinesParameters,
     DataclassProtocol,
+    colorize,
 )
 
 try:
@@ -493,18 +494,7 @@ class RectSubstrate(
             image = np.any(self.gradient().astype(bool), axis=-1) * np.uint8(255)
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
-        if len(image.shape) == 2:
-            ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-        elif len(image.shape) == 3:
-            ch = image.shape[-1]
-            if ch == 1:
-                ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-            elif ch == 3:
-                ret = image.copy()
-            else:
-                raise TypeError(f"Image with invalid channel: {image.shape}")
-        else:
-            raise TypeError(f"Invalid image shape: {image.shape}")
+        ret = colorize(image)
 
         if self.draw_options.draw_lines:
             r, theta = np.transpose(self.lines(), (2, 0, 1))
