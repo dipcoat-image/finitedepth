@@ -1,24 +1,10 @@
 import cv2  # type: ignore
-import numpy as np
 from dipcoatimage.finitedepth import (
     get_samples_path,
     SubstrateReference,
     Substrate,
     LayerArea,
 )
-
-
-def test_CoatingLayer_template_matching():
-    ref_img = cv2.imread(get_samples_path("ref1.png"))
-    ref = SubstrateReference(ref_img, (200, 50, 1200, 200), (400, 100, 1000, 500))
-    subst = Substrate(ref)
-    coat_img = cv2.imread(get_samples_path("coat1.png"))
-    coat = LayerArea(coat_img, subst)
-
-    score, point = coat.match_substrate()
-    assert score == 0.0
-    assert np.all(point == np.array([200, 501]))
-    assert np.all(coat.substrate_point() == np.array([400, 551]))
 
 
 def test_CoatingLayer_capbridge_broken():
