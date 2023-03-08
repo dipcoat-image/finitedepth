@@ -49,6 +49,7 @@ from .util import (
     MorphologyClosingParameters,
     SubstrateSubtractionMode,
     FeatureDrawingOptions,
+    Color,
     colorize,
 )
 
@@ -206,8 +207,15 @@ class RectLayerShapeDecoOptions:
     """Decorating options for :class:`RectLayerShape` instance."""
 
     layer: FeatureDrawingOptions = FeatureDrawingOptions(thickness=1)
-    thickest_lines: FeatureDrawingOptions = FeatureDrawingOptions(thickness=1)
-    uniform_layer: FeatureDrawingOptions = FeatureDrawingOptions()
+    contact_line: FeatureDrawingOptions = FeatureDrawingOptions(
+        color=Color(0, 255, 0), thickness=1
+    )
+    thickness_lines: FeatureDrawingOptions = FeatureDrawingOptions(
+        color=Color(0, 0, 255), thickness=1
+    )
+    uniform_layer: FeatureDrawingOptions = FeatureDrawingOptions(
+        color=Color(255, 0, 0), thickness=0
+    )
 
 
 @dataclasses.dataclass
@@ -341,7 +349,7 @@ class RectLayerShape(
             _, bl, br, _ = self.substrate.vertex_points()
             B = p0 + bl
             C = p0 + br
-            comps, labels = cv2.connectedComponents(cv2.bitwise_not(img_closed))
+            _, labels = cv2.connectedComponents(cv2.bitwise_not(img_closed))
 
             dist_thres = self.parameters.ReconstructRadius
             points = np.flip(np.stack(np.where(labels)), axis=0).T
@@ -584,16 +592,27 @@ class RectLayerShape(
                 layer_opts.thickness,
             )
 
-        lines_opts = self.deco_options.thickest_lines
-        if lines_opts.thickness > 0:
+        contactline_opts = self.deco_options.contact_line
+        if contactline_opts.thickness > 0:
+            p1, p2 = self.contactline_points()
+            cv2.line(
+                image,
+                p1,
+                p2,
+                dataclasses.astuple(contactline_opts.color),
+                contactline_opts.thickness,
+            )
+
+        thicknesslines_opts = self.deco_options.thickness_lines
+        if thicknesslines_opts.thickness > 0:
             points = self.thickness_points()
             for p1, p2 in points:
                 cv2.line(
                     image,
                     p1.astype(np.int32),
                     p2.astype(np.int32),
-                    dataclasses.astuple(lines_opts.color),
-                    lines_opts.thickness,
+                    dataclasses.astuple(thicknesslines_opts.color),
+                    thicknesslines_opts.thickness,
                 )
 
         uniformlayer_opts = self.deco_options.uniform_layer

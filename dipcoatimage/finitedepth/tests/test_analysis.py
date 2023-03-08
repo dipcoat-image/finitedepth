@@ -95,7 +95,7 @@ def test_ReferenceArgs():
     refargs = ReferenceArgs(
         templateROI=(200, 100, 1200, 500),
         substrateROI=(300, 50, 1100, 600),
-        draw_options=dict(substrateROI_thickness=2),
+        draw_options=dict(substrateROI=dict(thickness=2)),
     )
     ref = refargs.as_reference(REF_IMG)
 
@@ -125,7 +125,7 @@ def test_SubstrateArgs():
         parameters=dict(
             HoughLines=dict(rho=1.0, theta=0.01, threshold=100),
         ),
-        draw_options=dict(draw_lines=False),
+        draw_options=dict(lines=dict(thickness=0)),
     )
     subst = substargs.as_substrate(ref)
 
