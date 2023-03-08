@@ -556,7 +556,7 @@ class RectLayerShape(
         elif subtract_mode == self.SubtractMode.TEMPLATE:
             x0, y0, x1, y1 = self.substrate.reference.templateROI
             tempImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
-            X0, Y0 = self.template_point()
+            _, (X0, Y0) = self.match_substrate()
             mask = images_XOR(
                 ~self.binary_image().astype(bool), ~tempImg.astype(bool), (X0, Y0)
             )

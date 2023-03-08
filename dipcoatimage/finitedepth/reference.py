@@ -256,14 +256,14 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         x0, y0, x1, y1 = self.substrateROI
         return self.image[y0:y1, x0:x1]
 
-    def temp2subst(self) -> Tuple[int, int]:
+    def temp2subst(self) -> npt.NDArray[np.int32]:
         """
         Vector from upper left point of template region to upper left point of
         substrate region.
         """
         x0, y0 = self.templateROI[:2]
         x1, y1 = self.substrateROI[:2]
-        return (x1 - x0, y1 - y0)
+        return np.array([x1 - x0, y1 - y0])
 
     @abc.abstractmethod
     def examine(self) -> Optional[SubstrateReferenceError]:

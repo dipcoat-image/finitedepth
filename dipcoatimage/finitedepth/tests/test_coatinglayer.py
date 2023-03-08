@@ -1,4 +1,5 @@
 import cv2  # type: ignore
+import numpy as np
 from dipcoatimage.finitedepth import (
     get_samples_path,
     SubstrateReference,
@@ -14,7 +15,9 @@ def test_CoatingLayer_template_matching():
     coat_img = cv2.imread(get_samples_path("coat1.png"))
     coat = LayerArea(coat_img, subst)
 
-    assert coat.template_point() == (200, 501)
+    score, point = coat.match_substrate()
+    assert score == 0.0
+    assert np.all(point == np.array([200, 501]))
     assert coat.substrate_point() == (400, 551)
 
 
