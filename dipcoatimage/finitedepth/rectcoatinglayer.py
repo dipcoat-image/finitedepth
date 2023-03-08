@@ -150,8 +150,7 @@ class RectCoatingLayerBase(
         """
         if not hasattr(self, "_labelled_layer"):
             mask = cv2.bitwise_not(self.extract_layer()).astype(bool)
-            row, col = np.where(mask)
-            points = np.stack([col, row]).T
+            points = np.flip(np.stack(np.where(mask)), axis=0).T
 
             p0 = self.substrate_point()
             tl, bl, br, tr = self.substrate.vertex_points()
@@ -315,7 +314,7 @@ class RectLayerShape(
             return CoatingLayerError("Capillary bridge is not broken.")
         return None
 
-    def contactline_points(self) -> Tuple[int, int, int, int]:
+    def contactline_points(self) -> npt.NDArray[np.int64]:
         """
         Get the coordinates of the contact line points of the layer.
 
@@ -334,48 +333,46 @@ class RectLayerShape(
                 iterations=closingParams.iterations,
             )
 
-            # reconstruct the remaining components around the lower corners
-            # to remove large specks
+            # closed image may still have error pixels. at least we have to
+            # remove the errors that are disconnected to the layer.
+            # we identify the layer pixels as the connected components that are
+            # close to the corners.
             p0 = self.substrate_point()
             _, bl, br, _ = self.substrate.vertex_points()
             B = p0 + bl
             C = p0 + br
             comps, labels = cv2.connectedComponents(cv2.bitwise_not(img_closed))
+
             dist_thres = self.parameters.ReconstructRadius
-            for i in range(1, comps):
-                row, col = np.where(labels == i)
-                points = np.stack([col, row]).T
-                left_dist = np.linalg.norm(points - B, axis=0)
-                right_dist = np.linalg.norm(points - C, axis=0)
-                if np.min(left_dist) > dist_thres and np.min(right_dist) > dist_thres:
-                    labels[row, col] = 0
-            labels[np.where(labels)] = 255  # binarize
+            points = np.flip(np.stack(np.where(labels)), axis=0).T
+            left_dist = np.linalg.norm(points - B, axis=1)
+            right_dist = np.linalg.norm(points - C, axis=1)
+            near_corner = (left_dist < dist_thres) | (right_dist < dist_thres)
+            row, col = points[near_corner].T
+            layer_comps = np.unique(labels[col, row])
+            mask = np.zeros(labels.shape, dtype=bool)
+            for i in layer_comps:
+                mask[np.where(labels == i)] = True
 
             # get contact line points
             layer_label = self.label_layer().copy()
-            layer_label[np.where(~labels.astype(bool))] = self.Region.BACKGROUND
+            layer_label[~mask] = self.Region.BACKGROUND
             left = (layer_label & self.Region.LEFTHALF).astype(bool)
             left_row, left_col = np.where(left)
             left_points = np.stack([left_col, left_row], axis=1)
             if left_points.size != 0:
-                left_x, left_y = left_points.T
-                leftp_idx = np.argmin(left_y)
-                leftp_x = int(left_x[leftp_idx])
-                leftp_y = int(left_y[leftp_idx])
+                left_cp = left_points[np.argmin(left_points, axis=0)[1]]
             else:
-                leftp_x, leftp_y = [int(i) for i in B]
+                left_cp = B.astype(np.int64).flatten()
             right = (layer_label & ~left).astype(bool)
             right_row, right_col = np.where(right)
             right_points = np.stack([right_col, right_row], axis=1)
             if right_points.size != 0:
-                right_x, right_y = right_points.T
-                rightp_idx = np.argmin(right_y)
-                rightp_x = int(right_x[rightp_idx])
-                rightp_y = int(right_y[rightp_idx])
+                right_cp = right_points[np.argmin(right_points, axis=0)[1]]
             else:
-                rightp_x, rightp_y = [int(i) for i in C]
+                right_cp = C.astype(np.int64).flatten()
 
-            self._contactline_points = (leftp_x, leftp_y, rightp_x, rightp_y)
+            self._contactline_points = np.stack([left_cp, right_cp])
 
         return self._contactline_points
 
@@ -384,8 +381,7 @@ class RectLayerShape(
         if not hasattr(self, "_refined_layer"):
             layer_img = self.extract_layer().copy()
             h, w = layer_img.shape[:2]
-            x1, y1, x2, y2 = self.contactline_points()
-            p1, p2 = (x1, y1), (x2, y2)
+            p1, p2 = self.contactline_points()
             ext_p1, ext_p2 = get_extended_line((h, w), p1, p2)
             pts = np.array([(0, 0), ext_p1, ext_p2, (w, 0)])
             # remove every pixels above the contact line
@@ -487,10 +483,9 @@ class RectLayerShape(
             # find projection points from contactline_points to hull and add to hull
             dh = np.diff(hull, axis=0)
             dh_dot_dh = np.sum(dh * dh, axis=-1)
-            x1, y1, x2, y2 = self.contactline_points()
+            p1, p2 = self.contactline_points()
 
-            def find_projection(x, y) -> Tuple[np.int32, npt.NDArray[np.float64]]:
-                p = np.array([x, y])
+            def find_projection(p) -> Tuple[np.int32, npt.NDArray[np.float64]]:
                 h_p = p - hull[:-1, ...]
                 dh_scale_p = np.sum(h_p * dh, axis=-1) / dh_dot_dh
                 p_mask = (0 <= dh_scale_p) & (dh_scale_p <= 1)
@@ -503,7 +498,7 @@ class RectLayerShape(
                 return i + 1, p_proj
 
             (i1, proj1), (i2, proj2) = sorted(
-                [find_projection(x1, y1), find_projection(x2, y2)], key=lambda x: x[0]
+                [find_projection(p1), find_projection(p2)], key=lambda x: x[0]
             )
             new_hull = np.insert(hull[int(i1) : int(i2)], 0, proj1, axis=0)
             new_hull = np.insert(new_hull, new_hull.shape[0], proj2, axis=0)
@@ -623,9 +618,9 @@ class RectLayerShape(
         _, bl, br, _ = self.substrate.vertex_points()
         bottomleft = subst_p + bl
         bottomright = subst_p + br
-        cp_x0, cp_y0, cp_x1, cp_y1 = self.contactline_points()
-        LEN_L = float(np.linalg.norm(bottomleft - np.array([cp_x0, cp_y0])))
-        LEN_R = float(np.linalg.norm(bottomright - np.array([cp_x1, cp_y1])))
+        p1, p2 = self.contactline_points()
+        LEN_L = float(np.linalg.norm(bottomleft - p1))
+        LEN_R = float(np.linalg.norm(bottomright - p2))
 
         tp_l, tp_b, tp_r = self.thickness_points()
         THCK_L = float(np.linalg.norm(np.diff(tp_l, axis=0)))
@@ -638,44 +633,9 @@ class RectLayerShape(
 
 
 def get_extended_line(
-    frame_shape: Tuple[int, int], p1: Tuple[int, int], p2: Tuple[int, int]
+    frame_shape: Tuple[int, int], p1: npt.NDArray[np.int64], p2: npt.NDArray[np.int64]
 ) -> Tuple[Tuple[int, int], Tuple[int, int]]:
-    """
-    Extends the line and return its cross points with frame edge.
-
-    Parameters
-    ==========
-
-    frame_shape
-        Shape of the frame in ``(height, width)``.
-
-    p1, p2
-        ``(x, y)`` coorindates of the two points of line.
-
-    Returns
-    =======
-
-    ext_p1, ext_p2
-        ``(x, y)`` coorindates of the two points of extended.
-
-    Raises
-    ======
-
-    ZeroDivisionError
-        *p1* and *p2* are same.
-
-    Examples
-    ========
-
-    >>> from dipcoatimage.finitedepth.rectcoatinglayer import get_extended_line
-    >>> get_extended_line((1080, 1920), (192, 108), (1920, 1080))
-    ((0, 0), (1920, 1080))
-    >>> get_extended_line((1080, 1920), (300, 500), (400, 500))
-    ((0, 500), (1920, 500))
-    >>> get_extended_line((1080, 1920), (900, 400), (900, 600))
-    ((900, 0), (900, 1080))
-
-    """
+    # TODO: make it more elegant with matrix determinant and sorta things
     h, w = frame_shape
     x1, y1 = p1
     x2, y2 = p2
