@@ -312,33 +312,7 @@ class SubstrateReferenceParameters:
 
 @dataclasses.dataclass
 class SubstrateReferenceDrawOptions:
-    """
-    Drawing options for :class:`SubstrateReference`.
-
-    Parameters
-    ==========
-
-    draw_mode
-
-    draw_templateROI
-        Flag whether to draw template ROI box.
-
-    templateROI_color
-        RGB color for template ROI box. Ignored if *draw_templateROI* is false.
-
-    templateROI_thickness
-        Thickness for template ROI box. Ignored if *draw_templateROI* is false.
-
-    draw_substrateROI
-        Flag whether to draw substrate ROI box.
-
-    substrateROI_color
-        RGB color for substrate ROI box. Ignored if *draw_substrateROI* is false.
-
-    substrateROI_thickness
-        Thickness for substrate ROI box. Ignored if *draw_substrateROI* is false.
-
-    """
+    """Drawing options for :class:`SubstrateReference`."""
 
     draw_mode: BinaryImageDrawMode = BinaryImageDrawMode.BINARY
     templateROI: FeatureDrawingOptions = FeatureDrawingOptions(
@@ -381,7 +355,7 @@ class SubstrateReference(
        :include-source:
        :context: close-figs
 
-       >>> ref.draw_options.substrateROI_color = (0, 0, 255)
+       >>> ref.draw_options.substrateROI.color.blue = 255
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
     """
