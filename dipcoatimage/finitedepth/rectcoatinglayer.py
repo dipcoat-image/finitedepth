@@ -153,7 +153,7 @@ class RectCoatingLayerBase(
             row, col = np.where(mask)
             points = np.stack([col, row]).T
 
-            p0 = np.array(self.substrate_point())
+            p0 = self.substrate_point()
             tl, bl, br, tr = self.substrate.vertex_points()
             A = p0 + tl
             B = p0 + bl
@@ -336,7 +336,7 @@ class RectLayerShape(
 
             # reconstruct the remaining components around the lower corners
             # to remove large specks
-            p0 = np.array(self.substrate_point())
+            p0 = self.substrate_point()
             _, bl, br, _ = self.substrate.vertex_points()
             B = p0 + bl
             C = p0 + br
@@ -421,7 +421,7 @@ class RectLayerShape(
             is_bottom = (cnt_labels & self.Region.BOTTOM).astype(bool)
             is_right = (cnt_labels & self.Region.RIGHTWALL).astype(bool)
 
-            p0 = np.array(self.substrate_point())
+            p0 = self.substrate_point()
             tl, bl, br, tr = self.substrate.vertex_points()
             A = p0 + tl
             B = p0 + bl
@@ -480,7 +480,7 @@ class RectLayerShape(
         :meth:`layer_area`.
         """
         if not hasattr(self, "_uniform_layer"):
-            subst_point = np.array(self.substrate_point())
+            subst_point = self.substrate_point()
             hull, _ = self.substrate.edge_hull()
             hull = np.squeeze(hull + subst_point)
 
@@ -619,7 +619,7 @@ class RectLayerShape(
     ) -> Tuple[int, float, float, float, float, float, float]:
         AREA = self.layer_area()
 
-        subst_p = np.array(self.substrate_point())
+        subst_p = self.substrate_point()
         _, bl, br, _ = self.substrate.vertex_points()
         bottomleft = subst_p + bl
         bottomright = subst_p + br

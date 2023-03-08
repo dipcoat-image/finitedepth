@@ -18,7 +18,7 @@ def test_CoatingLayer_template_matching():
     score, point = coat.match_substrate()
     assert score == 0.0
     assert np.all(point == np.array([200, 501]))
-    assert coat.substrate_point() == (400, 551)
+    assert np.all(coat.substrate_point() == np.array([400, 551]))
 
 
 def test_CoatingLayer_capbridge_broken():

@@ -335,16 +335,14 @@ class CoatingLayerBase(
             self._match_substrate = score, np.array(point)
         return self._match_substrate
 
-    def substrate_point(self) -> Tuple[int, int]:
+    def substrate_point(self) -> npt.NDArray[np.int32]:
         """
         Upper left point in ``(x, y)`` where the substrate is located.
 
         """
         _, temp_point = self.match_substrate()
         temp2subst = self.substrate.reference.temp2subst()
-        x0 = temp_point[0] + temp2subst[0]
-        y0 = temp_point[1] + temp2subst[1]
-        return (x0, y0)
+        return temp_point + temp2subst
 
     def capbridge_broken(self) -> bool:
         """
