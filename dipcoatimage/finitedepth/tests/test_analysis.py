@@ -95,7 +95,7 @@ def test_ReferenceArgs():
     refargs = ReferenceArgs(
         templateROI=(200, 100, 1200, 500),
         substrateROI=(300, 50, 1100, 600),
-        draw_options=dict(substrateROI_thickness=2),
+        draw_options=dict(substrateROI=dict(thickness=2)),
     )
     ref = refargs.as_reference(REF_IMG)
 

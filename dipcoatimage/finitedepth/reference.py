@@ -41,8 +41,10 @@ from .util import (
     OptionalROI,
     IntROI,
     BinaryImageDrawMode,
+    FeatureDrawingOptions,
+    Color,
 )
-from typing import TypeVar, Generic, Type, Optional, Tuple
+from typing import TypeVar, Generic, Type, Optional
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -338,15 +340,13 @@ class SubstrateReferenceDrawOptions:
 
     """
 
-    draw_mode: BinaryImageDrawMode = BinaryImageDrawMode.ORIGINAL
-
-    draw_templateROI: bool = True
-    templateROI_color: Tuple[int, int, int] = (0, 255, 0)
-    templateROI_thickness: int = 1
-
-    draw_substrateROI: bool = True
-    substrateROI_color: Tuple[int, int, int] = (255, 0, 0)
-    substrateROI_thickness: int = 1
+    draw_mode: BinaryImageDrawMode = BinaryImageDrawMode.BINARY
+    templateROI: FeatureDrawingOptions = FeatureDrawingOptions(
+        color=Color(0, 255, 0), thickness=1
+    )
+    substrateROI: FeatureDrawingOptions = FeatureDrawingOptions(
+        color=Color(255, 0, 0), thickness=1
+    )
 
 
 class SubstrateReference(
@@ -402,17 +402,19 @@ class SubstrateReference(
             image = self.binary_image()
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
-
         ret = colorize(image)
-        if self.draw_options.draw_substrateROI:
+
+        substROI_opts = self.draw_options.substrateROI
+        if substROI_opts.thickness > 0:
             x0, y0, x1, y1 = self.substrateROI
-            color = self.draw_options.substrateROI_color
-            thickness = self.draw_options.substrateROI_thickness
+            color = dataclasses.astuple(substROI_opts.color)
+            thickness = substROI_opts.thickness
             cv2.rectangle(ret, (x0, y0), (x1, y1), color, thickness)
 
-        if self.draw_options.draw_templateROI:
+        tempROI_opts = self.draw_options.templateROI
+        if tempROI_opts.thickness > 0:
             x0, y0, x1, y1 = self.templateROI
-            color = self.draw_options.templateROI_color
-            thickness = self.draw_options.templateROI_thickness
+            color = dataclasses.astuple(tempROI_opts.color)
+            thickness = tempROI_opts.thickness
             cv2.rectangle(ret, (x0, y0), (x1, y1), color, thickness)
         return ret
