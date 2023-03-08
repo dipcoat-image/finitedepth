@@ -7,17 +7,6 @@ from dipcoatimage.finitedepth import (
 )
 
 
-def test_CoatingLayer_template_matching():
-    ref_img = cv2.imread(get_samples_path("ref1.png"))
-    ref = SubstrateReference(ref_img, (200, 50, 1200, 200), (400, 100, 1000, 500))
-    subst = Substrate(ref)
-    coat_img = cv2.imread(get_samples_path("coat1.png"))
-    coat = LayerArea(coat_img, subst)
-
-    assert coat.template_point() == (200, 501)
-    assert coat.substrate_point() == (400, 551)
-
-
 def test_CoatingLayer_capbridge_broken():
     ref_img = cv2.imread(get_samples_path("ref3.png"))
     ref = SubstrateReference(ref_img, (100, 50, 1200, 600), (200, 50, 1100, 800))

@@ -97,6 +97,7 @@ class CoatingLayerError(Exception):
 def match_template(
     image: npt.NDArray[np.uint8], template: npt.NDArray[np.uint8]
 ) -> Tuple[float, Tuple[int, int]]:
+    """Perform template matching using :obj:`cv2.TM_SQDIFF_NORMED`."""
     res = cv2.matchTemplate(image, template, cv2.TM_SQDIFF_NORMED)
     score, _, loc, _ = cv2.minMaxLoc(res)
     return (score, loc)
@@ -211,8 +212,7 @@ class CoatingLayerBase(
         "_draw_options",
         "_deco_options",
         "_binary_image",
-        "_template_point",
-        "_template_score",
+        "_match_substrate",
         "_extracted_layer",
     )
 
@@ -314,57 +314,35 @@ class CoatingLayerBase(
             self._binary_image = binarize(self.image)
         return self._binary_image
 
-    def template_point(self) -> Tuple[int, int]:
+    def match_substrate(self) -> Tuple[float, npt.NDArray[np.int32]]:
         """
-        Upper left point in ``(x, y)`` where the matched template is located.
+        Return template matching score and point between the coating layer image
+        and the reference template image.
 
-        Template matching is performed with :obj:`cv2.TM_SQDIFF_NORMED`.
+        Matching is done by :func:`match_template`.
 
         Notes
         =====
 
-        This method is cached. Calling this method for the first time updates
-        :meth:`template_score` as well.
+        This method is cached. Do not modify its result.
 
         """
-        if not hasattr(self, "_template_point"):
+        if not hasattr(self, "_match_substrate"):
             image = self.binary_image()
             x0, y0, x1, y1 = self.substrate.reference.templateROI
             template = self.substrate.reference.binary_image()[y0:y1, x0:x1]
-            self._template_score, self._template_point = match_template(image, template)
-        return self._template_point
+            score, point = match_template(image, template)
+            self._match_substrate = score, np.array(point)
+        return self._match_substrate
 
-    def template_score(self) -> float:
-        """
-        Normalized score in range ``[0, 1]`` for the matched template.
-
-        Template matching is performed with :obj:`cv2.TM_SQDIFF_NORMED`. Zero
-        score indicates complete match.
-
-        Notes
-        =====
-
-        This method is cached. Calling this method for the first time updates
-        :meth:`template_point` as well.
-
-        """
-        if not hasattr(self, "_template_score"):
-            image = self.binary_image()
-            x0, y0, x1, y1 = self.substrate.reference.templateROI
-            template = self.substrate.reference.binary_image()[y0:y1, x0:x1]
-            self._template_score, self._template_point = match_template(image, template)
-        return self._template_score
-
-    def substrate_point(self) -> Tuple[int, int]:
+    def substrate_point(self) -> npt.NDArray[np.int32]:
         """
         Upper left point in ``(x, y)`` where the substrate is located.
 
         """
-        temp_point = self.template_point()
+        _, temp_point = self.match_substrate()
         temp2subst = self.substrate.reference.temp2subst()
-        x0 = temp_point[0] + temp2subst[0]
-        y0 = temp_point[1] + temp2subst[1]
-        return (x0, y0)
+        return temp_point + temp2subst
 
     def capbridge_broken(self) -> bool:
         """
@@ -604,7 +582,7 @@ class LayerArea(
         elif subtract_mode == self.SubtractMode.TEMPLATE:
             x0, y0, x1, y1 = self.substrate.reference.templateROI
             tempImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
-            X0, Y0 = self.template_point()
+            _, (X0, Y0) = self.match_substrate()
             mask = images_XOR(
                 ~self.binary_image().astype(bool), ~tempImg.astype(bool), (X0, Y0)
             )
