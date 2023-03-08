@@ -125,7 +125,7 @@ def test_SubstrateArgs():
         parameters=dict(
             HoughLines=dict(rho=1.0, theta=0.01, threshold=100),
         ),
-        draw_options=dict(draw_lines=False),
+        draw_options=dict(lines=dict(thickness=0)),
     )
     subst = substargs.as_substrate(ref)
 

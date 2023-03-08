@@ -53,6 +53,8 @@ from .util import (
     HoughLinesParameters,
     DataclassProtocol,
     colorize,
+    FeatureDrawingOptions,
+    Color,
 )
 
 try:
@@ -393,37 +395,15 @@ class RectSubstrateDrawMode(enum.Enum):
 
 @dataclasses.dataclass
 class RectSubstrateDrawOptions:
-    """
-    Drawing options for :class:`RectSubstrate`.
+    """Drawing options for :class:`RectSubstrate`."""
 
-    Parameters
-    ==========
-
-    draw_mode
-
-    draw_lines
-        Flag to draw the detected straight lines on the edge of substrate image.
-
-    line_color, line_thickness
-        RGB color and thickness to draw the detected lines.
-        Ignored if *draw_lines* is false.
-
-    draw_edges
-        Flag to draw the detected four edges of the substrate.
-
-    edge_color, edge_thickness
-        RGB color and thickness to draw the detected edges.
-        Ignored if *draw_edges* is false.
-
-    """
-
-    draw_mode: RectSubstrateDrawMode = RectSubstrateDrawMode.ORIGINAL
-    draw_lines: bool = True
-    line_color: Tuple[int, int, int] = (0, 255, 0)
-    line_thickness: int = 1
-    draw_edges: bool = True
-    edge_color: Tuple[int, int, int] = (0, 0, 255)
-    edge_thickness: int = 5
+    draw_mode: RectSubstrateDrawMode = RectSubstrateDrawMode.BINARY
+    lines: FeatureDrawingOptions = FeatureDrawingOptions(
+        color=Color(0, 255, 0), thickness=1
+    )
+    edges: FeatureDrawingOptions = FeatureDrawingOptions(
+        color=Color(0, 0, 255), thickness=5
+    )
 
 
 class RectSubstrate(
@@ -471,8 +451,8 @@ class RectSubstrate(
        :include-source:
        :context: close-figs
 
-       >>> subst.draw_options.draw_lines = False
-       >>> subst.draw_options.edge_color = (255, 0, 0)
+       >>> subst.draw_options.lines.thickness = 0
+       >>> subst.draw_options.edges.color.red = 255
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
     """
@@ -496,7 +476,8 @@ class RectSubstrate(
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
         ret = colorize(image)
 
-        if self.draw_options.draw_lines:
+        line_opts = self.draw_options.lines
+        if line_opts.thickness > 0:
             r, theta = np.transpose(self.lines(), (2, 0, 1))
             vec = np.dstack([np.cos(theta), np.sin(theta)])
             pts0 = vec * r[..., np.newaxis]
@@ -508,48 +489,51 @@ class RectSubstrate(
                     ret,
                     p0.flatten().astype(np.int32),
                     p1.flatten().astype(np.int32),
-                    self.draw_options.line_color,
-                    self.draw_options.line_thickness,
+                    dataclasses.astuple(line_opts.color),
+                    line_opts.thickness,
                 )
 
-        if self.draw_options.draw_edges:
+        edge_opts = self.draw_options.edges
+        if edge_opts.thickness > 0:
             topleft, bottomleft, bottomright, topright = self.vertex_points()
             has_topleft = topleft.size > 0
             has_topright = topright.size > 0
             has_bottomleft = bottomleft.size > 0
             has_bottomright = bottomright.size > 0
 
+            color = dataclasses.astuple(edge_opts.color)
+            thickness = edge_opts.thickness
             if has_topleft and has_topright:
                 cv2.line(
                     ret,
                     topleft.flatten().astype(np.int32),
                     topright.flatten().astype(np.int32),
-                    self.draw_options.edge_color,
-                    self.draw_options.edge_thickness,
+                    color,
+                    thickness,
                 )
             if has_topright and has_bottomright:
                 cv2.line(
                     ret,
                     topright.flatten().astype(np.int32),
                     bottomright.flatten().astype(np.int32),
-                    self.draw_options.edge_color,
-                    self.draw_options.edge_thickness,
+                    color,
+                    thickness,
                 )
             if has_bottomright and has_bottomleft:
                 cv2.line(
                     ret,
                     bottomright.flatten().astype(np.int32),
                     bottomleft.flatten().astype(np.int32),
-                    self.draw_options.edge_color,
-                    self.draw_options.edge_thickness,
+                    color,
+                    thickness,
                 )
             if has_bottomleft and has_topleft:
                 cv2.line(
                     ret,
                     bottomleft.flatten().astype(np.int32),
                     topleft.flatten().astype(np.int32),
-                    self.draw_options.edge_color,
-                    self.draw_options.edge_thickness,
+                    color,
+                    thickness,
                 )
 
         return ret
