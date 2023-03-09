@@ -523,9 +523,13 @@ class RectLayerShape(
                 p_proj_origins = hull[:-1, ...][p_mask, ...]
                 p_proj_vecs = dh_scale_p[p_mask][..., np.newaxis] * dh[p_mask, ...]
                 p_proj_dists = np.linalg.norm(h_p[p_mask] - p_proj_vecs, axis=-1)
-                idx = np.argmin(p_proj_dists)
-                i = np.arange(hull[:-1, ...].shape[0])[p_mask][idx]
-                p_proj = (p_proj_origins + p_proj_vecs)[idx]
+                if p_proj_dists.size != 0:
+                    idx = np.argmin(p_proj_dists)
+                    i = np.arange(hull[:-1, ...].shape[0])[p_mask][idx]
+                    p_proj = (p_proj_origins + p_proj_vecs)[idx]
+                else:
+                    i = 0
+                    p_proj = np.empty((0, 2), dtype=np.float64)
                 return i + 1, p_proj
 
             (i1, proj1), (i2, proj2) = sorted(
