@@ -224,14 +224,14 @@ class RectLayerShapeData:
 
     Area: int
 
-    LayerLength_Left: float
-    LayerLength_Right: float
+    LayerLength_Left: np.float64
+    LayerLength_Right: np.float64
 
-    Thickness_Left: float
-    Thickness_Bottom: float
-    Thickness_right: float
+    Thickness_Left: np.float64
+    Thickness_Bottom: np.float64
+    Thickness_right: np.float64
 
-    UniformThickness: float
+    UniformThickness: np.float64
     Roughness: np.float64
 
 
@@ -556,6 +556,7 @@ class RectLayerShape(
         L, uniform_layer = self.uniform_layer()
 
         NUM_POINTS = 1000
+
         def equidistant_interp(points):
             # https://stackoverflow.com/a/19122075
             vec = np.diff(points, axis=0)
@@ -567,9 +568,9 @@ class RectLayerShape(
 
         l_interp = equidistant_interp(layer)
         ul_interp = equidistant_interp(uniform_layer)
-        deviation = np.linalg.norm(l_interp- ul_interp, axis=1)
+        deviation = np.linalg.norm(l_interp - ul_interp, axis=1)
 
-        return np.sqrt(np.trapz(deviation**2)/deviation.shape[0])
+        return np.sqrt(np.trapz(deviation**2) / deviation.shape[0])
 
     def draw(self) -> npt.NDArray[np.uint8]:
         draw_mode = self.draw_options.draw_mode
@@ -657,7 +658,16 @@ class RectLayerShape(
 
     def analyze_layer(
         self,
-    ) -> Tuple[int, float, float, float, float, float, float, np.float64]:
+    ) -> Tuple[
+        int,
+        np.float64,
+        np.float64,
+        np.float64,
+        np.float64,
+        np.float64,
+        np.float64,
+        np.float64,
+    ]:
         AREA = self.layer_area()
 
         subst_p = self.substrate_point()
@@ -665,15 +675,15 @@ class RectLayerShape(
         bottomleft = subst_p + bl
         bottomright = subst_p + br
         p1, p2 = self.contactline_points()
-        LEN_L = float(np.linalg.norm(bottomleft - p1))
-        LEN_R = float(np.linalg.norm(bottomright - p2))
+        LEN_L = np.linalg.norm(bottomleft - p1)
+        LEN_R = np.linalg.norm(bottomright - p2)
 
         tp_l, tp_b, tp_r = self.thickness_points()
-        THCK_L = float(np.linalg.norm(np.diff(tp_l, axis=0)))
-        THCK_B = float(np.linalg.norm(np.diff(tp_b, axis=0)))
-        THCK_R = float(np.linalg.norm(np.diff(tp_r, axis=0)))
+        THCK_L = np.linalg.norm(np.diff(tp_l, axis=0))
+        THCK_B = np.linalg.norm(np.diff(tp_b, axis=0))
+        THCK_R = np.linalg.norm(np.diff(tp_r, axis=0))
 
-        THCK_U = float(self.uniform_layer()[0])
+        THCK_U, _ = self.uniform_layer()
         ROUGH = self.roughness()
 
         return (AREA, LEN_L, LEN_R, THCK_L, THCK_B, THCK_R, THCK_U, ROUGH)
