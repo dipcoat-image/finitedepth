@@ -405,7 +405,7 @@ class RectLayerShape(
             contours, _ = cv2.findContours(
                 self.refine_layer(),
                 cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_SIMPLE,
+                cv2.CHAIN_APPROX_NONE,
             )
             self._layer_contours = list(contours)
         return self._layer_contours
@@ -543,6 +543,32 @@ class RectLayerShape(
             self._uniform_layer = (L, new_hull + L * n)
 
         return self._uniform_layer
+
+    def roughness(self) -> np.float64:
+        """Dimensional roughness value of the coating layer surface."""
+        layer_points = np.concatenate(self.layer_contours(), axis=0)
+        layer = np.squeeze(cv2.convexHull(layer_points))
+        p, _ = self.contactline_points()
+        i = np.argmin(np.linalg.norm(layer - p, axis=1)) + 1
+        layer = np.roll(layer, -i, axis=0)
+
+        L, uniform_layer = self.uniform_layer()
+
+        NUM_POINTS = 1000
+        def equidistant_interp(points):
+            # https://stackoverflow.com/a/19122075
+            vec = np.diff(points, axis=0)
+            dist = np.linalg.norm(vec, axis=1)
+            u = np.insert(np.cumsum(dist), 0, 0)
+            t = np.linspace(0, u[-1], NUM_POINTS)
+            y, x = points.T
+            return np.stack([np.interp(t, u, y), np.interp(t, u, x)]).T
+
+        l_interp = equidistant_interp(layer)
+        ul_interp = equidistant_interp(uniform_layer)
+        deviation = np.linalg.norm(l_interp- ul_interp, axis=1)
+
+        return np.sqrt(np.trapz(deviation**2)/deviation.shape[0])
 
     def draw(self) -> npt.NDArray[np.uint8]:
         draw_mode = self.draw_options.draw_mode
