@@ -509,7 +509,7 @@ class RectLayerShape(
         if not hasattr(self, "_uniform_layer"):
             subst_point = self.substrate_point()
             hull, _ = self.substrate.edge_hull()
-            hull = np.squeeze(hull + subst_point)
+            (hull,) = (hull + subst_point).transpose(1, 0, 2)
 
             # find projection points from contactline_points to hull and add to hull
             dh = np.diff(hull, axis=0)
