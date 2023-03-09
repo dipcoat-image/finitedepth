@@ -75,12 +75,12 @@ class LayerRegionFlag(enum.IntFlag):
     """
     Label to classify the coating layer pixels by their regions.
 
-    - BACKGROUND: Null value for pixels that are not the coating layer
-    - LAYER: Denotes that the pixel is in the coating layer
-    - LEFTHALF: Left-hand side w.r.t. the vertical center line
-    - LEFTWALL: Left-hand side w.r.t. the left-hand side substrate wall
-    - RIGHTWALL: Right-hand side w.r.t. the right-hand side substrate wall
-    - BOTTOM: Under the substrate bottom surface
+    - BACKGROUND: Null value for pixels that are not the coating layer.
+    - LAYER: Denotes that the pixel is in the coating layer.
+    - LEFTHALF: Left-hand side w.r.t. the vertical center line.
+    - LEFTWALL: Left-hand side w.r.t. the left-hand side substrate wall.
+    - RIGHTWALL: Right-hand side w.r.t. the right-hand side substrate wall.
+    - BOTTOM: Under the substrate bottom surface.
 
     """
 
@@ -220,7 +220,26 @@ class RectLayerShapeDecoOptions:
 
 @dataclasses.dataclass
 class RectLayerShapeData:
-    """Analysis data for :class:`RectLayerShape` instance."""
+    """
+    Analysis data for :class:`RectLayerShape` instance.
+
+    - Area: Number of the pixels in the coating layer region.
+    - LayerLength_{Left/Right}: Number of the pixels between the lower
+      vertices of the substrate and the upper limit of the coating layer.
+    - Thickness_{Left/Bottom/Right}: Number of the pixels for the maximum
+      thickness on each region.
+    - UniformThickness: Number of the pixels for the thickness of the fictitous
+      uniform coating layer whose area is same as ``Area``.
+    - Roughness: Roughness of the coating layer shape compared to the fictitous
+      uniform coating layer. This value has a dimension which is the pixel number
+      and can be normalized by dividing with ``UniformThickness``.
+
+    The following data are the metadata for the analysis.
+
+    - Score: Template matching score between 0 to 1. 0 means perfect match.
+    - ChipWidth: Number of the pixels between lower vertices of the substrate.
+
+    """
 
     Area: int
 
@@ -229,10 +248,13 @@ class RectLayerShapeData:
 
     Thickness_Left: np.float64
     Thickness_Bottom: np.float64
-    Thickness_right: np.float64
+    Thickness_Right: np.float64
 
     UniformThickness: np.float64
     Roughness: np.float64
+
+    Score: float
+    ChipWidth: np.float32
 
 
 ROTATION_MATRIX = np.array([[0, -1], [1, 0]])
@@ -667,6 +689,8 @@ class RectLayerShape(
         np.float64,
         np.float64,
         np.float64,
+        float,
+        np.float32,
     ]:
         AREA = self.layer_area()
 
@@ -686,7 +710,21 @@ class RectLayerShape(
         THCK_U, _ = self.uniform_layer()
         ROUGH = self.roughness()
 
-        return (AREA, LEN_L, LEN_R, THCK_L, THCK_B, THCK_R, THCK_U, ROUGH)
+        SCORE, _ = self.match_substrate()
+        CHIPWIDTH = np.linalg.norm(bl - br)
+
+        return (
+            AREA,
+            LEN_L,
+            LEN_R,
+            THCK_L,
+            THCK_B,
+            THCK_R,
+            THCK_U,
+            ROUGH,
+            SCORE,
+            CHIPWIDTH,
+        )
 
 
 def get_extended_line(
