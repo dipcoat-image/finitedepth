@@ -232,6 +232,7 @@ class RectLayerShapeData:
     Thickness_right: float
 
     UniformThickness: float
+    Roughness: np.float64
 
 
 ROTATION_MATRIX = np.array([[0, -1], [1, 0]])
@@ -656,7 +657,7 @@ class RectLayerShape(
 
     def analyze_layer(
         self,
-    ) -> Tuple[int, float, float, float, float, float, float]:
+    ) -> Tuple[int, float, float, float, float, float, float, np.float64]:
         AREA = self.layer_area()
 
         subst_p = self.substrate_point()
@@ -673,8 +674,9 @@ class RectLayerShape(
         THCK_R = float(np.linalg.norm(np.diff(tp_r, axis=0)))
 
         THCK_U = float(self.uniform_layer()[0])
+        ROUGH = self.roughness()
 
-        return (AREA, LEN_L, LEN_R, THCK_L, THCK_B, THCK_R, THCK_U)
+        return (AREA, LEN_L, LEN_R, THCK_L, THCK_B, THCK_R, THCK_U, ROUGH)
 
 
 def get_extended_line(
