@@ -581,7 +581,7 @@ class RectLayerShape(
             return np.float64(0)
 
         layer_points = np.concatenate(contours, axis=0)
-        layer, = cv2.convexHull(layer_points).transpose(1, 0, 2)
+        (layer,) = cv2.convexHull(layer_points).transpose(1, 0, 2)
         p, _ = self.contactline_points()
         i = np.argmin(np.linalg.norm(layer - p, axis=1)) + 1
         layer = np.roll(layer, -i, axis=0)
