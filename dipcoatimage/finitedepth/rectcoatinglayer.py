@@ -473,21 +473,21 @@ class RectLayerShape(
             cnt_left = cnt_points[on_layer & is_left & ~is_bottom]
             if cnt_left.size == 0:
                 p = A / 2 + B / 2
-                left_p = np.stack([p, p])
+                left_p = np.concatenate([p, p], axis=0)
             else:
                 left_p = find_thickest(cnt_left, A, B)
 
             cnt_bottom = cnt_points[on_layer & is_bottom]
             if cnt_bottom.size == 0:
                 p = B / 2 + C / 2
-                bottom_p = np.stack([p, p])
+                bottom_p = np.concatenate([p, p], axis=0)
             else:
                 bottom_p = find_thickest(cnt_bottom, B, C)
 
             cnt_right = cnt_points[on_layer & is_right & ~is_bottom]
             if cnt_right.size == 0:
                 p = C / 2 + D / 2
-                right_p = np.stack([p, p])
+                right_p = np.concatenate([p, p], axis=0)
             else:
                 right_p = find_thickest(cnt_right, C, D)
 
@@ -516,7 +516,7 @@ class RectLayerShape(
             dh_dot_dh = np.sum(dh * dh, axis=-1)
             p1, p2 = self.contactline_points()
 
-            def find_projection(p) -> Tuple[np.int32, npt.NDArray[np.float64]]:
+            def find_projection(p):
                 h_p = p - hull[:-1, ...]
                 dh_scale_p = np.sum(h_p * dh, axis=-1) / dh_dot_dh
                 p_mask = (0 <= dh_scale_p) & (dh_scale_p <= 1)
@@ -531,8 +531,12 @@ class RectLayerShape(
             (i1, proj1), (i2, proj2) = sorted(
                 [find_projection(p1), find_projection(p2)], key=lambda x: x[0]
             )
-            new_hull = np.insert(hull[int(i1) : int(i2)], 0, proj1, axis=0)
-            new_hull = np.insert(new_hull, new_hull.shape[0], proj2, axis=0)
+            new_hull = hull[int(i1) : int(i2)]
+            if not np.all(new_hull[0] == proj1):
+                new_hull = np.insert(new_hull, 0, proj1, axis=0)
+            nh_len = new_hull.shape[0]
+            if not np.all(new_hull[nh_len - 1] == proj2):
+                new_hull = np.insert(new_hull, nh_len, proj2, axis=0)
             t = np.arange(new_hull.shape[0])
 
             # find thickness
@@ -562,14 +566,21 @@ class RectLayerShape(
                     return newL
                 return findL(newL, l_num)
 
-            L = findL(L0, L_NUM)
+            if S != 0:
+                L = findL(L0, L_NUM)
+            else:
+                L = np.float64(0)
             self._uniform_layer = (L, new_hull + L * n)
 
         return self._uniform_layer
 
     def roughness(self) -> np.float64:
         """Dimensional roughness value of the coating layer surface."""
-        layer_points = np.concatenate(self.layer_contours(), axis=0)
+        contours = self.layer_contours()
+        if not contours:
+            return np.float64(0)
+
+        layer_points = np.concatenate(contours, axis=0)
         layer = np.squeeze(cv2.convexHull(layer_points))
         p, _ = self.contactline_points()
         i = np.argmin(np.linalg.norm(layer - p, axis=1)) + 1
