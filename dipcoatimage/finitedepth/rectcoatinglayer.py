@@ -520,12 +520,16 @@ class RectLayerShape(
                 h_p = p - hull[:-1, ...]
                 dh_scale_p = np.sum(h_p * dh, axis=-1) / dh_dot_dh
                 p_mask = (0 <= dh_scale_p) & (dh_scale_p <= 1)
-                p_proj_origins = hull[:-1, ...][p_mask, ...]
-                p_proj_vecs = dh_scale_p[p_mask][..., np.newaxis] * dh[p_mask, ...]
-                p_proj_dists = np.linalg.norm(h_p[p_mask] - p_proj_vecs, axis=-1)
-                idx = np.argmin(p_proj_dists)
-                i = np.arange(hull[:-1, ...].shape[0])[p_mask][idx]
-                p_proj = (p_proj_origins + p_proj_vecs)[idx]
+                if np.any(p_mask):
+                    p_proj_origins = hull[:-1, ...][p_mask, ...]
+                    p_proj_vecs = dh_scale_p[p_mask][..., np.newaxis] * dh[p_mask, ...]
+                    p_proj_dists = np.linalg.norm(h_p[p_mask] - p_proj_vecs, axis=-1)
+                    idx = np.argmin(p_proj_dists)
+                    i = np.arange(hull[:-1, ...].shape[0])[p_mask][idx]
+                    p_proj = (p_proj_origins + p_proj_vecs)[idx]
+                else:
+                    i = 0
+                    p_proj = np.empty((0, 2), dtype=np.float64)
                 return i + 1, p_proj
 
             (i1, proj1), (i2, proj2) = sorted(
@@ -581,7 +585,7 @@ class RectLayerShape(
             return np.float64(0)
 
         layer_points = np.concatenate(contours, axis=0)
-        layer = np.squeeze(cv2.convexHull(layer_points))
+        (layer,) = cv2.convexHull(layer_points).transpose(1, 0, 2)
         p, _ = self.contactline_points()
         i = np.argmin(np.linalg.norm(layer - p, axis=1)) + 1
         layer = np.roll(layer, -i, axis=0)
