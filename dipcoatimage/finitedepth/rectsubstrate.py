@@ -254,8 +254,8 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         r, theta = lines.transpose(2, 0, 1)
 
         h, w = self.image().shape[:2]
-        is_upper = r <= h / 2
-        is_left = r <= w / 2
+        is_upper = np.abs(r) <= h / 2
+        is_left = np.abs(r) <= w / 2
 
         is_horizontal = np.abs(np.cos(theta)) < np.cos(np.pi / 2 - TOL)
         is_vertical = np.abs(np.cos(theta)) > np.cos(TOL)
