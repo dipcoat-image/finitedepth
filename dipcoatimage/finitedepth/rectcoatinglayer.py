@@ -236,7 +236,7 @@ class RectLayerShapeData:
 
     The following data are the metadata for the analysis.
 
-    - Score: Template matching score between 0 to 1. 0 means perfect match.
+    - MatchError: Template matching error between 0 to 1. 0 means perfect match.
     - ChipWidth: Number of the pixels between lower vertices of the substrate.
 
     """
@@ -253,7 +253,7 @@ class RectLayerShapeData:
     UniformThickness: np.float64
     Roughness: np.float64
 
-    Score: float
+    MatchError: float
     ChipWidth: np.float32
 
 
@@ -725,7 +725,7 @@ class RectLayerShape(
         THCK_U, _ = self.uniform_layer()
         ROUGH = self.roughness()
 
-        SCORE, _ = self.match_substrate()
+        ERR, _ = self.match_substrate()
         CHIPWIDTH = np.linalg.norm(bl - br)
 
         return (
@@ -737,7 +737,7 @@ class RectLayerShape(
             THCK_R,
             THCK_U,
             ROUGH,
-            SCORE,
+            ERR,
             CHIPWIDTH,
         )
 
