@@ -122,21 +122,20 @@ class RectCoatingLayerBase(
     Region: TypeAlias = LayerRegionFlag
 
     def capbridge_broken(self) -> bool:
-        x0, y0 = self.substrate_point()
-        vertex_points = np.stack(
-            [p for p in self.substrate.vertex_points() if p.size > 0]
-        )
-        v_y, v_x = vertex_points.transpose(2, 0, 1)
-
-        top = y0 + np.max(v_y).astype(int)
-        bot, _ = self.binary_image().shape
+        p0 = self.substrate_point()
+        _, p1, p2, _ = self.substrate.vertex_points()
+        if p1.size == 0 or p2.size == 0:
+            # cannot detect the vertex; fallback to default
+            return super().capbridge_broken()
+        (bl,) = (p0 + p1).astype(int)
+        (br,) = (p0 + p2).astype(int)
+        top = np.max([bl[1], br[1]])
+        bot = self.binary_image().shape[0]
         if top > bot:
             # substrate is located outside of the frame
             return False
-
-        left = x0 + np.min(v_x).astype(int)
-        right = x0 + np.max(v_x).astype(int)
-
+        left = bl[0]
+        right = br[0]
         roi_binimg = self.binary_image()[top:bot, left:right]
         return bool(np.any(np.all(roi_binimg, axis=1)))
 
