@@ -127,8 +127,8 @@ class RectCoatingLayerBase(
         if p1.size == 0 or p2.size == 0:
             # cannot detect the vertex; fallback to default
             return super().capbridge_broken()
-        bl, = (p0 + p1).astype(int)
-        br, = (p0 + p2).astype(int)
+        (bl,) = (p0 + p1).astype(int)
+        (br,) = (p0 + p2).astype(int)
         top = np.max([bl[1], br[1]])
         bot = self.binary_image().shape[0]
         if top > bot:
