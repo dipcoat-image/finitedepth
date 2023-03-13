@@ -412,8 +412,15 @@ class RectLayerShape(
             layer_img = self.extract_layer().copy()
             h, w = layer_img.shape[:2]
             p1, p2 = self.contactline_points()
-            ext_p1, ext_p2 = get_extended_line((h, w), p1, p2)
-            pts = np.array([(0, 0), ext_p1, ext_p2, (w, 0)])
+            ext_points = get_extended_line((h, w), p1, p2)
+            ext_x, ext_y = ext_points.T
+            idxs = np.where((0 <= ext_x) & (ext_x <= w) & (0 <= ext_y) & (ext_y <= h))
+            pts = ext_points[idxs].astype(np.int64)
+            pts = pts[np.argsort(pts[..., 0])]
+
+            pts = np.insert(pts, 0, [0, 0], axis=0)
+            pts = np.insert(pts, pts.shape[0], [w, 0], axis=0)
+
             # remove every pixels above the contact line
             cv2.fillPoly(layer_img, [pts], 255)  # faster than np.cross
             layer_img = cv2.bitwise_not(layer_img)
@@ -743,37 +750,17 @@ class RectLayerShape(
 
 def get_extended_line(
     frame_shape: Tuple[int, int], p1: npt.NDArray[np.int64], p2: npt.NDArray[np.int64]
-) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+) -> npt.NDArray[np.float64]:
     # TODO: make it more elegant with matrix determinant and sorta things
     h, w = frame_shape
     x1, y1 = p1
-    x2, y2 = p2
+    dx, dy = p2 - p1
 
-    if x1 == x2 and y1 == y2:
-        raise ZeroDivisionError("Duplicate points: %s and %s" % (p1, p2))
-
-    elif x1 != x2 and y1 != y2:
-        candidates = (
-            (int((x2 - x1) / (y2 - y1) * (0 - y1) + x1), 0),
-            (int((x2 - x1) / (y2 - y1) * (h - y1) + x1), h),
-            (0, int((y2 - y1) / (x2 - x1) * (0 - x1) + y1)),
-            (w, int((y2 - y1) / (x2 - x1) * (w - x1) + y1)),
-        )
-
-        ret = []
-        for x, y in set(candidates):
-            if 0 <= x <= w and 0 <= y <= h:
-                ret.append((x, y))
-        ret.sort()
-
-        ext_p1, ext_p2 = ret
-
-    elif x1 == x2 and y1 != y2:
-        ext_p1 = (x1, 0)
-        ext_p2 = (x1, h)
-
-    elif x1 != x2 and y1 == y2:
-        ext_p1 = (0, y1)
-        ext_p2 = (w, y1)
-
-    return ext_p1, ext_p2
+    points = []
+    if dx != 0:
+        points.append(np.array([0, dy / dx * (-x1) + y1], dtype=np.float64))
+        points.append(np.array([w, dy / dx * (w - x1) + y1], dtype=np.float64))
+    if dy != 0:
+        points.append(np.array([dx / dy * (-y1) + x1, 0], dtype=np.float64))
+        points.append(np.array([dx / dy * (h - y1) + x1, h], dtype=np.float64))
+    return np.stack(points)
