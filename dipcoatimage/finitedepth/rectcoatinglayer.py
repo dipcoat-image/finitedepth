@@ -594,14 +594,13 @@ class RectLayerShape(
         (layer,) = cv2.convexHull(layer_points).transpose(1, 0, 2)
 
         # deal with the starting point and ending point of the layer contour
-        # step 1: remove discontinuity of point series between p1 to p2
         p1, p2 = self.contactline_points()
-        i = np.argmin(np.linalg.norm(layer - p1, axis=1)) + 1
-        layer = np.roll(layer, -i, axis=0)
-        # step 2: make point series start near p2
         i0 = int(np.argmin(np.linalg.norm(layer - p2, axis=1)))
         i1 = int(np.argmin(np.linalg.norm(layer - p1, axis=1)))
-        layer = layer[i0 : i1 + 1]
+        if i0 >= i1 + 1:
+            layer = np.concatenate([layer[i0:], layer[: i1 + 1]])
+        else:
+            layer = layer[i0 : i1 + 1]
 
         L, uniform_layer = self.uniform_layer()
 
