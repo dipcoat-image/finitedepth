@@ -446,9 +446,9 @@ class RectLayerShape(
                 cnt_points = np.empty((0, 1, 2), dtype=np.int32)
             else:
                 cnt_points = np.concatenate(contours, axis=0)
-            cnt_y, cnt_x = cnt_points.transpose(2, 0, 1)
+            cnt_x, cnt_y = cnt_points.transpose(2, 0, 1)
 
-            cnt_labels = self.label_layer()[cnt_x, cnt_y]
+            cnt_labels = self.label_layer()[cnt_y, cnt_x]
             on_layer = (cnt_labels & self.Region.LAYER).astype(bool)
             is_left = (cnt_labels & self.Region.LEFTWALL).astype(bool)
             is_bottom = (cnt_labels & self.Region.BOTTOM).astype(bool)
@@ -592,9 +592,16 @@ class RectLayerShape(
 
         layer_points = np.concatenate(contours, axis=0)
         (layer,) = cv2.convexHull(layer_points).transpose(1, 0, 2)
-        p, _ = self.contactline_points()
-        i = np.argmin(np.linalg.norm(layer - p, axis=1)) + 1
+
+        # deal with the starting point and ending point of the layer contour
+        # step 1: remove discontinuity of point series between p1 to p2
+        p1, p2 = self.contactline_points()
+        i = np.argmin(np.linalg.norm(layer - p1, axis=1)) + 1
         layer = np.roll(layer, -i, axis=0)
+        # step 2: make point series start near p2
+        i0 = int(np.argmin(np.linalg.norm(layer - p2, axis=1)))
+        i1 = int(np.argmin(np.linalg.norm(layer - p1, axis=1)))
+        layer = layer[i0 : i1 + 1]
 
         L, uniform_layer = self.uniform_layer()
 
