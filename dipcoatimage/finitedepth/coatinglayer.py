@@ -382,8 +382,6 @@ class CoatingLayerBase(
             image[y0:y1, x0:x1][mask] = 255
             # remove the area outside of the ROI
             image[:y0, :] = 255
-            image[:y1, :x0] = 255
-            image[:y1, x1:] = 255
 
             self._extracted_layer = image
         return self._extracted_layer
@@ -506,7 +504,7 @@ class LayerArea(
        >>> ref_path = get_samples_path("ref1.png")
        >>> ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
        >>> tempROI = (200, 50, 1200, 200)
-       >>> substROI = (400, 100, 1000, 500)
+       >>> substROI = (400, 175, 1000, 500)
        >>> ref = SubstrateReference(ref_img, tempROI, substROI)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP

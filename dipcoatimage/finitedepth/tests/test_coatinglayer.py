@@ -9,7 +9,7 @@ from dipcoatimage.finitedepth import (
 
 def test_CoatingLayer_capbridge_broken():
     ref_img = cv2.imread(get_samples_path("ref3.png"))
-    ref = SubstrateReference(ref_img, (100, 50, 1200, 600), (200, 50, 1100, 800))
+    ref = SubstrateReference(ref_img, (100, 50, 1200, 200), (300, 100, 950, 600))
     subst = Substrate(ref)
 
     vid_path = get_samples_path("coat3.mp4")
