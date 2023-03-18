@@ -359,6 +359,7 @@ class CoatingLayerBase(
             subst_crop = subst_mask[
                 max(-y0, 0) : min(H - y0, h), max(-x0, 0) : min(W - x0, w)
             ]
+            subst_crop &= layer_crop
             layer_crop ^= subst_crop
 
             layer_mask[:y0, :] = False
