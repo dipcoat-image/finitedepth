@@ -35,8 +35,8 @@ COAT_IMG = cv2.cvtColor(COAT_IMG, cv2.COLOR_BGR2RGB)
 
 def test_ReferenceArgs():
     refargs = ReferenceArgs(
-        templateROI=(200, 100, 1200, 500),
-        substrateROI=(300, 50, 1100, 600),
+        templateROI=(200, 50, 1200, 200),
+        substrateROI=(400, 175, 1000, 500),
         draw_options=dict(substrateROI=dict(thickness=2)),
     )
     ref = refargs.as_reference(REF_IMG)
