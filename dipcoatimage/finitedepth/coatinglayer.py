@@ -71,7 +71,7 @@ __all__ = [
     "CoatingLayerError",
     "match_template",
     "images_XOR",
-    "subtract_image",
+    "images_ANDXOR",
     "CoatingLayerBase",
     "LayerAreaParameters",
     "LayerAreaDrawOptions",
@@ -104,28 +104,49 @@ def match_template(
 
 
 def images_XOR(
-    image1: npt.NDArray[np.bool_], image2: npt.NDArray[np.bool_], point: Tuple[int, int]
-) -> npt.NDArray[np.bool_]:
-    """
-    Compare *image2* with *image1* at *point*, and get mask which indicates
-    common pixel location.
-    """
-    H, W = image1.shape
-    h, w = image2.shape
-    x0, y0 = point
-
-    x1, y1 = x0 + w, y0 + h
-    img1_crop = image1[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)]
-    img2_crop = image2[max(-y0, 0) : min(H - y0, h), max(-x0, 0) : min(W - x0, w)]
-    return ~(img1_crop ^ img2_crop)
-
-
-def subtract_image(
     img1: npt.NDArray[np.bool_],
     img2: npt.NDArray[np.bool_],
     point: Tuple[int, int],
 ) -> npt.NDArray[np.bool_]:
-    """Subtract *img2* from *img1* at *point*."""
+    """
+    Subtract *img2* from *img1* at *point* by XOR operation.
+
+    This function leaves the pixels that exist either in *img1* or *img2*. It
+    can be used to visualize the template matching error.
+
+    See Also
+    --------
+
+    images_ANDXOR
+    """
+    H, W = img1.shape
+    h, w = img2.shape
+    x0, y0 = point
+    x1, y1 = x0 + w, y0 + h
+
+    img1 = img1.copy()
+    img1_crop = img1[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)]
+    img2_crop = img2[max(-y0, 0) : min(H - y0, h), max(-x0, 0) : min(W - x0, w)]
+    img1_crop ^= img2_crop
+    return img1
+
+
+def images_ANDXOR(
+    img1: npt.NDArray[np.bool_],
+    img2: npt.NDArray[np.bool_],
+    point: Tuple[int, int],
+) -> npt.NDArray[np.bool_]:
+    """
+    Subtract *img2* from *img1* at *point* by AND and XOR operation.
+
+    This function leaves the pixels that exist in *img1* but not in *img2*. It
+    can be used to extract the coating layer pixels.
+
+    See Also
+    --------
+
+    images_XOR
+    """
     H, W = img1.shape
     h, w = img2.shape
     x0, y0 = point
@@ -372,7 +393,7 @@ class CoatingLayerBase(
             # remove the substrate
             subst_mask = ~self.substrate.binary_image().astype(bool)
             x0, y0 = self.substrate_point()
-            ret = subtract_image(layer_mask, subst_mask, (x0, y0))
+            ret = images_ANDXOR(layer_mask, subst_mask, (x0, y0))
             ret[:y0, :] = False
             self._extracted_layer = ret
         return self._extracted_layer
