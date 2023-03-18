@@ -354,33 +354,33 @@ class CoatingLayerBase(
         row_white = np.all(below_subst, axis=1)
         return bool(np.any(row_white))
 
-    def extract_layer(self) -> npt.NDArray[np.uint8]:
+    def extract_layer(self) -> npt.NDArray[np.bool_]:
         """Extract the coating layer as binary array from *self.image*."""
         if not hasattr(self, "_extracted_layer"):
             binimg = self.binary_image()
-            H, W = binimg.shape
-            image = np.full((H, W), 255, dtype=binimg.dtype)
 
-            # remove components e.g. coating bath surface
+            # remove components not connected to the substrate, e.g. bath surface
             neg_binimg = cv2.bitwise_not(binimg)
             _, labels = cv2.connectedComponents(neg_binimg)
-            x0, y0 = self.substrate_point()
-            for x, y in self.substrate.nestled_points():
-                label_point = (x0 + x, y0 + y)
-                label = labels[label_point[::-1]]
-                image[labels == label] = 0
+            points = self.substrate_point() + self.substrate.nestled_points()
+            x, y = points.T
+            subst_comps = np.unique(labels[y, x])
+            layer_mask = np.isin(labels, subst_comps)
 
             # remove the substrate
-            substImg = self.substrate.binary_image()
-            mask = images_AND(~image.astype(bool), ~substImg.astype(bool), (x0, y0))
-
-            h, w = substImg.shape
+            H, W = layer_mask.shape
+            subst_mask = ~self.substrate.binary_image().astype(bool)
+            h, w = subst_mask.shape
+            x0, y0 = self.substrate_point()
             x1, y1 = x0 + w, y0 + h
-            image[y0:y1, x0:x1][mask] = 255
-            # remove the area outside of the ROI
-            image[:y0, :] = 255
+            layer_crop = layer_mask[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)]
+            subst_crop = subst_mask[
+                max(-y0, 0) : min(H - y0, h), max(-x0, 0) : min(W - x0, w)
+            ]
+            layer_crop ^= subst_crop
 
-            self._extracted_layer = image
+            layer_mask[:y0, :] = False
+            self._extracted_layer = layer_mask
         return self._extracted_layer
 
     @abc.abstractmethod
@@ -594,18 +594,15 @@ class LayerArea(
             x1, y1 = x0 + w, y0 + h
             image[y0:y1, x0:x1][mask] = 255
         elif subtract_mode == self.SubtractMode.FULL:
-            image = self.extract_layer()
+            image = (~self.extract_layer()).astype(np.uint8) * 255  # type: ignore
         else:
             raise TypeError("Unrecognized subtraction mode: %s" % subtract_mode)
         image = colorize(image)
 
-        image[~self.extract_layer().astype(bool)] = dataclasses.astuple(
-            self.deco_options.layer_color
-        )
+        image[self.extract_layer()] = dataclasses.astuple(self.deco_options.layer_color)
 
         return image
 
     def analyze_layer(self) -> Tuple[int]:
-        layer_img = self.extract_layer()
-        area = layer_img.size - np.count_nonzero(layer_img)
+        area = np.count_nonzero(self.extract_layer())
         return (area,)
