@@ -123,7 +123,7 @@ def images_XOR(
 def subtract_image(
     img1: npt.NDArray[np.bool_],
     img2: npt.NDArray[np.bool_],
-    point: npt.NDArray[np.int32],
+    point: Tuple[int, int],
 ) -> npt.NDArray[np.bool_]:
     """Subtract *img2* from *img1* at *point*."""
     H, W = img1.shape
@@ -371,8 +371,8 @@ class CoatingLayerBase(
 
             # remove the substrate
             subst_mask = ~self.substrate.binary_image().astype(bool)
-            ret = subtract_image(layer_mask, subst_mask, self.substrate_point())
-            _, y0 = self.substrate_point()
+            x0, y0 = self.substrate_point()
+            ret = subtract_image(layer_mask, subst_mask, (x0, y0))
             ret[:y0, :] = False
             self._extracted_layer = ret
         return self._extracted_layer
