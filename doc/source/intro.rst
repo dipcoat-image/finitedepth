@@ -137,9 +137,9 @@ To analyze the coating layer shape, the coating layer instance uses the substrat
    >>> coat_path = get_samples_path("coat3.png")
    >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
    >>> coat = LayerArea(coat_img, subst)
-   >>> coat.draw_options.draw_substrate = False
+   >>> coat.draw_options.subtract_mode = coat.SubtractMode.FULL
    >>> coat.analyze()
-   LayerAreaData(Area=41670)
+   LayerAreaData(Area=41519)
    >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
 Analysis classes
