@@ -409,33 +409,10 @@ class RectLayerShape(
 
         return self._contactline_points
 
-    def refine_layer(self) -> npt.NDArray[np.uint8]:
-        """Get the refined coating layer image without error pixels."""
-        if not hasattr(self, "_refined_layer"):
-            layer_img = (~self.extract_layer()).astype(np.uint8) * 255
-            h, w = layer_img.shape[:2]
-            p1, p2 = self.contactline_points()
-            ext_points = get_extended_line((h, w), p1, p2)
-            ext_x, ext_y = ext_points.T
-            idxs = np.where((0 <= ext_x) & (ext_x <= w) & (0 <= ext_y) & (ext_y <= h))
-            pts = ext_points[idxs].astype(np.int64)
-            pts = pts[np.argsort(pts[..., 0])]
-
-            pts = np.insert(pts, 0, [0, 0], axis=0)
-            pts = np.insert(pts, pts.shape[0], [w, 0], axis=0)
-
-            # remove every pixels above the contact line
-            cv2.fillPoly(layer_img, [pts], 255)  # faster than np.cross
-            layer_img = cv2.bitwise_not(layer_img)
-
-            self._refined_layer = layer_img  # type: ignore
-
-        return self._refined_layer  # type: ignore
-
     def layer_contours(self) -> List[npt.NDArray[np.int32]]:
         if not hasattr(self, "_layer_contours"):
             contours, _ = cv2.findContours(
-                self.refine_layer(),
+                self.extract_layer().astype(np.uint8),
                 cv2.RETR_EXTERNAL,
                 cv2.CHAIN_APPROX_NONE,
             )
@@ -507,7 +484,7 @@ class RectLayerShape(
     def layer_area(self) -> int:
         """Return the number of pixels in coating layer region."""
         if not hasattr(self, "_layer_area"):
-            self._layer_area = np.count_nonzero(self.refine_layer())
+            self._layer_area = np.count_nonzero(self.extract_layer())
         return self._layer_area
 
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
@@ -656,14 +633,14 @@ class RectLayerShape(
             x1, y1 = x0 + w, y0 + h
             image[y0:y1, x0:x1][mask] = 255
         elif subtract_mode == self.SubtractMode.FULL:
-            image = cv2.bitwise_not(self.refine_layer())
+            image = (~self.extract_layer()).astype(np.uint8) * 255  # type: ignore
         else:
             raise TypeError("Unrecognized subtraction mode: %s" % subtract_mode)
         image = colorize(image)
 
         layer_opts = self.deco_options.layer
         if layer_opts.thickness != 0:
-            image[self.refine_layer().astype(bool)] = (255, 255, 255)
+            image[self.extract_layer()] = (255, 255, 255)
             cv2.drawContours(
                 image,
                 self.layer_contours(),
