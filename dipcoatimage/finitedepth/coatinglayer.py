@@ -70,7 +70,6 @@ except ImportError:
 __all__ = [
     "CoatingLayerError",
     "match_template",
-    "images_AND",
     "images_XOR",
     "CoatingLayerBase",
     "LayerAreaParameters",
@@ -101,23 +100,6 @@ def match_template(
     res = cv2.matchTemplate(image, template, cv2.TM_SQDIFF_NORMED)
     score, _, loc, _ = cv2.minMaxLoc(res)
     return (score, loc)
-
-
-def images_AND(
-    image1: npt.NDArray[np.bool_], image2: npt.NDArray[np.bool_], point: Tuple[int, int]
-) -> npt.NDArray[np.bool_]:
-    """
-    Compare *image2* with *image1* at *point*, and get mask which indicates
-    common pixel location.
-    """
-    H, W = image1.shape
-    h, w = image2.shape
-    x0, y0 = point
-
-    x1, y1 = x0 + w, y0 + h
-    img1_crop = image1[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)]
-    img2_crop = image2[max(-y0, 0) : min(H - y0, h), max(-x0, 0) : min(W - x0, w)]
-    return img1_crop & img2_crop
 
 
 def images_XOR(
