@@ -37,7 +37,7 @@ import numpy as np
 import numpy.typing as npt
 from .reference import SubstrateReferenceBase
 from .util import DataclassProtocol, colorize
-from typing import TypeVar, Generic, Type, Optional, List, Tuple
+from typing import TypeVar, Generic, Type, Optional
 
 
 __all__ = [
@@ -174,38 +174,20 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         x0, y0, x1, y1 = self.reference.substrateROI
         return self.reference.binary_image()[y0:y1, x0:x1]
 
-    def nestled_points(self) -> List[Tuple[int, int]]:
+    def nestled_points(self) -> npt.NDArray[np.int64]:
         """
         Find the points which are firmly nestled in the substrate.
 
-        This method is used to eliminate the components in coating layer image
-        which are not connected to the substrate.
+        This method is used to distinguish connected components in the image
+        which are not connected to the substrate, e.g. fluid bath surface.
+        Subclass may reimplement this method according to the substrate geometry.
 
-        If the substrate is extremely concave or has holes in its image, this
-        method may need to be reimplemented.
-
-        Return value is a list of coordinates in ``(x, y)``, but for most cases
-        this method returns a single point.
-        If the substrate consists of components which are not connected, multiple
-        points may be returned.
-
-        Examples
-        ========
-
-        >>> import cv2
-        >>> from dipcoatimage.finitedepth import (SubstrateReference, Substrate,
-        ...     get_samples_path)
-        >>> ref_path = get_samples_path("ref1.png")
-        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
-        >>> substROI = (400, 175, 1000, 500)
-        >>> ref = SubstrateReference(img, substrateROI=substROI)
-        >>> subst = Substrate(ref)
-        >>> subst.nestled_points()
-        [(300, 0)]
-
+        Return value is stacked coordinates in ``(x, y)``. Normally only one
+        point is returned, but the result can be multiple points if the substrate
+        consists of unconnected components.
         """
         w = self.image().shape[1]
-        return [(int(w / 2), 0)]
+        return np.array([[w / 2, 0]], dtype=np.int64)
 
     @abc.abstractmethod
     def examine(self) -> Optional[SubstrateError]:

@@ -67,7 +67,6 @@ __all__ = [
     "RectLayerShapeDecoOptions",
     "RectLayerShapeData",
     "RectLayerShape",
-    "get_extended_line",
 ]
 
 
@@ -149,7 +148,7 @@ class RectCoatingLayerBase(
 
         """
         if not hasattr(self, "_labelled_layer"):
-            mask = cv2.bitwise_not(self.extract_layer()).astype(bool)
+            mask = self.extract_layer()
             points = np.flip(np.stack(np.where(mask)), axis=0).T
 
             p0 = self.substrate_point()
@@ -344,19 +343,13 @@ class RectLayerShape(
             return CoatingLayerError("Capillary bridge is not broken.")
         return None
 
-    def contactline_points(self) -> npt.NDArray[np.int64]:
-        """
-        Get the coordinates of the contact line points of the layer.
-
-        Return value as ``(left x, left y, right x, right y)``.
-        """
-        if not hasattr(self, "_contactline_points"):
+    def extract_layer(self) -> npt.NDArray[np.bool_]:
+        if not hasattr(self, "_extracted_layer"):
             # perform closing to remove error pixels
-            img = self.extract_layer()
             closingParams = self.parameters.MorphologyClosing
             kernel = np.ones(closingParams.kernelSize)
             img_closed = cv2.morphologyEx(
-                img,
+                (~super().extract_layer()).astype(np.uint8) * 255,
                 cv2.MORPH_CLOSE,
                 kernel,
                 anchor=closingParams.anchor,
@@ -367,36 +360,45 @@ class RectLayerShape(
             # remove the errors that are disconnected to the layer.
             # we identify the layer pixels as the connected components that are
             # close to the corners.
+            vicinity_mask = np.zeros(img_closed.shape, np.uint8)
             p0 = self.substrate_point()
             _, bl, br, _ = self.substrate.vertex_points()
             B = p0 + bl
             C = p0 + br
+            R = self.parameters.ReconstructRadius
+            cv2.circle(vicinity_mask, B.astype(np.int64).flatten(), R, 1, -1)
+            cv2.circle(vicinity_mask, C.astype(np.int64).flatten(), R, 1, -1)
             _, labels = cv2.connectedComponents(cv2.bitwise_not(img_closed))
+            layer_comps = np.unique(labels[np.where(vicinity_mask.astype(bool))])
+            layer_mask = np.isin(labels, layer_comps[layer_comps != 0])
 
-            dist_thres = self.parameters.ReconstructRadius
-            points = np.flip(np.stack(np.where(labels)), axis=0).T
-            left_dist = np.linalg.norm(points - B, axis=1)
-            right_dist = np.linalg.norm(points - C, axis=1)
-            near_corner = (left_dist < dist_thres) | (right_dist < dist_thres)
-            row, col = points[near_corner].T
-            layer_comps = np.unique(labels[col, row])
-            mask = np.zeros(labels.shape, dtype=bool)
-            for i in layer_comps:
-                mask[np.where(labels == i)] = True
+            self._extracted_layer = layer_mask
+        return self._extracted_layer
 
-            # get contact line points
-            layer_label = self.label_layer().copy()
-            layer_label[~mask] = self.Region.BACKGROUND
+    def contactline_points(self) -> npt.NDArray[np.int64]:
+        """
+        Get the coordinates of the contact line points of the layer.
+
+        Return value as ``(left x, left y, right x, right y)``.
+        """
+        if not hasattr(self, "_contactline_points"):
+            p0 = self.substrate_point()
+            _, bl, br, _ = self.substrate.vertex_points()
+            B = p0 + bl
+            C = p0 + br
+            layer_label = self.label_layer()
+
             left = (layer_label & self.Region.LEFTHALF).astype(bool)
-            left_row, left_col = np.where(left)
-            left_points = np.stack([left_col, left_row], axis=1)
+            left_y, left_x = np.where(left)
+            left_points = np.stack([left_x, left_y], axis=1)
             if left_points.size != 0:
                 left_cp = left_points[np.argmin(left_points, axis=0)[1]]
             else:
                 left_cp = B.astype(np.int64).flatten()
+
             right = (layer_label & ~left).astype(bool)
-            right_row, right_col = np.where(right)
-            right_points = np.stack([right_col, right_row], axis=1)
+            right_y, right_x = np.where(right)
+            right_points = np.stack([right_x, right_y], axis=1)
             if right_points.size != 0:
                 right_cp = right_points[np.argmin(right_points, axis=0)[1]]
             else:
@@ -406,33 +408,10 @@ class RectLayerShape(
 
         return self._contactline_points
 
-    def refine_layer(self) -> npt.NDArray[np.uint8]:
-        """Get the refined coating layer image without error pixels."""
-        if not hasattr(self, "_refined_layer"):
-            layer_img = self.extract_layer().copy()
-            h, w = layer_img.shape[:2]
-            p1, p2 = self.contactline_points()
-            ext_points = get_extended_line((h, w), p1, p2)
-            ext_x, ext_y = ext_points.T
-            idxs = np.where((0 <= ext_x) & (ext_x <= w) & (0 <= ext_y) & (ext_y <= h))
-            pts = ext_points[idxs].astype(np.int64)
-            pts = pts[np.argsort(pts[..., 0])]
-
-            pts = np.insert(pts, 0, [0, 0], axis=0)
-            pts = np.insert(pts, pts.shape[0], [w, 0], axis=0)
-
-            # remove every pixels above the contact line
-            cv2.fillPoly(layer_img, [pts], 255)  # faster than np.cross
-            layer_img = cv2.bitwise_not(layer_img)
-
-            self._refined_layer = layer_img
-
-        return self._refined_layer
-
     def layer_contours(self) -> List[npt.NDArray[np.int32]]:
         if not hasattr(self, "_layer_contours"):
             contours, _ = cv2.findContours(
-                self.refine_layer(),
+                self.extract_layer().astype(np.uint8),
                 cv2.RETR_EXTERNAL,
                 cv2.CHAIN_APPROX_NONE,
             )
@@ -504,7 +483,7 @@ class RectLayerShape(
     def layer_area(self) -> int:
         """Return the number of pixels in coating layer region."""
         if not hasattr(self, "_layer_area"):
-            self._layer_area = np.count_nonzero(self.refine_layer())
+            self._layer_area = np.count_nonzero(self.extract_layer())
         return self._layer_area
 
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
@@ -653,14 +632,14 @@ class RectLayerShape(
             x1, y1 = x0 + w, y0 + h
             image[y0:y1, x0:x1][mask] = 255
         elif subtract_mode == self.SubtractMode.FULL:
-            image = cv2.bitwise_not(self.refine_layer())
+            image = (~self.extract_layer()).astype(np.uint8) * 255  # type: ignore
         else:
             raise TypeError("Unrecognized subtraction mode: %s" % subtract_mode)
         image = colorize(image)
 
         layer_opts = self.deco_options.layer
         if layer_opts.thickness != 0:
-            image[self.refine_layer().astype(bool)] = (255, 255, 255)
+            image[self.extract_layer()] = (255, 255, 255)
             cv2.drawContours(
                 image,
                 self.layer_contours(),
@@ -752,21 +731,3 @@ class RectLayerShape(
             ERR,
             CHIPWIDTH,
         )
-
-
-def get_extended_line(
-    frame_shape: Tuple[int, int], p1: npt.NDArray[np.int64], p2: npt.NDArray[np.int64]
-) -> npt.NDArray[np.float64]:
-    # TODO: make it more elegant with matrix determinant and sorta things
-    h, w = frame_shape
-    x1, y1 = p1
-    dx, dy = p2 - p1
-
-    points = []
-    if dx != 0:
-        points.append(np.array([0, dy / dx * (-x1) + y1], dtype=np.float64))
-        points.append(np.array([w, dy / dx * (w - x1) + y1], dtype=np.float64))
-    if dy != 0:
-        points.append(np.array([dx / dy * (-y1) + x1, 0], dtype=np.float64))
-        points.append(np.array([dx / dy * (h - y1) + x1, h], dtype=np.float64))
-    return np.stack(points)

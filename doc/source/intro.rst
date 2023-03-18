@@ -139,7 +139,7 @@ To analyze the coating layer shape, the coating layer instance uses the substrat
    >>> coat = LayerArea(coat_img, subst)
    >>> coat.draw_options.subtract_mode = coat.SubtractMode.FULL
    >>> coat.analyze()
-   LayerAreaData(Area=41519)
+   LayerAreaData(Area=41595)
    >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
 Analysis classes
