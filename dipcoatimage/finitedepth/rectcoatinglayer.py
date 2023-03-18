@@ -67,7 +67,6 @@ __all__ = [
     "RectLayerShapeDecoOptions",
     "RectLayerShapeData",
     "RectLayerShape",
-    "get_extended_line",
 ]
 
 
@@ -732,21 +731,3 @@ class RectLayerShape(
             ERR,
             CHIPWIDTH,
         )
-
-
-def get_extended_line(
-    frame_shape: Tuple[int, int], p1: npt.NDArray[np.int64], p2: npt.NDArray[np.int64]
-) -> npt.NDArray[np.float64]:
-    # TODO: make it more elegant with matrix determinant and sorta things
-    h, w = frame_shape
-    x1, y1 = p1
-    dx, dy = p2 - p1
-
-    points = []
-    if dx != 0:
-        points.append(np.array([0, dy / dx * (-x1) + y1], dtype=np.float64))
-        points.append(np.array([w, dy / dx * (w - x1) + y1], dtype=np.float64))
-    if dy != 0:
-        points.append(np.array([dx / dy * (-y1) + x1, 0], dtype=np.float64))
-        points.append(np.array([dx / dy * (h - y1) + x1, h], dtype=np.float64))
-    return np.stack(points)
