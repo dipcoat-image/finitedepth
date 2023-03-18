@@ -71,6 +71,7 @@ __all__ = [
     "CoatingLayerError",
     "match_template",
     "images_XOR",
+    "subtract_image",
     "CoatingLayerBase",
     "LayerAreaParameters",
     "LayerAreaDrawOptions",
@@ -117,6 +118,25 @@ def images_XOR(
     img1_crop = image1[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)]
     img2_crop = image2[max(-y0, 0) : min(H - y0, h), max(-x0, 0) : min(W - x0, w)]
     return ~(img1_crop ^ img2_crop)
+
+
+def subtract_image(
+    img1: npt.NDArray[np.bool_],
+    img2: npt.NDArray[np.bool_],
+    point: npt.NDArray[np.int32],
+) -> npt.NDArray[np.bool_]:
+    """Subtract *img2* from *img1* at *point*."""
+    H, W = img1.shape
+    h, w = img2.shape
+    x0, y0 = point
+    x1, y1 = x0 + w, y0 + h
+
+    img1 = img1.copy()
+    img1_crop = img1[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)]
+    img2_crop = img2[max(-y0, 0) : min(H - y0, h), max(-x0, 0) : min(W - x0, w)]
+    common = img1_crop & img2_crop
+    img1_crop ^= common
+    return img1
 
 
 class CoatingLayerBase(
@@ -350,20 +370,11 @@ class CoatingLayerBase(
             layer_mask = np.isin(labels, subst_comps)
 
             # remove the substrate
-            H, W = layer_mask.shape
             subst_mask = ~self.substrate.binary_image().astype(bool)
-            h, w = subst_mask.shape
-            x0, y0 = self.substrate_point()
-            x1, y1 = x0 + w, y0 + h
-            layer_crop = layer_mask[max(y0, 0) : min(y1, H), max(x0, 0) : min(x1, W)]
-            subst_crop = subst_mask[
-                max(-y0, 0) : min(H - y0, h), max(-x0, 0) : min(W - x0, w)
-            ]
-            subst_crop &= layer_crop
-            layer_crop ^= subst_crop
-
-            layer_mask[:y0, :] = False
-            self._extracted_layer = layer_mask
+            ret = subtract_image(layer_mask, subst_mask, self.substrate_point())
+            _, y0 = self.substrate_point()
+            ret[:y0, :] = False
+            self._extracted_layer = ret
         return self._extracted_layer
 
     @abc.abstractmethod
