@@ -60,7 +60,7 @@ Temporal evolution of the coating layer can be assessed by analyzing the series 
    from dipcoatimage.finitedepth import SubstrateReference, Substrate, LayerArea
 
    ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
-   ref = SubstrateReference(ref_img, (50, 50, 1200, 200), (200, 50, 1000, 600))
+   ref = SubstrateReference(ref_img, (100, 50, 1200, 200), (300, 100, 950, 600))
    subst = Substrate(ref)
    coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
    coat = LayerArea(coat_img, subst)
@@ -96,7 +96,7 @@ The first ROI specifies the template region for the coating layer class, and the
    >>> import matplotlib.pyplot as plt #doctest: +SKIP
    >>> ref_path = get_samples_path("ref3.png")
    >>> ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
-   >>> templateROI, substrateROI = (50, 50, 1200, 200), (200, 30, 1000, 600)
+   >>> templateROI, substrateROI = (100, 50, 1200, 200), (300, 100, 950, 600)
    >>> ref = SubstrateReference(ref_img, templateROI, substrateROI)
    >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
