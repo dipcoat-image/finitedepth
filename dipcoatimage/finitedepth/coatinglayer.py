@@ -355,18 +355,15 @@ class CoatingLayerBase(
         return bool(np.any(row_white))
 
     def extract_layer(self) -> npt.NDArray[np.uint8]:
-        """
-        Extract the coating layer as binary array from *self.image*, where
-        the substrate and any other undesired features removed.
-        """
+        """Extract the coating layer as binary array from *self.image*."""
         if not hasattr(self, "_extracted_layer"):
             binimg = self.binary_image()
             H, W = binimg.shape
+            image = np.full((H, W), 255, dtype=binimg.dtype)
 
+            # remove components e.g. coating bath surface
             neg_binimg = cv2.bitwise_not(binimg)
             _, labels = cv2.connectedComponents(neg_binimg)
-
-            image = np.full((H, W), 255, dtype=binimg.dtype)
             x0, y0 = self.substrate_point()
             for x, y in self.substrate.nestled_points():
                 label_point = (x0 + x, y0 + y)

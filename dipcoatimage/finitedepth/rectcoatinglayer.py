@@ -344,15 +344,11 @@ class RectLayerShape(
             return CoatingLayerError("Capillary bridge is not broken.")
         return None
 
-    def contactline_points(self) -> npt.NDArray[np.int64]:
-        """
-        Get the coordinates of the contact line points of the layer.
+    def extract_layer(self) -> npt.NDArray[np.uint8]:
+        if not hasattr(self, "_extracted_layer"):
+            img = super().extract_layer()
 
-        Return value as ``(left x, left y, right x, right y)``.
-        """
-        if not hasattr(self, "_contactline_points"):
             # perform closing to remove error pixels
-            img = self.extract_layer()
             closingParams = self.parameters.MorphologyClosing
             kernel = np.ones(closingParams.kernelSize)
             img_closed = cv2.morphologyEx(
@@ -367,24 +363,37 @@ class RectLayerShape(
             # remove the errors that are disconnected to the layer.
             # we identify the layer pixels as the connected components that are
             # close to the corners.
+            vicinity_mask = np.zeros(img.shape, np.uint8)
             p0 = self.substrate_point()
             _, bl, br, _ = self.substrate.vertex_points()
             B = p0 + bl
             C = p0 + br
+            R = self.parameters.ReconstructRadius
+            cv2.circle(vicinity_mask, B.astype(np.int64).flatten(), R, 1, -1)
+            cv2.circle(vicinity_mask, C.astype(np.int64).flatten(), R, 1, -1)
             _, labels = cv2.connectedComponents(cv2.bitwise_not(img_closed))
+            layer_comps = np.unique(labels[np.where(vicinity_mask.astype(bool))])
+            layer_mask = np.isin(labels, layer_comps[layer_comps != 0])
 
-            dist_thres = self.parameters.ReconstructRadius
-            points = np.flip(np.stack(np.where(labels)), axis=0).T
-            left_dist = np.linalg.norm(points - B, axis=1)
-            right_dist = np.linalg.norm(points - C, axis=1)
-            near_corner = (left_dist < dist_thres) | (right_dist < dist_thres)
-            row, col = points[near_corner].T
-            layer_comps = np.unique(labels[col, row])
-            mask = np.zeros(labels.shape, dtype=bool)
-            for i in layer_comps:
-                mask[np.where(labels == i)] = True
+            self._extracted_layer = (~layer_mask).astype(np.uint8) * 255  # type: ignore
+        return self._extracted_layer
+
+    def contactline_points(self) -> npt.NDArray[np.int64]:
+        """
+        Get the coordinates of the contact line points of the layer.
+
+        Return value as ``(left x, left y, right x, right y)``.
+        """
+        if not hasattr(self, "_contactline_points"):
+            # perform closing to remove error pixels
+            mask = ~self.extract_layer().astype(bool)
 
             # get contact line points
+            p0 = self.substrate_point()
+            _, bl, br, _ = self.substrate.vertex_points()
+            B = p0 + bl
+            C = p0 + br
+
             layer_label = self.label_layer().copy()
             layer_label[~mask] = self.Region.BACKGROUND
             left = (layer_label & self.Region.LEFTHALF).astype(bool)
