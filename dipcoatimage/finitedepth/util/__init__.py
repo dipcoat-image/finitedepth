@@ -27,7 +27,6 @@ from .path import get_samples_path, cwd
 from .typing import DataclassProtocol, OptionalROI, IntROI, sanitize_ROI
 from .parameters import (
     BinaryImageDrawMode,
-    SubstrateSubtractionMode,
     Color,
     FeatureDrawingOptions,
 )
@@ -48,7 +47,6 @@ __all__ = [
     "IntROI",
     "sanitize_ROI",
     "BinaryImageDrawMode",
-    "SubstrateSubtractionMode",
     "Color",
     "FeatureDrawingOptions",
 ]
