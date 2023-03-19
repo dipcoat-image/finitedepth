@@ -36,8 +36,13 @@ import dataclasses
 import numpy as np
 import numpy.typing as npt
 from .reference import SubstrateReferenceBase
-from .util import DataclassProtocol, colorize
+from .util import DataclassProtocol, BinaryImageDrawMode, colorize
 from typing import TypeVar, Generic, Type, Optional
+
+try:
+    from typing import TypeAlias  # type: ignore[attr-defined]
+except ImportError:
+    from typing_extensions import TypeAlias
 
 
 __all__ = [
@@ -236,7 +241,7 @@ class SubstrateParameters:
 class SubstrateDrawOptions:
     """Drawing options for :class:`Substrate`."""
 
-    pass
+    draw_mode: BinaryImageDrawMode = BinaryImageDrawMode.BINARY
 
 
 class Substrate(SubstrateBase[SubstrateParameters, SubstrateDrawOptions]):
@@ -278,8 +283,17 @@ class Substrate(SubstrateBase[SubstrateParameters, SubstrateDrawOptions]):
     Parameters = SubstrateParameters
     DrawOptions = SubstrateDrawOptions
 
+    DrawMode: TypeAlias = BinaryImageDrawMode
+
     def examine(self) -> None:
         return None
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        return colorize(self.image())
+        draw_mode = self.draw_options.draw_mode
+        if draw_mode == self.DrawMode.ORIGINAL:
+            image = self.image()
+        elif draw_mode == self.DrawMode.BINARY:
+            image = self.binary_image()
+        else:
+            raise TypeError("Unrecognized draw mode: %s" % draw_mode)
+        return colorize(image)
