@@ -113,7 +113,7 @@ def test_CoatingLayerArgs():
             MorphologyClosing=dict(kernelSize=(0, 0)),
             ReconstructRadius=50,
         ),
-        draw_options=dict(draw_mode="BINARY"),
+        draw_options=dict(background="BINARY"),
         deco_options=dict(layer=dict(thickness=1)),
     )
     layer = layerargs.as_coatinglayer(COAT_IMG, subst)

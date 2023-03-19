@@ -475,8 +475,6 @@ class RectSubstrate(
     DrawMode: TypeAlias = RectSubstrateDrawMode
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        h, w = self.image().shape[:2]
-
         draw_mode = self.draw_options.draw_mode
         if draw_mode is self.DrawMode.ORIGINAL:
             image = self.image()
@@ -493,6 +491,7 @@ class RectSubstrate(
             r, theta = np.transpose(self.lines(), (2, 0, 1))
             vec = np.dstack([np.cos(theta), np.sin(theta)])
             pts0 = vec * r[..., np.newaxis]
+            h, w = ret.shape[:2]
             pts1 = pts0 + np.tensordot(vec, np.array([[0, h], [-w, 0]]), axes=1)
             pts2 = pts0 + np.tensordot(vec, np.array([[0, -h], [w, 0]]), axes=1)
 
