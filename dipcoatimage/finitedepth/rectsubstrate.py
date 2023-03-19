@@ -412,10 +412,13 @@ class RectSubstrateDrawOptions:
 
     draw_mode: RectSubstrateDrawMode = RectSubstrateDrawMode.BINARY
     lines: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(0, 255, 0), thickness=1
+        color=Color(0, 255, 0), thickness=0
     )
     edges: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(0, 0, 255), thickness=5
+        color=Color(0, 0, 255), thickness=1
+    )
+    hull: FeatureDrawingOptions = FeatureDrawingOptions(
+        color=Color(255, 0, 0), thickness=1
     )
 
 
@@ -546,5 +549,16 @@ class RectSubstrate(
                     color,
                     thickness,
                 )
+
+        hull_opts = self.draw_options.hull
+        if hull_opts.thickness > 0:
+            hull, _ = self.edge_hull()
+            cv2.polylines(
+                ret,
+                [hull],
+                isClosed=False,
+                color=dataclasses.astuple(hull_opts.color),
+                thickness=hull_opts.thickness,
+            )
 
         return ret
