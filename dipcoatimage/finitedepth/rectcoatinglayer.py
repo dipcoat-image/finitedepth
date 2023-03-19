@@ -440,16 +440,19 @@ class RectLayerShape(
             img = mask.astype(np.uint8) * 255
             cv2.fillPoly(img, [pts], 0)
 
-            (cnt,), _ = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-            (points,) = cnt.transpose(1, 0, 2)
-
-            # deal with the starting point and ending point of the contour
-            i0 = int(np.argmin(np.linalg.norm(points - p1, axis=1)))
-            i1 = int(np.argmin(np.linalg.norm(points - p2, axis=1)))
-            if i0 >= i1 + 1:
-                surface = np.concatenate([points[i0:], points[: i1 + 1]])
+            cnts, _ = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            if not cnts:
+                surface = np.empty((0, 2), dtype=np.int32)
             else:
-                surface = points[i0 : i1 + 1]
+                (points,) = np.concatenate(cnts).transpose(1, 0, 2)
+
+                # deal with the starting point and ending point of the contour
+                i0 = int(np.argmin(np.linalg.norm(points - p1, axis=1)))
+                i1 = int(np.argmin(np.linalg.norm(points - p2, axis=1)))
+                if i0 >= i1 + 1:
+                    surface = np.concatenate([points[i0:], points[: i1 + 1]])
+                else:
+                    surface = points[i0 : i1 + 1]
 
             self._layer_surface = surface
 
@@ -603,7 +606,9 @@ class RectLayerShape(
     def roughness(self) -> np.float64:
         """Dimensional roughness value of the coating layer surface."""
         surface = self.layer_surface()
-        L, uniform_layer = self.uniform_layer()
+        _, uniform_layer = self.uniform_layer()
+        if surface.size == 0 or uniform_layer.size == 0:
+            return np.float64(np.nan)
 
         NUM_POINTS = 1000
 
