@@ -546,7 +546,8 @@ class RectLayerShape(
         if not hasattr(self, "_uniform_layer"):
             S = self.layer_area()
             if S == 0:
-                self._uniform_layer = (np.float64(0), np.empty((0, 2), dtype=np.int32))
+                ret = (np.float64(0), np.empty((0, 2), dtype=np.float64))
+                self._uniform_layer = ret
                 return self._uniform_layer
 
             subst_point = self.substrate_point()
