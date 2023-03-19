@@ -216,15 +216,12 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         return self._gradient
 
     def edge_hull(self) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.float64]]:
-        contours, _ = cv2.findContours(
+        (cnt,), _ = cv2.findContours(
             cv2.bitwise_not(self.binary_image()),
             cv2.RETR_EXTERNAL,
             cv2.CHAIN_APPROX_SIMPLE,
         )
-        if len(contours) != 1:
-            raise NotImplementedError
-        (cnt,) = contours
-        hull = cv2.convexHull(cnt)
+        hull = np.flip(cv2.convexHull(cnt), axis=0)
         # TODO: get more points by interpolating to `hull`
         tangent = np.gradient(hull, axis=0)
         # TODO: perform edge tangent flow to get smoother curve

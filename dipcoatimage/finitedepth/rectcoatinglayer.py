@@ -160,6 +160,7 @@ class RectCoatingLayerBase(
             M1, M2 = (A + D) / 2, (B + C) / 2
             M1M2 = M2 - M1
 
+            # TODO: see if cv2.fillPoly can be used instead
             lefthalf = np.cross(M1M2, points - M1, axis=1) >= 0
             leftwall = np.cross(B - A, points - A, axis=1) >= 0
             rightwall = np.cross(D - C, points - C, axis=1) >= 0
@@ -262,7 +263,7 @@ class RectLayerShapeData:
     ChipWidth: np.float32
 
 
-ROTATION_MATRIX = np.array([[0, -1], [1, 0]])
+ROTATION_MATRIX = np.array([[0, 1], [-1, 0]])
 
 
 class RectLayerShape(
@@ -331,8 +332,7 @@ class RectLayerShape(
 
     __slots__ = (
         "_contactline_points",
-        "_refined_layer",
-        "_layer_contours",
+        "_layer_surface",
         "_layer_area",
         "_uniform_layer",
         "_thickness_points",
@@ -415,6 +415,44 @@ class RectLayerShape(
             self._contactline_points = np.stack([left_cp, right_cp])
 
         return self._contactline_points
+
+    def layer_surface(self) -> npt.NDArray[np.int32]:
+        """
+        Return the gas-liquid interface of the coating layer.
+
+        Similar to :meth:`layer_contours`, but this is an open and continuous
+        curve even if the coating layer is discontinuous.
+        """
+        if not hasattr(self, "_layer_surface"):
+            # remove every pixels above the contact line.
+            mask = self.coated_substrate()
+            h, w = mask.shape[:2]
+            p1, p2 = self.contactline_points()
+            # cv2.fillPoly is much more faster than np.cross
+            ext_points = get_extended_line((h, w), p1, p2)
+            ext_x, ext_y = ext_points.T
+            idxs = np.where((0 <= ext_x) & (ext_x <= w) & (0 <= ext_y) & (ext_y <= h))
+            pts = ext_points[idxs].astype(np.int64)
+            pts = pts[np.argsort(pts[..., 0])]
+            pts = np.insert(pts, 0, [0, 0], axis=0)
+            pts = np.insert(pts, pts.shape[0], [w, 0], axis=0)
+            img = mask.astype(np.uint8) * 255
+            cv2.fillPoly(img, [pts], 0)
+
+            (cnt,), _ = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            (points,) = cnt.transpose(1, 0, 2)
+
+            # deal with the starting point and ending point of the contour
+            i0 = int(np.argmin(np.linalg.norm(points - p1, axis=1)))
+            i1 = int(np.argmin(np.linalg.norm(points - p2, axis=1)))
+            if i0 >= i1 + 1:
+                surface = np.concatenate([points[i0:], points[: i1 + 1]])
+            else:
+                surface = points[i0 : i1 + 1]
+
+            self._layer_surface = surface
+
+        return self._layer_surface
 
     def thickness_points(self) -> npt.NDArray[np.float64]:
         if not hasattr(self, "_thickness_points"):
@@ -563,22 +601,7 @@ class RectLayerShape(
 
     def roughness(self) -> np.float64:
         """Dimensional roughness value of the coating layer surface."""
-        contours = self.layer_contours()
-        if not contours:
-            return np.float64(0)
-
-        layer_points = np.concatenate(contours, axis=0)
-        (layer,) = cv2.convexHull(layer_points).transpose(1, 0, 2)
-
-        # deal with the starting point and ending point of the layer contour
-        p1, p2 = self.contactline_points()
-        i0 = int(np.argmin(np.linalg.norm(layer - p2, axis=1)))
-        i1 = int(np.argmin(np.linalg.norm(layer - p1, axis=1)))
-        if i0 >= i1 + 1:
-            layer = np.concatenate([layer[i0:], layer[: i1 + 1]])
-        else:
-            layer = layer[i0 : i1 + 1]
-
+        surface = self.layer_surface()
         L, uniform_layer = self.uniform_layer()
 
         NUM_POINTS = 1000
@@ -592,7 +615,7 @@ class RectLayerShape(
             y, x = points.T
             return np.stack([np.interp(t, u, y), np.interp(t, u, x)]).T
 
-        l_interp = equidistant_interp(layer)
+        l_interp = equidistant_interp(surface)
         ul_interp = equidistant_interp(uniform_layer)
         deviation = np.linalg.norm(l_interp - ul_interp, axis=1)
 
@@ -722,3 +745,21 @@ class RectLayerShape(
             ERR,
             CHIPWIDTH,
         )
+
+
+def get_extended_line(
+    frame_shape: Tuple[int, int], p1: npt.NDArray[np.int64], p2: npt.NDArray[np.int64]
+) -> npt.NDArray[np.float64]:
+    # TODO: make it more elegant with matrix determinant and sorta things
+    h, w = frame_shape
+    x1, y1 = p1
+    dx, dy = p2 - p1
+
+    points = []
+    if dx != 0:
+        points.append(np.array([0, dy / dx * (-x1) + y1], dtype=np.float64))
+        points.append(np.array([w, dy / dx * (w - x1) + y1], dtype=np.float64))
+    if dy != 0:
+        points.append(np.array([dx / dy * (-y1) + x1, 0], dtype=np.float64))
+        points.append(np.array([dx / dy * (h - y1) + x1, h], dtype=np.float64))
+    return np.stack(points)
