@@ -2,7 +2,7 @@
 Type annotation
 ===============
 
-:mod:`dipcoatimage.finitedepth.util.geometry` provides type annotation objects.
+:mod:`dipcoatimage.finitedepth.util.typing` provides type annotation objects.
 
 """
 
