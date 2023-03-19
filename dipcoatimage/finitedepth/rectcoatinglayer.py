@@ -36,7 +36,7 @@ import dataclasses
 import enum
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Type, Tuple, List, Optional
+from typing import TypeVar, Type, Tuple, Optional
 from .rectsubstrate import RectSubstrate
 from .coatinglayer import (
     CoatingLayerError,
@@ -415,16 +415,6 @@ class RectLayerShape(
             self._contactline_points = np.stack([left_cp, right_cp])
 
         return self._contactline_points
-
-    def layer_contours(self) -> List[npt.NDArray[np.int32]]:
-        if not hasattr(self, "_layer_contours"):
-            contours, _ = cv2.findContours(
-                self.extract_layer().astype(np.uint8),
-                cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_NONE,
-            )
-            self._layer_contours = list(contours)
-        return self._layer_contours
 
     def thickness_points(self) -> npt.NDArray[np.float64]:
         if not hasattr(self, "_thickness_points"):

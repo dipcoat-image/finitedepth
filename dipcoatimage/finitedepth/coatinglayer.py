@@ -67,7 +67,7 @@ from .util import (
     binarize,
     colorize,
 )
-from typing import TypeVar, Generic, Type, Optional, Tuple
+from typing import TypeVar, Generic, Type, Optional, Tuple, List
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -178,6 +178,7 @@ class CoatingLayerBase(
         "_binary_image",
         "_match_substrate",
         "_extracted_layer",
+        "_layer_contours",
     )
 
     Parameters: Type[ParametersType]
@@ -338,6 +339,16 @@ class CoatingLayerBase(
             ret[:y0, :] = False
             self._extracted_layer = ret
         return self._extracted_layer
+
+    def layer_contours(self) -> List[npt.NDArray[np.int32]]:
+        if not hasattr(self, "_layer_contours"):
+            contours, _ = cv2.findContours(
+                self.extract_layer().astype(np.uint8),
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_NONE,
+            )
+            self._layer_contours = list(contours)
+        return self._layer_contours
 
     @abc.abstractmethod
     def examine(self) -> Optional[CoatingLayerError]:
