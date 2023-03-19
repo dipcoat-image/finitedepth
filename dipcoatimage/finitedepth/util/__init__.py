@@ -21,7 +21,7 @@ Utilities
 
 """
 
-from .imgprocess import binarize, colorize
+from .imgprocess import match_template, images_XOR, images_ANDXOR, binarize, colorize
 from .importing import import_variable, ImportStatus, Importer
 from .path import get_samples_path, cwd
 from .typing import DataclassProtocol, OptionalROI, IntROI, sanitize_ROI
@@ -35,6 +35,9 @@ from .parameters import (
 )
 
 __all__ = [
+    "match_template",
+    "images_XOR",
+    "images_ANDXOR",
     "binarize",
     "colorize",
     "import_variable",
