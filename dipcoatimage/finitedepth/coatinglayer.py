@@ -63,6 +63,7 @@ from .util import (
     images_XOR,
     images_ANDXOR,
     DataclassProtocol,
+    FeatureDrawingOptions,
     Color,
     binarize,
     colorize,
@@ -474,7 +475,9 @@ class LayerAreaDecoOptions:
 
     """
 
-    layer_color: Color = Color(0, 0, 255)
+    layer: FeatureDrawingOptions = FeatureDrawingOptions(
+        color=Color(0, 0, 255), thickness=-1
+    )
 
 
 @dataclasses.dataclass
@@ -566,7 +569,7 @@ class LayerArea(
        :include-source:
        :context: close-figs
 
-       >>> coat.deco_options.layer_color.red = 255
+       >>> coat.deco_options.layer.color.red = 255
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
     """
@@ -612,7 +615,16 @@ class LayerArea(
             mask = images_XOR(~binImg.astype(bool), ~substImg.astype(bool))
             image[Y0 : Y0 + h, X0 : X0 + w][~mask] = 255
 
-        image[self.extract_layer()] = dataclasses.astuple(self.deco_options.layer_color)
+        layer_opts = self.deco_options.layer
+        if layer_opts.thickness != 0:
+            image[self.extract_layer()] = 255
+            cv2.drawContours(
+                image,
+                self.layer_contours(),
+                -1,
+                dataclasses.astuple(layer_opts.color),
+                layer_opts.thickness,
+            )
 
         return image
 

@@ -630,7 +630,7 @@ class RectLayerShape(
 
         layer_opts = self.deco_options.layer
         if layer_opts.thickness != 0:
-            image[self.extract_layer()] = (255, 255, 255)
+            image[self.extract_layer()] = 255
             cv2.drawContours(
                 image,
                 self.layer_contours(),
