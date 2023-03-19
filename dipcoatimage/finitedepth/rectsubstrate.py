@@ -50,7 +50,6 @@ import numpy.typing as npt
 from typing import TypeVar, Tuple, Optional, Type
 from .substrate import SubstrateError, SubstrateBase
 from .util import (
-    HoughLinesParameters,
     DataclassProtocol,
     colorize,
     FeatureDrawingOptions,
@@ -65,9 +64,10 @@ except ImportError:
 
 __all__ = [
     "RectSubstrateError",
-    "RectSubstrateParameters",
     "RectSubstrateHoughLinesError",
     "RectSubstrateEdgeError",
+    "HoughLinesParameters",
+    "RectSubstrateParameters",
     "RectSubstrateLineType",
     "RectSubstratePointType",
     "RectSubstrateBase",
@@ -83,16 +83,6 @@ class RectSubstrateError(SubstrateError):
     pass
 
 
-@dataclasses.dataclass(frozen=True)
-class RectSubstrateParameters:
-    """
-    Parameters for the rectangular substrate class to detect the substrate edges
-    using Hough line transformation.
-    """
-
-    HoughLines: HoughLinesParameters
-
-
 class RectSubstrateHoughLinesError(RectSubstrateError):
     """Error from Hough lines transformation in rectangular substrate."""
 
@@ -103,6 +93,29 @@ class RectSubstrateEdgeError(RectSubstrateError):
     """Error from edge line classification in rectangular substrate."""
 
     pass
+
+
+@dataclasses.dataclass(frozen=True)
+class HoughLinesParameters:
+    """Parameters for :func:`cv2.HoughLines`."""
+
+    rho: float
+    theta: float
+    threshold: int
+    srn: float = 0.0
+    stn: float = 0.0
+    min_theta: float = 0.0
+    max_theta: float = np.pi
+
+
+@dataclasses.dataclass(frozen=True)
+class RectSubstrateParameters:
+    """
+    Parameters for the rectangular substrate class to detect the substrate edges
+    using Hough line transformation.
+    """
+
+    HoughLines: HoughLinesParameters
 
 
 class RectSubstrateLineType(enum.IntEnum):
@@ -438,11 +451,10 @@ class RectSubstrate(
        :include-source:
        :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import (HoughLinesParameters,
-       ...     RectSubstrate)
-       >>> hparams = HoughLinesParameters(1, 0.01, 100)
-       >>> params = RectSubstrate.Parameters(hparams)
-       >>> subst = RectSubstrate(ref, parameters=params)
+       >>> from dipcoatimage.finitedepth import RectSubstrate, data_converter
+       >>> param_val = dict(HoughLines=dict(rho=1.0, theta=0.01, threshold=100))
+       >>> param = data_converter.structure(param_val, RectSubstrate.Parameters)
+       >>> subst = RectSubstrate(ref, parameters=param)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
     Visualization can be controlled by modifying :attr:`draw_options`.

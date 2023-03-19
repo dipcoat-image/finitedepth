@@ -46,7 +46,6 @@ from .coatinglayer import (
 from .util import (
     DataclassProtocol,
     BinaryImageDrawMode,
-    MorphologyClosingParameters,
     SubstrateSubtractionMode,
     FeatureDrawingOptions,
     Color,
@@ -62,6 +61,7 @@ except ImportError:
 __all__ = [
     "LayerRegionFlag",
     "RectCoatingLayerBase",
+    "MorphologyClosingParameters",
     "RectLayerShapeParameters",
     "RectLayerShapeDrawOptions",
     "RectLayerShapeDecoOptions",
@@ -185,6 +185,13 @@ class RectCoatingLayerBase(
 
 
 @dataclasses.dataclass(frozen=True)
+class MorphologyClosingParameters:
+    kernelSize: Tuple[int, int]
+    anchor: Tuple[int, int] = (-1, -1)
+    iterations: int = 1
+
+
+@dataclasses.dataclass(frozen=True)
 class RectLayerShapeParameters:
     """Analysis parameters for :class:`RectLayerShape` instance."""
 
@@ -296,11 +303,10 @@ class RectLayerShape(
        :include-source:
        :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import (HoughLinesParameters,
-       ...     RectSubstrate)
-       >>> hparams = HoughLinesParameters(1, 0.01, 100)
-       >>> params = RectSubstrate.Parameters(hparams)
-       >>> subst = RectSubstrate(ref, parameters=params)
+       >>> from dipcoatimage.finitedepth import RectSubstrate, data_converter
+       >>> param_val = dict(HoughLines=dict(rho=1.0, theta=0.01, threshold=100))
+       >>> param = data_converter.structure(param_val, RectSubstrate.Parameters)
+       >>> subst = RectSubstrate(ref, parameters=param)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
     Construct :class:`RectLayerShape` from substrate class. :meth:`analyze`
@@ -310,13 +316,15 @@ class RectLayerShape(
        :include-source:
        :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import (RectLayerShape,
-       ...     MorphologyClosingParameters)
+       >>> from dipcoatimage.finitedepth import RectLayerShape
        >>> coat_path = get_samples_path("coat3.png")
        >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
-       >>> mparams = MorphologyClosingParameters((1, 1))
-       >>> params = RectLayerShape.Parameters(mparams, 50)
-       >>> coat = RectLayerShape(coat_img, subst, params)
+       >>> param_val = dict(
+       ...     MorphologyClosing=dict(kernelSize=(1, 1)),
+       ...     ReconstructRadius=50
+       ... )
+       >>> param = data_converter.structure(param_val, RectLayerShape.Parameters)
+       >>> coat = RectLayerShape(coat_img, subst, param)
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
     """

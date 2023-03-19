@@ -2,10 +2,10 @@ import cv2  # type: ignore
 import pytest
 from dipcoatimage.finitedepth import (
     SubstrateReference,
-    HoughLinesParameters,
     RectSubstrate,
     get_samples_path,
 )
+from dipcoatimage.finitedepth.rectsubstrate import HoughLinesParameters
 
 
 @pytest.fixture
