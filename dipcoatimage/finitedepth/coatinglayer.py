@@ -178,6 +178,7 @@ class CoatingLayerBase(
         "_deco_options",
         "_binary_image",
         "_match_substrate",
+        "_coated_substrate",
         "_extracted_layer",
         "_layer_contours",
     )
@@ -320,28 +321,38 @@ class CoatingLayerBase(
         row_white = np.all(below_subst, axis=1)
         return bool(np.any(row_white))
 
-    def extract_layer(self) -> npt.NDArray[np.bool_]:
-        """Extract the coating layer as binary array from *self.image*."""
-        if not hasattr(self, "_extracted_layer"):
-            binimg = self.binary_image()
-
-            # remove components not connected to the substrate, e.g. bath surface
-            neg_binimg = cv2.bitwise_not(binimg)
-            _, labels = cv2.connectedComponents(neg_binimg)
+    def coated_substrate(self) -> npt.NDArray[np.bool_]:
+        """Return the mask without undesired features, e.g. bath surface."""
+        if not hasattr(self, "_coated_substrate"):
+            # remove components that are not connected to the substrate
+            _, labels = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
             points = self.substrate_point() + self.substrate.nestled_points()
             x, y = points.T
             subst_comps = np.unique(labels[y, x])
-            layer_mask = np.isin(labels, subst_comps)
 
+            self._coated_substrate = np.isin(labels, subst_comps)
+        return self._coated_substrate
+
+    def extract_layer(self) -> npt.NDArray[np.bool_]:
+        """Extract the coating layer as binary array from *self.image*."""
+        if not hasattr(self, "_extracted_layer"):
+            coated_mask = self.coated_substrate()
             # remove the substrate
             subst_mask = ~self.substrate.binary_image().astype(bool)
             x0, y0 = self.substrate_point()
-            ret = images_ANDXOR(layer_mask, subst_mask, (x0, y0))
+            ret = images_ANDXOR(coated_mask, subst_mask, (x0, y0))
             ret[:y0, :] = False
             self._extracted_layer = ret
         return self._extracted_layer
 
     def layer_contours(self) -> List[npt.NDArray[np.int32]]:
+        """
+        Return the contours of the coating layer surfaces.
+
+        The contours include both gas-liquid interface and substrate-liquid
+        interface of the coating layer. When the coating layer is discontinuous,
+        multiple contours are returned.
+        """
         if not hasattr(self, "_layer_contours"):
             contours, _ = cv2.findContours(
                 self.extract_layer().astype(np.uint8),
