@@ -48,6 +48,7 @@ Coating layer over rectangular substrate
 import abc
 import cv2  # type: ignore
 import dataclasses
+import enum
 import numpy as np
 import numpy.typing as npt
 from .substrate import SubstrateBase
@@ -56,8 +57,6 @@ from .util import (
     images_XOR,
     images_ANDXOR,
     DataclassProtocol,
-    BinaryImageDrawMode,
-    SubstrateSubtractionMode,
     Color,
     binarize,
     colorize,
@@ -388,12 +387,65 @@ class LayerAreaParameters:
     pass
 
 
+class BackgroundDrawMode(enum.Enum):
+    """
+    Option to determine how the background of the coating layer image is drawn.
+
+    Attributes
+    ==========
+
+    ORIGINAL
+        Show the original background.
+
+    BINARY
+        Show the background as binarized image.
+
+    EMPTY
+        Do not show the background. Only the layer will be drawn.
+
+    """
+
+    ORIGINAL = "ORIGINAL"
+    BINARY = "BINARY"
+    EMPTY = "EMPTY"
+
+
+class SubtractionDrawMode(enum.Flag):
+    """
+    Option to determine how the template matching result will be displayed.
+
+    Template matching result is shown by subtracting the pixels from the
+    background.
+
+    Attributes
+    ==========
+
+    NONE
+        Do not show the template matching result.
+
+    TEMPLATE
+        Subtract the template ROI.
+
+    SUBSTRRATE
+        Subtract the substrate ROI.
+
+    FULL
+        Subtract both template and substrate ROIs.
+
+    """
+
+    NONE = 0
+    TEMPLATE = 1
+    SUBSTRATE = 2
+    FULL = TEMPLATE | SUBSTRATE
+
+
 @dataclasses.dataclass
 class LayerAreaDrawOptions:
     """Basic drawing options for :class:`LayerArea` instance."""
 
-    draw_mode: BinaryImageDrawMode = BinaryImageDrawMode.ORIGINAL
-    subtract_mode: SubstrateSubtractionMode = SubstrateSubtractionMode.NONE
+    background: BackgroundDrawMode = BackgroundDrawMode.ORIGINAL
+    subtract_mode: SubtractionDrawMode = SubtractionDrawMode.NONE
 
 
 @dataclasses.dataclass
@@ -486,7 +538,7 @@ class LayerArea(
        :include-source:
        :context: close-figs
 
-       >>> coat.draw_options.subtract_mode = coat.SubtractMode.FULL
+       >>> coat.draw_options.subtract_mode = coat.SubtractionDrawMode.FULL
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
     :attr:`deco_options` controls the decoration of coating layer reigon.
@@ -505,48 +557,41 @@ class LayerArea(
     DecoOptions = LayerAreaDecoOptions
     Data = LayerAreaData
 
-    DrawMode: TypeAlias = BinaryImageDrawMode
-    SubtractMode: TypeAlias = SubstrateSubtractionMode
+    BackgroundDrawMode: TypeAlias = BackgroundDrawMode
+    SubtractionDrawMode: TypeAlias = SubtractionDrawMode
 
     def examine(self) -> None:
         return None
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        draw_mode = self.draw_options.draw_mode
-        if draw_mode == self.DrawMode.ORIGINAL:
+        background = self.draw_options.background
+        if background == self.BackgroundDrawMode.ORIGINAL:
             image = self.image.copy()
-        elif draw_mode == self.DrawMode.BINARY:
+        elif background == self.BackgroundDrawMode.BINARY:
             image = self.binary_image().copy()
+        elif background == self.BackgroundDrawMode.EMPTY:
+            image = np.full(self.image.shape, 255, dtype=np.uint8)
         else:
-            raise TypeError("Unrecognized draw mode: %s" % draw_mode)
+            raise TypeError("Unrecognized background mode: %s" % background)
+        image = colorize(image)
 
         subtract_mode = self.draw_options.subtract_mode
-        if subtract_mode == self.SubtractMode.NONE:
-            pass
-        elif subtract_mode == self.SubtractMode.TEMPLATE:
+        if subtract_mode & self.SubtractionDrawMode.TEMPLATE:
             x0, y0, x1, y1 = self.substrate.reference.templateROI
             tempImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
+            h, w = tempImg.shape[:2]
             _, (X0, Y0) = self.match_substrate()
-            mask = images_XOR(
-                ~self.binary_image().astype(bool), ~tempImg.astype(bool), (X0, Y0)
-            )
-            H, W = tempImg.shape
-            X1, Y1 = X0 + W, Y0 + H
-            image[Y0:Y1, X0:X1][mask] = 255
-        elif subtract_mode == self.SubtractMode.SUBSTRATE:
-            substImg = self.substrate.binary_image()
-            x0, y0 = self.substrate_point()
-            mask = images_XOR(
-                ~self.binary_image().astype(bool), ~substImg.astype(bool), (x0, y0)
-            )
-            h, w = substImg.shape
-            x1, y1 = x0 + w, y0 + h
-            image[y0:y1, x0:x1][mask] = 255
-        elif subtract_mode == self.SubtractMode.FULL:
-            image = (~self.extract_layer()).astype(np.uint8) * 255  # type: ignore
-        else:
-            raise TypeError("Unrecognized subtraction mode: %s" % subtract_mode)
-        image = colorize(image)
+            binImg = self.binary_image()[Y0 : Y0 + h, X0 : X0 + w]
+            mask = images_XOR(~binImg.astype(bool), ~tempImg.astype(bool))
+            image[Y0 : Y0 + h, X0 : X0 + w][~mask] = 255
+        if subtract_mode & self.SubtractionDrawMode.SUBSTRATE:
+            x0, y0, x1, y1 = self.substrate.reference.substrateROI
+            substImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
+            h, w = substImg.shape[:2]
+            X0, Y0 = self.substrate_point()
+            binImg = self.binary_image()[Y0 : Y0 + h, X0 : X0 + w]
+            mask = images_XOR(~binImg.astype(bool), ~substImg.astype(bool))
+            image[Y0 : Y0 + h, X0 : X0 + w][~mask] = 255
 
         image[self.extract_layer()] = dataclasses.astuple(self.deco_options.layer_color)
 

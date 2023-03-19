@@ -34,7 +34,7 @@ def match_template(
 def images_XOR(
     img1: npt.NDArray[np.bool_],
     img2: npt.NDArray[np.bool_],
-    point: Tuple[int, int],
+    point: Tuple[int, int] = (0, 0),
 ) -> npt.NDArray[np.bool_]:
     """
     Subtract *img2* from *img1* at *point* by XOR operation.
@@ -62,7 +62,7 @@ def images_XOR(
 def images_ANDXOR(
     img1: npt.NDArray[np.bool_],
     img2: npt.NDArray[np.bool_],
-    point: Tuple[int, int],
+    point: Tuple[int, int] = (0, 0),
 ) -> npt.NDArray[np.bool_]:
     """
     Subtract *img2* from *img1* at *point* by AND and XOR operation.
