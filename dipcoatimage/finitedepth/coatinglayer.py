@@ -63,11 +63,12 @@ from .util import (
     images_XOR,
     images_ANDXOR,
     DataclassProtocol,
+    FeatureDrawingOptions,
     Color,
     binarize,
     colorize,
 )
-from typing import TypeVar, Generic, Type, Optional, Tuple
+from typing import TypeVar, Generic, Type, Optional, Tuple, List
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -178,6 +179,7 @@ class CoatingLayerBase(
         "_binary_image",
         "_match_substrate",
         "_extracted_layer",
+        "_layer_contours",
     )
 
     Parameters: Type[ParametersType]
@@ -339,6 +341,16 @@ class CoatingLayerBase(
             self._extracted_layer = ret
         return self._extracted_layer
 
+    def layer_contours(self) -> List[npt.NDArray[np.int32]]:
+        if not hasattr(self, "_layer_contours"):
+            contours, _ = cv2.findContours(
+                self.extract_layer().astype(np.uint8),
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_NONE,
+            )
+            self._layer_contours = list(contours)
+        return self._layer_contours
+
     @abc.abstractmethod
     def examine(self) -> Optional[CoatingLayerError]:
         """
@@ -463,7 +475,9 @@ class LayerAreaDecoOptions:
 
     """
 
-    layer_color: Color = Color(0, 0, 255)
+    layer: FeatureDrawingOptions = FeatureDrawingOptions(
+        color=Color(0, 0, 255), thickness=-1
+    )
 
 
 @dataclasses.dataclass
@@ -555,7 +569,7 @@ class LayerArea(
        :include-source:
        :context: close-figs
 
-       >>> coat.deco_options.layer_color.red = 255
+       >>> coat.deco_options.layer.color.red = 255
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
     """
@@ -601,7 +615,16 @@ class LayerArea(
             mask = images_XOR(~binImg.astype(bool), ~substImg.astype(bool))
             image[Y0 : Y0 + h, X0 : X0 + w][~mask] = 255
 
-        image[self.extract_layer()] = dataclasses.astuple(self.deco_options.layer_color)
+        layer_opts = self.deco_options.layer
+        if layer_opts.thickness != 0:
+            image[self.extract_layer()] = 255
+            cv2.drawContours(
+                image,
+                self.layer_contours(),
+                -1,
+                dataclasses.astuple(layer_opts.color),
+                layer_opts.thickness,
+            )
 
         return image
 
