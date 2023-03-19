@@ -19,9 +19,6 @@ Utilities
 .. automodule:: dipcoatimage.finitedepth.util.parameters
    :members:
 
-.. automodule:: dipcoatimage.finitedepth.util.testing
-   :members:
-
 """
 
 from .imgprocess import binarize, colorize
@@ -36,7 +33,6 @@ from .parameters import (
     Color,
     FeatureDrawingOptions,
 )
-from .testing import dict_includes
 
 __all__ = [
     "binarize",
@@ -55,5 +51,4 @@ __all__ = [
     "SubstrateSubtractionMode",
     "Color",
     "FeatureDrawingOptions",
-    "dict_includes",
 ]
