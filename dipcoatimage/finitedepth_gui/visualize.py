@@ -9,9 +9,13 @@ import cv2  # type: ignore[import]
 import numpy as np
 import numpy.typing as npt
 from dipcoatimage.finitedepth import ExperimentKind, experiment_kind
-from dipcoatimage.finitedepth.reference import sanitize_ROI
-from dipcoatimage.finitedepth.coatinglayer import match_template, images_XOR
-from dipcoatimage.finitedepth.util import OptionalROI, binarize
+from dipcoatimage.finitedepth.util import (
+    OptionalROI,
+    sanitize_ROI,
+    match_template,
+    images_XOR,
+    binarize,
+)
 from dipcoatimage.finitedepth_gui.core import (
     DataMember,
     DataArgFlag,

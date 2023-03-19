@@ -40,6 +40,7 @@ from .util import (
     DataclassProtocol,
     OptionalROI,
     IntROI,
+    sanitize_ROI,
     BinaryImageDrawMode,
     FeatureDrawingOptions,
     Color,
@@ -54,7 +55,6 @@ except ImportError:
 
 __all__ = [
     "SubstrateReferenceError",
-    "sanitize_ROI",
     "SubstrateReferenceBase",
     "SubstrateReferenceParameters",
     "SubstrateReferenceDrawOptions",
@@ -66,19 +66,6 @@ class SubstrateReferenceError(Exception):
     """Base class for error from :class:`SubstrateReferenceBase`."""
 
     pass
-
-
-def sanitize_ROI(roi: OptionalROI, h: int, w: int) -> IntROI:
-    full_roi = (0, 0, w, h)
-    max_vars = (w, h, w, h)
-
-    ret = list(roi)
-    for i, var in enumerate(roi):
-        if var is None:
-            ret[i] = full_roi[i]
-        elif var < 0:
-            ret[i] = max_vars[i] + var
-    return tuple(ret)  # type: ignore[return-value]
 
 
 ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)

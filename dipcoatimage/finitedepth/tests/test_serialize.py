@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 import cv2  # type: ignore
 from dipcoatimage.finitedepth import (
     get_samples_path,
@@ -10,9 +11,25 @@ from dipcoatimage.finitedepth import (
     AnalysisArgs,
     ExperimentData,
 )
-from dipcoatimage.finitedepth.util import dict_includes
 import os
 import yaml  # type: ignore
+
+
+def dict_includes(sup: dict, sub: dict):
+    """Recursively check if *sup* is superset of *sub*."""
+    for key, value in sub.items():
+        if key not in sup:
+            return False
+        if isinstance(value, dict):
+            if not dict_includes(sup[key], value):
+                return False
+        elif isinstance(value, Iterable):
+            if not list(value) == list(sup[key]):
+                return False
+        else:
+            if not value == sup[key]:
+                return False
+    return True
 
 
 REFARGS = ReferenceArgs()
