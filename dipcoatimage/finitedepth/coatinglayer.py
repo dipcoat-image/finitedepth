@@ -24,6 +24,12 @@ Implementation
 .. autoclass:: LayerAreaParameters
    :members:
 
+.. autoclass:: BackgroundDrawMode
+   :members:
+
+.. autoclass:: SubtractionDrawMode
+   :members:
+
 .. autoclass:: LayerAreaDrawOptions
    :members:
 
@@ -73,6 +79,8 @@ __all__ = [
     "CoatingLayerError",
     "CoatingLayerBase",
     "LayerAreaParameters",
+    "BackgroundDrawMode",
+    "SubtractionDrawMode",
     "LayerAreaDrawOptions",
     "LayerAreaDecoOptions",
     "LayerAreaData",
