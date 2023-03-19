@@ -477,7 +477,7 @@ class RectLayerShape(
     def thickness_points(self) -> npt.NDArray[np.float64]:
         # TODO: make as tuple of points
         if not hasattr(self, "_thickness_points"):
-            # TODO: use layer_surface
+            # TODO: use layer_surface and hausdorff distance (maybe scipy)
             contours = self.layer_contours()
             if not contours:
                 cnt_points = np.empty((0, 1, 2), dtype=np.int32)
