@@ -160,7 +160,8 @@ class RectCoatingLayerBase(
             M1, M2 = (A + D) / 2, (B + C) / 2
             M1M2 = M2 - M1
 
-            # TODO: see if cv2.fillPoly can be used instead
+            # cv2.fillPoly is only marginally faster than this (~0.5 ms) so
+            # just use np.cross for the sake of code quality.
             lefthalf = np.cross(M1M2, points - M1, axis=1) >= 0
             leftwall = np.cross(B - A, points - A, axis=1) >= 0
             rightwall = np.cross(D - C, points - C, axis=1) >= 0
@@ -428,7 +429,7 @@ class RectLayerShape(
             mask = self.coated_substrate()
             h, w = mask.shape[:2]
             p1, p2 = self.contactline_points()
-            # cv2.fillPoly is much more faster than np.cross
+            # cv2.fillPoly is much more faster than np.cross here
             ext_points = get_extended_line((h, w), p1, p2)
             ext_x, ext_y = ext_points.T
             idxs = np.where((0 <= ext_x) & (ext_x <= w) & (0 <= ext_y) & (ext_y <= h))
