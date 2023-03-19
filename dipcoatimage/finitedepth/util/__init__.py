@@ -24,7 +24,7 @@ Utilities
 from .imgprocess import binarize, colorize
 from .importing import import_variable, ImportStatus, Importer
 from .path import get_samples_path, cwd
-from .typing import DataclassProtocol, OptionalROI, IntROI
+from .typing import DataclassProtocol, OptionalROI, IntROI, sanitize_ROI
 from .parameters import (
     HoughLinesParameters,
     MorphologyClosingParameters,
@@ -45,6 +45,7 @@ __all__ = [
     "DataclassProtocol",
     "OptionalROI",
     "IntROI",
+    "sanitize_ROI",
     "HoughLinesParameters",
     "MorphologyClosingParameters",
     "BinaryImageDrawMode",
