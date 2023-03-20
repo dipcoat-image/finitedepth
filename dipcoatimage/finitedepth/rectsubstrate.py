@@ -191,6 +191,7 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
     __slots__ = (
         "_gradient",
+        "_edge",
         "_lines",
         "_edge_lines",
         "_vertex_points",
@@ -214,6 +215,16 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             Gy = cv2.Sobel(self.binary_image(), cv2.CV_32F, 0, 1)
             self._gradient = np.dstack([Gx, Gy])
         return self._gradient
+
+    def edge(self) -> npt.NDArray[np.bool_]:
+        """
+        Return the substrate edge as boolean array.
+
+        The edge is detected from :meth:`gradient`.
+        """
+        if not hasattr(self, "_edge"):
+            self._edge = np.any(self.gradient().astype(bool), axis=-1)
+        return self._edge
 
     def edge_hull(self) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.float64]]:
         (cnt,), _ = cv2.findContours(
@@ -244,7 +255,7 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         """
         if not hasattr(self, "_lines"):
-            G = np.any(self.gradient().astype(bool), axis=-1)
+            G = self.edge()
             hparams = dataclasses.asdict(self.parameters.HoughLines)
             lines = cv2.HoughLines(G.astype(np.uint8), **hparams)
             if lines is None:
@@ -481,7 +492,7 @@ class RectSubstrate(
         elif draw_mode is self.DrawMode.BINARY:
             image = self.binary_image()
         elif draw_mode is self.DrawMode.EDGES:
-            image = np.any(self.gradient().astype(bool), axis=-1) * np.uint8(255)
+            image = self.edge() * np.uint8(255)
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
         ret = colorize(image)
