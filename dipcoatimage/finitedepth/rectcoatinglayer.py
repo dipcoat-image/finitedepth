@@ -354,12 +354,14 @@ class RectLayerShape(
 
     def extract_layer(self) -> npt.NDArray[np.bool_]:
         if not hasattr(self, "_extracted_layer"):
-            # perform closing to remove error pixels
+            # Perform opening to remove error pixels. We named the parameter as
+            # "closing" because the coating layer is black in original image, but
+            # in fact we do opening since the layer is True in extracted layer.
             closingParams = self.parameters.MorphologyClosing
             kernel = np.ones(closingParams.kernelSize)
             img_closed = cv2.morphologyEx(
-                (~super().extract_layer()).astype(np.uint8) * 255,
-                cv2.MORPH_CLOSE,
+                super().extract_layer().astype(np.uint8) * 255,
+                cv2.MORPH_OPEN,
                 kernel,
                 anchor=closingParams.anchor,
                 iterations=closingParams.iterations,
@@ -368,7 +370,7 @@ class RectLayerShape(
             # closed image may still have error pixels. at least we have to
             # remove the errors that are disconnected to the layer.
             # we identify the layer pixels as the connected components that are
-            # close to the corners.
+            # close to the bottom line.
             vicinity_mask = np.zeros(img_closed.shape, np.uint8)
             p0 = self.substrate_point()
             _, bl, br, _ = self.substrate.vertex_points()
@@ -377,7 +379,10 @@ class RectLayerShape(
             R = self.parameters.ReconstructRadius
             cv2.circle(vicinity_mask, B.astype(np.int64).flatten(), R, 1, -1)
             cv2.circle(vicinity_mask, C.astype(np.int64).flatten(), R, 1, -1)
-            _, labels = cv2.connectedComponents(cv2.bitwise_not(img_closed))
+            n = np.dot((C - B) / np.linalg.norm((C - B)), ROTATION_MATRIX)
+            pts = np.concatenate([B, B + R * n, C + R * n, C]).astype(np.int64)
+            cv2.fillPoly(vicinity_mask, [pts], 1)
+            _, labels = cv2.connectedComponents(img_closed)
             layer_comps = np.unique(labels[np.where(vicinity_mask.astype(bool))])
             layer_mask = np.isin(labels, layer_comps[layer_comps != 0])
 
