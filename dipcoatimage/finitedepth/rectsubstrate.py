@@ -45,8 +45,10 @@ Implementation
 import cv2  # type: ignore
 import dataclasses
 import enum
+from itertools import combinations
 import numpy as np
 import numpy.typing as npt
+from sklearn.cluster import KMeans  # type: ignore
 from typing import TypeVar, Tuple, Optional, Type
 from .substrate import SubstrateError, SubstrateBase
 from .util import (
@@ -182,15 +184,15 @@ DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
 
 class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     """
-    Abstract base class for substrate with rectangular shape.
+    Abstract base class for substrate with quadrangular shape.
 
-    Rectangular substrate is characterized by four edges and vertices,
-    which are detected by :meth:`edge_lines` and :meth:`vertex_points`.
+    Quadrangular substrate is characterized by four edges and vertices, which are
+    detected by :meth:`edge_lines` and :meth:`vertex_points`.
 
     """
 
     __slots__ = (
-        "_gradient",
+        "_contour",
         "_edge",
         "_lines",
         "_edge_lines",
@@ -203,36 +205,31 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     LineType: TypeAlias = RectSubstrateLineType
     PointType: TypeAlias = RectSubstratePointType
 
-    def gradient(self) -> npt.NDArray[np.float32]:
-        """
-        Acquire the pixel gradient using :func:`cv2.Sobel`.
-
-        The return value has two channels which are x gradient and y gradient
-        values on the pixel position.
-        """
-        if not hasattr(self, "_gradient"):
-            Gx = cv2.Sobel(self.binary_image(), cv2.CV_32F, 1, 0)
-            Gy = cv2.Sobel(self.binary_image(), cv2.CV_32F, 0, 1)
-            self._gradient = np.dstack([Gx, Gy])
-        return self._gradient
+    def contour(self) -> npt.NDArray[np.int32]:
+        if not hasattr(self, "_contour"):
+            (cnt,), _ = cv2.findContours(
+                cv2.bitwise_not(self.binary_image()),
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_NONE,
+            )
+            self._contour = cnt
+        return self._contour
 
     def edge(self) -> npt.NDArray[np.bool_]:
         """
         Return the substrate edge as boolean array.
 
-        The edge is detected from :meth:`gradient`.
+        The edge locations are acquired from :meth:`contour`.
         """
         if not hasattr(self, "_edge"):
-            self._edge = np.any(self.gradient().astype(bool), axis=-1)
+            ret = np.zeros(self.image().shape[:2], bool)
+            ((x, y),) = self.contour().transpose(1, 2, 0)
+            ret[y, x] = True
+            self._edge = ret
         return self._edge
 
     def edge_hull(self) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.float64]]:
-        (cnt,), _ = cv2.findContours(
-            cv2.bitwise_not(self.binary_image()),
-            cv2.RETR_EXTERNAL,
-            cv2.CHAIN_APPROX_SIMPLE,
-        )
-        hull = np.flip(cv2.convexHull(cnt), axis=0)
+        hull = np.flip(cv2.convexHull(self.contour()), axis=0)
         # TODO: get more points by interpolating to `hull`
         tangent = np.gradient(hull, axis=0)
         # TODO: perform edge tangent flow to get smoother curve
@@ -242,7 +239,7 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         """
         Get :func:`cv2.HoughLines` result from the binary image of *self*.
 
-        This method first acquires the edge image using :meth:`gradient`, and
+        This method first acquires the edge image from :meth:`edge`, and
         apply Hough line transformation with the parameters defined in
         :attr:`parameters`.
 
@@ -255,9 +252,9 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         """
         if not hasattr(self, "_lines"):
-            G = self.edge()
+            # TODO: find way to directly get lines from contour, not edge image
             hparams = dataclasses.asdict(self.parameters.HoughLines)
-            lines = cv2.HoughLines(G.astype(np.uint8), **hparams)
+            lines = cv2.HoughLines(self.edge().astype(np.uint8), **hparams)
             if lines is None:
                 lines = np.empty((0, 1, 2), dtype=np.float32)
             self._lines = lines
@@ -326,6 +323,20 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         return self._edge_lines  # type: ignore[return-value]
 
+    def edge_lines2(self) -> npt.NDArray[np.float32]:
+        N = 4  # three edges of the quadrangle
+
+        ((r, theta),) = self.lines().transpose(1, 2, 0)
+        points = np.stack([np.abs(r), np.abs(np.cos(theta))])
+        model = KMeans(N, n_init="auto", random_state=0)
+        labels = model.fit_predict(points.T)
+
+        ret = []
+        for i in range(N):
+            (idxs,) = np.where(labels == i)
+            ret.append(self.lines()[idxs[0]])
+        return np.stack(ret)
+
     def vertex_points(
         self,
     ) -> Tuple[
@@ -375,6 +386,32 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             self._vertex_points = tuple(points)
 
         return self._vertex_points  # type: ignore[return-value]
+
+    def vertex_points2(self) -> npt.NDArray[np.float32]:
+        mats, vecs = [], []
+        for l1, l2 in combinations(self.edge_lines2(), 2):
+            ((r1, t1),) = l1
+            ((r2, t2),) = l2
+            mats.append(np.array([[np.cos(t1), np.sin(t1)], [np.cos(t2), np.sin(t2)]]))
+            vecs.append(np.array([[r1], [r2]]))
+        mat = np.stack(mats)
+        vec = np.stack(vecs)
+
+        sol_exists = np.linalg.det(mat) != 0
+        intrsct = np.linalg.inv(mat[np.where(sol_exists)]) @ vec[np.where(sol_exists)]
+
+        h, w = self.image().shape[:2]
+        x, y = intrsct.transpose(1, 0, 2)
+        valid = (0 <= x) & (x <= w) & (0 <= y) & (y <= h)
+        valid_idxs, _ = np.where(valid)
+        points = intrsct[valid_idxs]
+
+        M = cv2.moments(self.contour())
+        cent = np.array([M["m10"] / M["m00"], M["m01"] / M["m00"]])
+        ((vec_x, vec_y),) = (points - cent[..., np.newaxis]).transpose(2, 1, 0)
+        ret = np.flip(points[np.argsort(np.arctan2(vec_y, vec_x))], axis=0)
+
+        return ret
 
     def examine(self) -> Optional[RectSubstrateError]:
         ret: Optional[RectSubstrateError] = None
@@ -484,6 +521,67 @@ class RectSubstrate(
     DrawOptions = RectSubstrateDrawOptions
 
     DrawMode: TypeAlias = RectSubstrateDrawMode
+
+    def classify_lines(self, lines: npt.NDArray[np.float32]) -> npt.NDArray[np.uint8]:
+        """
+        Classify *lines* which is the result of :func:`cv2.HoughLines`.
+
+        Return value is the label for each line vector. Label values are the
+        members of :attr:`RectSubstrateLineType`.
+        """
+        TOL = 0.2
+
+        r, theta = lines.transpose(2, 0, 1)
+
+        h, w = self.image().shape[:2]
+        is_upper = np.abs(r) <= h / 2
+        is_left = np.abs(r) <= w / 2
+
+        is_horizontal = np.abs(np.cos(theta)) < np.cos(np.pi / 2 - TOL)
+        is_vertical = np.abs(np.cos(theta)) > np.cos(TOL)
+
+        ret = np.full(lines.shape[:2], self.LineType.UNKNOWN, dtype=np.uint8)
+        ret[is_upper & is_horizontal] = self.LineType.TOP
+        ret[~is_upper & is_horizontal] = self.LineType.BOTTOM
+        ret[is_left & is_vertical] = self.LineType.LEFT
+        ret[~is_left & is_vertical] = self.LineType.RIGHT
+        return ret
+
+    def edge_lines2(self) -> npt.NDArray[np.float32]:
+        """Hard-coded line detection for higher performance."""
+        lines = self.lines()
+        labels = self.classify_lines(lines)
+
+        ret = []
+        for line_type in self.LineType:
+            if line_type == self.LineType.UNKNOWN:
+                continue
+            good_lines = lines[np.where(labels == line_type)]
+            if good_lines.size != 0:
+                line = good_lines[0][np.newaxis, ...]
+            else:
+                line = np.empty((0, 2), dtype=np.float32)
+            ret.append(line)
+
+        return np.stack(ret)
+
+    def vertex_points2(self) -> npt.NDArray[np.float32]:
+        """Hard-coded vertex detection for higher performance."""
+        left, right, top, bottom = self.edge_lines2()
+
+        def find_intersect(l1, l2):
+            r1, t1 = l1.T
+            r2, t2 = l2.T
+            mat = np.array([[np.cos(t1), np.sin(t1)], [np.cos(t2), np.sin(t2)]])
+            vec = np.array([r1, r2])
+            return np.linalg.inv(mat.transpose(2, 0, 1)) @ vec  # returns [x, y]
+
+        points = [
+            find_intersect(bottom, left).reshape((1, 2)),
+            find_intersect(bottom, right).reshape((1, 2)),
+        ]
+
+        return np.stack(points).transpose(0, 2, 1)
 
     def draw(self) -> npt.NDArray[np.uint8]:
         draw_mode = self.draw_options.draw_mode

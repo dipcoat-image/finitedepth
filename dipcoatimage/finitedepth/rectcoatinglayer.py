@@ -67,6 +67,7 @@ __all__ = [
     "RectLayerShapeDecoOptions",
     "RectLayerShapeData",
     "RectLayerShape",
+    "get_extended_line",
 ]
 
 
