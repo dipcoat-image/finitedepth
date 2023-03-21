@@ -405,14 +405,11 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     def examine(self) -> Optional[RectSubstrateError]:
         ret: Optional[RectSubstrateError] = None
 
-        missing = []
-        for point_type, point in zip(self.PointType, self.vertex_points()):
-            if point.size == 0:
-                missing.append(point_type)
-
-        if missing:
-            msg = "Vertices missing: %s" % ", ".join([t.name for t in missing])
-            ret = RectSubstrateEdgeError(msg)
+        l_num = len(self.lines())
+        if l_num < 4:
+            ret = RectSubstrateHoughLinesError(
+                f"Insufficient lines from HoughLines (needs >= 4, got {l_num})"
+            )
 
         return ret
 
@@ -446,13 +443,13 @@ class RectSubstrateDrawOptions:
 
     draw_mode: RectSubstrateDrawMode = RectSubstrateDrawMode.BINARY
     lines: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(0, 255, 0), thickness=0
+        color=Color(0, 255, 0), thickness=1
     )
     edges: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(0, 0, 255), thickness=1
+        color=Color(0, 0, 255), thickness=5
     )
     hull: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(255, 0, 0), thickness=1
+        color=Color(255, 0, 0), thickness=3
     )
 
 
@@ -543,46 +540,14 @@ class RectSubstrate(
 
         edge_opts = self.draw_options.edges
         if edge_opts.thickness > 0:
-            topleft, bottomleft, bottomright, topright = self.vertex_points()
-            has_topleft = topleft.size > 0
-            has_topright = topright.size > 0
-            has_bottomleft = bottomleft.size > 0
-            has_bottomright = bottomright.size > 0
+            tl, bl, br, tr = self.vertex_points2().astype(np.int32)
 
             color = dataclasses.astuple(edge_opts.color)
             thickness = edge_opts.thickness
-            if has_topleft and has_topright:
-                cv2.line(
-                    ret,
-                    topleft.flatten().astype(np.int32),
-                    topright.flatten().astype(np.int32),
-                    color,
-                    thickness,
-                )
-            if has_topright and has_bottomright:
-                cv2.line(
-                    ret,
-                    topright.flatten().astype(np.int32),
-                    bottomright.flatten().astype(np.int32),
-                    color,
-                    thickness,
-                )
-            if has_bottomright and has_bottomleft:
-                cv2.line(
-                    ret,
-                    bottomright.flatten().astype(np.int32),
-                    bottomleft.flatten().astype(np.int32),
-                    color,
-                    thickness,
-                )
-            if has_bottomleft and has_topleft:
-                cv2.line(
-                    ret,
-                    bottomleft.flatten().astype(np.int32),
-                    topleft.flatten().astype(np.int32),
-                    color,
-                    thickness,
-                )
+            cv2.line(ret, tl, tr, color, thickness)
+            cv2.line(ret, tr, br, color, thickness)
+            cv2.line(ret, br, bl, color, thickness)
+            cv2.line(ret, bl, tl, color, thickness)
 
         hull_opts = self.draw_options.hull
         if hull_opts.thickness > 0:

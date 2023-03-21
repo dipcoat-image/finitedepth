@@ -123,12 +123,9 @@ class RectCoatingLayerBase(
 
     def capbridge_broken(self) -> bool:
         p0 = self.substrate_point()
-        _, p1, p2, _ = self.substrate.vertex_points()
-        if p1.size == 0 or p2.size == 0:
-            # cannot detect the vertex; fallback to default
-            return super().capbridge_broken()
-        (bl,) = (p0 + p1).astype(int)
-        (br,) = (p0 + p2).astype(int)
+        _, p1, p2, _ = self.substrate.vertex_points2()
+        bl = (p0 + p1).astype(np.int64)
+        br = (p0 + p2).astype(np.int64)
         top = np.max([bl[1], br[1]])
         bot = self.binary_image().shape[0]
         if top > bot:
@@ -153,7 +150,7 @@ class RectCoatingLayerBase(
             points = np.flip(np.stack(np.where(mask)), axis=0).T
 
             p0 = self.substrate_point()
-            tl, bl, br, tr = self.substrate.vertex_points()
+            tl, bl, br, tr = self.substrate.vertex_points2()
             A = p0 + tl
             B = p0 + bl
             C = p0 + br
@@ -163,10 +160,10 @@ class RectCoatingLayerBase(
 
             # cv2.fillPoly is only marginally faster than this (~0.5 ms) so
             # just use np.cross for the sake of code quality.
-            lefthalf = np.cross(M1M2, points - M1, axis=1) >= 0
-            leftwall = np.cross(B - A, points - A, axis=1) >= 0
-            rightwall = np.cross(D - C, points - C, axis=1) >= 0
-            bottom = np.cross(C - B, points - B, axis=1) >= 0
+            lefthalf = np.cross(M1M2, points - M1) >= 0
+            leftwall = np.cross(B - A, points - A) >= 0
+            rightwall = np.cross(D - C, points - C) >= 0
+            bottom = np.cross(C - B, points - B) >= 0
 
             h, w = self.image.shape[:2]
             ret = np.full((h, w), self.Region.BACKGROUND)
@@ -374,14 +371,14 @@ class RectLayerShape(
             # close to the bottom line.
             vicinity_mask = np.zeros(img_closed.shape, np.uint8)
             p0 = self.substrate_point()
-            _, bl, br, _ = self.substrate.vertex_points()
+            _, bl, br, _ = self.substrate.vertex_points2().astype(np.int64)
             B = p0 + bl
             C = p0 + br
             R = self.parameters.ReconstructRadius
-            cv2.circle(vicinity_mask, B.astype(np.int64).flatten(), R, 1, -1)
-            cv2.circle(vicinity_mask, C.astype(np.int64).flatten(), R, 1, -1)
+            cv2.circle(vicinity_mask, B, R, 1, -1)
+            cv2.circle(vicinity_mask, C, R, 1, -1)
             n = np.dot((C - B) / np.linalg.norm((C - B)), ROTATION_MATRIX)
-            pts = np.concatenate([B, B + R * n, C + R * n, C]).astype(np.int64)
+            pts = np.stack([B, B + R * n, C + R * n, C]).astype(np.int64)
             cv2.fillPoly(vicinity_mask, [pts], 1)
             _, labels = cv2.connectedComponents(img_closed)
             layer_comps = np.unique(labels[np.where(vicinity_mask.astype(bool))])
@@ -404,13 +401,13 @@ class RectLayerShape(
         """
         if not hasattr(self, "_contactline_points"):
             p0 = self.substrate_point()
-            _, bl, br, _ = self.substrate.vertex_points()
+            _, bl, br, _ = self.substrate.vertex_points2()
             B = p0 + bl
             C = p0 + br
 
             if self.layer_area() == 0:
-                left_cp = B.astype(np.int64).flatten()
-                right_cp = C.astype(np.int64).flatten()
+                left_cp = B.astype(np.int64)
+                right_cp = C.astype(np.int64)
                 self._contactline_points = np.stack([left_cp, right_cp])
                 return self._contactline_points
 
@@ -421,7 +418,7 @@ class RectLayerShape(
             if left_points.size != 0:
                 left_cp = left_points[np.argmin(left_points, axis=0)[1]]
             else:
-                left_cp = B.astype(np.int64).flatten()
+                left_cp = B.astype(np.int64)
 
             right = (layer_label & ~left).astype(bool)
             right_y, right_x = np.where(right)
@@ -429,7 +426,7 @@ class RectLayerShape(
             if right_points.size != 0:
                 right_cp = right_points[np.argmin(right_points, axis=0)[1]]
             else:
-                right_cp = C.astype(np.int64).flatten()
+                right_cp = C.astype(np.int64)
 
             self._contactline_points = np.stack([left_cp, right_cp])
 
@@ -498,7 +495,7 @@ class RectLayerShape(
             is_right = (cnt_labels & self.Region.RIGHTWALL).astype(bool)
 
             p0 = self.substrate_point()
-            tl, bl, br, tr = self.substrate.vertex_points()
+            tl, bl, br, tr = self.substrate.vertex_points2()
             A = p0 + tl
             B = p0 + bl
             C = p0 + br
@@ -507,8 +504,8 @@ class RectLayerShape(
             def find_thickest(points, A, B):
                 Ap = points - A
                 AB = B - A
-                t = np.dot(Ap, AB.T) / np.dot(AB, AB.T)
-                AC = t * AB
+                t = np.dot(Ap, AB) / np.dot(AB, AB)
+                AC = np.tensordot(t, AB, axes=0)
                 dists = np.linalg.norm(Ap - AC, axis=1)
                 mask = dists == np.max(dists)
                 pts = np.stack(
@@ -744,7 +741,7 @@ class RectLayerShape(
         AREA = self.layer_area()
 
         subst_p = self.substrate_point()
-        _, bl, br, _ = self.substrate.vertex_points()
+        _, bl, br, _ = self.substrate.vertex_points2()
         bottomleft = subst_p + bl
         bottomright = subst_p + br
         p1, p2 = self.contactline_points()
