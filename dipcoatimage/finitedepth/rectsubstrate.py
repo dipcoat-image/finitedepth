@@ -48,7 +48,6 @@ import enum
 from itertools import combinations
 import numpy as np
 import numpy.typing as npt
-from sklearn.cluster import KMeans  # type: ignore
 from typing import TypeVar, Tuple, Optional, Type
 from .substrate import SubstrateError, SubstrateBase
 from .util import (
@@ -192,7 +191,6 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     """
 
     __slots__ = (
-        "_contour",
         "_edge",
         "_lines",
         "_edge_lines",
@@ -206,33 +204,24 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     PointType: TypeAlias = RectSubstratePointType
 
     def contour(self) -> npt.NDArray[np.int32]:
-        if not hasattr(self, "_contour"):
-            (cnt,), _ = cv2.findContours(
-                cv2.bitwise_not(self.binary_image()),
-                cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_NONE,
-            )
-            self._contour = cnt
-        return self._contour
+        (cnt,), _ = cv2.findContours(
+            cv2.bitwise_not(self.binary_image()),
+            cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_NONE,
+        )
+        return cnt
 
     def edge(self) -> npt.NDArray[np.bool_]:
         """
         Return the substrate edge as boolean array.
 
-        The edge locations are acquired from :meth:`contour`. Pixels on the frame
-        edge are not included.
+        The edge locations are acquired from :meth:`contour`.
         """
         if not hasattr(self, "_edge"):
             h, w = self.image().shape[:2]
             ret = np.zeros((h, w), bool)
-            # Using contour is super faster than gradient-based edge detection.
-            # Price: the contour includes frame edge -> manually remove
             ((x, y),) = self.contour().transpose(1, 2, 0)
             ret[y, x] = True
-            ret[0, :] = False
-            ret[h - 1, :] = False
-            ret[:, 0] = False
-            ret[:, w - 1] = False
             self._edge = ret
         return self._edge
 
@@ -331,20 +320,6 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         return self._edge_lines  # type: ignore[return-value]
 
-    def edge_lines2(self) -> npt.NDArray[np.float32]:
-        N = 3  # three edges of the quadrangle
-
-        ((r, theta),) = self.lines().transpose(1, 2, 0)
-        points = np.array([np.abs(r), np.abs(np.cos(theta))])
-        model = KMeans(N, n_init="auto", random_state=0)
-        labels = model.fit_predict(points.T)
-
-        ret = []
-        for i in range(N):
-            (idxs,) = np.where(labels == i)
-            ret.append(self.lines()[idxs[0]])
-        return np.array(ret)
-
     def vertex_points(
         self,
     ) -> Tuple[
@@ -396,27 +371,36 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         return self._vertex_points  # type: ignore[return-value]
 
     def vertex_points2(self) -> npt.NDArray[np.float32]:
+        edge_lines = self.lines()[:4]
+
+        # get intersections of edge lines
         mats, vecs = [], []
-        for l1, l2 in combinations(self.edge_lines2(), 2):
+        for l1, l2 in combinations(edge_lines, 2):
             ((r1, t1),) = l1
             ((r2, t2),) = l2
             mats.append(np.array([[np.cos(t1), np.sin(t1)], [np.cos(t2), np.sin(t2)]]))
             vecs.append(np.array([[r1], [r2]]))
         mat = np.array(mats)
         vec = np.array(vecs)
-
         sol_exists = np.linalg.det(mat) != 0
         intrsct = np.linalg.inv(mat[np.where(sol_exists)]) @ vec[np.where(sol_exists)]
 
+        # get 4 points which make up a quadrilateral
         M = cv2.moments(self.contour())
         cent = np.array([M["m10"] / M["m00"], M["m01"] / M["m00"]])
         dist = np.linalg.norm(intrsct - cent[..., np.newaxis], axis=1)
-        points = intrsct[np.argsort(dist, axis=0).flatten()][:2]
+        points = intrsct[np.argsort(dist, axis=0).flatten()][:4]
 
+        # counterclockwise sort
         ((vec_x, vec_y),) = (points - cent[..., np.newaxis]).transpose(2, 1, 0)
-        ret = np.flip(points[np.argsort(np.arctan2(vec_y, vec_x))], axis=0)
+        ccw_idx = np.flip(np.argsort(np.arctan2(vec_y, vec_x)))
+        (points_ccw,) = points[ccw_idx].transpose(2, 0, 1)
+        # sort as (A, B, C, D), where line BC is "bottom" of the substrate
+        lower_points = np.argsort(points_ccw[..., 1])[-2:]
+        B_idx = lower_points[np.argmin((lower_points + 1) % 4)]
+        points_sorted = np.roll(points_ccw, 1 - B_idx, axis=0)
 
-        return ret
+        return points_sorted
 
     def examine(self) -> Optional[RectSubstrateError]:
         ret: Optional[RectSubstrateError] = None
