@@ -11,19 +11,13 @@ Base class
 .. autoclass:: RectSubstrateError
    :members:
 
-.. autoclass:: RectSubstrateParameters
-   :members:
-
 .. autoclass:: RectSubstrateHoughLinesError
    :members:
 
-.. autoclass:: RectSubstrateEdgeError
+.. autoclass:: HoughLinesParameters
    :members:
 
-.. autoclass:: RectSubstrateLineType
-   :members:
-
-.. autoclass:: RectSubstratePointType
+.. autoclass:: RectSubstrateParameters
    :members:
 
 .. autoclass:: RectSubstrateBase
@@ -66,11 +60,8 @@ except ImportError:
 __all__ = [
     "RectSubstrateError",
     "RectSubstrateHoughLinesError",
-    "RectSubstrateEdgeError",
     "HoughLinesParameters",
     "RectSubstrateParameters",
-    "RectSubstrateLineType",
-    "RectSubstratePointType",
     "RectSubstrateBase",
     "RectSubstrateDrawMode",
     "RectSubstrateDrawOptions",
@@ -86,12 +77,6 @@ class RectSubstrateError(SubstrateError):
 
 class RectSubstrateHoughLinesError(RectSubstrateError):
     """Error from Hough lines transformation in rectangular substrate."""
-
-    pass
-
-
-class RectSubstrateEdgeError(RectSubstrateError):
-    """Error from edge line classification in rectangular substrate."""
 
     pass
 
@@ -119,64 +104,6 @@ class RectSubstrateParameters:
     HoughLines: HoughLinesParameters
 
 
-class RectSubstrateLineType(enum.IntEnum):
-    """
-    Type of the lines detected in rectangular substrate.
-
-    Attributes
-    ==========
-
-    UNKNOWN
-        Unknown line.
-
-    LEFT
-        Left-hand side edge line of the substrate.
-
-    RIGHT
-        Right-hand side edge line of the substrate.
-
-    TOP
-        Top edge line of the substrate.
-
-    BOTTOM
-        Bottom edge line of the substrate.
-
-    """
-
-    UNKNOWN = 0
-    LEFT = 1
-    RIGHT = 2
-    TOP = 3
-    BOTTOM = 4
-
-
-class RectSubstratePointType(enum.IntEnum):
-    """
-    Type of the vertex points detected in rectangular substrate.
-
-    Attributes
-    ==========
-
-    TOPLEFT
-        Top left-hand side vertex point of the substrate.
-
-    BOTTOMLEFT
-        Bottom left-hand side vertex point of the substrate.
-
-    BOTTOMRIGHT
-        Bottom right-hand side vertex point of the substrate.
-
-    TOPRIGHT
-        Top right-hand side vertex point of the substrate.
-
-    """
-
-    TOPLEFT = 0
-    BOTTOMLEFT = 1
-    BOTTOMRIGHT = 2
-    TOPRIGHT = 3
-
-
 ParametersType = TypeVar("ParametersType", bound=RectSubstrateParameters)
 DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
 
@@ -191,17 +118,12 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     """
 
     __slots__ = (
-        "_edge",
         "_lines",
-        "_edge_lines",
         "_vertex_points",
     )
 
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
-
-    LineType: TypeAlias = RectSubstrateLineType
-    PointType: TypeAlias = RectSubstratePointType
 
     def contour(self) -> npt.NDArray[np.int32]:
         (cnt,), _ = cv2.findContours(
@@ -217,13 +139,11 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         The edge locations are acquired from :meth:`contour`.
         """
-        if not hasattr(self, "_edge"):
-            h, w = self.image().shape[:2]
-            ret = np.zeros((h, w), bool)
-            ((x, y),) = self.contour().transpose(1, 2, 0)
-            ret[y, x] = True
-            self._edge = ret
-        return self._edge
+        h, w = self.image().shape[:2]
+        ret = np.zeros((h, w), bool)
+        ((x, y),) = self.contour().transpose(1, 2, 0)
+        ret[y, x] = True
+        return ret
 
     def edge_hull(self) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.float64]]:
         hull = np.flip(cv2.convexHull(self.contour()), axis=0)
@@ -257,150 +177,42 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             self._lines = lines
         return self._lines
 
-    def classify_lines(self, lines: npt.NDArray[np.float32]) -> npt.NDArray[np.uint8]:
-        """
-        Classify *lines* which is the result of :func:`cv2.HoughLines`.
-
-        Return value is the label for each line vector. Label values are the
-        members of :attr:`RectSubstrateLineType`.
-        """
-        TOL = 0.2
-
-        r, theta = lines.transpose(2, 0, 1)
-
-        h, w = self.image().shape[:2]
-        is_upper = np.abs(r) <= h / 2
-        is_left = np.abs(r) <= w / 2
-
-        is_horizontal = np.abs(np.cos(theta)) < np.cos(np.pi / 2 - TOL)
-        is_vertical = np.abs(np.cos(theta)) > np.cos(TOL)
-
-        ret = np.full(lines.shape[:2], self.LineType.UNKNOWN, dtype=np.uint8)
-        ret[is_upper & is_horizontal] = self.LineType.TOP
-        ret[~is_upper & is_horizontal] = self.LineType.BOTTOM
-        ret[is_left & is_vertical] = self.LineType.LEFT
-        ret[~is_left & is_vertical] = self.LineType.RIGHT
-        return ret
-
-    def edge_lines(
-        self,
-    ) -> Tuple[
-        npt.NDArray[np.float32],
-        npt.NDArray[np.float32],
-        npt.NDArray[np.float32],
-        npt.NDArray[np.float32],
-        npt.NDArray[np.float32],
-    ]:
-        """
-        Return the vectors for the lines of :class:`RectSubstrateLineType`.
-        The vector values are the ``(r, theta)`` of the line.
-
-        Empty array indicates no line for the line type.
-
-        Notes
-        =====
-
-        This property is cached. Do not mutate the result.
-
-        """
-        if not hasattr(self, "_edge_lines"):
-            lines = self.lines()
-            labels = self.classify_lines(lines)
-
-            ret = []
-            for line_type in self.LineType:
-                good_lines = lines[np.where(labels == line_type)]
-                if good_lines.size != 0:
-                    line = good_lines[0][np.newaxis, ...]
-                else:
-                    line = np.empty((0, 2), dtype=np.float32)
-                ret.append(line)
-
-            self._edge_lines = tuple(ret)
-
-        return self._edge_lines  # type: ignore[return-value]
-
-    def vertex_points(
-        self,
-    ) -> Tuple[
-        npt.NDArray[np.float32],
-        npt.NDArray[np.float32],
-        npt.NDArray[np.float32],
-        npt.NDArray[np.float32],
-    ]:
-        """
-        Return the coordinates for the points of :class:`RectSubstratePointType`.
-
-        Empty array indicates no point for the vertex type.
-
-        Notes
-        =====
-
-        This property is cached. Do not mutate the result.
-
-        """
+    def vertex_points(self) -> npt.NDArray[np.float32]:
         if not hasattr(self, "_vertex_points"):
-            h, w = self.image().shape[:2]
+            edge_lines = self.lines()[:4]
 
-            _, left, right, top, bottom = self.edge_lines()
-            if left.size == 0:
-                left = np.array([[0, 0]], dtype=np.float32)
-            if right.size == 0:
-                right = np.array([[w, 0]], dtype=np.float32)
-            if top.size == 0:
-                top = np.array([[0, np.pi / 2]], dtype=np.float32)
-            if bottom.size == 0:
-                bottom = np.array([[h, np.pi / 2]], dtype=np.float32)
+            # get intersections of edge lines
+            mats, vecs = [], []
+            for l1, l2 in combinations(edge_lines, 2):
+                ((r1, t1),) = l1
+                ((r2, t2),) = l2
+                mats.append(
+                    np.array([[np.cos(t1), np.sin(t1)], [np.cos(t2), np.sin(t2)]])
+                )
+                vecs.append(np.array([[r1], [r2]]))
+            mat = np.array(mats)
+            vec = np.array(vecs)
+            sol_exists = np.linalg.det(mat) != 0
+            intrsct = (
+                np.linalg.inv(mat[np.where(sol_exists)]) @ vec[np.where(sol_exists)]
+            )
 
-            def find_intersect(l1, l2):
-                r1, t1 = l1.T
-                r2, t2 = l2.T
-                mat = np.array([[np.cos(t1), np.sin(t1)], [np.cos(t2), np.sin(t2)]])
-                vec = np.array([r1, r2])
-                return np.linalg.inv(mat.transpose(2, 0, 1)) @ vec  # returns [x, y]
+            # get 4 points which make up a quadrilateral
+            M = cv2.moments(self.contour())
+            cent = np.array([M["m10"] / M["m00"], M["m01"] / M["m00"]])
+            dist = np.linalg.norm(intrsct - cent[..., np.newaxis], axis=1)
+            points = intrsct[np.argsort(dist, axis=0).flatten()][:4]
 
-            points = [
-                find_intersect(top, left).reshape((1, 2)),
-                find_intersect(bottom, left).reshape((1, 2)),
-                find_intersect(bottom, right).reshape((1, 2)),
-                find_intersect(top, right).reshape((1, 2)),
-            ]
+            # counterclockwise sort
+            ((vec_x, vec_y),) = (points - cent[..., np.newaxis]).transpose(2, 1, 0)
+            ccw_idx = np.flip(np.argsort(np.arctan2(vec_y, vec_x)))
+            (points_ccw,) = points[ccw_idx].transpose(2, 0, 1)
+            # sort as (A, B, C, D), where line BC is "bottom" of the substrate
+            lower_points = np.argsort(points_ccw[..., 1])[-2:]
+            B_idx = lower_points[np.argmin((lower_points + 1) % 4)]
+            self._vertex_points = np.roll(points_ccw, 1 - B_idx, axis=0)
 
-            self._vertex_points = tuple(points)
-
-        return self._vertex_points  # type: ignore[return-value]
-
-    def vertex_points2(self) -> npt.NDArray[np.float32]:
-        edge_lines = self.lines()[:4]
-
-        # get intersections of edge lines
-        mats, vecs = [], []
-        for l1, l2 in combinations(edge_lines, 2):
-            ((r1, t1),) = l1
-            ((r2, t2),) = l2
-            mats.append(np.array([[np.cos(t1), np.sin(t1)], [np.cos(t2), np.sin(t2)]]))
-            vecs.append(np.array([[r1], [r2]]))
-        mat = np.array(mats)
-        vec = np.array(vecs)
-        sol_exists = np.linalg.det(mat) != 0
-        intrsct = np.linalg.inv(mat[np.where(sol_exists)]) @ vec[np.where(sol_exists)]
-
-        # get 4 points which make up a quadrilateral
-        M = cv2.moments(self.contour())
-        cent = np.array([M["m10"] / M["m00"], M["m01"] / M["m00"]])
-        dist = np.linalg.norm(intrsct - cent[..., np.newaxis], axis=1)
-        points = intrsct[np.argsort(dist, axis=0).flatten()][:4]
-
-        # counterclockwise sort
-        ((vec_x, vec_y),) = (points - cent[..., np.newaxis]).transpose(2, 1, 0)
-        ccw_idx = np.flip(np.argsort(np.arctan2(vec_y, vec_x)))
-        (points_ccw,) = points[ccw_idx].transpose(2, 0, 1)
-        # sort as (A, B, C, D), where line BC is "bottom" of the substrate
-        lower_points = np.argsort(points_ccw[..., 1])[-2:]
-        B_idx = lower_points[np.argmin((lower_points + 1) % 4)]
-        points_sorted = np.roll(points_ccw, 1 - B_idx, axis=0)
-
-        return points_sorted
+        return self._vertex_points
 
     def examine(self) -> Optional[RectSubstrateError]:
         ret: Optional[RectSubstrateError] = None
@@ -540,7 +352,7 @@ class RectSubstrate(
 
         edge_opts = self.draw_options.edges
         if edge_opts.thickness > 0:
-            tl, bl, br, tr = self.vertex_points2().astype(np.int32)
+            tl, bl, br, tr = self.vertex_points().astype(np.int32)
 
             color = dataclasses.astuple(edge_opts.color)
             thickness = edge_opts.thickness

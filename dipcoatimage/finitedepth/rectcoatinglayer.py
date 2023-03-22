@@ -123,7 +123,7 @@ class RectCoatingLayerBase(
 
     def capbridge_broken(self) -> bool:
         p0 = self.substrate_point()
-        _, p1, p2, _ = self.substrate.vertex_points2()
+        _, p1, p2, _ = self.substrate.vertex_points()
         bl = (p0 + p1).astype(np.int64)
         br = (p0 + p2).astype(np.int64)
         top = np.max([bl[1], br[1]])
@@ -150,7 +150,7 @@ class RectCoatingLayerBase(
             points = np.flip(np.stack(np.where(mask)), axis=0).T
 
             p0 = self.substrate_point()
-            tl, bl, br, tr = self.substrate.vertex_points2()
+            tl, bl, br, tr = self.substrate.vertex_points()
             A = p0 + tl
             B = p0 + bl
             C = p0 + br
@@ -371,7 +371,7 @@ class RectLayerShape(
             # close to the bottom line.
             vicinity_mask = np.zeros(img_closed.shape, np.uint8)
             p0 = self.substrate_point()
-            _, bl, br, _ = self.substrate.vertex_points2().astype(np.int64)
+            _, bl, br, _ = self.substrate.vertex_points().astype(np.int64)
             B = p0 + bl
             C = p0 + br
             R = self.parameters.ReconstructRadius
@@ -401,7 +401,7 @@ class RectLayerShape(
         """
         if not hasattr(self, "_contactline_points"):
             p0 = self.substrate_point()
-            _, bl, br, _ = self.substrate.vertex_points2()
+            _, bl, br, _ = self.substrate.vertex_points()
             B = p0 + bl
             C = p0 + br
 
@@ -495,7 +495,7 @@ class RectLayerShape(
             is_right = (cnt_labels & self.Region.RIGHTWALL).astype(bool)
 
             p0 = self.substrate_point()
-            tl, bl, br, tr = self.substrate.vertex_points2()
+            tl, bl, br, tr = self.substrate.vertex_points()
             A = p0 + tl
             B = p0 + bl
             C = p0 + br
@@ -741,7 +741,7 @@ class RectLayerShape(
         AREA = self.layer_area()
 
         subst_p = self.substrate_point()
-        _, bl, br, _ = self.substrate.vertex_points2()
+        _, bl, br, _ = self.substrate.vertex_points()
         bottomleft = subst_p + bl
         bottomright = subst_p + br
         p1, p2 = self.contactline_points()
