@@ -332,7 +332,6 @@ class RectLayerShape(
     __slots__ = (
         "_layer_area",
         "_contactline_points",
-        "_layer_surface",
         "_thickness_points",
         "_uniform_layer",
     )
@@ -432,55 +431,10 @@ class RectLayerShape(
 
         return self._contactline_points
 
-    def layer_surface(self) -> npt.NDArray[np.int32]:
-        """
-        Return the gas-liquid interface of the coating layer.
-
-        Similar to :meth:`layer_contours`, but this is an open and continuous
-        curve even if the coating layer is discontinuous.
-        """
-        if not hasattr(self, "_layer_surface"):
-            if self.layer_area() == 0:
-                self._layer_surface = np.empty((0, 2), dtype=np.int32)
-                return self._layer_surface
-
-            # remove every pixels above the contact line.
-            mask = self.coated_substrate()
-            h, w = mask.shape[:2]
-            p1, p2 = self.contactline_points()
-            # cv2.fillPoly is much more faster than np.cross here
-            ext_points = get_extended_line((h, w), p1, p2)
-            ext_x, ext_y = ext_points.T
-            idxs = np.where((0 <= ext_x) & (ext_x <= w) & (0 <= ext_y) & (ext_y <= h))
-            pts = ext_points[idxs].astype(np.int32)
-            pts = pts[np.argsort(pts[..., 0])]
-            pts = np.insert(pts, 0, [0, 0], axis=0)
-            pts = np.insert(pts, pts.shape[0], [w, 0], axis=0)
-            img = mask.astype(np.uint8) * 255
-            cv2.fillPoly(img, [pts], 0)
-
-            cnts, _ = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-            if not cnts:
-                surface = np.empty((0, 2), dtype=np.int32)
-            else:
-                (points,) = np.concatenate(cnts).transpose(1, 0, 2)
-
-                # deal with the starting point and ending point of the contour
-                i0 = int(np.argmin(np.linalg.norm(points - p1, axis=1)))
-                i1 = int(np.argmin(np.linalg.norm(points - p2, axis=1)))
-                if i0 >= i1 + 1:
-                    surface = np.concatenate([points[i0:], points[: i1 + 1]])
-                else:
-                    surface = points[i0 : i1 + 1]
-
-            self._layer_surface = surface
-
-        return self._layer_surface
-
     def thickness_points(self) -> npt.NDArray[np.float64]:
         # TODO: make as tuple of points
         if not hasattr(self, "_thickness_points"):
-            # TODO: use layer_surface and hausdorff distance (maybe scipy)
+            # TODO: use surface and hausdorff distance (maybe scipy)
             contours = self.layer_contours()
             if not contours:
                 cnt_points = np.empty((0, 1, 2), dtype=np.int32)
@@ -625,7 +579,7 @@ class RectLayerShape(
 
     def roughness(self) -> np.float64:
         """Dimensional roughness value of the coating layer surface."""
-        surface = self.layer_surface()
+        (surface,) = self.surface().transpose(1, 0, 2)
         _, uniform_layer = self.uniform_layer()
         if surface.size == 0 or uniform_layer.size == 0:
             return np.float64(np.nan)
