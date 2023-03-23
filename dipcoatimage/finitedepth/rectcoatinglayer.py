@@ -432,6 +432,19 @@ class RectLayerShape(
 
         return self._contactline_points
 
+    def interface(self) -> npt.NDArray[np.int64]:
+        """Return interface points between the surface and the coating layer."""
+        subst_dilated = cv2.dilate(
+            cv2.bitwise_not(self.substrate.binary_image()), np.ones((3, 3))
+        )
+        (subst_cnt,), _ = cv2.findContours(
+            subst_dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
+        )
+        cnt = self.substrate_point() + subst_cnt
+        ((subst_x, subst_y),) = cnt.transpose(1, 2, 0)
+        (idxs,) = np.where(self.extract_layer()[subst_y, subst_x])
+        return cnt[idxs]
+
     def layer_surface(self) -> npt.NDArray[np.int32]:
         """
         Return the gas-liquid interface of the coating layer.
