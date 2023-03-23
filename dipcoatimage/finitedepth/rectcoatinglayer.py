@@ -124,8 +124,8 @@ class RectCoatingLayerBase(
     def capbridge_broken(self) -> bool:
         p0 = self.substrate_point()
         _, p1, p2, _ = self.substrate.vertex_points()
-        bl = (p0 + p1).astype(np.int64)
-        br = (p0 + p2).astype(np.int64)
+        bl = (p0 + p1).astype(np.int32)
+        br = (p0 + p2).astype(np.int32)
         top = np.max([bl[1], br[1]])
         bot = self.binary_image().shape[0]
         if top > bot:
@@ -371,14 +371,14 @@ class RectLayerShape(
             # close to the bottom line.
             vicinity_mask = np.zeros(img_closed.shape, np.uint8)
             p0 = self.substrate_point()
-            _, bl, br, _ = self.substrate.vertex_points().astype(np.int64)
+            _, bl, br, _ = self.substrate.vertex_points().astype(np.int32)
             B = p0 + bl
             C = p0 + br
             R = self.parameters.ReconstructRadius
             cv2.circle(vicinity_mask, B, R, 1, -1)
             cv2.circle(vicinity_mask, C, R, 1, -1)
             n = np.dot((C - B) / np.linalg.norm((C - B)), ROTATION_MATRIX)
-            pts = np.stack([B, B + R * n, C + R * n, C]).astype(np.int64)
+            pts = np.stack([B, B + R * n, C + R * n, C]).astype(np.int32)
             cv2.fillPoly(vicinity_mask, [pts], 1)
             _, labels = cv2.connectedComponents(img_closed)
             layer_comps = np.unique(labels[np.where(vicinity_mask.astype(bool))])
@@ -393,7 +393,7 @@ class RectLayerShape(
             self._layer_area = np.count_nonzero(self.extract_layer())
         return self._layer_area
 
-    def contactline_points(self) -> npt.NDArray[np.int64]:
+    def contactline_points(self) -> npt.NDArray[np.int32]:
         """
         Get the coordinates of the contact line points of the layer.
 
@@ -406,8 +406,8 @@ class RectLayerShape(
             C = p0 + br
 
             if self.layer_area() == 0:
-                left_cp = B.astype(np.int64)
-                right_cp = C.astype(np.int64)
+                left_cp = B.astype(np.int32)
+                right_cp = C.astype(np.int32)
                 self._contactline_points = np.stack([left_cp, right_cp])
                 return self._contactline_points
 
@@ -418,7 +418,7 @@ class RectLayerShape(
             if left_points.size != 0:
                 left_cp = left_points[np.argmin(left_points, axis=0)[1]]
             else:
-                left_cp = B.astype(np.int64)
+                left_cp = B.astype(np.int32)
 
             right = (layer_label & ~left).astype(bool)
             right_y, right_x = np.where(right)
@@ -426,7 +426,7 @@ class RectLayerShape(
             if right_points.size != 0:
                 right_cp = right_points[np.argmin(right_points, axis=0)[1]]
             else:
-                right_cp = C.astype(np.int64)
+                right_cp = C.astype(np.int32)
 
             self._contactline_points = np.stack([left_cp, right_cp])
 
@@ -452,7 +452,7 @@ class RectLayerShape(
             ext_points = get_extended_line((h, w), p1, p2)
             ext_x, ext_y = ext_points.T
             idxs = np.where((0 <= ext_x) & (ext_x <= w) & (0 <= ext_y) & (ext_y <= h))
-            pts = ext_points[idxs].astype(np.int64)
+            pts = ext_points[idxs].astype(np.int32)
             pts = pts[np.argsort(pts[..., 0])]
             pts = np.insert(pts, 0, [0, 0], axis=0)
             pts = np.insert(pts, pts.shape[0], [w, 0], axis=0)
@@ -774,7 +774,7 @@ class RectLayerShape(
 
 
 def get_extended_line(
-    frame_shape: Tuple[int, int], p1: npt.NDArray[np.int64], p2: npt.NDArray[np.int64]
+    frame_shape: Tuple[int, int], p1: npt.NDArray[np.int32], p2: npt.NDArray[np.int32]
 ) -> npt.NDArray[np.float64]:
     # TODO: make it more elegant with matrix determinant and sorta things
     h, w = frame_shape
