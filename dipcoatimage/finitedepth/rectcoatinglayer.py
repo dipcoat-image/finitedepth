@@ -331,7 +331,6 @@ class RectLayerShape(
 
     __slots__ = (
         "_layer_area",
-        "_contactline_points",
         "_thickness_points",
         "_uniform_layer",
     )
@@ -391,45 +390,6 @@ class RectLayerShape(
         if not hasattr(self, "_layer_area"):
             self._layer_area = np.count_nonzero(self.extract_layer())
         return self._layer_area
-
-    def contactline_points(self) -> npt.NDArray[np.int32]:
-        """
-        Get the coordinates of the contact line points of the layer.
-
-        Return value as ``(left x, left y, right x, right y)``.
-        """
-        if not hasattr(self, "_contactline_points"):
-            p0 = self.substrate_point()
-            _, bl, br, _ = self.substrate.vertex_points()
-            B = p0 + bl
-            C = p0 + br
-
-            if self.layer_area() == 0:
-                left_cp = B.astype(np.int32)
-                right_cp = C.astype(np.int32)
-                self._contactline_points = np.stack([left_cp, right_cp])
-                return self._contactline_points
-
-            layer_label = self.label_layer()
-            left = (layer_label & self.Region.LEFTHALF).astype(bool)
-            left_y, left_x = np.where(left)
-            left_points = np.stack([left_x, left_y], axis=1)
-            if left_points.size != 0:
-                left_cp = left_points[np.argmin(left_points, axis=0)[1]]
-            else:
-                left_cp = B.astype(np.int32)
-
-            right = (layer_label & ~left).astype(bool)
-            right_y, right_x = np.where(right)
-            right_points = np.stack([right_x, right_y], axis=1)
-            if right_points.size != 0:
-                right_cp = right_points[np.argmin(right_points, axis=0)[1]]
-            else:
-                right_cp = C.astype(np.int32)
-
-            self._contactline_points = np.stack([left_cp, right_cp])
-
-        return self._contactline_points
 
     def thickness_points(self) -> npt.NDArray[np.float64]:
         # TODO: make as tuple of points
@@ -501,20 +461,24 @@ class RectLayerShape(
         :meth:`layer_area`.
         """
         if not hasattr(self, "_uniform_layer"):
-            S = self.layer_area()
-            if S == 0:
-                ret = (np.float64(0), np.empty((0, 2), dtype=np.float64))
-                self._uniform_layer = ret
+            # get contact line points
+            sl_interfaces, _ = self.interfaces()
+            if len(sl_interfaces) == 0:
+                layer = np.empty((0, 1, 2), dtype=np.float64)
+                self._uniform_layer = (np.float64(0), layer)
                 return self._uniform_layer
+            sl_points = np.concatenate(sl_interfaces)
+            if len(sl_points) == 0:
+                layer = np.empty((0, 1, 2), dtype=np.float64)
+                self._uniform_layer = (np.float64(0), layer)
+                return self._uniform_layer
+            p1, p2 = sl_points[0], sl_points[-1]
 
             subst_point = self.substrate_point()
             hull, _ = self.substrate.edge_hull()
             (hull,) = (hull + subst_point).transpose(1, 0, 2)
-
-            # find projection points from contactline_points to hull and add to hull
             dh = np.diff(hull, axis=0)
             dh_dot_dh = np.sum(dh * dh, axis=-1)
-            p1, p2 = self.contactline_points()
 
             def find_projection(p):
                 h_p = p - hull[:-1, ...]
@@ -550,6 +514,7 @@ class RectLayerShape(
             n = normal / np.linalg.norm(normal, axis=1)[..., np.newaxis]
             dndt = np.gradient(n, t, axis=0)
 
+            S = self.layer_area()
             L0 = 10  # initial value
             L_NUM = 100  # interval number
 
@@ -569,10 +534,7 @@ class RectLayerShape(
                     return newL
                 return findL(newL, l_num)
 
-            if S != 0:
-                L = findL(L0, L_NUM)
-            else:
-                L = np.float64(0)
+            L = findL(L0, L_NUM)
             self._uniform_layer = (L, new_hull + L * n)
 
         return self._uniform_layer
@@ -644,14 +606,18 @@ class RectLayerShape(
 
         contactline_opts = self.deco_options.contact_line
         if contactline_opts.thickness > 0:
-            p1, p2 = self.contactline_points()
-            cv2.line(
-                image,
-                p1,
-                p2,
-                dataclasses.astuple(contactline_opts.color),
-                contactline_opts.thickness,
-            )
+            sl_interfaces, _ = self.interfaces()
+            if len(sl_interfaces) != 0:
+                sl_points = np.concatenate(sl_interfaces)
+                if len(sl_points) != 0:
+                    (p1,), (p2,) = sl_points[0], sl_points[-1]
+                    cv2.line(
+                        image,
+                        p1,
+                        p2,
+                        dataclasses.astuple(contactline_opts.color),
+                        contactline_opts.thickness,
+                    )
 
         thicknesslines_opts = self.deco_options.thickness_lines
         if thicknesslines_opts.thickness > 0:
@@ -694,13 +660,19 @@ class RectLayerShape(
     ]:
         AREA = self.layer_area()
 
-        subst_p = self.substrate_point()
         _, bl, br, _ = self.substrate.vertex_points()
-        bottomleft = subst_p + bl
-        bottomright = subst_p + br
-        p1, p2 = self.contactline_points()
-        LEN_L = np.linalg.norm(bottomleft - p1)
-        LEN_R = np.linalg.norm(bottomright - p2)
+        sl_interfaces, _ = self.interfaces()
+        if len(sl_interfaces) == 0:
+            LEN_L = LEN_R = np.float64(0)
+        else:
+            sl_points = np.concatenate(sl_interfaces)
+            if len(sl_points) == 0:
+                LEN_L = LEN_R = np.float64(0)
+            else:
+                sp = self.substrate_point()
+                (p1,), (p2,) = sl_points[0], sl_points[-1]
+                LEN_L = np.linalg.norm(sp + bl - p1)
+                LEN_R = np.linalg.norm(sp + br - p2)
 
         tp_l, tp_b, tp_r = self.thickness_points()
         THCK_L = np.linalg.norm(np.diff(tp_l, axis=0))
