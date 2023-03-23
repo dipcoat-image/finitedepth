@@ -441,7 +441,7 @@ class CoatingLayerBase(
         )
         idx0 = np.argmin(np.linalg.norm(cnt - p0, axis=-1))
         idx1 = np.argmin(np.linalg.norm(cnt - p1, axis=-1))
-        return cnt[idx0: idx1 + 1]
+        return cnt[int(idx0) : int(idx1 + 1)]
 
     @abc.abstractmethod
     def examine(self) -> Optional[CoatingLayerError]:
