@@ -410,6 +410,39 @@ class CoatingLayerBase(
             liq_gas.append(lg)
         return (subst_liq, liq_gas)
 
+    def surface(self) -> npt.NDArray[np.int32]:
+        """
+        Return the free surface of the coating layer.
+
+        The result is continuous points sorted counter-clockwise in the image.
+        Discontinuous coating layer is connected by the substrate surface.
+
+        See Also
+        ========
+
+        layer_contours
+            Contours for each discrete coating layer region.
+
+        interfaces
+            Substrate-liquid interfaces and gas-liquid interfaces for each
+            discrete coating layer region.
+        """
+        sl_interfaces, _ = self.interfaces()
+        if len(sl_interfaces) == 0:
+            return np.empty((0, 1, 2), dtype=np.int32)
+        sl_points = np.concatenate(sl_interfaces)
+        if len(sl_points) == 0:
+            return np.empty((0, 1, 2), dtype=np.int32)
+        p0, p1 = sl_points[0], sl_points[-1]
+        (cnt,), _ = cv2.findContours(
+            self.coated_substrate().astype(np.uint8),
+            cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_NONE,
+        )
+        idx0 = np.argmin(np.linalg.norm(cnt - p0, axis=-1))
+        idx1 = np.argmin(np.linalg.norm(cnt - p1, axis=-1))
+        return cnt[idx0: idx1 + 1]
+
     @abc.abstractmethod
     def examine(self) -> Optional[CoatingLayerError]:
         """
