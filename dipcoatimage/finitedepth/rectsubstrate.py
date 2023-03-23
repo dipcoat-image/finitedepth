@@ -11,9 +11,6 @@ Base class
 .. autoclass:: RectSubstrateError
    :members:
 
-.. autoclass:: RectSubstrateHoughLinesError
-   :members:
-
 .. autoclass:: HoughLinesParameters
    :members:
 
@@ -59,7 +56,6 @@ except ImportError:
 
 __all__ = [
     "RectSubstrateError",
-    "RectSubstrateHoughLinesError",
     "HoughLinesParameters",
     "RectSubstrateParameters",
     "RectSubstrateBase",
@@ -71,12 +67,6 @@ __all__ = [
 
 class RectSubstrateError(SubstrateError):
     """Base class for the errors from rectangular substrate class."""
-
-    pass
-
-
-class RectSubstrateHoughLinesError(RectSubstrateError):
-    """Error from Hough lines transformation in rectangular substrate."""
 
     pass
 
@@ -219,7 +209,7 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         l_num = len(self.lines())
         if l_num < 4:
-            ret = RectSubstrateHoughLinesError(
+            ret = RectSubstrateError(
                 f"Insufficient lines from HoughLines (needs >= 4, got {l_num})"
             )
 

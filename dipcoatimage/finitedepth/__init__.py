@@ -31,7 +31,6 @@ from .substrate import (
 )
 from .rectsubstrate import (
     RectSubstrateError,
-    RectSubstrateHoughLinesError,
     RectSubstrateBase,
     RectSubstrate,
 )
@@ -67,7 +66,6 @@ __all__ = [
     "SubstrateBase",
     "Substrate",
     "RectSubstrateError",
-    "RectSubstrateHoughLinesError",
     "RectSubstrateBase",
     "RectSubstrate",
     "CoatingLayerError",
