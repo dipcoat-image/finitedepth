@@ -163,8 +163,27 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         return self._lines
 
     def edge_lines(self) -> npt.NDArray[np.float32]:
-        """ "Return four edge lines of the substrate."""
-        return self.lines()[:4]
+        """
+        Return four edge lines of the substrate.
+
+        Lines are sorted along the contour.
+        """
+        lines = self.lines()[:4]
+        # find the closest line for each point
+        ((r, theta),) = lines.transpose(1, 2, 0)
+        A = np.column_stack([r * np.cos(theta), r * np.sin(theta)])
+        Ap = np.repeat(self.contour(), 4, axis=1) - A
+        AB = np.column_stack([np.sin(theta), -np.cos(theta)])
+        t = np.sum(Ap * AB, axis=-1)
+        AC = np.repeat(t[..., np.newaxis], 2, axis=-1) * AB
+        dists = np.linalg.norm(Ap - AC, axis=-1)
+        point_labels = np.argmin(dists, axis=-1)
+        # sort the lines along the contour
+        line_order = []
+        for i in range(4):
+            (pos,) = np.where(point_labels == i)
+            line_order.append(np.mean(pos))
+        return lines[np.argsort(line_order)]
 
     def intersect_points(self) -> npt.NDArray[np.float32]:
         """Return the intersection points of :meth:`edge_lines`."""
