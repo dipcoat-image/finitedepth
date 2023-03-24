@@ -99,16 +99,11 @@ DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
 
 
 class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
-    """
-    Abstract base class for substrate with convex quadrangular shape.
-
-    Quadrangular substrate is characterized by four edges and vertices, which are
-    detected by :meth:`edge_lines` and :meth:`vertex_points`.
-
-    """
+    """Abstract base class for substrate with quadrilateral shape."""
 
     __slots__ = (
         "_lines",
+        "_intersect_points",
         "_vertex_points",
     )
 
@@ -167,13 +162,15 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             self._lines = lines
         return self._lines
 
-    def vertex_points(self) -> npt.NDArray[np.float32]:
-        if not hasattr(self, "_vertex_points"):
-            edge_lines = self.lines()[:4]
+    def edge_lines(self) -> npt.NDArray[np.float32]:
+        """ "Return four edge lines of the substrate."""
+        return self.lines()[:4]
 
-            # get intersections of edge lines
+    def intersect_points(self) -> npt.NDArray[np.float32]:
+        """Return the intersection points of :meth:`edge_lines`."""
+        if not hasattr(self, "_intersect_points"):
             mats, vecs = [], []
-            for l1, l2 in combinations(edge_lines, 2):
+            for l1, l2 in combinations(self.edge_lines(), 2):
                 ((r1, t1),) = l1
                 ((r2, t2),) = l2
                 mats.append(
@@ -186,6 +183,17 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             intrsct = (
                 np.linalg.inv(mat[np.where(sol_exists)]) @ vec[np.where(sol_exists)]
             )
+            self._intersect_points = intrsct.astype(np.float32)
+        return self._intersect_points
+
+    def vertex_points(self) -> npt.NDArray[np.float32]:
+        """
+        Determine four vertices of the substrate from :meth:`intersect_points`.
+
+        Points are sorted counterclockwise in the image.
+        """
+        if not hasattr(self, "_vertex_points"):
+            intrsct = self.intersect_points()
 
             # get 4 points which make up a quadrilateral
             M = cv2.moments(self.contour())
@@ -211,6 +219,12 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         if l_num < 4:
             ret = RectSubstrateError(
                 f"Insufficient lines from HoughLines (needs >= 4, got {l_num})"
+            )
+
+        p_num = len(self.intersect_points())
+        if p_num < 4:
+            ret = RectSubstrateError(
+                f"Insufficient intersection points (needs >= 4, got {p_num})"
             )
 
         return ret
