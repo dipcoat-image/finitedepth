@@ -660,7 +660,7 @@ class RectLayerShape(
     ]:
         AREA = self.layer_area()
 
-        _, bl, br, _ = self.substrate.vertex_points()
+        _, B, C, _ = self.substrate.vertex_points() + self.substrate_point()
         sl_interfaces, _ = self.interfaces()
         if len(sl_interfaces) == 0:
             LEN_L = LEN_R = np.float64(0)
@@ -669,10 +669,12 @@ class RectLayerShape(
             if len(sl_points) == 0:
                 LEN_L = LEN_R = np.float64(0)
             else:
-                sp = self.substrate_point()
-                (p1,), (p2,) = sl_points[0], sl_points[-1]
-                LEN_L = np.linalg.norm(sp + bl - p1)
-                LEN_R = np.linalg.norm(sp + br - p2)
+                points = np.concatenate([sl_points[0], sl_points[-1]])
+                Bp = points - B
+                BC = C - B
+                t = np.dot(Bp, BC) / np.dot(BC, BC)
+                dists = np.linalg.norm(Bp - np.tensordot(t, BC, axes=0), axis=1)
+                LEN_L, LEN_R = dists.astype(np.float64)
 
         tp_l, tp_b, tp_r = self.thickness_points()
         THCK_L = np.linalg.norm(np.diff(tp_l, axis=0))
@@ -683,7 +685,7 @@ class RectLayerShape(
         ROUGH = self.roughness()
 
         ERR, _ = self.match_substrate()
-        CHIPWIDTH = np.linalg.norm(bl - br)
+        CHIPWIDTH = np.linalg.norm(B - C)
 
         return (
             AREA,
