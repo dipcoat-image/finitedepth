@@ -179,7 +179,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         x0, y0, x1, y1 = self.reference.substrateROI
         return self.reference.binary_image()[y0:y1, x0:x1]
 
-    def nestled_points(self) -> npt.NDArray[np.int64]:
+    def nestled_points(self) -> npt.NDArray[np.int32]:
         """
         Find the points which are firmly nestled in the substrate.
 
@@ -192,7 +192,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         consists of unconnected components.
         """
         w = self.image().shape[1]
-        return np.array([[w / 2, 0]], dtype=np.int64)
+        return np.array([[w / 2, 0]], dtype=np.int32)
 
     @abc.abstractmethod
     def examine(self) -> Optional[SubstrateError]:

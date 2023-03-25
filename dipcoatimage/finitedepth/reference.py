@@ -252,7 +252,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         """
         x0, y0 = self.templateROI[:2]
         x1, y1 = self.substrateROI[:2]
-        return np.array([x1 - x0, y1 - y0])
+        return np.array([x1 - x0, y1 - y0], dtype=np.int32)
 
     @abc.abstractmethod
     def examine(self) -> Optional[SubstrateReferenceError]:

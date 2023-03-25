@@ -299,7 +299,7 @@ class CoatingLayerBase(
             x0, y0, x1, y1 = self.substrate.reference.templateROI
             template = self.substrate.reference.binary_image()[y0:y1, x0:x1]
             score, point = match_template(image, template)
-            self._match_substrate = score, np.array(point)
+            self._match_substrate = score, np.array(point, dtype=np.int32)
         return self._match_substrate
 
     def substrate_point(self) -> npt.NDArray[np.int32]:
@@ -361,6 +361,87 @@ class CoatingLayerBase(
             )
             self._layer_contours = list(contours)
         return self._layer_contours
+
+    def interfaces(
+        self,
+    ) -> Tuple[List[npt.NDArray[np.int32]], List[npt.NDArray[np.int32]]]:
+        """
+        Return substrate-liquid interface points and liquid-gas interface points.
+
+        Two lists have same length, which is the number of discrete coating layers.
+        Points on each list are sorted counter-clockwise in the image.
+        """
+        # along the substrate contour, find the points which belong to the layer
+        layer_cnt = self.layer_contours()
+        layer_map = np.zeros(self.image.shape[:2], dtype=np.uint8)
+        for i, cnt in enumerate(layer_cnt):
+            ((x, y),) = cnt.transpose(1, 2, 0)
+            layer_map[y, x] = i + 1
+        subst_dilated = cv2.dilate(
+            cv2.bitwise_not(self.substrate.binary_image()), np.ones((3, 3))
+        )
+        (subst_cnt,), _ = cv2.findContours(
+            subst_dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
+        )
+        subst_cnt_in_self = self.substrate_point() + subst_cnt
+        ((subst_x, subst_y),) = subst_cnt_in_self.transpose(1, 2, 0)
+        subst_labels = layer_map[subst_y, subst_x]
+
+        # for discrete layers, which appears first along the substrate contour?
+        cnt_order = []
+        for label in range(len(layer_cnt)):
+            (lab_idx,) = np.where(subst_labels == label + 1)
+            first_idx = lab_idx[0]
+            cnt_order.append(first_idx)
+
+        # separate each contour into substrate-layer and layer-gas
+        subst_liq, liq_gas = [], []
+        for label in subst_labels[np.sort(np.array(cnt_order))]:
+            cnt = layer_cnt[label - 1]
+            sl = subst_cnt_in_self[np.where(subst_labels == label)]
+            (i0,), _ = np.where(np.all(cnt == sl[0], axis=-1))
+            (i1,), _ = np.where(np.all(cnt == sl[-1], axis=-1))
+            if i0 <= i1:
+                lg = cnt[i0 + 1 : i1]
+            else:
+                lg = np.concatenate([cnt[i0 + 1 :], cnt[:i1]])
+
+            subst_liq.append(sl)
+            liq_gas.append(lg)
+        return (subst_liq, liq_gas)
+
+    def surface(self) -> npt.NDArray[np.int32]:
+        """
+        Return the free surface of the coating layer.
+
+        The result is continuous points sorted counter-clockwise in the image.
+        Discontinuous coating layer is connected by the substrate surface.
+
+        See Also
+        ========
+
+        layer_contours
+            Contours for each discrete coating layer region.
+
+        interfaces
+            Substrate-liquid interfaces and gas-liquid interfaces for each
+            discrete coating layer region.
+        """
+        sl_interfaces, _ = self.interfaces()
+        if len(sl_interfaces) == 0:
+            return np.empty((0, 1, 2), dtype=np.int32)
+        sl_points = np.concatenate(sl_interfaces)
+        if len(sl_points) == 0:
+            return np.empty((0, 1, 2), dtype=np.int32)
+        p0, p1 = sl_points[0], sl_points[-1]
+        (cnt,), _ = cv2.findContours(
+            self.coated_substrate().astype(np.uint8),
+            cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_NONE,
+        )
+        idx0 = np.argmin(np.linalg.norm(cnt - p0, axis=-1))
+        idx1 = np.argmin(np.linalg.norm(cnt - p1, axis=-1))
+        return cnt[int(idx0) : int(idx1 + 1)]
 
     @abc.abstractmethod
     def examine(self) -> Optional[CoatingLayerError]:

@@ -67,6 +67,7 @@ __all__ = [
     "RectLayerShapeDecoOptions",
     "RectLayerShapeData",
     "RectLayerShape",
+    "get_extended_line",
 ]
 
 
@@ -123,11 +124,8 @@ class RectCoatingLayerBase(
     def capbridge_broken(self) -> bool:
         p0 = self.substrate_point()
         _, p1, p2, _ = self.substrate.vertex_points()
-        if p1.size == 0 or p2.size == 0:
-            # cannot detect the vertex; fallback to default
-            return super().capbridge_broken()
-        (bl,) = (p0 + p1).astype(int)
-        (br,) = (p0 + p2).astype(int)
+        bl = (p0 + p1).astype(np.int32)
+        br = (p0 + p2).astype(np.int32)
         top = np.max([bl[1], br[1]])
         bot = self.binary_image().shape[0]
         if top > bot:
@@ -162,10 +160,10 @@ class RectCoatingLayerBase(
 
             # cv2.fillPoly is only marginally faster than this (~0.5 ms) so
             # just use np.cross for the sake of code quality.
-            lefthalf = np.cross(M1M2, points - M1, axis=1) >= 0
-            leftwall = np.cross(B - A, points - A, axis=1) >= 0
-            rightwall = np.cross(D - C, points - C, axis=1) >= 0
-            bottom = np.cross(C - B, points - B, axis=1) >= 0
+            lefthalf = np.cross(M1M2, points - M1) >= 0
+            leftwall = np.cross(B - A, points - A) >= 0
+            rightwall = np.cross(D - C, points - C) >= 0
+            bottom = np.cross(C - B, points - B) >= 0
 
             h, w = self.image.shape[:2]
             ret = np.full((h, w), self.Region.BACKGROUND)
@@ -332,11 +330,9 @@ class RectLayerShape(
     """
 
     __slots__ = (
-        "_contactline_points",
-        "_layer_surface",
         "_layer_area",
-        "_uniform_layer",
         "_thickness_points",
+        "_uniform_layer",
     )
 
     Parameters = RectLayerShapeParameters
@@ -354,12 +350,14 @@ class RectLayerShape(
 
     def extract_layer(self) -> npt.NDArray[np.bool_]:
         if not hasattr(self, "_extracted_layer"):
-            # perform closing to remove error pixels
+            # Perform opening to remove error pixels. We named the parameter as
+            # "closing" because the coating layer is black in original image, but
+            # in fact we do opening since the layer is True in extracted layer.
             closingParams = self.parameters.MorphologyClosing
             kernel = np.ones(closingParams.kernelSize)
             img_closed = cv2.morphologyEx(
-                (~super().extract_layer()).astype(np.uint8) * 255,
-                cv2.MORPH_CLOSE,
+                super().extract_layer().astype(np.uint8) * 255,
+                cv2.MORPH_OPEN,
                 kernel,
                 anchor=closingParams.anchor,
                 iterations=closingParams.iterations,
@@ -368,95 +366,35 @@ class RectLayerShape(
             # closed image may still have error pixels. at least we have to
             # remove the errors that are disconnected to the layer.
             # we identify the layer pixels as the connected components that are
-            # close to the corners.
+            # close to the bottom line.
             vicinity_mask = np.zeros(img_closed.shape, np.uint8)
             p0 = self.substrate_point()
-            _, bl, br, _ = self.substrate.vertex_points()
+            _, bl, br, _ = self.substrate.vertex_points().astype(np.int32)
             B = p0 + bl
             C = p0 + br
             R = self.parameters.ReconstructRadius
-            cv2.circle(vicinity_mask, B.astype(np.int64).flatten(), R, 1, -1)
-            cv2.circle(vicinity_mask, C.astype(np.int64).flatten(), R, 1, -1)
-            _, labels = cv2.connectedComponents(cv2.bitwise_not(img_closed))
+            cv2.circle(vicinity_mask, B, R, 1, -1)
+            cv2.circle(vicinity_mask, C, R, 1, -1)
+            n = np.dot((C - B) / np.linalg.norm((C - B)), ROTATION_MATRIX)
+            pts = np.stack([B, B + R * n, C + R * n, C]).astype(np.int32)
+            cv2.fillPoly(vicinity_mask, [pts], 1)
+            _, labels = cv2.connectedComponents(img_closed)
             layer_comps = np.unique(labels[np.where(vicinity_mask.astype(bool))])
             layer_mask = np.isin(labels, layer_comps[layer_comps != 0])
 
             self._extracted_layer = layer_mask
         return self._extracted_layer
 
-    def contactline_points(self) -> npt.NDArray[np.int64]:
-        """
-        Get the coordinates of the contact line points of the layer.
-
-        Return value as ``(left x, left y, right x, right y)``.
-        """
-        if not hasattr(self, "_contactline_points"):
-            p0 = self.substrate_point()
-            _, bl, br, _ = self.substrate.vertex_points()
-            B = p0 + bl
-            C = p0 + br
-            layer_label = self.label_layer()
-
-            left = (layer_label & self.Region.LEFTHALF).astype(bool)
-            left_y, left_x = np.where(left)
-            left_points = np.stack([left_x, left_y], axis=1)
-            if left_points.size != 0:
-                left_cp = left_points[np.argmin(left_points, axis=0)[1]]
-            else:
-                left_cp = B.astype(np.int64).flatten()
-
-            right = (layer_label & ~left).astype(bool)
-            right_y, right_x = np.where(right)
-            right_points = np.stack([right_x, right_y], axis=1)
-            if right_points.size != 0:
-                right_cp = right_points[np.argmin(right_points, axis=0)[1]]
-            else:
-                right_cp = C.astype(np.int64).flatten()
-
-            self._contactline_points = np.stack([left_cp, right_cp])
-
-        return self._contactline_points
-
-    def layer_surface(self) -> npt.NDArray[np.int32]:
-        """
-        Return the gas-liquid interface of the coating layer.
-
-        Similar to :meth:`layer_contours`, but this is an open and continuous
-        curve even if the coating layer is discontinuous.
-        """
-        if not hasattr(self, "_layer_surface"):
-            # remove every pixels above the contact line.
-            mask = self.coated_substrate()
-            h, w = mask.shape[:2]
-            p1, p2 = self.contactline_points()
-            # cv2.fillPoly is much more faster than np.cross here
-            ext_points = get_extended_line((h, w), p1, p2)
-            ext_x, ext_y = ext_points.T
-            idxs = np.where((0 <= ext_x) & (ext_x <= w) & (0 <= ext_y) & (ext_y <= h))
-            pts = ext_points[idxs].astype(np.int64)
-            pts = pts[np.argsort(pts[..., 0])]
-            pts = np.insert(pts, 0, [0, 0], axis=0)
-            pts = np.insert(pts, pts.shape[0], [w, 0], axis=0)
-            img = mask.astype(np.uint8) * 255
-            cv2.fillPoly(img, [pts], 0)
-
-            (cnt,), _ = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-            (points,) = cnt.transpose(1, 0, 2)
-
-            # deal with the starting point and ending point of the contour
-            i0 = int(np.argmin(np.linalg.norm(points - p1, axis=1)))
-            i1 = int(np.argmin(np.linalg.norm(points - p2, axis=1)))
-            if i0 >= i1 + 1:
-                surface = np.concatenate([points[i0:], points[: i1 + 1]])
-            else:
-                surface = points[i0 : i1 + 1]
-
-            self._layer_surface = surface
-
-        return self._layer_surface
+    def layer_area(self) -> int:
+        """Return the number of pixels in coating layer region."""
+        if not hasattr(self, "_layer_area"):
+            self._layer_area = np.count_nonzero(self.extract_layer())
+        return self._layer_area
 
     def thickness_points(self) -> npt.NDArray[np.float64]:
+        # TODO: make as tuple of points
         if not hasattr(self, "_thickness_points"):
+            # TODO: use surface and hausdorff distance (maybe scipy)
             contours = self.layer_contours()
             if not contours:
                 cnt_points = np.empty((0, 1, 2), dtype=np.int32)
@@ -480,8 +418,8 @@ class RectLayerShape(
             def find_thickest(points, A, B):
                 Ap = points - A
                 AB = B - A
-                t = np.dot(Ap, AB.T) / np.dot(AB, AB.T)
-                AC = t * AB
+                t = np.dot(Ap, AB) / np.dot(AB, AB)
+                AC = np.tensordot(t, AB, axes=0)
                 dists = np.linalg.norm(Ap - AC, axis=1)
                 mask = dists == np.max(dists)
                 pts = np.stack(
@@ -517,26 +455,30 @@ class RectLayerShape(
 
         return self._thickness_points
 
-    def layer_area(self) -> int:
-        """Return the number of pixels in coating layer region."""
-        if not hasattr(self, "_layer_area"):
-            self._layer_area = np.count_nonzero(self.extract_layer())
-        return self._layer_area
-
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """
         Return thickness and points for uniform layer that satisfies
         :meth:`layer_area`.
         """
         if not hasattr(self, "_uniform_layer"):
+            # get contact line points
+            sl_interfaces, _ = self.interfaces()
+            if len(sl_interfaces) == 0:
+                layer = np.empty((0, 1, 2), dtype=np.float64)
+                self._uniform_layer = (np.float64(0), layer)
+                return self._uniform_layer
+            sl_points = np.concatenate(sl_interfaces)
+            if len(sl_points) == 0:
+                layer = np.empty((0, 1, 2), dtype=np.float64)
+                self._uniform_layer = (np.float64(0), layer)
+                return self._uniform_layer
+            p1, p2 = sl_points[0], sl_points[-1]
+
             subst_point = self.substrate_point()
             hull, _ = self.substrate.edge_hull()
             (hull,) = (hull + subst_point).transpose(1, 0, 2)
-
-            # find projection points from contactline_points to hull and add to hull
             dh = np.diff(hull, axis=0)
             dh_dot_dh = np.sum(dh * dh, axis=-1)
-            p1, p2 = self.contactline_points()
 
             def find_projection(p):
                 h_p = p - hull[:-1, ...]
@@ -571,8 +513,8 @@ class RectLayerShape(
             normal = np.dot(tangent, ROTATION_MATRIX)
             n = normal / np.linalg.norm(normal, axis=1)[..., np.newaxis]
             dndt = np.gradient(n, t, axis=0)
-            S = self.layer_area()
 
+            S = self.layer_area()
             L0 = 10  # initial value
             L_NUM = 100  # interval number
 
@@ -592,18 +534,17 @@ class RectLayerShape(
                     return newL
                 return findL(newL, l_num)
 
-            if S != 0:
-                L = findL(L0, L_NUM)
-            else:
-                L = np.float64(0)
+            L = findL(L0, L_NUM)
             self._uniform_layer = (L, new_hull + L * n)
 
         return self._uniform_layer
 
     def roughness(self) -> np.float64:
         """Dimensional roughness value of the coating layer surface."""
-        surface = self.layer_surface()
-        L, uniform_layer = self.uniform_layer()
+        (surface,) = self.surface().transpose(1, 0, 2)
+        _, uniform_layer = self.uniform_layer()
+        if surface.size == 0 or uniform_layer.size == 0:
+            return np.float64(np.nan)
 
         NUM_POINTS = 1000
 
@@ -665,14 +606,18 @@ class RectLayerShape(
 
         contactline_opts = self.deco_options.contact_line
         if contactline_opts.thickness > 0:
-            p1, p2 = self.contactline_points()
-            cv2.line(
-                image,
-                p1,
-                p2,
-                dataclasses.astuple(contactline_opts.color),
-                contactline_opts.thickness,
-            )
+            sl_interfaces, _ = self.interfaces()
+            if len(sl_interfaces) != 0:
+                sl_points = np.concatenate(sl_interfaces)
+                if len(sl_points) != 0:
+                    (p1,), (p2,) = sl_points[0], sl_points[-1]
+                    cv2.line(
+                        image,
+                        p1,
+                        p2,
+                        dataclasses.astuple(contactline_opts.color),
+                        contactline_opts.thickness,
+                    )
 
         thicknesslines_opts = self.deco_options.thickness_lines
         if thicknesslines_opts.thickness > 0:
@@ -715,13 +660,21 @@ class RectLayerShape(
     ]:
         AREA = self.layer_area()
 
-        subst_p = self.substrate_point()
-        _, bl, br, _ = self.substrate.vertex_points()
-        bottomleft = subst_p + bl
-        bottomright = subst_p + br
-        p1, p2 = self.contactline_points()
-        LEN_L = np.linalg.norm(bottomleft - p1)
-        LEN_R = np.linalg.norm(bottomright - p2)
+        _, B, C, _ = self.substrate.vertex_points() + self.substrate_point()
+        sl_interfaces, _ = self.interfaces()
+        if len(sl_interfaces) == 0:
+            LEN_L = LEN_R = np.float64(0)
+        else:
+            sl_points = np.concatenate(sl_interfaces)
+            if len(sl_points) == 0:
+                LEN_L = LEN_R = np.float64(0)
+            else:
+                points = np.concatenate([sl_points[0], sl_points[-1]])
+                Bp = points - B
+                BC = C - B
+                t = np.dot(Bp, BC) / np.dot(BC, BC)
+                dists = np.linalg.norm(Bp - np.tensordot(t, BC, axes=0), axis=1)
+                LEN_L, LEN_R = dists.astype(np.float64)
 
         tp_l, tp_b, tp_r = self.thickness_points()
         THCK_L = np.linalg.norm(np.diff(tp_l, axis=0))
@@ -732,7 +685,7 @@ class RectLayerShape(
         ROUGH = self.roughness()
 
         ERR, _ = self.match_substrate()
-        CHIPWIDTH = np.linalg.norm(bl - br)
+        CHIPWIDTH = np.linalg.norm(B - C)
 
         return (
             AREA,
@@ -749,7 +702,7 @@ class RectLayerShape(
 
 
 def get_extended_line(
-    frame_shape: Tuple[int, int], p1: npt.NDArray[np.int64], p2: npt.NDArray[np.int64]
+    frame_shape: Tuple[int, int], p1: npt.NDArray[np.int32], p2: npt.NDArray[np.int32]
 ) -> npt.NDArray[np.float64]:
     # TODO: make it more elegant with matrix determinant and sorta things
     h, w = frame_shape
