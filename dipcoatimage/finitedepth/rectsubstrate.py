@@ -36,7 +36,6 @@ Implementation
 import cv2  # type: ignore
 import dataclasses
 import enum
-from itertools import combinations
 import numpy as np
 import numpy.typing as npt
 from typing import TypeVar, Tuple, Optional, Type
@@ -103,7 +102,6 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
     __slots__ = (
         "_lines",
-        "_intersect_points",
         "_vertex_points",
     )
 
@@ -180,55 +178,24 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         point_labels = np.argmin(dists, axis=-1)
         # sort the lines along the contour
         line_order = []
-        for i in range(4):
+        for i in range(len(lines)):
             (pos,) = np.where(point_labels == i)
             line_order.append(np.mean(pos))
         return lines[np.argsort(line_order)]
 
-    def intersect_points(self) -> npt.NDArray[np.float32]:
-        """Return the intersection points of :meth:`edge_lines`."""
-        if not hasattr(self, "_intersect_points"):
-            mats, vecs = [], []
-            for l1, l2 in combinations(self.edge_lines(), 2):
-                ((r1, t1),) = l1
-                ((r2, t2),) = l2
-                mats.append(
-                    np.array([[np.cos(t1), np.sin(t1)], [np.cos(t2), np.sin(t2)]])
-                )
-                vecs.append(np.array([[r1], [r2]]))
-            mat = np.array(mats)
-            vec = np.array(vecs)
-            sol_exists = np.linalg.det(mat) != 0
-            intrsct = (
-                np.linalg.inv(mat[np.where(sol_exists)]) @ vec[np.where(sol_exists)]
-            )
-            self._intersect_points = intrsct.astype(np.float32)
-        return self._intersect_points
-
-    def vertex_points(self) -> npt.NDArray[np.float32]:
-        """
-        Determine four vertices of the substrate from :meth:`intersect_points`.
-
-        Points are sorted counterclockwise in the image.
-        """
+    def vertex_points(self):
         if not hasattr(self, "_vertex_points"):
-            intrsct = self.intersect_points()
-
-            # get 4 points which make up a quadrilateral
-            M = cv2.moments(self.contour())
-            cent = np.array([M["m10"] / M["m00"], M["m01"] / M["m00"]])
-            dist = np.linalg.norm(intrsct - cent[..., np.newaxis], axis=1)
-            points = intrsct[np.argsort(dist, axis=0).flatten()][:4]
-
-            # counterclockwise sort
-            ((vec_x, vec_y),) = (points - cent[..., np.newaxis]).transpose(2, 1, 0)
-            ccw_idx = np.flip(np.argsort(np.arctan2(vec_y, vec_x)))
-            (points_ccw,) = points[ccw_idx].transpose(2, 0, 1)
-            # sort as (A, B, C, D), where line BC is "bottom" of the substrate
-            lower_points = np.argsort(points_ccw[..., 1])[-2:]
-            B_idx = lower_points[np.argmin((lower_points + 1) % 4)]
-            self._vertex_points = np.roll(points_ccw, 1 - B_idx, axis=0)
-
+            lines = self.edge_lines()
+            ((r1, t1),) = lines.transpose(1, 2, 0)
+            ((r2, t2),) = np.roll(lines, 1, axis=0).transpose(1, 2, 0)
+            mat = np.array(
+                [[np.cos(t1), np.sin(t1)], [np.cos(t2), np.sin(t2)]]
+            ).transpose(2, 0, 1)
+            vec = np.array([[r1], [r2]]).transpose(2, 0, 1)
+            sol_exists = np.linalg.det(mat) != 0
+            (self._vertex_points,) = (
+                np.linalg.inv(mat[np.where(sol_exists)]) @ vec[np.where(sol_exists)]
+            ).transpose(2, 0, 1)
         return self._vertex_points
 
     def examine(self) -> Optional[RectSubstrateError]:
@@ -238,12 +205,6 @@ class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         if l_num < 4:
             ret = RectSubstrateError(
                 f"Insufficient lines from HoughLines (needs >= 4, got {l_num})"
-            )
-
-        p_num = len(self.intersect_points())
-        if p_num < 4:
-            ret = RectSubstrateError(
-                f"Insufficient intersection points (needs >= 4, got {p_num})"
             )
 
         return ret
