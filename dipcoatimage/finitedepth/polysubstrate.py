@@ -10,6 +10,7 @@ import cv2  # type: ignore
 import dataclasses
 import numpy as np
 import numpy.typing as npt
+from scipy.ndimage import gaussian_filter1d  # type: ignore
 from typing import TypeVar, Tuple, Optional, Type
 from .substrate import SubstrateError, SubstrateBase
 from .util import DataclassProtocol
@@ -45,11 +46,11 @@ class HoughLinesParameters:
 @dataclasses.dataclass(frozen=True)
 class PolySubstrateParameters:
     """
-    Parameters for the polygonal substrate class to detect its sides using
-    Hough line transformation.
+    Parameters for the polygonal substrate class to detect its sides.
     """
 
     HoughLines: HoughLinesParameters
+    GaussianSigma: int = 2
 
 
 ParametersType = TypeVar("ParametersType", bound=PolySubstrateParameters)
@@ -83,6 +84,11 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             cv2.CHAIN_APPROX_NONE,
         )
         return cnt
+
+    def contour_smooth(self) -> npt.NDArray[np.float64]:
+        return gaussian_filter1d(
+            self.contour().astype(np.float64), self.parameters.GaussianSigma, axis=0
+        )
 
     def edge(self) -> npt.NDArray[np.bool_]:
         """
