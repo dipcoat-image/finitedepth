@@ -5,7 +5,7 @@ from dipcoatimage.finitedepth import (
     RectSubstrate,
     get_samples_path,
 )
-from dipcoatimage.finitedepth.rectsubstrate import HoughLinesParameters
+from dipcoatimage.finitedepth.polysubstrate import HoughLinesParameters
 
 
 @pytest.fixture
