@@ -11,7 +11,8 @@ import dataclasses
 import numpy as np
 import numpy.typing as npt
 from scipy.ndimage import gaussian_filter1d  # type: ignore
-from typing import TypeVar, Tuple, Optional, Type
+from scipy.signal import find_peaks, peak_prominences  # type: ignore
+from typing import TypeVar, List, Tuple, Optional, Type
 from .substrate import SubstrateError, SubstrateBase
 from .util import DataclassProtocol
 
@@ -50,7 +51,7 @@ class PolySubstrateParameters:
     """
 
     HoughLines: HoughLinesParameters
-    GaussianSigma: int = 2
+    GaussianSigma: int = 3
 
 
 ParametersType = TypeVar("ParametersType", bound=PolySubstrateParameters)
@@ -85,10 +86,24 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         )
         return cnt
 
-    def contour_smooth(self) -> npt.NDArray[np.float64]:
-        return gaussian_filter1d(
-            self.contour().astype(np.float64), self.parameters.GaussianSigma, axis=0
-        )
+    def split_contour(self) -> List[npt.NDArray[np.int32]]:
+        # 1. Get theta values of the tangent curve and take smooth derivative
+        tan = np.gradient(self.contour(), axis=0)
+        t = np.arctan2(tan[..., 1], tan[..., 0])
+        sigma = self.parameters.GaussianSigma
+        t_grad = gaussian_filter1d(t, sigma, axis=0, order=1)
+
+        # 2. Find peak. Each peak shows the point where side changes.
+        # Since the first corder is ALWAYS on the first contour point, its peak
+        # cannot be found so we find (self.SidesNum - 1) peaks.
+        t_abs = np.abs(t_grad)[..., 0]
+        peaks, _ = find_peaks(t_abs)
+        prom, _, _ = peak_prominences(t_abs, peaks)
+        k = self.SidesNum - 1
+        corner_promidx = np.argpartition(prom, -k)[-k:]
+
+        # 3. Split the contour points and return
+        return np.split(self.contour(), peaks[corner_promidx], axis=0)
 
     def edge(self) -> npt.NDArray[np.bool_]:
         """
