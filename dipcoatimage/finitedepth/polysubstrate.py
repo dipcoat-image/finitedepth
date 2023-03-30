@@ -92,35 +92,55 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         # 1. Get theta values of the tangent curve and take smooth derivative.
         # This allows us to find sides even from jittery polygons.
+        # Since the contour is periodic and edge information might be lost,
+        # we repeat theta in both direction.
         tan = np.gradient(contour, axis=0)
         theta = np.arctan2(tan[..., 1], tan[..., 0])
+        theta2 = np.concatenate(
+            [
+                theta[(len(theta) // 2) :],
+                theta,
+                theta[: (len(theta) // 2)],
+            ],
+            axis=0,
+        )
         sigma = self.parameters.GaussianSigma
-        theta_smooth = gaussian_filter1d(theta, sigma, axis=0)
+        theta2_smooth = gaussian_filter1d(theta2, sigma, axis=0)
 
         # 2. Find peak. Each peak shows the point where side changes. This allows
         # us to discern individual sides lying on same line.
-        # Since the first corder is ALWAYS on the first contour point, its peak
-        # cannot be found so we find (self.SidesNum - 1) peaks.
-        theta_grad = np.gradient(theta_smooth, axis=0)
-        theta_abs = np.abs(theta_grad)[..., 0]
-        peaks, _ = find_peaks(theta_abs)
-        prom, _, _ = peak_prominences(theta_abs, peaks)
-        k = self.SidesNum - 1
-        corner_promidx = np.sort(np.argsort(prom)[-k:])
+        # Since we repeated theta, we find (2*self.SidesNum) peaks and discard
+        # the duplicates.
+        theta2_grad = np.gradient(theta2_smooth, axis=0)
+        theta2_abs = np.abs(theta2_grad)[..., 0]
+        peaks, _ = find_peaks(theta2_abs)
+        prom, _, _ = peak_prominences(theta2_abs, peaks)
+        k = 2 * self.SidesNum
+        prom_peaks = peaks[np.sort(np.argsort(prom)[-k:])]
+        (idxs,) = np.where(
+            (len(theta) // 2 <= prom_peaks) & (prom_peaks < 3 * len(theta) // 2)
+        )
+        corner_peaks = np.sort(prom_peaks[idxs][: self.SidesNum]) - len(theta) // 2
 
         # 3. Digitize smoothed line and get votes to determine main theta.
         # We must take vote from disgitized smoothed line, not from raw theta
         # in order to be robust from jittery noises.
+        theta_smooth = theta2_smooth[len(theta) // 2 : 3 * len(theta) // 2]
+        # roll s.t. no residual section at the beginning
+        theta_smooth = np.roll(theta_smooth, -corner_peaks[0], axis=0)
+        corner_peaks = corner_peaks - corner_peaks[0]
+
         THETA_STEP = self.parameters.Theta
         indices = []
-        for region in np.split(theta_smooth, peaks[corner_promidx], axis=0):
+        for region in np.split(theta_smooth, corner_peaks[1:], axis=0):
             digitized = (region / THETA_STEP).astype(np.int32) * THETA_STEP
             val, count = np.unique(digitized, return_counts=True)
             main_theta = val[np.argmax(count)]
             # XXX: give more offset
-            idxs, _ = np.nonzero(digitized == main_theta)  # idxs is never empty!
+            idxs, _ = np.nonzero(digitized == main_theta)
             indices.append([idxs[0], idxs[-1]])
-        base_indices = np.insert(peaks[corner_promidx], 0, 0)[..., np.newaxis]
+
+        base_indices = corner_peaks[..., np.newaxis]
         split_indices = base_indices + np.array(indices)
         sections = np.split(contour, split_indices.flatten())
         return sections
