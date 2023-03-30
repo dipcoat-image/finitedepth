@@ -100,7 +100,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         peaks, _ = find_peaks(t_abs)
         prom, _, _ = peak_prominences(t_abs, peaks)
         k = self.SidesNum - 1
-        corner_promidx = np.argpartition(prom, -k)[-k:]
+        corner_promidx = np.sort(np.argpartition(prom, -k)[-k:])
 
         # 3. Split the contour points and return
         return np.split(self.contour(), peaks[corner_promidx], axis=0)
