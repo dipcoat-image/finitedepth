@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.ndimage import gaussian_filter1d  # type: ignore
 from scipy.signal import find_peaks, peak_prominences  # type: ignore
-from typing import TypeVar, List, Tuple, Optional, Type
+from typing import TypeVar, Tuple, Optional, Type
 from .substrate import SubstrateError, SubstrateBase
 from .util import DataclassProtocol
 
@@ -52,7 +52,7 @@ class PolySubstrateParameters:
 
     HoughLines: HoughLinesParameters
     GaussianSigma: int = 3
-    Theta: float = 0.1
+    Theta: float = 0.01
 
 
 ParametersType = TypeVar("ParametersType", bound=PolySubstrateParameters)
@@ -87,7 +87,8 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         )
         return cnt
 
-    def split_contour(self) -> List[npt.NDArray[np.int32]]:
+    def linear_sides(self) -> Tuple[npt.NDArray[np.int64], npt.NDArray[np.float32]]:
+        """Return the contour indices and polar parameters for linear sides."""
         contour = self.contour()
 
         # 1. Get theta values of the tangent curve and take smooth derivative.
@@ -133,18 +134,32 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         THETA_STEP = self.parameters.Theta
         indices = []
+        thetas = []
         for region in np.split(theta_smooth, corner_peaks[1:], axis=0):
-            digitized = (region / THETA_STEP).astype(np.int32) * THETA_STEP
+            digitized = (region / THETA_STEP).astype(int) * THETA_STEP
             val, count = np.unique(digitized, return_counts=True)
             main_theta = val[np.argmax(count)]
-            # XXX: give more offset
             idxs, _ = np.nonzero(digitized == main_theta)
             indices.append([idxs[0], idxs[-1]])
+            thetas.append(main_theta)
 
         base_indices = SHIFT + corner_peaks[..., np.newaxis]
-        split_indices = np.sort((base_indices + np.array(indices)) % len(theta), axis=0)
-        sections = np.split(contour, split_indices.flatten())
-        return sections
+        split_indices = (base_indices + np.array(indices, dtype=np.int64)) % len(theta)
+        sortidx = np.argsort(split_indices, axis=0)
+        split_indices = split_indices[sortidx[..., 0]]
+
+        # convert slope theta to polar angle (just as HoughLines parameter)
+        thetas_array = (np.array(thetas) - np.pi / 2) % np.pi
+        angles = thetas_array[sortidx[..., 0]][..., np.newaxis]
+        lines = [contour[i0:i1] for (i0, i1) in split_indices]
+        line_centers = np.array([np.mean(line, axis=0) for line in lines])
+
+        x_cos = line_centers[..., 0] * np.cos(angles)
+        y_sin = line_centers[..., 1] * np.sin(angles)
+        r = x_cos + y_sin
+        line_params = np.stack([r, angles]).transpose(1, 2, 0).astype(np.float32)
+
+        return split_indices, line_params
 
     def edge(self) -> npt.NDArray[np.bool_]:
         """
