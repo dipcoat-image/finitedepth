@@ -20,6 +20,7 @@ import dataclasses
 import enum
 import numpy as np
 import numpy.typing as npt
+from typing import Tuple
 from .polysubstrate import PolySubstrateParameters, PolySubstrateBase
 from .util import (
     colorize,
@@ -68,14 +69,11 @@ class RectSubstrateDrawOptions:
     """Drawing options for :class:`RectSubstrate`."""
 
     draw_mode: RectSubstrateDrawMode = RectSubstrateDrawMode.BINARY
-    lines: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(0, 255, 0), thickness=1
-    )
-    edges: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(0, 0, 255), thickness=5
+    sides: FeatureDrawingOptions = FeatureDrawingOptions(
+        color=Color(0, 0, 255), thickness=1
     )
     hull: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(255, 0, 0), thickness=3
+        color=Color(255, 0, 0), thickness=1
     )
 
 
@@ -123,8 +121,8 @@ class RectSubstrate(
        :include-source:
        :context: close-figs
 
-       >>> subst.draw_options.lines.thickness = 0
-       >>> subst.draw_options.edges.color.red = 255
+       >>> subst.draw_options.sides.thickness = 3
+       >>> subst.draw_options.sides.color.red = 255
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
     """
@@ -135,6 +133,13 @@ class RectSubstrate(
 
     DrawMode: TypeAlias = RectSubstrateDrawMode
 
+    def edge_hull(self) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.float64]]:
+        hull = np.flip(cv2.convexHull(self.contour()), axis=0)
+        # TODO: get more points by interpolating to `hull`
+        tangent = np.gradient(hull, axis=0)
+        # TODO: perform edge tangent flow to get smoother curve
+        return hull, tangent
+
     def draw(self) -> npt.NDArray[np.uint8]:
         draw_mode = self.draw_options.draw_mode
         if draw_mode is self.DrawMode.ORIGINAL:
@@ -142,35 +147,21 @@ class RectSubstrate(
         elif draw_mode is self.DrawMode.BINARY:
             image = self.binary_image()
         elif draw_mode is self.DrawMode.EDGES:
-            image = self.edge() * np.uint8(255)
+            h, w = self.image().shape[:2]
+            mask = np.zeros((h, w), bool)
+            ((x, y),) = self.contour().transpose(1, 2, 0)
+            mask[y, x] = True
+            image = mask * np.uint8(255)
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
         ret = colorize(image)
 
-        line_opts = self.draw_options.lines
-        if line_opts.thickness > 0:
-            r, theta = np.transpose(self.lines(), (2, 0, 1))
-            vec = np.dstack([np.cos(theta), np.sin(theta)])
-            pts0 = vec * r[..., np.newaxis]
-            h, w = ret.shape[:2]
-            pts1 = pts0 + np.tensordot(vec, np.array([[0, h], [-w, 0]]), axes=1)
-            pts2 = pts0 + np.tensordot(vec, np.array([[0, -h], [w, 0]]), axes=1)
-
-            for p0, p1 in zip(pts1, pts2):
-                cv2.line(
-                    ret,
-                    p0.flatten().astype(np.int32),
-                    p1.flatten().astype(np.int32),
-                    dataclasses.astuple(line_opts.color),
-                    line_opts.thickness,
-                )
-
-        edge_opts = self.draw_options.edges
-        if edge_opts.thickness > 0:
+        side_opts = self.draw_options.sides
+        if side_opts.thickness > 0:
             tl, bl, br, tr = self.vertex_points().astype(np.int32)
 
-            color = dataclasses.astuple(edge_opts.color)
-            thickness = edge_opts.thickness
+            color = dataclasses.astuple(side_opts.color)
+            thickness = side_opts.thickness
             cv2.line(ret, tl, tr, color, thickness)
             cv2.line(ret, tr, br, color, thickness)
             cv2.line(ret, br, bl, color, thickness)
