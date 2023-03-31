@@ -126,17 +126,18 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         # 3. Digitize smoothed line and get votes to determine main theta.
         # We must take vote from disgitized smoothed line, not from raw theta
         # in order to be robust from jittery noises.
-        theta_smooth = theta2_smooth[len(theta) // 2 : -len(theta) // 2]
-        # roll s.t. no residual section at the beginning
+        # We smooth each line separately to minimize the effect on shap corner.
         SHIFT = corner_peaks[0]
-        theta_smooth = np.roll(theta_smooth, -SHIFT, axis=0)
+        # roll s.t. no residual section at the beginning
+        theta_roll = np.roll(theta, -SHIFT, axis=0)
         corner_peaks = corner_peaks - SHIFT
 
         THETA_STEP = self.parameters.Theta
         indices = []
         thetas = []
-        for region in np.split(theta_smooth, corner_peaks[1:], axis=0):
-            digitized = (region / THETA_STEP).astype(int) * THETA_STEP
+        for region in np.split(theta_roll, corner_peaks[1:], axis=0):
+            region_smooth = gaussian_filter1d(region, sigma, axis=0)
+            digitized = (region_smooth / THETA_STEP).astype(int) * THETA_STEP
             val, count = np.unique(digitized, return_counts=True)
             main_theta = val[np.argmax(count)]
             idxs, _ = np.nonzero(digitized == main_theta)
