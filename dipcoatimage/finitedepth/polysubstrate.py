@@ -52,7 +52,7 @@ class PolySubstrateParameters:
 
     HoughLines: HoughLinesParameters
     GaussianSigma: int = 3
-    Theta: float = 0.01
+    Theta: float = 0.1
 
 
 ParametersType = TypeVar("ParametersType", bound=PolySubstrateParameters)
@@ -98,7 +98,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         theta = np.arctan2(tan[..., 1], tan[..., 0])
         theta2 = np.concatenate(
             [
-                theta[(len(theta) // 2) :],
+                theta[-(len(theta) // 2) :],
                 theta,
                 theta[: (len(theta) // 2)],
             ],
@@ -125,10 +125,11 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         # 3. Digitize smoothed line and get votes to determine main theta.
         # We must take vote from disgitized smoothed line, not from raw theta
         # in order to be robust from jittery noises.
-        theta_smooth = theta2_smooth[len(theta) // 2 : 3 * len(theta) // 2]
+        theta_smooth = theta2_smooth[len(theta) // 2 : -len(theta) // 2]
         # roll s.t. no residual section at the beginning
-        theta_smooth = np.roll(theta_smooth, -corner_peaks[0], axis=0)
-        corner_peaks = corner_peaks - corner_peaks[0]
+        SHIFT = corner_peaks[0]
+        theta_smooth = np.roll(theta_smooth, -SHIFT, axis=0)
+        corner_peaks = corner_peaks - SHIFT
 
         THETA_STEP = self.parameters.Theta
         indices = []
@@ -140,8 +141,8 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             idxs, _ = np.nonzero(digitized == main_theta)
             indices.append([idxs[0], idxs[-1]])
 
-        base_indices = corner_peaks[..., np.newaxis]
-        split_indices = base_indices + np.array(indices)
+        base_indices = SHIFT + corner_peaks[..., np.newaxis]
+        split_indices = np.sort((base_indices + np.array(indices)) % len(theta), axis=0)
         sections = np.split(contour, split_indices.flatten())
         return sections
 
