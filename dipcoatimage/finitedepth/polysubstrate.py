@@ -113,18 +113,21 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         # 2. Find peak. Each peak shows the point where side changes. This allows
         # us to discern individual sides lying on same line.
-        # Since we repeated theta, we find (2*self.SidesNum) peaks and discard
-        # the duplicates.
+        # Since we repeated theta, we select the peaks in desired region.
         theta2_grad = np.gradient(theta2_smooth, axis=0)
         theta2_abs = np.abs(theta2_grad)[..., 0]
-        peaks, _ = find_peaks(theta2_abs)
+        peaks2, _ = find_peaks(theta2_abs)
+        (idxs,) = np.where((len(theta) // 2 <= peaks2) & (peaks2 < 3 * len(theta) // 2))
+        peaks = peaks2[idxs]
         prom, _, _ = peak_prominences(theta2_abs, peaks)
-        k = 2 * self.SidesNum
-        prom_peaks = peaks[np.sort(np.argsort(prom)[-k:])]
-        (idxs,) = np.where(
-            (len(theta) // 2 <= prom_peaks) & (prom_peaks < 3 * len(theta) // 2)
-        )
-        corner_peaks = np.sort(prom_peaks[idxs][: self.SidesNum]) - len(theta) // 2
+        if len(prom) < self.SidesNum:
+            msg = (
+                "Insufficient number of sides"
+                f" (needs {self.SidesNum}, detected {len(prom)})"
+            )
+            raise PolySubstrateError(msg)
+        prom_peaks = peaks[np.sort(np.argsort(prom)[-self.SidesNum :])]
+        corner_peaks = np.sort(prom_peaks) - (len(theta) // 2)
 
         # 3. Digitize smoothed line and get votes to determine main theta.
         # We must take vote from disgitized smoothed line, not from raw theta
@@ -185,4 +188,8 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         return self._vertex_points
 
     def examine(self) -> Optional[PolySubstrateError]:
+        try:
+            self.sides()
+        except PolySubstrateError as err:
+            return err
         return None
