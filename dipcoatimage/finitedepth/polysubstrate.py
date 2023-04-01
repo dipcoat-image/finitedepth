@@ -113,13 +113,12 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             ],
             axis=0,
         )
-        theta2_smooth = gaussian_filter1d(theta2, self.parameters.GaussianSigma, axis=0)
+        grad = gaussian_filter1d(theta2, self.parameters.GaussianSigma, axis=0, order=1)
 
         # 2. Find peak. Each peak shows the point where side changes. This allows
         # us to discern individual sides lying on same line.
         # Since we repeated theta, we select the peaks in desired region.
-        theta2_grad = np.gradient(theta2_smooth, axis=0)
-        theta2_abs = np.abs(theta2_grad)[..., 0]
+        theta2_abs = np.abs(grad)[..., 0]
         peaks2, _ = find_peaks(theta2_abs)
         (idxs,) = np.where((len(theta) // 2 <= peaks2) & (peaks2 < 3 * len(theta) // 2))
         peaks = peaks2[idxs]
