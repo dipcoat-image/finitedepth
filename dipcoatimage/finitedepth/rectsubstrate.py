@@ -109,10 +109,8 @@ class RectSubstrate(
        :include-source:
        :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import RectSubstrate, data_converter
-       >>> param_val = dict(HoughLines=dict(rho=1.0, theta=0.01, threshold=100))
-       >>> param = data_converter.structure(param_val, RectSubstrate.Parameters)
-       >>> subst = RectSubstrate(ref, parameters=param)
+       >>> from dipcoatimage.finitedepth import RectSubstrate
+       >>> subst = RectSubstrate(ref)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
     Visualization can be controlled by modifying :attr:`draw_options`.

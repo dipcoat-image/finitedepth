@@ -19,7 +19,6 @@ from .util import DataclassProtocol
 
 __all__ = [
     "PolySubstrateError",
-    "HoughLinesParameters",
     "PolySubstrateParameters",
     "PolySubstrateBase",
 ]
@@ -32,25 +31,11 @@ class PolySubstrateError(SubstrateError):
 
 
 @dataclasses.dataclass(frozen=True)
-class HoughLinesParameters:
-    """Parameters for :func:`cv2.HoughLines`."""
-
-    rho: float
-    theta: float
-    threshold: int
-    srn: float = 0.0
-    stn: float = 0.0
-    min_theta: float = 0.0
-    max_theta: float = np.pi
-
-
-@dataclasses.dataclass(frozen=True)
 class PolySubstrateParameters:
     """
     Parameters for the polygonal substrate class to detect its sides.
     """
 
-    HoughLines: HoughLinesParameters
     GaussianSigma: int = 3
     Theta: float = 0.01
 

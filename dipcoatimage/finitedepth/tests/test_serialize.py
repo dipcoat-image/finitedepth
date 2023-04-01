@@ -78,7 +78,7 @@ def test_SubstrateArgs():
     substargs = SubstrateArgs(
         type=ImportArgs(name="RectSubstrate"),
         parameters=dict(
-            HoughLines=dict(rho=1.0, theta=0.01, threshold=100),
+            GaussianSigma=5,
         ),
         draw_options=dict(sides=dict(thickness=0)),
     )
@@ -99,12 +99,7 @@ def test_CoatingLayerArgs():
     refargs = ReferenceArgs()
     ref = refargs.as_reference(REF_IMG)
 
-    substargs = SubstrateArgs(
-        type=ImportArgs(name="RectSubstrate"),
-        parameters=dict(
-            HoughLines=dict(rho=1.0, theta=0.01, threshold=100),
-        ),
-    )
+    substargs = SubstrateArgs(type=ImportArgs(name="RectSubstrate"))
     subst = substargs.as_substrate(ref)
 
     layerargs = CoatingLayerArgs(

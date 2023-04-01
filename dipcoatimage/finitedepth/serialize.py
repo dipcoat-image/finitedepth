@@ -162,9 +162,8 @@ class SubstrateArgs:
        :include-source:
        :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import SubstrateArgs, data_converter
-       >>> params = {"HoughLines": {"rho": 1, "theta": 0.01, "threshold": 100}}
-       >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)
+       >>> from dipcoatimage.finitedepth import SubstrateArgs
+       >>> arg = dict(type={"name": "RectSubstrate"})
        >>> substargs = data_converter.structure(arg, SubstrateArgs)
        >>> subst = substargs.as_substrate(ref)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
@@ -248,8 +247,7 @@ class CoatingLayerArgs:
        >>> refargs = ReferenceArgs(templateROI=(100, 50, 1200, 200),
        ...                         substrateROI=(300, 100, 950, 600))
        >>> ref = refargs.as_reference(cv2.imread(get_samples_path("ref3.png")))
-       >>> params = {"HoughLines": {"rho": 1, "theta": 0.01, "threshold": 100}}
-       >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)
+       >>> arg = dict(type={"name": "RectSubstrate"})
        >>> substargs = data_converter.structure(arg, SubstrateArgs)
        >>> subst = substargs.as_substrate(ref)
 
