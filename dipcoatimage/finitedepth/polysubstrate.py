@@ -103,16 +103,17 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         # This allows us to find sides even from jittery polygons.
         # Since the contour is periodic and edge information might be lost,
         # we repeat theta in both direction.
-        tan = np.gradient(self.contour(), axis=0)
-        theta = np.arctan2(tan[..., 1], tan[..., 0])
-        theta2 = np.concatenate(
+        L = len(self.contour())
+        contour2 = np.concatenate(
             [
-                theta[-(len(theta) // 2) :],
-                theta,
-                theta[: (len(theta) // 2)],
+                self.contour()[-(L // 2) :],
+                self.contour(),
+                self.contour()[: (L // 2)],
             ],
             axis=0,
         )
+        tan2 = np.diff(contour2, axis=0)
+        theta2 = np.arctan2(tan2[..., 1], tan2[..., 0])
         grad = gaussian_filter1d(theta2, self.parameters.GaussianSigma, axis=0, order=1)
 
         # 2. Find peak. Each peak shows the point where side changes. This allows
@@ -120,7 +121,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         # Since we repeated theta, we select the peaks in desired region.
         theta2_abs = np.abs(grad)[..., 0]
         peaks2, _ = find_peaks(theta2_abs)
-        (idxs,) = np.where((len(theta) // 2 <= peaks2) & (peaks2 < 3 * len(theta) // 2))
+        (idxs,) = np.where((L // 2 <= peaks2) & (peaks2 < 3 * L // 2))
         peaks = peaks2[idxs]
         prom, _, _ = peak_prominences(theta2_abs, peaks)
         if len(prom) < self.SidesNum:
@@ -130,15 +131,19 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             )
             raise PolySubstrateError(msg)
         prom_peaks = peaks[np.sort(np.argsort(prom)[-self.SidesNum :])]
-        corners = np.sort(prom_peaks) - (len(theta) // 2)
+        corners = np.sort(prom_peaks) - (L // 2)
 
-        self._corners = corners
+        # 3. Compensate index-by-one error, which is probably from np.diff().
+        # This error makes perfectly sharp corner incorrectly located by -1.
+        self._corners = np.sort((corners + 1) % L)
         return self._corners
 
     def sides(self) -> Tuple[npt.NDArray[np.int64], npt.NDArray[np.float32]]:
         """Return the contour indices and polar parameters for linear sides."""
         if hasattr(self, "_sides"):
             return self._sides  # type: ignore[has-type]
+
+        L = len(self.contour())
 
         tan = np.gradient(self.contour(), axis=0)
         theta = np.arctan2(tan[..., 1], tan[..., 0])
@@ -168,7 +173,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             thetas.append(main_theta)
 
         base_indices = SHIFT + corners[..., np.newaxis]
-        split_indices = (base_indices + np.array(indices, dtype=np.int64)) % len(theta)
+        split_indices = (base_indices + np.array(indices, dtype=np.int64)) % L
         sortidx = np.argsort(split_indices, axis=0)
         split_indices = split_indices[sortidx[..., 0]]
 
