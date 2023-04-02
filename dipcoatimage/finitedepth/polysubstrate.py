@@ -3,7 +3,7 @@ Polygonal Substrate
 ===================
 
 :mod:`dipcoatimage.finitedepth.polysubstrate` provides abstract base class for
-substrate with polygonal cross section shape.
+substrate with polygonal cross section.
 
 """
 import cv2  # type: ignore
@@ -25,7 +25,7 @@ __all__ = [
 
 
 class PolySubstrateError(SubstrateError):
-    """Base class for the errors from polygonal substrate class."""
+    """Base class for the errors from :class:`PolySubstrate`."""
 
     pass
 
@@ -33,10 +33,21 @@ class PolySubstrateError(SubstrateError):
 @dataclasses.dataclass(frozen=True)
 class PolySubstrateParameters:
     """
-    Parameters for the polygonal substrate class to detect its sides.
+    Parameters for :class:`PolySubstrate`.
+
+    Parameters
+    ==========
+
+    GaussianSigma: positive float
+        Standard deviation for Gaussian kernel. Used to
+        smooth the sigmal for finding corners and edges.
+
+    Theta: positive float
+        Angle resolution to detect the polygon sides.
+
     """
 
-    GaussianSigma: int = 3
+    GaussianSigma: float = 3.0
     Theta: float = 0.01
 
 
