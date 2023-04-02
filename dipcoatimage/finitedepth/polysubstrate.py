@@ -102,8 +102,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         # 1. Get theta values of the tangent curve and take smooth derivative.
         # This allows us to find sides even from jittery polygons.
         # Since the contour is periodic we repeat theta in both direction to
-        # ensure smoothing is uniformly done.
-        # TODO: use gaussian mode="wrap" instead
+        # ensure smoothing is uniformly done and boundary peaks can be found.
         L = len(self.contour())
         contour2 = np.concatenate(
             [
@@ -112,7 +111,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
                 self.contour()[: (L // 2)],
             ],
             axis=0,
-        )
+        )  # DON'T replace it with gaussian mode="wrap" (peak finding will fail)
         tan2 = np.diff(contour2, axis=0)
         theta2 = np.arctan2(tan2[..., 1], tan2[..., 0])
         grad = gaussian_filter1d(theta2, self.parameters.GaussianSigma, axis=0, order=1)
