@@ -158,11 +158,13 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         THETA_STEP = self.parameters.Theta
         indices = []
         thetas = []
-        for region in np.split(theta_roll, corners[1:], axis=0):
-            digitized = (region / THETA_STEP).astype(int) * THETA_STEP
+        for t in np.split(theta_roll, corners[1:], axis=0):
+            smooth_t = gaussian_filter1d(t, self.parameters.GaussianSigma, axis=0)
+            digitized = (smooth_t / THETA_STEP).astype(int) * THETA_STEP
             val, count = np.unique(digitized, return_counts=True)
             main_theta = val[np.argmax(count)]
-            # XXX: curved corner is detected to be short. Need better measure...
+            # TODO: make lines determined by the points-line distances, not by
+            # theta angles.
             idxs, _ = np.nonzero(digitized == main_theta)
             indices.append([idxs[0], idxs[-1]])
             thetas.append(main_theta)
