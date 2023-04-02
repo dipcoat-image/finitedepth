@@ -101,8 +101,9 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         # 1. Get theta values of the tangent curve and take smooth derivative.
         # This allows us to find sides even from jittery polygons.
-        # Since the contour is periodic and edge information might be lost,
-        # we repeat theta in both direction.
+        # Since the contour is periodic we repeat theta in both direction to
+        # ensure smoothing is uniformly done.
+        # TODO: use gaussian mode="wrap" instead
         L = len(self.contour())
         contour2 = np.concatenate(
             [
@@ -145,27 +146,21 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         L = len(self.contour())
 
-        tan = np.gradient(self.contour(), axis=0)
+        tan = np.diff(self.contour(), axis=0)
         theta = np.arctan2(tan[..., 1], tan[..., 0])
         corners = self.corners()
 
-        # Digitize smoothed line and get votes to determine main theta.
-        # We must take vote from disgitized smoothed line, not from raw theta
-        # in order to be robust from jittery noises.
-        # We smooth each line separately to minimize the effect on shap corner.
-        SHIFT = corners[0]
         # roll s.t. no section is divided by the boundary
+        SHIFT = corners[0]
         theta_roll = np.roll(theta, -SHIFT, axis=0)
         corners = corners - SHIFT
 
+        # Get votes to determine main theta.
         THETA_STEP = self.parameters.Theta
         indices = []
         thetas = []
         for region in np.split(theta_roll, corners[1:], axis=0):
-            region_smooth = gaussian_filter1d(
-                region, self.parameters.GaussianSigma, axis=0
-            )
-            digitized = (region_smooth / THETA_STEP).astype(int) * THETA_STEP
+            digitized = (region / THETA_STEP).astype(int) * THETA_STEP
             val, count = np.unique(digitized, return_counts=True)
             main_theta = val[np.argmax(count)]
             idxs, _ = np.nonzero(digitized == main_theta)
@@ -176,6 +171,10 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         split_indices = (base_indices + np.array(indices, dtype=np.int64)) % L
         sortidx = np.argsort(split_indices, axis=0)
         split_indices = split_indices[sortidx[..., 0]]
+
+        # Compensate index-by-one error, which is probably from np.diff().
+        # This error makes perfectly sharp corner incorrectly located by -1.
+        split_indices = np.sort((split_indices + 1) % L)
 
         # convert slope theta to polar angle (just as HoughLines parameter)
         thetas_array = (np.array(thetas) - np.pi / 2) % np.pi
