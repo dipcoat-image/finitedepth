@@ -144,9 +144,10 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         if hasattr(self, "_sides"):
             return self._sides  # type: ignore[has-type]
 
+        # Extend the contour by 1 to ensure that all edges are full
         L = len(self.contour())
-
-        tan = np.diff(self.contour(), axis=0)
+        contour = np.concatenate([self.contour(), self.contour()[:1]], axis=0)
+        tan = np.diff(contour, axis=0)
         theta = np.arctan2(tan[..., 1], tan[..., 0])
         corners = self.corners()
 
@@ -155,7 +156,6 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         theta_roll = np.roll(theta, -SHIFT, axis=0)
         corners = corners - SHIFT
 
-        # Get votes to determine main theta.
         THETA_STEP = self.parameters.Theta
         indices = []
         thetas = []
@@ -163,6 +163,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             digitized = (region / THETA_STEP).astype(int) * THETA_STEP
             val, count = np.unique(digitized, return_counts=True)
             main_theta = val[np.argmax(count)]
+            # XXX: curved corner is detected to be short. Need better measure...
             idxs, _ = np.nonzero(digitized == main_theta)
             indices.append([idxs[0], idxs[-1]])
             thetas.append(main_theta)
@@ -174,7 +175,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         # Compensate index-by-one error, which is probably from np.diff().
         # This error makes perfectly sharp corner incorrectly located by -1.
-        split_indices = np.sort((split_indices + 1) % L)
+        split_indices += 1
 
         # convert slope theta to polar angle (just as HoughLines parameter)
         thetas_array = (np.array(thetas) - np.pi / 2) % np.pi
