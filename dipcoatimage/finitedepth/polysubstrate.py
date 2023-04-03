@@ -40,12 +40,15 @@ class PolySubstrateParameters:
     Sigma: positive float
         Standard deviation for Gaussian kernel. Used to smooth the signal for
         finding corners and edges.
+    Rho: positive float
+        Radian resolution for Hough transformation to detect the polygon sides.
     Theta: positive float
-        Angle resolution to detect the polygon sides.
+        Angle resolution for Hough transformation to detect the polygon sides.
 
     """
 
     Sigma: float
+    Rho: float
     Theta: float
 
 
@@ -165,34 +168,39 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         if hasattr(self, "_sides"):
             return self._sides  # type: ignore[has-type]
 
-        tan = np.diff(
-            np.concatenate([self.contour(), self.contour()[:1]], axis=0),
-            axis=0,
-        )
-        theta = np.arctan2(tan[..., 1], tan[..., 0])
         corners = self.corners()
-
-        # roll s.t. no section is divided by the boundary
         SHIFT = corners[0]
         corners = corners - SHIFT
-        theta_roll = np.roll(theta, -SHIFT, axis=0)
         cnt_roll = np.roll(self.contour(), -SHIFT, axis=0)
 
-        THETA_STEP = self.parameters.Theta
+        RHO_RES = self.parameters.Rho
+        THETA_RES = self.parameters.Theta
         lines = []
-        for t, c in zip(
-            np.split(theta_roll, corners[1:], axis=0),
-            np.split(cnt_roll, corners[1:], axis=0),
-        ):
-            smooth_t = gaussian_filter1d(t, self.parameters.Sigma, axis=0)
-            digitized = (smooth_t / THETA_STEP).astype(int) * THETA_STEP
-            val, count = np.unique(digitized, return_counts=True)
-            main_theta = val[np.argmax(count)]
-            idxs, _ = np.nonzero(digitized == main_theta)
-            center = np.mean(c[idxs], axis=0)
-            t0 = (main_theta - np.pi / 2) % np.pi
-            (rho,) = center[..., 0] * np.cos(t0) + center[..., 1] * np.sin(t0)
-            lines.append([[rho, t0]])
+        # Directly use Hough transformation to find lines
+        for c in np.split(cnt_roll, corners[1:], axis=0):
+            tan = np.diff(c, axis=0)
+            theta = (np.arctan2(tan[..., 1], tan[..., 0]) - np.pi / 2) % np.pi
+            tmin, tmax = theta.min(), theta.max()
+
+            if tmin < tmax:
+                theta_rng = np.arange(tmin, tmax, THETA_RES, dtype=np.float32)
+            else:
+                theta_rng = np.array([tmin], dtype=np.float32)
+            rho = c[..., 0] * np.cos(theta_rng) + c[..., 1] * np.sin(theta_rng)
+            rho_digit = (rho / RHO_RES).astype(np.int32)
+
+            rho_min = rho_digit.min()
+            rho_idxs = np.arange(rho_digit.ptp() + 1)
+            theta_idxs = np.arange(len(theta_rng))
+            accum = np.zeros((len(rho_idxs), len(theta_idxs)), dtype=np.int32)
+            for rho_p in rho_digit:
+                # XXX: MUST find way to vectorize!!
+                accum[rho_p - rho_min, theta_idxs] += 1
+            max_rho_idx, max_theta_idx = np.unravel_index(np.argmax(accum), accum.shape)
+
+            r0 = (max_rho_idx + rho_min) * RHO_RES
+            t0 = theta_rng[max_theta_idx]
+            lines.append([[r0, t0]])
 
         self._sides = np.array(lines, dtype=np.float32)
         return self._sides

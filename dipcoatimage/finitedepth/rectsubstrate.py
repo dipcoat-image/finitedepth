@@ -110,7 +110,7 @@ class RectSubstrate(
        :context: close-figs
 
        >>> from dipcoatimage.finitedepth import RectSubstrate, data_converter
-       >>> param_val = dict(Sigma=3.0, Theta=0.01)
+       >>> param_val = dict(Sigma=3.0, Rho=1.0, Theta=0.01)
        >>> param = data_converter.structure(param_val, RectSubstrate.Parameters)
        >>> subst = RectSubstrate(ref, param)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP

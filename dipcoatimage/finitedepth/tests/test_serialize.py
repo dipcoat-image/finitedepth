@@ -79,6 +79,7 @@ def test_SubstrateArgs():
         type=ImportArgs(name="RectSubstrate"),
         parameters=dict(
             Sigma=3.0,
+            Rho=1.0,
             Theta=0.01,
         ),
         draw_options=dict(sides=dict(thickness=0)),
@@ -104,6 +105,7 @@ def test_CoatingLayerArgs():
         type=ImportArgs(name="RectSubstrate"),
         parameters=dict(
             Sigma=3.0,
+            Rho=1.0,
             Theta=0.01,
         ),
     )
