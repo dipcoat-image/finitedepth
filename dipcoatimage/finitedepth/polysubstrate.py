@@ -192,7 +192,8 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             rho_min = rho_digit.min()
             theta_idxs = np.arange(len(theta_rng))
 
-            # encode 2d array into 1d array for faster accumulation (~15 %)
+            # encode 2d array into 1d array for faster accumulation
+            # TODO: try Cython to make faster. (iterate over 2D rows, not encode)
             idxs = (rho_digit - rho_min) * len(theta_idxs) + theta_idxs
             val, counts = np.unique(idxs, return_counts=True)
             max_idx = val[np.argmax(counts)]
