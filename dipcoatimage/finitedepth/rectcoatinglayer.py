@@ -303,8 +303,10 @@ class RectLayerShape(
        :include-source:
        :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import RectSubstrate
-       >>> subst = RectSubstrate(ref)
+       >>> from dipcoatimage.finitedepth import RectSubstrate, data_converter
+       >>> param_val = dict(Sigma=3.0, Rho=1.0, Theta=0.01)
+       >>> param = data_converter.structure(param_val, RectSubstrate.Parameters)
+       >>> subst = RectSubstrate(ref, param)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
     Construct :class:`RectLayerShape` from substrate class. :meth:`analyze`
@@ -314,7 +316,7 @@ class RectLayerShape(
        :include-source:
        :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import RectLayerShape, data_converter
+       >>> from dipcoatimage.finitedepth import RectLayerShape
        >>> coat_path = get_samples_path("coat3.png")
        >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
        >>> param_val = dict(
@@ -431,21 +433,21 @@ class RectLayerShape(
             cnt_left = cnt_points[on_layer & is_left & ~is_bottom]
             if cnt_left.size == 0:
                 p = A / 2 + B / 2
-                left_p = np.concatenate([p, p], axis=0)
+                left_p = np.stack([p, p])
             else:
                 left_p = find_thickest(cnt_left, A, B)
 
             cnt_bottom = cnt_points[on_layer & is_bottom]
             if cnt_bottom.size == 0:
                 p = B / 2 + C / 2
-                bottom_p = np.concatenate([p, p], axis=0)
+                bottom_p = np.stack([p, p])
             else:
                 bottom_p = find_thickest(cnt_bottom, B, C)
 
             cnt_right = cnt_points[on_layer & is_right & ~is_bottom]
             if cnt_right.size == 0:
                 p = C / 2 + D / 2
-                right_p = np.concatenate([p, p], axis=0)
+                right_p = np.stack([p, p])
             else:
                 right_p = find_thickest(cnt_right, C, D)
 

@@ -113,7 +113,7 @@ It uses the substrate region from the substrate reference instance.
    :align: center
 
    >>> from dipcoatimage.finitedepth import RectSubstrate, data_converter
-   >>> param_val = dict(HoughLines=dict(rho=1.0, theta=0.01, threshold=100))
+   >>> param_val = dict(Sigma=3.0, Rho=1.0, Theta=0.01)
    >>> param = data_converter.structure(param_val, RectSubstrate.Parameters)
    >>> subst = RectSubstrate(ref, parameters=param)
    >>> subst.draw_options.draw_lines = False

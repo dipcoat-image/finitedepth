@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.ndimage import gaussian_filter1d  # type: ignore
 from scipy.signal import find_peaks, peak_prominences  # type: ignore
-from typing import TypeVar, Tuple, Optional, Type
+from typing import TypeVar, Optional, Type
 from .substrate import SubstrateError, SubstrateBase
 from .util import DataclassProtocol
 
@@ -37,16 +37,19 @@ class PolySubstrateParameters:
 
     Parameters
     ----------
-    GaussianSigma: positive float
+    Sigma: positive float
         Standard deviation for Gaussian kernel. Used to smooth the signal for
         finding corners and edges.
+    Rho: positive float
+        Radian resolution for Hough transformation to detect the polygon sides.
     Theta: positive float
-        Angle resolution to detect the polygon sides.
+        Angle resolution for Hough transformation to detect the polygon sides.
 
     """
 
-    GaussianSigma: float = 3.0
-    Theta: float = 0.01
+    Sigma: float
+    Rho: float
+    Theta: float
 
 
 ParametersType = TypeVar("ParametersType", bound=PolySubstrateParameters)
@@ -69,6 +72,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         "_corners",
         "_sides",
         "_vertex_points",
+        "_regions",
     )
 
     Parameters: Type[ParametersType]
@@ -89,7 +93,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             cv2.RETR_EXTERNAL,
             cv2.CHAIN_APPROX_NONE,
         )
-        self._contour = cnt
+        self._contour = cnt.astype(np.int32)
         return self._contour
 
     def corners(self) -> npt.NDArray[np.int64]:
@@ -98,21 +102,21 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         This method returns the indices of the local maxima of the changes in the
         direction of the tangent vector. To get the entire corner region of
-        smooth polygon, split the contour using the indices from :meth:`sides`.
+        smooth polygon, split the contour with indices from :meth:`regions`.
 
         See Also
         --------
+        sides
+            Detects linear sides.
         vertex_points
             Return coordinates of intersections of sides.
-        sides
-            Detects the indices for linear side region.
 
         """
         if hasattr(self, "_corners"):
             return self._corners  # type: ignore[has-type]
 
         # 1. Get theta values of the tangent curve and take smooth derivative.
-        # This allows us to find sides even from jittery polygons.
+        # This allows us to find corners even from jittery polygons.
         # Since the contour is periodic we repeat theta in both direction to
         # ensure smoothing is uniformly done and boundary peaks can be found.
         L = len(self.contour())
@@ -126,7 +130,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         )  # DON'T replace it with gaussian mode="wrap" (peak finding will fail)
         tan2 = np.diff(contour2, axis=0)
         theta2 = np.arctan2(tan2[..., 1], tan2[..., 0])
-        grad = gaussian_filter1d(theta2, self.parameters.GaussianSigma, axis=0, order=1)
+        grad = gaussian_filter1d(theta2, self.parameters.Sigma, axis=0, order=1)
 
         # 2. Find peak. Each peak shows the point where side changes. This allows
         # us to discern individual sides lying on same line.
@@ -150,76 +154,60 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         self._corners = np.sort((corners + 1) % L)
         return self._corners
 
-    def sides(self) -> Tuple[npt.NDArray[np.int64], npt.NDArray[np.float32]]:
+    def sides(self) -> npt.NDArray[np.float32]:
         r"""
-        Detect the linear sides of the polygon.
-
-        For the points on the contour split by :meth:`corners`, this method
-        discerns the linear region from the curved region in smooth corners.
+        Find the linear sides of the polygon.
 
         Returns
         -------
-        sides_indices
-            Indices where each line starts and ends on the contour.
-        line_params
-            Output vector of lines in $(\rho, \theta)$, where $\rho$ is the
-            distance from the coordinate origin and $\theta \in [0, \pi]$ is the
-            angle of normal vector from the origin to the line.
-
+        lines
+            Line parameters in $(\rho, \theta)$, where $\rho$ is the distance
+            from the coordinate origin and $\theta \in [0, \pi]$ is the angle of
+            normal vector from the origin to the line.
         """
         if hasattr(self, "_sides"):
             return self._sides  # type: ignore[has-type]
 
-        # Extend the contour by 1 to ensure that all edges are full
-        L = len(self.contour())
-        contour = np.concatenate([self.contour(), self.contour()[:1]], axis=0)
-        tan = np.diff(contour, axis=0)
-        theta = np.arctan2(tan[..., 1], tan[..., 0])
         corners = self.corners()
-
-        # roll s.t. no section is divided by the boundary
         SHIFT = corners[0]
-        theta_roll = np.roll(theta, -SHIFT, axis=0)
         corners = corners - SHIFT
+        cnt_roll = np.roll(self.contour(), -SHIFT, axis=0)
 
-        THETA_STEP = self.parameters.Theta
-        indices = []
-        thetas = []
-        for t in np.split(theta_roll, corners[1:], axis=0):
-            smooth_t = gaussian_filter1d(t, self.parameters.GaussianSigma, axis=0)
-            digitized = (smooth_t / THETA_STEP).astype(int) * THETA_STEP
-            val, count = np.unique(digitized, return_counts=True)
-            main_theta = val[np.argmax(count)]
-            # XXX: may need to detect lines by the points-line distances, not by
-            # theta angles.
-            idxs, _ = np.nonzero(digitized == main_theta)
-            indices.append([idxs[0], idxs[-1]])
-            thetas.append(main_theta)
+        RHO_RES = self.parameters.Rho
+        THETA_RES = self.parameters.Theta
+        lines = []
+        # Directly use Hough transformation to find lines
+        for c in np.split(cnt_roll, corners[1:], axis=0):
+            tan = np.diff(c, axis=0)
+            theta = (np.arctan2(tan[..., 1], tan[..., 0]) - np.pi / 2) % np.pi
+            tmin, tmax = theta.min(), theta.max()
 
-        base_indices = SHIFT + corners[..., np.newaxis]
-        sides_indices = (base_indices + np.array(indices, dtype=np.int64)) % L
-        sortidx = np.argsort(sides_indices, axis=0)
-        sides_indices = sides_indices[sortidx[..., 0]]
+            if tmin < tmax:
+                theta_rng = np.arange(tmin, tmax, THETA_RES, dtype=np.float32)
+            else:
+                theta_rng = np.array([tmin], dtype=np.float32)
+            rho = c[..., 0] * np.cos(theta_rng) + c[..., 1] * np.sin(theta_rng)
+            rho_digit = (rho / RHO_RES).astype(np.int32)
 
-        # Compensate index-by-one error, which is probably from np.diff().
-        # This error makes perfectly sharp corner incorrectly located by -1.
-        sides_indices += 1
+            rho_min = rho_digit.min()
+            theta_idxs = np.arange(len(theta_rng))
 
-        # convert slope theta to polar angle (just as HoughLines parameter)
-        thetas_array = (np.array(thetas) - np.pi / 2) % np.pi
-        angles = thetas_array[sortidx[..., 0]][..., np.newaxis]
-        lines = [self.contour()[i0:i1] for (i0, i1) in sides_indices]
-        line_centers = np.array([np.mean(line, axis=0) for line in lines])
+            # encode 2d array into 1d array for faster accumulation
+            # TODO: try Cython to make faster. (iterate over 2D rows, not encode)
+            idxs = (rho_digit - rho_min) * len(theta_idxs) + theta_idxs
+            val, counts = np.unique(idxs, return_counts=True)
+            max_idx = val[np.argmax(counts)]
 
-        x_cos = line_centers[..., 0] * np.cos(angles)
-        y_sin = line_centers[..., 1] * np.sin(angles)
-        r = x_cos + y_sin
-        line_params = np.stack([r, angles]).transpose(1, 2, 0).astype(np.float32)
+            r0_idx = max_idx // len(theta_idxs)
+            r0 = (r0_idx + rho_min) * RHO_RES
+            t0_idx = max_idx % len(theta_idxs)
+            t0 = theta_rng[t0_idx]
+            lines.append([[r0, t0]])
 
-        self._sides = sides_indices, line_params
+        self._sides = np.array(lines, dtype=np.float32)
         return self._sides
 
-    def vertex_points(self):
+    def vertex_points(self) -> npt.NDArray[np.float32]:
         """
         Return the coordinates of intersections of polygon sides.
 
@@ -235,19 +223,32 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         if hasattr(self, "_vertex_points"):
             return self._vertex_points  # type: ignore[has-type]
 
-        _, sides = self.sides()
-        ((r1, t1),) = sides.transpose(1, 2, 0)
-        ((r2, t2),) = np.roll(sides, 1, axis=0).transpose(1, 2, 0)
+        ((r1, t1),) = self.sides().transpose(1, 2, 0)
+        ((r2, t2),) = np.roll(self.sides(), 1, axis=0).transpose(1, 2, 0)
         mat = np.array([[np.cos(t1), np.sin(t1)], [np.cos(t2), np.sin(t2)]]).transpose(
             2, 0, 1
         )
         vec = np.array([[r1], [r2]]).transpose(2, 0, 1)
-        sol_exists = np.linalg.det(mat) != 0
 
-        (self._vertex_points,) = (
-            np.linalg.inv(mat[np.where(sol_exists)]) @ vec[np.where(sol_exists)]
-        ).transpose(2, 0, 1)
+        (self._vertex_points,) = (np.linalg.inv(mat) @ vec).transpose(2, 0, 1)
         return self._vertex_points
+
+    def regions(self) -> npt.NDArray[np.int64]:
+        """
+        Return the indices of the contour points which fit best to linear sides.
+        """
+        if hasattr(self, "_regions"):
+            return self._regions  # type: ignore[has-type]
+
+        # XXX: implement fitting to bezier curve
+        ret = np.column_stack(
+            [
+                self.corners(),
+                np.append(self.corners()[1:], len(self.contour())),
+            ]
+        )
+        self._regions = ret
+        return self._regions
 
     def examine(self) -> Optional[PolySubstrateError]:
         try:

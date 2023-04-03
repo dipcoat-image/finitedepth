@@ -396,7 +396,7 @@ class CoatingLayerBase(
 
         # separate each contour into substrate-layer and layer-gas
         subst_liq, liq_gas = [], []
-        for label in subst_labels[np.sort(np.array(cnt_order))]:
+        for label in subst_labels[np.sort(np.array(cnt_order, dtype=int))]:
             cnt = layer_cnt[label - 1]
             sl = subst_cnt_in_self[np.where(subst_labels == label)]
             (i0,), _ = np.where(np.all(cnt == sl[0], axis=-1))

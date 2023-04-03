@@ -163,7 +163,8 @@ class SubstrateArgs:
        :context: close-figs
 
        >>> from dipcoatimage.finitedepth import SubstrateArgs
-       >>> arg = dict(type={"name": "RectSubstrate"})
+       >>> params = dict(Sigma=3.0, Rho=1.0, Theta=0.01)
+       >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)
        >>> substargs = data_converter.structure(arg, SubstrateArgs)
        >>> subst = substargs.as_substrate(ref)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
@@ -247,7 +248,8 @@ class CoatingLayerArgs:
        >>> refargs = ReferenceArgs(templateROI=(100, 50, 1200, 200),
        ...                         substrateROI=(300, 100, 950, 600))
        >>> ref = refargs.as_reference(cv2.imread(get_samples_path("ref3.png")))
-       >>> arg = dict(type={"name": "RectSubstrate"})
+       >>> params = dict(Sigma=3.0, Rho=1.0, Theta=0.01)
+       >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)
        >>> substargs = data_converter.structure(arg, SubstrateArgs)
        >>> subst = substargs.as_substrate(ref)
 
