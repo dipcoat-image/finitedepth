@@ -187,9 +187,10 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             smooth_t = gaussian_filter1d(t, self.parameters.Sigma, axis=0)
             digitized = (smooth_t / THETA_STEP).astype(int) * THETA_STEP
             val, count = np.unique(digitized, return_counts=True)
-            t0 = val[np.argmax(count)]
-            idxs, _ = np.nonzero(digitized == t0)
+            main_theta = val[np.argmax(count)]
+            idxs, _ = np.nonzero(digitized == main_theta)
             center = np.mean(c[idxs], axis=0)
+            t0 = (main_theta - np.pi / 2) % np.pi
             (rho,) = center[..., 0] * np.cos(t0) + center[..., 1] * np.sin(t0)
             lines.append([[rho, t0]])
 
