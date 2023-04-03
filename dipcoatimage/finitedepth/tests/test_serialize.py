@@ -78,7 +78,8 @@ def test_SubstrateArgs():
     substargs = SubstrateArgs(
         type=ImportArgs(name="RectSubstrate"),
         parameters=dict(
-            GaussianSigma=5,
+            Sigma=3.0,
+            Theta=0.01,
         ),
         draw_options=dict(sides=dict(thickness=0)),
     )
@@ -99,7 +100,13 @@ def test_CoatingLayerArgs():
     refargs = ReferenceArgs()
     ref = refargs.as_reference(REF_IMG)
 
-    substargs = SubstrateArgs(type=ImportArgs(name="RectSubstrate"))
+    substargs = SubstrateArgs(
+        type=ImportArgs(name="RectSubstrate"),
+        parameters=dict(
+            Sigma=3.0,
+            Theta=0.01,
+        ),
+    )
     subst = substargs.as_substrate(ref)
 
     layerargs = CoatingLayerArgs(

@@ -303,8 +303,10 @@ class RectLayerShape(
        :include-source:
        :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import RectSubstrate
-       >>> subst = RectSubstrate(ref)
+       >>> from dipcoatimage.finitedepth import RectSubstrate, data_converter
+       >>> param_val = dict(Sigma=3.0, Theta=0.01)
+       >>> param = data_converter.structure(param_val, RectSubstrate.Parameters)
+       >>> subst = RectSubstrate(ref, param)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
     Construct :class:`RectLayerShape` from substrate class. :meth:`analyze`
@@ -314,7 +316,7 @@ class RectLayerShape(
        :include-source:
        :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import RectLayerShape, data_converter
+       >>> from dipcoatimage.finitedepth import RectLayerShape
        >>> coat_path = get_samples_path("coat3.png")
        >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
        >>> param_val = dict(

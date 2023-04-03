@@ -37,7 +37,7 @@ class PolySubstrateParameters:
 
     Parameters
     ----------
-    GaussianSigma: positive float
+    Sigma: positive float
         Standard deviation for Gaussian kernel. Used to smooth the signal for
         finding corners and edges.
     Theta: positive float
@@ -45,8 +45,8 @@ class PolySubstrateParameters:
 
     """
 
-    GaussianSigma: float = 3.0
-    Theta: float = 0.01
+    Sigma: float
+    Theta: float
 
 
 ParametersType = TypeVar("ParametersType", bound=PolySubstrateParameters)
@@ -127,7 +127,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         )  # DON'T replace it with gaussian mode="wrap" (peak finding will fail)
         tan2 = np.diff(contour2, axis=0)
         theta2 = np.arctan2(tan2[..., 1], tan2[..., 0])
-        grad = gaussian_filter1d(theta2, self.parameters.GaussianSigma, axis=0, order=1)
+        grad = gaussian_filter1d(theta2, self.parameters.Sigma, axis=0, order=1)
 
         # 2. Find peak. Each peak shows the point where side changes. This allows
         # us to discern individual sides lying on same line.
@@ -184,7 +184,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             np.split(theta_roll, corners[1:], axis=0),
             np.split(cnt_roll, corners[1:], axis=0),
         ):
-            smooth_t = gaussian_filter1d(t, self.parameters.GaussianSigma, axis=0)
+            smooth_t = gaussian_filter1d(t, self.parameters.Sigma, axis=0)
             digitized = (smooth_t / THETA_STEP).astype(int) * THETA_STEP
             val, count = np.unique(digitized, return_counts=True)
             t0 = val[np.argmax(count)]
