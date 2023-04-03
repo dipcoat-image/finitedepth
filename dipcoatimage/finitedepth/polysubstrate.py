@@ -190,16 +190,17 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             rho_digit = (rho / RHO_RES).astype(np.int32)
 
             rho_min = rho_digit.min()
-            rho_idxs = np.arange(rho_digit.ptp() + 1)
             theta_idxs = np.arange(len(theta_rng))
-            accum = np.zeros((len(rho_idxs), len(theta_idxs)), dtype=np.int32)
-            for rho_p in rho_digit:
-                # XXX: MUST find way to vectorize!!
-                accum[rho_p - rho_min, theta_idxs] += 1
-            max_rho_idx, max_theta_idx = np.unravel_index(np.argmax(accum), accum.shape)
 
-            r0 = (max_rho_idx + rho_min) * RHO_RES
-            t0 = theta_rng[max_theta_idx]
+            # encode 2d array into 1d array for faster accumulation (~15 %)
+            idxs = (rho_digit - rho_min) * len(theta_idxs) + theta_idxs
+            val, counts = np.unique(idxs, return_counts=True)
+            max_idx = val[np.argmax(counts)]
+
+            r0_idx = max_idx // len(theta_idxs)
+            r0 = (r0_idx + rho_min) * RHO_RES
+            t0_idx = max_idx % len(theta_idxs)
+            t0 = theta_rng[t0_idx]
             lines.append([[r0, t0]])
 
         self._sides = np.array(lines, dtype=np.float32)
