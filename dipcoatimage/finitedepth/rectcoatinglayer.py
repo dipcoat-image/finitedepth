@@ -433,21 +433,21 @@ class RectLayerShape(
             cnt_left = cnt_points[on_layer & is_left & ~is_bottom]
             if cnt_left.size == 0:
                 p = A / 2 + B / 2
-                left_p = np.concatenate([p, p], axis=0)
+                left_p = np.stack([p, p])
             else:
                 left_p = find_thickest(cnt_left, A, B)
 
             cnt_bottom = cnt_points[on_layer & is_bottom]
             if cnt_bottom.size == 0:
                 p = B / 2 + C / 2
-                bottom_p = np.concatenate([p, p], axis=0)
+                bottom_p = np.stack([p, p])
             else:
                 bottom_p = find_thickest(cnt_bottom, B, C)
 
             cnt_right = cnt_points[on_layer & is_right & ~is_bottom]
             if cnt_right.size == 0:
                 p = C / 2 + D / 2
-                right_p = np.concatenate([p, p], axis=0)
+                right_p = np.stack([p, p])
             else:
                 right_p = find_thickest(cnt_right, C, D)
 
