@@ -29,9 +29,11 @@ from .substrate import (
     SubstrateBase,
     Substrate,
 )
+from .polysubstrate import (
+    PolySubstrateError,
+    PolySubstrateBase,
+)
 from .rectsubstrate import (
-    RectSubstrateError,
-    RectSubstrateBase,
     RectSubstrate,
 )
 from .coatinglayer import (
@@ -65,8 +67,8 @@ __all__ = [
     "SubstrateError",
     "SubstrateBase",
     "Substrate",
-    "RectSubstrateError",
-    "RectSubstrateBase",
+    "PolySubstrateError",
+    "PolySubstrateBase",
     "RectSubstrate",
     "CoatingLayerError",
     "CoatingLayerBase",

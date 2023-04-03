@@ -1,4 +1,5 @@
 cattrs
 numpy >= 1.21
+scipy
 opencv-python-headless
 tqdm

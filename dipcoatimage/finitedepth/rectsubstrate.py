@@ -5,24 +5,6 @@ Rectangular Substrate
 :mod:`dipcoatimage.finitedepth.rectsubstrate` provides substrate image class to
 analyze the substrate with rectangular cross-section shape.
 
-Base class
-----------
-
-.. autoclass:: RectSubstrateError
-   :members:
-
-.. autoclass:: HoughLinesParameters
-   :members:
-
-.. autoclass:: RectSubstrateParameters
-   :members:
-
-.. autoclass:: RectSubstrateBase
-   :members:
-
-Implementation
---------------
-
 .. autoclass:: RectSubstrateDrawMode
    :members:
 
@@ -38,10 +20,9 @@ import dataclasses
 import enum
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Tuple, Optional, Type
-from .substrate import SubstrateError, SubstrateBase
+from typing import Tuple
+from .polysubstrate import PolySubstrateParameters, PolySubstrateBase
 from .util import (
-    DataclassProtocol,
     colorize,
     FeatureDrawingOptions,
     Color,
@@ -54,160 +35,10 @@ except ImportError:
 
 
 __all__ = [
-    "RectSubstrateError",
-    "HoughLinesParameters",
-    "RectSubstrateParameters",
-    "RectSubstrateBase",
     "RectSubstrateDrawMode",
     "RectSubstrateDrawOptions",
     "RectSubstrate",
 ]
-
-
-class RectSubstrateError(SubstrateError):
-    """Base class for the errors from rectangular substrate class."""
-
-    pass
-
-
-@dataclasses.dataclass(frozen=True)
-class HoughLinesParameters:
-    """Parameters for :func:`cv2.HoughLines`."""
-
-    rho: float
-    theta: float
-    threshold: int
-    srn: float = 0.0
-    stn: float = 0.0
-    min_theta: float = 0.0
-    max_theta: float = np.pi
-
-
-@dataclasses.dataclass(frozen=True)
-class RectSubstrateParameters:
-    """
-    Parameters for the rectangular substrate class to detect the substrate edges
-    using Hough line transformation.
-    """
-
-    HoughLines: HoughLinesParameters
-
-
-ParametersType = TypeVar("ParametersType", bound=RectSubstrateParameters)
-DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
-
-
-class RectSubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
-    """Abstract base class for substrate with quadrilateral shape."""
-
-    __slots__ = (
-        "_lines",
-        "_vertex_points",
-    )
-
-    Parameters: Type[ParametersType]
-    DrawOptions: Type[DrawOptionsType]
-
-    def contour(self) -> npt.NDArray[np.int32]:
-        (cnt,), _ = cv2.findContours(
-            cv2.bitwise_not(self.binary_image()),
-            cv2.RETR_EXTERNAL,
-            cv2.CHAIN_APPROX_NONE,
-        )
-        return cnt
-
-    def edge(self) -> npt.NDArray[np.bool_]:
-        """
-        Return the substrate edge as boolean array.
-
-        The edge locations are acquired from :meth:`contour`.
-        """
-        h, w = self.image().shape[:2]
-        ret = np.zeros((h, w), bool)
-        ((x, y),) = self.contour().transpose(1, 2, 0)
-        ret[y, x] = True
-        return ret
-
-    def edge_hull(self) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.float64]]:
-        hull = np.flip(cv2.convexHull(self.contour()), axis=0)
-        # TODO: get more points by interpolating to `hull`
-        tangent = np.gradient(hull, axis=0)
-        # TODO: perform edge tangent flow to get smoother curve
-        return hull, tangent
-
-    def lines(self) -> npt.NDArray[np.float32]:
-        """
-        Get :func:`cv2.HoughLines` result from the binary image of *self*.
-
-        This method first acquires the edge image from :meth:`edge`, and
-        apply Hough line transformation with the parameters defined in
-        :attr:`parameters`.
-
-        If no line can be found, an empty array is returned.
-
-        Notes
-        =====
-
-        This property is cached. Do not mutate the result.
-
-        """
-        if not hasattr(self, "_lines"):
-            # TODO: find way to directly get lines from contour, not edge image
-            hparams = dataclasses.asdict(self.parameters.HoughLines)
-            lines = cv2.HoughLines(self.edge().astype(np.uint8), **hparams)
-            if lines is None:
-                lines = np.empty((0, 1, 2), dtype=np.float32)
-            self._lines = lines
-        return self._lines
-
-    def edge_lines(self) -> npt.NDArray[np.float32]:
-        """
-        Return four edge lines of the substrate.
-
-        Lines are sorted along the contour.
-        """
-        lines = self.lines()[:4]
-        # find the closest line for each point
-        ((r, theta),) = lines.transpose(1, 2, 0)
-        A = np.column_stack([r * np.cos(theta), r * np.sin(theta)])
-        Ap = np.repeat(self.contour(), 4, axis=1) - A
-        AB = np.column_stack([np.sin(theta), -np.cos(theta)])
-        t = np.sum(Ap * AB, axis=-1)
-        AC = np.repeat(t[..., np.newaxis], 2, axis=-1) * AB
-        dists = np.linalg.norm(Ap - AC, axis=-1)
-        point_labels = np.argmin(dists, axis=-1)
-        # sort the lines along the contour
-        line_order = []
-        for i in range(len(lines)):
-            (pos,) = np.where(point_labels == i)
-            line_order.append(np.mean(pos))
-        return lines[np.argsort(line_order)]
-
-    def vertex_points(self):
-        if not hasattr(self, "_vertex_points"):
-            lines = self.edge_lines()
-            ((r1, t1),) = lines.transpose(1, 2, 0)
-            ((r2, t2),) = np.roll(lines, 1, axis=0).transpose(1, 2, 0)
-            mat = np.array(
-                [[np.cos(t1), np.sin(t1)], [np.cos(t2), np.sin(t2)]]
-            ).transpose(2, 0, 1)
-            vec = np.array([[r1], [r2]]).transpose(2, 0, 1)
-            sol_exists = np.linalg.det(mat) != 0
-            (self._vertex_points,) = (
-                np.linalg.inv(mat[np.where(sol_exists)]) @ vec[np.where(sol_exists)]
-            ).transpose(2, 0, 1)
-        return self._vertex_points
-
-    def examine(self) -> Optional[RectSubstrateError]:
-        ret: Optional[RectSubstrateError] = None
-
-        l_num = len(self.lines())
-        if l_num < 4:
-            ret = RectSubstrateError(
-                f"Insufficient lines from HoughLines (needs >= 4, got {l_num})"
-            )
-
-        return ret
 
 
 class RectSubstrateDrawMode(enum.Enum):
@@ -238,19 +69,16 @@ class RectSubstrateDrawOptions:
     """Drawing options for :class:`RectSubstrate`."""
 
     draw_mode: RectSubstrateDrawMode = RectSubstrateDrawMode.BINARY
-    lines: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(0, 255, 0), thickness=1
-    )
-    edges: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(0, 0, 255), thickness=5
+    sides: FeatureDrawingOptions = FeatureDrawingOptions(
+        color=Color(0, 0, 255), thickness=1
     )
     hull: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(255, 0, 0), thickness=3
+        color=Color(255, 0, 0), thickness=1
     )
 
 
 class RectSubstrate(
-    RectSubstrateBase[RectSubstrateParameters, RectSubstrateDrawOptions]
+    PolySubstrateBase[PolySubstrateParameters, RectSubstrateDrawOptions]
 ):
     """
     Simplest implementation of :class:`RectSubstrateBase`.
@@ -281,10 +109,8 @@ class RectSubstrate(
        :include-source:
        :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import RectSubstrate, data_converter
-       >>> param_val = dict(HoughLines=dict(rho=1.0, theta=0.01, threshold=100))
-       >>> param = data_converter.structure(param_val, RectSubstrate.Parameters)
-       >>> subst = RectSubstrate(ref, parameters=param)
+       >>> from dipcoatimage.finitedepth import RectSubstrate
+       >>> subst = RectSubstrate(ref)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
     Visualization can be controlled by modifying :attr:`draw_options`.
@@ -293,16 +119,24 @@ class RectSubstrate(
        :include-source:
        :context: close-figs
 
-       >>> subst.draw_options.lines.thickness = 0
-       >>> subst.draw_options.edges.color.red = 255
+       >>> subst.draw_options.sides.thickness = 3
+       >>> subst.draw_options.sides.color.red = 255
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
     """
 
-    Parameters = RectSubstrateParameters
+    Parameters = PolySubstrateParameters
     DrawOptions = RectSubstrateDrawOptions
+    SidesNum = 4
 
     DrawMode: TypeAlias = RectSubstrateDrawMode
+
+    def edge_hull(self) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.float64]]:
+        hull = np.flip(cv2.convexHull(self.contour()), axis=0)
+        # TODO: get more points by interpolating to `hull`
+        tangent = np.gradient(hull, axis=0)
+        # TODO: perform edge tangent flow to get smoother curve
+        return hull, tangent
 
     def draw(self) -> npt.NDArray[np.uint8]:
         draw_mode = self.draw_options.draw_mode
@@ -311,35 +145,21 @@ class RectSubstrate(
         elif draw_mode is self.DrawMode.BINARY:
             image = self.binary_image()
         elif draw_mode is self.DrawMode.EDGES:
-            image = self.edge() * np.uint8(255)
+            h, w = self.image().shape[:2]
+            mask = np.zeros((h, w), bool)
+            ((x, y),) = self.contour().transpose(1, 2, 0)
+            mask[y, x] = True
+            image = mask * np.uint8(255)
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
         ret = colorize(image)
 
-        line_opts = self.draw_options.lines
-        if line_opts.thickness > 0:
-            r, theta = np.transpose(self.lines(), (2, 0, 1))
-            vec = np.dstack([np.cos(theta), np.sin(theta)])
-            pts0 = vec * r[..., np.newaxis]
-            h, w = ret.shape[:2]
-            pts1 = pts0 + np.tensordot(vec, np.array([[0, h], [-w, 0]]), axes=1)
-            pts2 = pts0 + np.tensordot(vec, np.array([[0, -h], [w, 0]]), axes=1)
-
-            for p0, p1 in zip(pts1, pts2):
-                cv2.line(
-                    ret,
-                    p0.flatten().astype(np.int32),
-                    p1.flatten().astype(np.int32),
-                    dataclasses.astuple(line_opts.color),
-                    line_opts.thickness,
-                )
-
-        edge_opts = self.draw_options.edges
-        if edge_opts.thickness > 0:
+        side_opts = self.draw_options.sides
+        if side_opts.thickness > 0:
             tl, bl, br, tr = self.vertex_points().astype(np.int32)
 
-            color = dataclasses.astuple(edge_opts.color)
-            thickness = edge_opts.thickness
+            color = dataclasses.astuple(side_opts.color)
+            thickness = side_opts.thickness
             cv2.line(ret, tl, tr, color, thickness)
             cv2.line(ret, tr, br, color, thickness)
             cv2.line(ret, br, bl, color, thickness)
