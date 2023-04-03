@@ -230,38 +230,13 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             return self._regions  # type: ignore[has-type]
 
         # XXX: implement fitting to bezier curve
-        L = len(self.contour())
-        tan = np.diff(
-            np.concatenate([self.contour(), self.contour()[:1]], axis=0),
-            axis=0,
+        ret = np.column_stack(
+            [
+                self.corners(),
+                np.append(self.corners()[1:], len(self.contour())),
+            ]
         )
-        theta = np.arctan2(tan[..., 1], tan[..., 0])
-        corners = self.corners()
-
-        # roll s.t. no section is divided by the boundary
-        SHIFT = corners[0]
-        theta_roll = np.roll(theta, -SHIFT, axis=0)
-
-        THETA_STEP = self.parameters.Theta
-        indices = []
-        for t in np.split(theta_roll, corners[1:], axis=0):
-            smooth_t = gaussian_filter1d(t, self.parameters.GaussianSigma, axis=0)
-            digitized = (smooth_t / THETA_STEP).astype(int) * THETA_STEP
-            val, count = np.unique(digitized, return_counts=True)
-            main_theta = val[np.argmax(count)]
-            # XXX: may need to detect lines by the points-line distances, not by
-            # theta angles.
-            idxs, _ = np.nonzero(digitized == main_theta)
-            indices.append([idxs[0], idxs[-1]])
-
-        base_indices = SHIFT + corners[..., np.newaxis]
-        sides_indices = (base_indices + np.array(indices, dtype=np.int64)) % L
-        sortidx = np.argsort(sides_indices, axis=0)
-        sides_indices = sides_indices[sortidx[..., 0]]
-
-        # Compensate index-by-one error, which is probably from np.diff().
-        # This error makes perfectly sharp corner incorrectly located by -1.
-        self._regions = sides_indices + 1
+        self._regions = ret
         return self._regions
 
     def examine(self) -> Optional[PolySubstrateError]:
