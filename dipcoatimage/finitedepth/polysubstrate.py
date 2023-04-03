@@ -36,12 +36,10 @@ class PolySubstrateParameters:
     Parameters for :class:`PolySubstrate`.
 
     Parameters
-    ==========
-
+    ----------
     GaussianSigma: positive float
-        Standard deviation for Gaussian kernel. Used to
-        smooth the sigmal for finding corners and edges.
-
+        Standard deviation for Gaussian kernel. Used to smooth the signal for
+        finding corners and edges.
     Theta: positive float
         Angle resolution to detect the polygon sides.
 
@@ -60,7 +58,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     Abstract base class for substrate whose cross section is simple polygon.
 
     :class:`PolySubstrateBase` provides method to detect the sides of the
-    polygonal substrate. The corners of the substrate can be smooth.
+    polygonal substrate. Smooth corners are allowed.
 
     Concrete class must define :attr:`SidesNum` class attribute, which is the
     number of the sides of polygon.
@@ -78,6 +76,11 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     SidesNum: int
 
     def contour(self) -> npt.NDArray[np.int32]:
+        """
+        Return the contour of the substrate.
+
+        Only one contour must exist in the image, i.e. no discontius point.
+        """
         if hasattr(self, "_contour"):
             return self._contour  # type: ignore[has-type]
 
@@ -98,11 +101,9 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         smooth polygon, split the contour using the indices from :meth:`sides`.
 
         See Also
-        ========
-
+        --------
         vertex_points
             Return coordinates of intersections of sides.
-
         sides
             Detects the indices for linear side region.
 
@@ -150,7 +151,22 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         return self._corners
 
     def sides(self) -> Tuple[npt.NDArray[np.int64], npt.NDArray[np.float32]]:
-        """Return the contour indices and polar parameters for linear sides."""
+        r"""
+        Detect the linear sides of the polygon.
+
+        For the points on the contour split by :meth:`corners`, this method
+        discerns the linear region from the curved region in smooth corners.
+
+        Returns
+        -------
+        sides_indices
+            Indices where each line starts and ends on the contour.
+        line_params
+            Output vector of lines in $(\rho, \theta)$, where $\rho$ is the
+            distance from the coordinate origin and $\theta \in [0, \pi]$ is the
+            angle of normal vector from the origin to the line.
+
+        """
         if hasattr(self, "_sides"):
             return self._sides  # type: ignore[has-type]
 
@@ -174,25 +190,25 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             digitized = (smooth_t / THETA_STEP).astype(int) * THETA_STEP
             val, count = np.unique(digitized, return_counts=True)
             main_theta = val[np.argmax(count)]
-            # TODO: make lines determined by the points-line distances, not by
+            # XXX: may need to detect lines by the points-line distances, not by
             # theta angles.
             idxs, _ = np.nonzero(digitized == main_theta)
             indices.append([idxs[0], idxs[-1]])
             thetas.append(main_theta)
 
         base_indices = SHIFT + corners[..., np.newaxis]
-        split_indices = (base_indices + np.array(indices, dtype=np.int64)) % L
-        sortidx = np.argsort(split_indices, axis=0)
-        split_indices = split_indices[sortidx[..., 0]]
+        sides_indices = (base_indices + np.array(indices, dtype=np.int64)) % L
+        sortidx = np.argsort(sides_indices, axis=0)
+        sides_indices = sides_indices[sortidx[..., 0]]
 
         # Compensate index-by-one error, which is probably from np.diff().
         # This error makes perfectly sharp corner incorrectly located by -1.
-        split_indices += 1
+        sides_indices += 1
 
         # convert slope theta to polar angle (just as HoughLines parameter)
         thetas_array = (np.array(thetas) - np.pi / 2) % np.pi
         angles = thetas_array[sortidx[..., 0]][..., np.newaxis]
-        lines = [self.contour()[i0:i1] for (i0, i1) in split_indices]
+        lines = [self.contour()[i0:i1] for (i0, i1) in sides_indices]
         line_centers = np.array([np.mean(line, axis=0) for line in lines])
 
         x_cos = line_centers[..., 0] * np.cos(angles)
@@ -200,19 +216,18 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         r = x_cos + y_sin
         line_params = np.stack([r, angles]).transpose(1, 2, 0).astype(np.float32)
 
-        self._sides = split_indices, line_params
+        self._sides = sides_indices, line_params
         return self._sides
 
     def vertex_points(self):
         """
-        Return the coordinates of intersections of :meth:`sides`.
+        Return the coordinates of intersections of polygon sides.
 
         If the polygon has smooth corner, the vertex points are different from
         the corner points on the contour.
 
         See Also
-        ========
-
+        --------
         corners
             Return indices of the corner points on contour.
 
