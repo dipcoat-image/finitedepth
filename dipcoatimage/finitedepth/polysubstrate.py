@@ -157,21 +157,25 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
     def sides(self) -> npt.NDArray[np.float32]:
         r"""
-        Find the linear sides of the polygon.
+        Find linear sides of the polygon.
 
         Returns
         -------
         lines
-            Line parameters in $(\rho, \theta)$, where $\rho$ is the distance
-            from the coordinate origin and $\theta \in [0, \pi]$ is the angle of
-            normal vector from the origin to the line.
+            Vector of line parameters in $(\rho, \theta)$. $\rho$ is the distance
+            from the coordinate origin. $\theta$ is the angle of normal vector
+            from the origin to the line.
+
+        Notes
+        -----
+        The ranges of parameters are $\rho \in (-\infty, \infty)$ and
+        $\theta \in [0, \pi)$.
         """
         if hasattr(self, "_sides"):
             return self._sides  # type: ignore[has-type]
 
-        corners = self.corners()
-        SHIFT = corners[0]
-        corners = corners - SHIFT
+        SHIFT = self.corners()[0]
+        corners = self.corners() - SHIFT
         cnt_roll = np.roll(self.contour(), -SHIFT, axis=0)
 
         RHO_RES = self.parameters.Rho
@@ -180,7 +184,8 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         # Directly use Hough transformation to find lines
         for c in np.split(cnt_roll, corners[1:], axis=0):
             tan = np.diff(c, axis=0)
-            theta = (np.arctan2(tan[..., 1], tan[..., 0]) - np.pi / 2) % np.pi
+            atan = np.arctan2(tan[..., 1], tan[..., 0])  # -pi < atan <= pi
+            theta = (atan - np.pi / 2) % np.pi
             tmin, tmax = theta.min(), theta.max()
 
             if tmin < tmax:
