@@ -157,7 +157,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
     def sides(self) -> npt.NDArray[np.float32]:
         r"""
-        Find linear sides of the polygon.
+        Find linear sides of the polygon using Hough line transformation.
 
         Returns
         -------
@@ -169,7 +169,8 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         Notes
         -----
         The ranges of parameters are $\rho \in (-\infty, \infty)$ and
-        $\theta \in [0, \pi)$.
+        $\theta \in (-\frac{3 \pi}{2}, \frac{\pi}{2}]$. Arctan direction of the
+        side vector can be acquired by $\theta + \frac{\pi}{2}$.
         """
         if hasattr(self, "_sides"):
             return self._sides  # type: ignore[has-type]
@@ -185,7 +186,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         for c in np.split(cnt_roll, corners[1:], axis=0):
             tan = np.diff(c, axis=0)
             atan = np.arctan2(tan[..., 1], tan[..., 0])  # -pi < atan <= pi
-            theta = (atan - np.pi / 2) % np.pi
+            theta = atan - np.pi/2
             tmin, tmax = theta.min(), theta.max()
 
             if tmin < tmax:
