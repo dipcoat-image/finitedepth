@@ -189,7 +189,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         for c in np.split(cnt_roll, corners[1:], axis=0):
             tan = np.diff(c, axis=0)
             atan = np.arctan2(tan[..., 1], tan[..., 0])  # -pi < atan <= pi
-            theta = atan - np.pi/2
+            theta = atan - np.pi / 2
             tmin, tmax = theta.min(), theta.max()
 
             if tmin < tmax:
