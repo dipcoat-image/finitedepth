@@ -96,7 +96,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         self._contour = cnt.astype(np.int32)
         return self._contour
 
-    def corners(self) -> npt.NDArray[np.int64]:
+    def corners(self) -> npt.NDArray[np.int32]:
         """
         Return the indices of the corner points on contour.
 
@@ -137,6 +137,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         # Since we repeated theta, we select the peaks in desired region.
         theta2_abs = np.abs(grad)[..., 0]
         peaks2, _ = find_peaks(theta2_abs)
+        peaks2 = peaks2.astype(np.int32)
         (idxs,) = np.where((L // 2 <= peaks2) & (peaks2 < 3 * L // 2))
         peaks = peaks2[idxs]
         prom, _, _ = peak_prominences(theta2_abs, peaks)
@@ -233,7 +234,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         (self._vertex_points,) = (np.linalg.inv(mat) @ vec).transpose(2, 0, 1)
         return self._vertex_points
 
-    def regions(self) -> npt.NDArray[np.int64]:
+    def regions(self) -> npt.NDArray[np.int32]:
         """
         Return the indices of the contour points which fit best to linear sides.
         """
