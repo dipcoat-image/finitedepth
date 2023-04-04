@@ -30,6 +30,9 @@ class PolySubstrateError(SubstrateError):
     pass
 
 
+ROTATION_MATRIX = np.array([[0, 1], [-1, 0]])
+
+
 @dataclasses.dataclass(frozen=True)
 class PolySubstrateParameters:
     """
@@ -247,7 +250,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         if hasattr(self, "_regions"):
             return self._regions  # type: ignore[has-type]
 
-        # XXX: implement fitting to bezier curve
+        # XXX: implement corner region detection
         ret = np.column_stack(
             [
                 self.corners(),
@@ -256,6 +259,23 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         )
         self._regions = ret
         return self._regions
+
+    def normal(self):
+        """
+        Return unit normal vectors on each point of contour.
+
+        Uses polygon model.
+        """
+        # XXX: Current model assumes sharp polygon.
+        # After smooth corner region detection is done, enhance this!
+        SHIFT = self.corners()[0]
+        corners = self.corners() - SHIFT
+        reps = np.diff(np.append(corners, len(self.contour())))
+
+        _, thetas = self.sides().transpose(2, 0, 1)
+        n = np.stack([-np.cos(thetas), -np.sin(thetas)]).transpose(1, 2, 0)
+
+        return np.roll(np.repeat(n, reps, axis=0), SHIFT, axis=0)
 
     def examine(self) -> Optional[PolySubstrateError]:
         try:
