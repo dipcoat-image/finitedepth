@@ -347,11 +347,10 @@ class CoatingLayerBase(
 
     def layer_contours(self) -> List[npt.NDArray[np.int32]]:
         """
-        Return the contours of the coating layer surfaces.
+        Return the contours of the coating layer regions.
 
-        The contours include both gas-liquid interface and substrate-liquid
-        interface of the coating layer. When the coating layer is discontinuous,
-        multiple contours are returned.
+        The contours include both the gas-liquid interface and the
+        substrate-liquid interface of the coating layer.
         """
         if not hasattr(self, "_layer_contours"):
             contours, _ = cv2.findContours(
@@ -368,8 +367,8 @@ class CoatingLayerBase(
         """
         Return substrate-liquid interface points and liquid-gas interface points.
 
-        Two lists have same length, which is the number of discrete coating layers.
-        Points on each list are sorted counter-clockwise in the image.
+        All points are part of :meth:`layer_contours`. Points on each list are
+        sorted counter-clockwise in the image.
         """
         # along the substrate contour, find the points which belong to the layer
         layer_cnt = self.layer_contours()
