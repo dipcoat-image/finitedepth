@@ -30,6 +30,9 @@ class PolySubstrateError(SubstrateError):
     pass
 
 
+ROTATION_MATRIX = np.array([[0, 1], [-1, 0]])
+
+
 @dataclasses.dataclass(frozen=True)
 class PolySubstrateParameters:
     """
@@ -96,7 +99,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         self._contour = cnt.astype(np.int32)
         return self._contour
 
-    def corners(self) -> npt.NDArray[np.int64]:
+    def corners(self) -> npt.NDArray[np.int32]:
         """
         Return the indices of the corner points on contour.
 
@@ -137,6 +140,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         # Since we repeated theta, we select the peaks in desired region.
         theta2_abs = np.abs(grad)[..., 0]
         peaks2, _ = find_peaks(theta2_abs)
+        peaks2 = peaks2.astype(np.int32)
         (idxs,) = np.where((L // 2 <= peaks2) & (peaks2 < 3 * L // 2))
         peaks = peaks2[idxs]
         prom, _, _ = peak_prominences(theta2_abs, peaks)
@@ -156,21 +160,26 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
     def sides(self) -> npt.NDArray[np.float32]:
         r"""
-        Find the linear sides of the polygon.
+        Find linear sides of the polygon using Hough line transformation.
 
         Returns
         -------
         lines
-            Line parameters in $(\rho, \theta)$, where $\rho$ is the distance
-            from the coordinate origin and $\theta \in [0, \pi]$ is the angle of
-            normal vector from the origin to the line.
+            Vector of line parameters in $(\rho, \theta)$. $\rho$ is the distance
+            from the coordinate origin. $\theta$ is the angle of normal vector
+            from the origin to the line.
+
+        Notes
+        -----
+        The ranges of parameters are $\rho \in (-\infty, \infty)$ and
+        $\theta \in (-\frac{3 \pi}{2}, \frac{\pi}{2}]$. Arctan direction of the
+        side vector can be acquired by $\theta + \frac{\pi}{2}$.
         """
         if hasattr(self, "_sides"):
             return self._sides  # type: ignore[has-type]
 
-        corners = self.corners()
-        SHIFT = corners[0]
-        corners = corners - SHIFT
+        SHIFT = self.corners()[0]
+        corners = self.corners() - SHIFT
         cnt_roll = np.roll(self.contour(), -SHIFT, axis=0)
 
         RHO_RES = self.parameters.Rho
@@ -179,7 +188,8 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         # Directly use Hough transformation to find lines
         for c in np.split(cnt_roll, corners[1:], axis=0):
             tan = np.diff(c, axis=0)
-            theta = (np.arctan2(tan[..., 1], tan[..., 0]) - np.pi / 2) % np.pi
+            atan = np.arctan2(tan[..., 1], tan[..., 0])  # -pi < atan <= pi
+            theta = atan - np.pi / 2
             tmin, tmax = theta.min(), theta.max()
 
             if tmin < tmax:
@@ -233,14 +243,14 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         (self._vertex_points,) = (np.linalg.inv(mat) @ vec).transpose(2, 0, 1)
         return self._vertex_points
 
-    def regions(self) -> npt.NDArray[np.int64]:
+    def regions(self) -> npt.NDArray[np.int32]:
         """
         Return the indices of the contour points which fit best to linear sides.
         """
         if hasattr(self, "_regions"):
             return self._regions  # type: ignore[has-type]
 
-        # XXX: implement fitting to bezier curve
+        # XXX: implement corner region detection
         ret = np.column_stack(
             [
                 self.corners(),
@@ -249,6 +259,23 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         )
         self._regions = ret
         return self._regions
+
+    def normal(self):
+        """
+        Return unit normal vectors on each point of contour.
+
+        Uses polygon model.
+        """
+        # XXX: Current model assumes sharp polygon.
+        # After smooth corner region detection is done, enhance this!
+        SHIFT = self.corners()[0]
+        corners = self.corners() - SHIFT
+        reps = np.diff(np.append(corners, len(self.contour())))
+
+        _, thetas = self.sides().transpose(2, 0, 1)
+        n = np.stack([-np.cos(thetas), -np.sin(thetas)]).transpose(1, 2, 0)
+
+        return np.roll(np.repeat(n, reps, axis=0), SHIFT, axis=0)
 
     def examine(self) -> Optional[PolySubstrateError]:
         try:
