@@ -136,12 +136,13 @@ class RectCoatingLayerBase(
         roi_binimg = self.binary_image()[top:bot, left:right]
         return bool(np.any(np.all(roi_binimg, axis=1)))
 
-    def surface(self) -> npt.NDArray[np.int32]:
+    def enclosing_surface(self) -> npt.NDArray[np.int32]:
         """
-        Return the free surface of the coating layer.
+        Return an open curve which covers the surfaces of every layer region.
 
-        The result is continuous points sorted counter-clockwise in the image.
-        Discontinuous coating layer is connected by the substrate surface.
+        The result is a continuous curve over entire coating layer regions.
+        Discontinuous layers are connected by the substrate surface, i.e. the
+        domains in-between are regarded to be covered with zero-thickness layer.
 
         See Also
         ========
@@ -577,7 +578,7 @@ class RectLayerShape(
 
     def roughness(self) -> np.float64:
         """Dimensional roughness value of the coating layer surface."""
-        (surface,) = self.surface().transpose(1, 0, 2)
+        (surface,) = self.enclosing_surface().transpose(1, 0, 2)
         _, uniform_layer = self.uniform_layer()
         if surface.size == 0 or uniform_layer.size == 0:
             return np.float64(np.nan)
