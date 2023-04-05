@@ -410,10 +410,10 @@ class CoatingLayerBase(
             liq_gas.append(lg)
         return (subst_liq, liq_gas)
 
-    def interfaces2(self) -> npt.NDArray[np.int32]:
+    def interfaces2(self) -> List[npt.NDArray[np.int32]]:
         """
-        Return slice indices which can be used to acquire substrate-liquid
-        interface points from :meth:`layer_contours`.
+        Return indices which can be used to acquire substrate-liquid interface
+        points from :meth:`layer_contours`.
 
         Returns
         -------
@@ -422,20 +422,41 @@ class CoatingLayerBase(
 
         Notes
         -----
-        For a coated substrate with `i` discrete coating layer regions (i.e.
-        length of :meth:`layer_contours` is `i`), this method returns `(i, 3)`
-        shaped array.
+        From the layer contours, this method finds the points that are adjacent
+        to the substrate contours - i.e. the solid-liquid interface points on
+        the liquid side.
 
-        Rows are sorted in the order of appearance along the substrate contour,
-        and the first column represents the index of the coating layer region in
-        :meth:`layer_contours`. For example, if 3rd coating layer region in
-        :meth:`layer_contours` appears 5th along the substrate contour,
-        `indices[4, 0]` returns 2.
+        If the number of connected components in substrate image is `N + 1`
+        (including background), the result is a list of `N` arrays. In other
+        words, `i`-th array represents the interface points on the substrate
+        region labelled as `i - 1` by connected componnet analysis.
 
-        The second and the third column are the indices in each coating layer
-        contour to get the interface points. The columns are the indices of
-        starting point and ending point, respectively, of the interface in the
-        direction of the substrate contour.
+        Every array has `M` rows and 3 columns where `M` is the number of
+        discrete interfaces on the substrate. For example if two discrete coating
+        layers are on a substrate region, the array shape is `(2, 3)`.
+        Rows are sorted in the order of appearance along the substrate contour
+        i.e. counter-clockwise direction.
+
+        Each column describes the coating layer contour:
+
+        1. Index of coating layer contour in :meth:`layer_contours`.
+        2. Interface-starting index in the coating layer contour.
+        3. Interface-ending index in the coating layer cnotour.
+
+        The first column indicates the location of the coating layer contour in
+        :meth:`layer_contours`. Combining this information with the row index
+        allows sorting the contours. For example, if the first column is
+        `array([[1], [0]])` this means the 2nd contour in :meth:`layer_contours`
+        appears first and the 1st contour appears next along the substrate.
+
+        The second and the third column locates the interface in each coating
+        layer contour. For example, a row `array([[1, 100, 10]])` describes an
+        interface which starts at `cnts[1][100]` and ends at `cnts[1][10]`
+        (where `cnts` is the result of :meth:`layer_contours`).
+        The direction of the interface is parallel to the direction of the
+        substrate contour. Indices are not sanitized with respect to the length
+        of the coating layer contour, so user must preprocess the indices before
+        slicing the contour.
         """
         # For each contour, find points which are adjacent to the substrate.
         # i-th contour in `layer_contours()` is labelled as `i + 1`.
@@ -444,35 +465,44 @@ class CoatingLayerBase(
         for i, cnt in enumerate(layer_cnt):
             ((x, y),) = cnt.transpose(1, 2, 0)
             layer_map[y, x] = i + 1
-        dilated_subst_cnts, _ = cv2.findContours(
-            cv2.dilate(cv2.bitwise_not(self.substrate.binary_image()), np.ones((3, 3))),
-            cv2.RETR_EXTERNAL,
-            cv2.CHAIN_APPROX_NONE,
-        )
-        # `adj_points` is every point that is adjacent to the substrate in
-        # coated substrate image, i.e. interface point candidates.
-        adj_points = self.substrate_point() + np.concatenate(dilated_subst_cnts)
-        ((adj_x, adj_y),) = adj_points.transpose(1, 2, 0)
-        # `interface_labels` shows which contour does the adjacent point belongs
-        # to. 0 means the point is not covered with the layer.
-        interface_labels = layer_map[adj_y, adj_x]
 
-        # Sort the layers along the direction of substrate contour.
-        label_locs = []
-        for label in range(len(layer_cnt)):
-            (lab_loc,) = np.where(interface_labels == label + 1)
-            label_locs.append(lab_loc[0])
-        sorted_labels = interface_labels[np.sort(np.array(label_locs, dtype=np.int32))]
+        ret = []
+        N, lab = cv2.connectedComponents(cv2.bitwise_not(self.substrate.binary_image()))
+        for n in range(1, N):
+            (dilated_subst_cnt,), _ = cv2.findContours(
+                cv2.dilate((lab == n) * np.uint8(255), np.ones((3, 3))),
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_NONE,
+            )
+            # `adj_points` is every point that is adjacent to the substrate in
+            # coated substrate image, i.e. interface point candidates.
+            adj_points = self.substrate_point() + dilated_subst_cnt
+            ((adj_x, adj_y),) = adj_points.transpose(1, 2, 0)
+            # `interface_labels` shows which contour does the adjacent point belongs
+            # to. 0 means the point is not covered with the layer.
+            interface_labels = layer_map[adj_y, adj_x]
 
-        indices = []
-        for label in sorted_labels:
-            cnt = layer_cnt[label - 1]
-            # `interface` is sorted along the substrate contour
-            interface = adj_points[interface_labels == label]
-            (i0,), _ = np.where(np.all(cnt == interface[0], axis=-1))
-            (i1,), _ = np.where(np.all(cnt == interface[-1], axis=-1))
-            indices.append([label - 1, i0, i1])
-        return np.array(indices, dtype=np.int32)
+            # Sort the layers along the direction of substrate contour.
+            label_locs = []
+            for label in range(len(layer_cnt)):
+                (lab_loc,) = np.where(interface_labels == label + 1)
+                label_locs.append(lab_loc[0])
+            sorted_labels = interface_labels[
+                np.sort(np.array(label_locs, dtype=np.int32))
+            ]
+
+            indices = []
+            for label in sorted_labels:
+                cnt = layer_cnt[label - 1]
+                # `interface` is sorted along the substrate contour
+                interface = adj_points[interface_labels == label]
+                (i0,), _ = np.where(np.all(cnt == interface[0], axis=-1))
+                (i1,), _ = np.where(np.all(cnt == interface[-1], axis=-1))
+                indices.append([label - 1, i0, i1])
+
+            ret.append(np.array(indices, dtype=np.int32))
+
+        return ret
 
     def surface(self) -> npt.NDArray[np.int32]:
         """
