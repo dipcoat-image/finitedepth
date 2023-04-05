@@ -179,20 +179,25 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         x0, y0, x1, y1 = self.reference.substrateROI
         return self.reference.binary_image()[y0:y1, x0:x1]
 
+    @abc.abstractmethod
     def nestled_points(self) -> npt.NDArray[np.int32]:
         """
-        Find the points which are firmly nestled in the substrate.
+        Return the points which are guaranteed to be in substrate regions.
 
-        This method is used to distinguish connected components in the image
-        which are not connected to the substrate, e.g. fluid bath surface.
-        Subclass may reimplement this method according to the substrate geometry.
+        Notes
+        -----
+        This method is used to process the coated substrate image by removing
+        the blobs that are not connected to the substrate - which are specks
+        or other structural errors e.g. fluid bath surface.
 
-        Return value is stacked coordinates in ``(x, y)``. Normally only one
-        point is returned, but the result can be multiple points if the substrate
-        consists of unconnected components.
+        Subclass should implement this method using the substrate geometry model.
+        Return value must be an `(N, 2)`-shaped array, where `N` is the number of
+        discrete substrate regions and the columns are the point coordinates in
+        `[x, y]`. In other words, `i`-th row must be a point which lies in the
+        substrate region labelled as `i + 1` by ``cv2.connectedComponents``.
+        (adding one because `0` is a label for background).
+
         """
-        w = self.image().shape[1]
-        return np.array([[w / 2, 0]], dtype=np.int32)
 
     @abc.abstractmethod
     def examine(self) -> Optional[SubstrateError]:
@@ -284,6 +289,11 @@ class Substrate(SubstrateBase[SubstrateParameters, SubstrateDrawOptions]):
     DrawOptions = SubstrateDrawOptions
 
     DrawMode: TypeAlias = BinaryImageDrawMode
+
+    def nestled_points(self) -> npt.NDArray[np.int32]:
+        # XXX: Need better way to find center...
+        w = self.image().shape[1]
+        return np.array([[w / 2, 0]], dtype=np.int32)
 
     def examine(self) -> None:
         return None

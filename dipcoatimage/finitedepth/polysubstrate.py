@@ -64,7 +64,8 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     Abstract base class for substrate whose cross section is simple polygon.
 
     :class:`PolySubstrateBase` provides method to detect the sides of the
-    polygonal substrate. Smooth corners are allowed.
+    polygonal substrate. Smooth corners are allowed, but only one polygon
+    must exist in the image, i.e. no disconnected components.
 
     Concrete class must define :attr:`SidesNum` class attribute, which is the
     number of the sides of polygon.
@@ -82,12 +83,13 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     DrawOptions: Type[DrawOptionsType]
     SidesNum: int
 
-    def contour(self) -> npt.NDArray[np.int32]:
-        """
-        Return the contour of the substrate.
+    def nestled_points(self) -> npt.NDArray[np.int32]:
+        # XXX: Need better way to find center...
+        w = self.image().shape[1]
+        return np.array([[w / 2, 0]], dtype=np.int32)
 
-        Only one contour must exist in the image, i.e. no discontius point.
-        """
+    def contour(self) -> npt.NDArray[np.int32]:
+        """Return the contour of the substrate."""
         if hasattr(self, "_contour"):
             return self._contour  # type: ignore[has-type]
 

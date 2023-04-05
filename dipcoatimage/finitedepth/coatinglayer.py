@@ -429,7 +429,7 @@ class CoatingLayerBase(
         If the number of connected components in substrate image is `N + 1`
         (including background), the result is a list of `N` arrays. In other
         words, `i`-th array represents the interface points on the substrate
-        region labelled as `i - 1` by connected componnet analysis.
+        region labelled as `i + 1` by ``cv2.connectedComponents``.
 
         Every array has `M` rows and 3 columns where `M` is the number of
         discrete interfaces on the substrate. For example if two discrete coating
@@ -516,7 +516,7 @@ class CoatingLayerBase(
 
         return ret
 
-    def interface_points(self):
+    def interface_points(self) -> List[List[npt.NDArray[np.int32]]]:
         """
         Return the interface points defined by :meth:`interfaces2`.
 
