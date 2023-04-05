@@ -468,9 +468,9 @@ class CoatingLayerBase(
                     ret.append(np.empty((0, 3), dtype=np.int32))
                 else:
                     ret.append(np.array(indices, dtype=np.int32))
-    
+
             self._interfaces = ret
-        return ret
+        return self._interfaces
 
     def interface_points(self) -> List[List[npt.NDArray[np.int32]]]:
         """
