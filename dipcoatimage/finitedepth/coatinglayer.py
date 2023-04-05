@@ -531,9 +531,9 @@ class CoatingLayerBase(
             for cnt_idx, i0, i1 in indice_arr:
                 cnt = layer_cnt[cnt_idx]
                 if i0 < i1:
-                    pt = cnt[i0: i1 + 1]
+                    pt = cnt[i0 : i1 + 1]
                 else:
-                    pt = np.concatenate([cnt[i0:], cnt[:i1 + 1]])
+                    pt = np.concatenate([cnt[i0:], cnt[: i1 + 1]])
                 points.append(pt)
             ret.append(points)
         return ret
