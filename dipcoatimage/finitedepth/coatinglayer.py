@@ -360,54 +360,6 @@ class CoatingLayerBase(
             self._layer_contours = list(contours)
         return self._layer_contours
 
-    def interfaces(
-        self,
-    ) -> Tuple[List[npt.NDArray[np.int32]], List[npt.NDArray[np.int32]]]:
-        """
-        Return substrate-liquid interface points and liquid-gas interface points.
-
-        All points are part of :meth:`layer_contours`. Points on each list are
-        sorted counter-clockwise in the image.
-        """
-        # along the substrate contour, find the points which belong to the layer
-        layer_cnt = self.layer_contours()
-        layer_map = np.zeros(self.image.shape[:2], dtype=np.uint8)
-        for i, cnt in enumerate(layer_cnt):
-            ((x, y),) = cnt.transpose(1, 2, 0)
-            layer_map[y, x] = i + 1
-        subst_dilated = cv2.dilate(
-            self.substrate.regions()[1].astype(bool) * np.uint8(255), np.ones((3, 3))
-        )
-        (subst_cnt,), _ = cv2.findContours(
-            subst_dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
-        )
-        subst_cnt_in_self = self.substrate_point() + subst_cnt
-        ((subst_x, subst_y),) = subst_cnt_in_self.transpose(1, 2, 0)
-        subst_labels = layer_map[subst_y, subst_x]
-
-        # for discrete layers, which appears first along the substrate contour?
-        cnt_order = []
-        for label in range(len(layer_cnt)):
-            (lab_idx,) = np.where(subst_labels == label + 1)
-            first_idx = lab_idx[0]
-            cnt_order.append(first_idx)
-
-        # separate each contour into substrate-layer and layer-gas
-        subst_liq, liq_gas = [], []
-        for label in subst_labels[np.sort(np.array(cnt_order, dtype=int))]:
-            cnt = layer_cnt[label - 1]
-            sl = subst_cnt_in_self[np.where(subst_labels == label)]
-            (i0,), _ = np.where(np.all(cnt == sl[0], axis=-1))
-            (i1,), _ = np.where(np.all(cnt == sl[-1], axis=-1))
-            if i0 <= i1:
-                lg = cnt[i0 + 1 : i1]
-            else:
-                lg = np.concatenate([cnt[i0 + 1 :], cnt[:i1]])
-
-            subst_liq.append(sl)
-            liq_gas.append(lg)
-        return (subst_liq, liq_gas)
-
     def interfaces2(self) -> List[npt.NDArray[np.int32]]:
         """
         Return indices which can be used to acquire substrate-liquid interface
