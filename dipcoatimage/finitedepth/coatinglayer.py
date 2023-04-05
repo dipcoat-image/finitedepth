@@ -474,11 +474,12 @@ class CoatingLayerBase(
 
     def interface_points(self) -> List[List[npt.NDArray[np.int32]]]:
         """
-        Return the interface points defined by :meth:`interfaces`.
+        Return the substrate-liquid interface points from :meth:`interfaces`.
 
         See Also
         --------
         interfaces
+        surface_points
         """
         layer_cnt = self.layer_contours()
         ret = []
@@ -490,6 +491,34 @@ class CoatingLayerBase(
                     pt = cnt[i0 : i1 + 1]
                 else:
                     pt = np.concatenate([cnt[i0:], cnt[: i1 + 1]])
+                points.append(pt)
+            ret.append(points)
+        return ret
+
+    def surface_points(self) -> List[List[npt.NDArray[np.int32]]]:
+        """
+        Return the surface points from :meth:`interfaces`.
+
+        For a substrate and a coating layer region, the surface points are every
+        point from the layer region contour except the interface with substrate.
+        The surface points include both the free surface (liquid-air interface)
+        and the interfaces with other substrate regions.
+
+        See Also
+        --------
+        interfaces
+        interface_points
+        """
+        layer_cnt = self.layer_contours()
+        ret = []
+        for indice_arr in self.interfaces():
+            points = []
+            for cnt_idx, i0, i1 in indice_arr:
+                cnt = layer_cnt[cnt_idx]
+                if i0 < i1:
+                    pt = np.concatenate([cnt[i1 + 1:], cnt[:i0]])
+                else:
+                    pt = cnt[i1 + 1 : i0]
                 points.append(pt)
             ret.append(points)
         return ret
