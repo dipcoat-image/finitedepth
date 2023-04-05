@@ -136,6 +136,36 @@ class RectCoatingLayerBase(
         roi_binimg = self.binary_image()[top:bot, left:right]
         return bool(np.any(np.all(roi_binimg, axis=1)))
 
+    def surface(self) -> npt.NDArray[np.int32]:
+        """
+        Return the free surface of the coating layer.
+
+        The result is continuous points sorted counter-clockwise in the image.
+        Discontinuous coating layer is connected by the substrate surface.
+
+        See Also
+        ========
+
+        layer_contours
+            Contours for each discrete coating layer region.
+
+        interfaces
+            Substrate-liquid interfaces and gas-liquid interfaces for each
+            discrete coating layer region.
+        """
+        (cnt,), _ = cv2.findContours(
+            self.coated_substrate().astype(np.uint8),
+            cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_NONE,
+        )
+        (interfaces,) = self.interface_points()
+        if not interfaces:
+            return np.empty((0, 1, 2), dtype=np.int32)
+        p0, p1 = interfaces[0][-1], interfaces[-1][0]
+        idx0 = np.argmin(np.linalg.norm(cnt - p0, axis=-1))
+        idx1 = np.argmin(np.linalg.norm(cnt - p1, axis=-1))
+        return cnt[int(idx0) : int(idx1 + 1)]
+
     def label_layer(self) -> npt.NDArray[np.uint8]:
         """
         Return the classification map of the pixels.
