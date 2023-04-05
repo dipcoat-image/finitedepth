@@ -453,10 +453,19 @@ class CoatingLayerBase(
         layer contour. For example, a row `array([[1, 100, 10]])` describes an
         interface which starts at `cnts[1][100]` and ends at `cnts[1][10]`
         (where `cnts` is the result of :meth:`layer_contours`).
-        The direction of the interface is parallel to the direction of the
-        substrate contour. Indices are not sanitized with respect to the length
-        of the coating layer contour, so user must preprocess the indices before
-        slicing the contour.
+
+        The direction from the starting point to the ending point is parallel to
+        the direction of the layer contour. In the previous example, the indices
+        of interface points are `[100, 101, ..., (last index), 0, 1, ..., 10]`,
+        not `[100, 99, ..., 10]`.
+        Note that this direction is opposite to the direction with respect to the
+        substrate contour.
+
+        See Also
+        --------
+        interface_points
+            Returns the points using the result of this method.
+
         """
         # For each contour, find points which are adjacent to the substrate.
         # i-th contour in `layer_contours()` is labelled as `i + 1`.
@@ -498,10 +507,35 @@ class CoatingLayerBase(
                 interface = adj_points[interface_labels == label]
                 (i0,), _ = np.where(np.all(cnt == interface[0], axis=-1))
                 (i1,), _ = np.where(np.all(cnt == interface[-1], axis=-1))
-                indices.append([label - 1, i0, i1])
+                # On the interface, substrate contour direction is opposite to
+                # layer contour direction. Therefore reverse order to (i1, i0)
+                # to sort by layer contour direction.
+                indices.append([label - 1, i1, i0])
 
             ret.append(np.array(indices, dtype=np.int32))
 
+        return ret
+
+    def interface_points(self):
+        """
+        Return the interface points defined by :meth:`interfaces2`.
+
+        See Also
+        --------
+        interfaces2
+        """
+        layer_cnt = self.layer_contours()
+        ret = []
+        for indice_arr in self.interfaces2():
+            points = []
+            for cnt_idx, i0, i1 in indice_arr:
+                cnt = layer_cnt[cnt_idx]
+                if i0 < i1:
+                    pt = cnt[i0: i1 + 1]
+                else:
+                    pt = np.concatenate([cnt[i0:], cnt[:i1 + 1]])
+                points.append(pt)
+            ret.append(points)
         return ret
 
     def surface(self) -> npt.NDArray[np.int32]:
