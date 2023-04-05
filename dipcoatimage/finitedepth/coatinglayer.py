@@ -360,7 +360,7 @@ class CoatingLayerBase(
             self._layer_contours = list(contours)
         return self._layer_contours
 
-    def interfaces2(self) -> List[npt.NDArray[np.int32]]:
+    def interfaces(self) -> List[npt.NDArray[np.int32]]:
         """
         Return indices which can be used to acquire substrate-liquid interface
         points from :meth:`layer_contours`.
@@ -471,15 +471,15 @@ class CoatingLayerBase(
 
     def interface_points(self) -> List[List[npt.NDArray[np.int32]]]:
         """
-        Return the interface points defined by :meth:`interfaces2`.
+        Return the interface points defined by :meth:`interfaces`.
 
         See Also
         --------
-        interfaces2
+        interfaces
         """
         layer_cnt = self.layer_contours()
         ret = []
-        for indice_arr in self.interfaces2():
+        for indice_arr in self.interfaces():
             points = []
             for cnt_idx, i0, i1 in indice_arr:
                 cnt = layer_cnt[cnt_idx]
