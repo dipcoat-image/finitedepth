@@ -91,8 +91,9 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     def contour(self) -> npt.NDArray[np.int32]:
         """Return the contour of the substrate."""
         if not hasattr(self, "_contour"):
+            img = self.regions()[1].astype(bool) * np.uint8(255)
             (cnt,), _ = cv2.findContours(
-                cv2.bitwise_not(self.binary_image()),
+                img,
                 cv2.RETR_EXTERNAL,
                 cv2.CHAIN_APPROX_NONE,
             )

@@ -325,12 +325,10 @@ class CoatingLayerBase(
         """Return the mask without undesired features, e.g. bath surface."""
         if not hasattr(self, "_coated_substrate"):
             # remove components that are not connected to the substrate
-            _, labels = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
-            points = self.substrate_point() + self.substrate.nestled_points()
-            x, y = points.T
-            subst_comps = np.unique(labels[y, x])
-
-            self._coated_substrate = np.isin(labels, subst_comps)
+            _, img = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
+            x, y = (self.substrate_point() + self.substrate.nestled_points()).T
+            labels = img[y, x]
+            self._coated_substrate = np.isin(img, labels)
         return self._coated_substrate
 
     def extract_layer(self) -> npt.NDArray[np.bool_]:
@@ -338,7 +336,7 @@ class CoatingLayerBase(
         if not hasattr(self, "_extracted_layer"):
             coated_mask = self.coated_substrate()
             # remove the substrate
-            subst_mask = ~self.substrate.binary_image().astype(bool)
+            subst_mask = self.substrate.regions()[1].astype(bool)
             x0, y0 = self.substrate_point()
             ret = images_ANDXOR(coated_mask, subst_mask, (x0, y0))
             ret[:y0, :] = False
@@ -378,7 +376,7 @@ class CoatingLayerBase(
             ((x, y),) = cnt.transpose(1, 2, 0)
             layer_map[y, x] = i + 1
         subst_dilated = cv2.dilate(
-            cv2.bitwise_not(self.substrate.binary_image()), np.ones((3, 3))
+            self.substrate.regions()[1].astype(bool) * np.uint8(255), np.ones((3, 3))
         )
         (subst_cnt,), _ = cv2.findContours(
             subst_dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
