@@ -426,10 +426,10 @@ class CoatingLayerBase(
         to the substrate contours - i.e. the solid-liquid interface points on
         the liquid side.
 
-        If the number of connected components in substrate image is `N + 1`
-        (including background), the result is a list of `N` arrays. In other
-        words, `i`-th array represents the interface points on the substrate
-        region labelled as `i + 1` by ``cv2.connectedComponents``.
+        The return value is a list of `N` arrays, where `N` is the number of
+        substrate regions in substrate image. `i`-th array represents the
+        interface points on the substrate region with `i`-th label from
+        :meth:`SubstrateBase.regions`.
 
         Every array has `M` rows and 3 columns where `M` is the number of
         discrete interfaces on the substrate. For example if two discrete coating
@@ -476,10 +476,10 @@ class CoatingLayerBase(
             layer_map[y, x] = i + 1
 
         ret = []
-        N, lab = cv2.connectedComponents(cv2.bitwise_not(self.substrate.binary_image()))
-        for n in range(1, N):
+        reg_val, reg_img = self.substrate.regions()
+        for v in reg_val:
             (dilated_subst_cnt,), _ = cv2.findContours(
-                cv2.dilate((lab == n) * np.uint8(255), np.ones((3, 3))),
+                cv2.dilate((reg_img == v) * np.uint8(255), np.ones((3, 3))),
                 cv2.RETR_EXTERNAL,
                 cv2.CHAIN_APPROX_NONE,
             )
