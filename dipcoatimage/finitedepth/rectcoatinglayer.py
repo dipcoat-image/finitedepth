@@ -485,6 +485,17 @@ class RectLayerShape(
 
         return self._thickness_points
 
+    def thickness_points2(self):
+        sides_map = np.zeros(self.image.shape[:2], dtype=np.uint8)
+        _, left, _, bottom, _, right, _, _, _ = np.split(
+            self.substrate_point() + self.substrate.contour(),
+            self.substrate.sides().flatten(),
+        )
+        sides_map[left.transpose(2, 0, 1)[1], left.transpose(2, 0, 1)[0]] = 1
+        sides_map[bottom.transpose(2, 0, 1)[1], bottom.transpose(2, 0, 1)[0]] = 2
+        sides_map[right.transpose(2, 0, 1)[1], right.transpose(2, 0, 1)[0]] = 3
+        sides_label = cv2.dilate(sides_map, np.ones((3, 3)))
+
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """
         Return thickness and points for uniform layer that satisfies
