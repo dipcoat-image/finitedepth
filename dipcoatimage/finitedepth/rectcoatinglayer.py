@@ -492,17 +492,12 @@ class RectLayerShape(
         """
         if not hasattr(self, "_uniform_layer"):
             # get contact line points
-            sl_interfaces, _ = self.interfaces()
-            if len(sl_interfaces) == 0:
+            (interfaces,) = self.interface_points()
+            if not interfaces:
                 layer = np.empty((0, 1, 2), dtype=np.float64)
                 self._uniform_layer = (np.float64(0), layer)
                 return self._uniform_layer
-            sl_points = np.concatenate(sl_interfaces)
-            if len(sl_points) == 0:
-                layer = np.empty((0, 1, 2), dtype=np.float64)
-                self._uniform_layer = (np.float64(0), layer)
-                return self._uniform_layer
-            p1, p2 = sl_points[0], sl_points[-1]
+            p1, p2 = interfaces[0][-1], interfaces[-1][0]
 
             subst_point = self.substrate_point()
             hull, _ = self.substrate.edge_hull()
@@ -636,18 +631,16 @@ class RectLayerShape(
 
         contactline_opts = self.deco_options.contact_line
         if contactline_opts.thickness > 0:
-            sl_interfaces, _ = self.interfaces()
-            if len(sl_interfaces) != 0:
-                sl_points = np.concatenate(sl_interfaces)
-                if len(sl_points) != 0:
-                    (p1,), (p2,) = sl_points[0], sl_points[-1]
-                    cv2.line(
-                        image,
-                        p1,
-                        p2,
-                        dataclasses.astuple(contactline_opts.color),
-                        contactline_opts.thickness,
-                    )
+            (interfaces,) = self.interface_points()
+            if interfaces:
+                (p1,), (p2,) = interfaces[0][-1], interfaces[-1][0]
+                cv2.line(
+                    image,
+                    p1,
+                    p2,
+                    dataclasses.astuple(contactline_opts.color),
+                    contactline_opts.thickness,
+                )
 
         thicknesslines_opts = self.deco_options.thickness_lines
         if thicknesslines_opts.thickness > 0:
@@ -691,20 +684,17 @@ class RectLayerShape(
         AREA = self.layer_area()
 
         _, B, C, _ = self.substrate.vertex_points() + self.substrate_point()
-        sl_interfaces, _ = self.interfaces()
-        if len(sl_interfaces) == 0:
-            LEN_L = LEN_R = np.float64(0)
+
+        (interfaces,) = self.interface_points()
+        if interfaces:
+            points = np.concatenate([interfaces[0][-1], interfaces[-1][0]])
+            Bp = points - B
+            BC = C - B
+            t = np.dot(Bp, BC) / np.dot(BC, BC)
+            dists = np.linalg.norm(Bp - np.tensordot(t, BC, axes=0), axis=1)
+            LEN_L, LEN_R = dists.astype(np.float64)
         else:
-            sl_points = np.concatenate(sl_interfaces)
-            if len(sl_points) == 0:
-                LEN_L = LEN_R = np.float64(0)
-            else:
-                points = np.concatenate([sl_points[0], sl_points[-1]])
-                Bp = points - B
-                BC = C - B
-                t = np.dot(Bp, BC) / np.dot(BC, BC)
-                dists = np.linalg.norm(Bp - np.tensordot(t, BC, axes=0), axis=1)
-                LEN_L, LEN_R = dists.astype(np.float64)
+            LEN_L = LEN_R = np.float64(0)
 
         tp_l, tp_b, tp_r = self.thickness_points()
         THCK_L = np.linalg.norm(np.diff(tp_l, axis=0))
