@@ -489,7 +489,7 @@ class CoatingLayerBase(
             # to. 0 means the point is not covered with the layer.
             interface_labels = layer_map[adj_y, adj_x]
 
-            # Sort the layers along the direction of substrate contour.
+            # Sort the interface patches along the direction of substrate contour.
             label_locs = []
             for label in range(len(layer_cnt)):
                 (lab_loc,) = np.where(interface_labels == label + 1)
@@ -501,7 +501,7 @@ class CoatingLayerBase(
             indices = []
             for label in sorted_labels:
                 cnt = layer_cnt[label - 1]
-                # `interface` is sorted along the substrate contour
+                # Points in `interface` is sorted along the substrate contour
                 interface = adj_points[interface_labels == label]
                 (i0,), _ = np.where(np.all(cnt == interface[0], axis=-1))
                 (i1,), _ = np.where(np.all(cnt == interface[-1], axis=-1))
