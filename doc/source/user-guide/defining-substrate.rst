@@ -93,6 +93,9 @@ Full code will be shown first, and each line will be explained in subsections.
    ...     __slots__ = ("_circles",)
    ...     Parameters = HoughCirclesParameters
    ...     DrawOptions = CircleDrawOptions
+   ...     def nestled_points(self):
+   ...         w = self.image().shape[1]
+   ...         return np.array([[w / 2, 0]], dtype=np.int32)
    ...     def circles(self):
    ...         if not hasattr(self, "_circles"):
    ...             args = dataclasses.asdict(self.parameters)

@@ -33,11 +33,12 @@ Implementation
 
 import abc
 import dataclasses
+import cv2  # type: ignore
 import numpy as np
 import numpy.typing as npt
 from .reference import SubstrateReferenceBase
 from .util import DataclassProtocol, BinaryImageDrawMode, colorize
-from typing import TypeVar, Generic, Type, Optional
+from typing import TypeVar, Generic, Type, Optional, Tuple
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -117,6 +118,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         "_ref",
         "_parameters",
         "_draw_options",
+        "_regions",
     )
 
     Parameters: Type[ParametersType]
@@ -182,22 +184,48 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     @abc.abstractmethod
     def nestled_points(self) -> npt.NDArray[np.int32]:
         """
-        Return the points which are guaranteed to be in substrate regions.
+        Return the points which are guaranteed to be in each substrate regions.
 
         Notes
         -----
-        This method is used to process the coated substrate image by removing
-        the blobs that are not connected to the substrate - which are specks
-        or other structural errors e.g. fluid bath surface.
+        This method is used to process both the bare substrate image and coated
+        substrate image by removing the blobs that are not connected to the
+        substrate. The blobs can be either speck noises or structural object
+        e.g. fluid bath surface.
 
         Subclass should implement this method using the substrate geometry model.
         Return value must be an `(N, 2)`-shaped array, where `N` is the number of
-        discrete substrate regions and the columns are the point coordinates in
-        `[x, y]`. In other words, `i`-th row must be a point which lies in the
-        substrate region labelled as `i + 1` by ``cv2.connectedComponents``.
-        (adding one because `0` is a label for background).
+        discrete substrate regions in the bare substrate image. The columns are
+        the coordinates of each point in `[x, y]`.
 
         """
+
+    def regions(self) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.int32]]:
+        """
+        Return the labels and labelled image of substrate regions.
+
+        Any blobs that are not connected to the substrate regions are removed.
+
+        Returns
+        -------
+        labels
+            Values in *img*
+        img
+            Mask which indicates the location of substrate regions.
+
+        Notes
+        -----
+        This method uses ``cv2.connectedComponents`` and :meth:`nestled_points`
+        to distinguish undesired components from the substrates regions.
+        """
+        if not hasattr(self, "_regions"):
+            _, img = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
+            subst_x, subst_y = self.nestled_points().T
+            labels = img[subst_y, subst_x]
+            img[~np.isin(img, labels)] = 0
+
+            self._regions = (labels, img)
+        return self._regions
 
     @abc.abstractmethod
     def examine(self) -> Optional[SubstrateError]:
