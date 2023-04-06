@@ -380,13 +380,12 @@ class CoatingLayerBase(
         The return value is a list of `N` arrays, where `N` is the number of
         substrate regions in substrate image. `i`-th array represents the
         interface points on the substrate region which is labelled as `i + 1`
-        ㅠㅛ :meth:`SubstrateBase.regions`.
+        by :meth:`SubstrateBase.regions`.
 
         Every array has `M` rows and 3 columns where `M` is the number of
         discrete interfaces on the substrate. For example if two discrete coating
         layers are on a substrate region, the array shape is `(2, 3)`.
-        Rows are sorted in the order of appearance along the substrate contour
-        i.e. counter-clockwise direction.
+        Rows are sorted in the order of appearance along the substrate contour.
 
         Each column describes the coating layer contour:
 
@@ -414,7 +413,7 @@ class CoatingLayerBase(
 
         See Also
         --------
-        interface_points
+        interface_points, surface_points
             Returns the points using the result of this method.
 
         """
@@ -472,56 +471,80 @@ class CoatingLayerBase(
             self._interfaces = ret
         return self._interfaces
 
-    def interface_points(self) -> List[List[npt.NDArray[np.int32]]]:
+    def interface_points(self, substrate_label: int) -> List[npt.NDArray[np.int32]]:
         """
-        Return the substrate-liquid interface points from :meth:`interfaces`.
+        Return the substrate-liquid interface points on a substrate.
+
+        Parameters
+        ----------
+        substrate_label: positive int
+            Label of the substrate region in :meth:`SubstrateBase.regions`.
+
+        Returns
+        -------
+        points: list of point vector arrays
+            Each array represents the interface points in each coating layer
+            contour over the substrate. Arrays are sorted in the order of
+            appearance along the substrate contour.
 
         See Also
         --------
         interfaces
         surface_points
         """
-        layer_cnt = self.layer_contours()
-        ret = []
-        for indice_arr in self.interfaces():
-            points = []
-            for cnt_idx, i0, i1 in indice_arr:
-                cnt = layer_cnt[cnt_idx]
-                if i0 < i1:
-                    pt = cnt[i0 : i1 + 1]
-                else:
-                    pt = np.concatenate([cnt[i0:], cnt[: i1 + 1]])
-                points.append(pt)
-            ret.append(points)
-        return ret
+        if substrate_label < 1:
+            return []
 
-    def surface_points(self) -> List[List[npt.NDArray[np.int32]]]:
+        indice_arr = self.interfaces()[substrate_label - 1]
+        points = []
+        for cnt_idx, i0, i1 in indice_arr:
+            cnt = self.layer_contours()[cnt_idx]
+            if i0 < i1:
+                pt = cnt[i0 : i1 + 1]
+            else:
+                pt = np.concatenate([cnt[i0:], cnt[: i1 + 1]])
+            points.append(pt)
+        return points
+
+    def surface_points(self, substrate_label: int) -> List[npt.NDArray[np.int32]]:
         """
-        Return the surface points from :meth:`interfaces`.
+        Return the surface points on a substrate.
 
-        For a substrate and a coating layer region, the surface points are every
-        point from the layer region contour except the interface with substrate.
-        The surface points include both the free surface (liquid-air interface)
-        and the interfaces with other substrate regions.
+        Surface points are the points from a layer region contour that are not
+        adjacent to a substrate of interest. This includes not only the free
+        surface (liquid-air interface) but also the interfaces with other
+        substrate regions.
+
+        Parameters
+        ----------
+        substrate_label: positive int
+            Label of the substrate region in :meth:`SubstrateBase.regions`.
+
+        Returns
+        -------
+        points: list of point vector arrays
+            Each array represents the surface points in each coating layer
+            contour over the substrate. Arrays are sorted in the order of
+            appearance along the substrate contour.
 
         See Also
         --------
         interfaces
         interface_points
         """
-        layer_cnt = self.layer_contours()
-        ret = []
-        for indice_arr in self.interfaces():
-            points = []
-            for cnt_idx, i0, i1 in indice_arr:
-                cnt = layer_cnt[cnt_idx]
-                if i0 < i1:
-                    pt = np.concatenate([cnt[i1 + 1 :], cnt[:i0]])
-                else:
-                    pt = cnt[i1 + 1 : i0]
-                points.append(pt)
-            ret.append(points)
-        return ret
+        if substrate_label < 1:
+            return []
+
+        indice_arr = self.interfaces()[substrate_label - 1]
+        points = []
+        for cnt_idx, i0, i1 in indice_arr:
+            cnt = self.layer_contours()[cnt_idx]
+            if i0 < i1:
+                pt = np.concatenate([cnt[i1 + 1 :], cnt[:i0]])
+            else:
+                pt = cnt[i1 + 1 : i0]
+            points.append(pt)
+        return points
 
     @abc.abstractmethod
     def examine(self) -> Optional[CoatingLayerError]:

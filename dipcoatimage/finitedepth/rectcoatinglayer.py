@@ -154,15 +154,16 @@ class RectCoatingLayerBase(
             Substrate-liquid interfaces and gas-liquid interfaces for each
             discrete coating layer region.
         """
+        interfaces = self.interface_points(1)
+        if not interfaces:
+            return np.empty((0, 1, 2), dtype=np.int32)
+        p0, p1 = interfaces[0][-1], interfaces[-1][0]
+
         (cnt,), _ = cv2.findContours(
             self.coated_substrate().astype(np.uint8),
             cv2.RETR_EXTERNAL,
             cv2.CHAIN_APPROX_NONE,
         )
-        (interfaces,) = self.interface_points()
-        if not interfaces:
-            return np.empty((0, 1, 2), dtype=np.int32)
-        p0, p1 = interfaces[0][-1], interfaces[-1][0]
         idx0 = np.argmin(np.linalg.norm(cnt - p0, axis=-1))
         idx1 = np.argmin(np.linalg.norm(cnt - p1, axis=-1))
         return cnt[int(idx0) : int(idx1 + 1)]
@@ -486,43 +487,41 @@ class RectLayerShape(
 
         return self._thickness_points
 
-    def surface_projections(self) -> List[List[List[npt.NDArray[np.float64]]]]:
+    def surface_projections(self) -> List[List[npt.NDArray[np.float64]]]:
         """
         For every surface, find the projection points to each side line.
         """
         A, B, C, D = self.substrate.vertex_points() + self.substrate_point()
 
         ret = []
-        for surface in self.surface_points():
-            dists = []
-            for surf in surface:
-                on_left = np.cross(B - A, surf - A) >= 0
-                on_bottom = np.cross(C - B, surf - B) >= 0
-                on_right = np.cross(D - C, surf - C) >= 0
+        surface = self.surface_points(1)
+        for surf in surface:
+            on_left = np.cross(B - A, surf - A) >= 0
+            on_bottom = np.cross(C - B, surf - B) >= 0
+            on_right = np.cross(D - C, surf - C) >= 0
 
-                left = np.concatenate(
-                    [
-                        np.nonzero(on_left)[0][..., np.newaxis],
-                        find_projection(surf[on_left], B, C),
-                    ],
-                    axis=1,
-                )
-                right = np.concatenate(
-                    [
-                        np.nonzero(on_bottom)[0][..., np.newaxis],
-                        find_projection(surf[on_bottom], B, C),
-                    ],
-                    axis=1,
-                )
-                bottom = np.concatenate(
-                    [
-                        np.nonzero(on_right)[0][..., np.newaxis],
-                        find_projection(surf[on_right], B, C),
-                    ],
-                    axis=1,
-                )
-                dists.append([left, right, bottom])
-            ret.append(dists)
+            left = np.concatenate(
+                [
+                    np.nonzero(on_left)[0][..., np.newaxis],
+                    find_projection(surf[on_left], B, C),
+                ],
+                axis=1,
+            )
+            right = np.concatenate(
+                [
+                    np.nonzero(on_bottom)[0][..., np.newaxis],
+                    find_projection(surf[on_bottom], B, C),
+                ],
+                axis=1,
+            )
+            bottom = np.concatenate(
+                [
+                    np.nonzero(on_right)[0][..., np.newaxis],
+                    find_projection(surf[on_right], B, C),
+                ],
+                axis=1,
+            )
+            ret.append([left, right, bottom])
         return ret
 
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
@@ -532,7 +531,7 @@ class RectLayerShape(
         """
         if not hasattr(self, "_uniform_layer"):
             # get contact line points
-            (interfaces,) = self.interface_points()
+            interfaces = self.interface_points(1)
             if not interfaces:
                 layer = np.empty((0, 1, 2), dtype=np.float64)
                 self._uniform_layer = (np.float64(0), layer)
@@ -671,7 +670,7 @@ class RectLayerShape(
 
         contactline_opts = self.deco_options.contact_line
         if contactline_opts.thickness > 0:
-            (interfaces,) = self.interface_points()
+            interfaces = self.interface_points(1)
             if interfaces:
                 (p1,), (p2,) = interfaces[0][-1], interfaces[-1][0]
                 cv2.line(
@@ -725,7 +724,7 @@ class RectLayerShape(
 
         _, B, C, _ = self.substrate.vertex_points() + self.substrate_point()
 
-        (interfaces,) = self.interface_points()
+        interfaces = self.interface_points(1)
         if interfaces:
             points = np.concatenate([interfaces[0][-1], interfaces[-1][0]])
             Bp = points - B
