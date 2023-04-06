@@ -379,8 +379,8 @@ class CoatingLayerBase(
 
         The return value is a list of `N` arrays, where `N` is the number of
         substrate regions in substrate image. `i`-th array represents the
-        interface points on the substrate region with `i`-th label from
-        :meth:`SubstrateBase.regions`.
+        interface points on the substrate region which is labelled as `i + 1`
+        ㅠㅛ :meth:`SubstrateBase.regions`.
 
         Every array has `M` rows and 3 columns where `M` is the number of
         discrete interfaces on the substrate. For example if two discrete coating
@@ -429,7 +429,7 @@ class CoatingLayerBase(
 
             ret = []
             reg_val, reg_img = self.substrate.regions()
-            for v in reg_val:
+            for v in range(1, reg_val):
                 (dilated_subst_cnt,), _ = cv2.findContours(
                     cv2.dilate((reg_img == v) * np.uint8(255), np.ones((3, 3))),
                     cv2.RETR_EXTERNAL,

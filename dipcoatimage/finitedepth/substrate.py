@@ -200,31 +200,39 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
 
         """
 
-    def regions(self) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.int32]]:
+    def regions(self) -> Tuple[int, npt.NDArray[np.int32]]:
         """
-        Return the labels and labelled image of substrate regions.
-
-        Any blobs that are not connected to the substrate regions are removed.
+        Return the labelled image of substrate regions.
 
         Returns
         -------
+        retval
+            Number of label values in *labels*.
         labels
-            Values in *img*
-        img
-            Mask which indicates the location of substrate regions.
+            Labelled image.
 
         Notes
         -----
-        This method uses ``cv2.connectedComponents`` and :meth:`nestled_points`
-        to distinguish undesired components from the substrates regions.
+        This method is similar to ``cv2.connectedComponents`` except that the
+        non-substrate regions are excluded. Substrate regions are identified by
+        the location of :meth:`nestled_points`.
+
+        Substrate region marked by `i`-th point in :meth:`nestled_points` is
+        labelled as `i + 1`. If multiple points mark the same substrate region,
+        points after the first one are ignored. Background is labelled with `0`.
         """
         if not hasattr(self, "_regions"):
-            _, img = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
-            subst_x, subst_y = self.nestled_points().T
-            labels = img[subst_y, subst_x]
-            img[~np.isin(img, labels)] = 0
+            _, labels = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
+            pts = self.nestled_points()
+            subst_lab = np.unique(labels[pts[..., 1], pts[..., 0]])
+            retval = len(subst_lab) + 1
 
-            self._regions = (labels, img)
+            substrate_map = subst_lab.reshape(-1, 1, 1) == labels[np.newaxis, ...]
+            labels[:] = 0
+            for i in range(1, retval):
+                labels[substrate_map[i - 1, ...]] = i
+
+            self._regions = (retval, labels)
         return self._regions
 
     @abc.abstractmethod

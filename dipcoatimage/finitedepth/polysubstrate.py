@@ -61,14 +61,13 @@ DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
 
 class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     """
-    Abstract base class for substrate whose cross section is simple polygon.
+    Abstract base class for a substrate whose cross section is simple polygon.
 
     :class:`PolySubstrateBase` provides method to detect the sides of the
-    polygonal substrate. Smooth corners are allowed, but only one polygon
-    must exist in the image, i.e. no disconnected components.
+    a (smooth) polygonal substrate. Only one substrate region must exist.
 
     Concrete class must define :attr:`SidesNum` class attribute, which is the
-    number of the sides of polygon.
+    number of the sides of the polygon.
     """
 
     __slots__ = (
