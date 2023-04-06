@@ -5,9 +5,6 @@ the coating layer over rectangular substrate.
 Base class
 ==========
 
-.. autoclass:: LayerRegionFlag
-   :members:
-
 .. autoclass:: RectCoatingLayerBase
    :members:
 
