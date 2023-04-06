@@ -5,9 +5,6 @@ the coating layer over rectangular substrate.
 Base class
 ==========
 
-.. autoclass:: LayerRegionFlag
-   :members:
-
 .. autoclass:: RectCoatingLayerBase
    :members:
 
@@ -33,10 +30,9 @@ Implementation
 
 import cv2  # type: ignore
 import dataclasses
-import enum
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Type, Tuple, Optional
+from typing import TypeVar, Type, Tuple, Optional, List
 from .rectsubstrate import RectSubstrate
 from .coatinglayer import (
     CoatingLayerError,
@@ -59,7 +55,6 @@ except ImportError:
 
 
 __all__ = [
-    "LayerRegionFlag",
     "RectCoatingLayerBase",
     "MorphologyClosingParameters",
     "RectLayerShapeParameters",
@@ -67,7 +62,7 @@ __all__ = [
     "RectLayerShapeDecoOptions",
     "RectLayerShapeData",
     "RectLayerShape",
-    "get_extended_line",
+    "find_projection",
 ]
 
 
@@ -77,49 +72,17 @@ DecoOptionsType = TypeVar("DecoOptionsType", bound=DataclassProtocol)
 DataType = TypeVar("DataType", bound=DataclassProtocol)
 
 
-class LayerRegionFlag(enum.IntFlag):
-    """
-    Label to classify the coating layer pixels by their regions.
-
-    - BACKGROUND: Null value for pixels that are not the coating layer.
-    - LAYER: Denotes that the pixel is in the coating layer.
-    - LEFTHALF: Left-hand side w.r.t. the vertical center line.
-    - LEFTWALL: Left-hand side w.r.t. the left-hand side substrate wall.
-    - RIGHTWALL: Right-hand side w.r.t. the right-hand side substrate wall.
-    - BOTTOM: Under the substrate bottom surface.
-
-    """
-
-    BACKGROUND = 0
-    LAYER = 1
-    LEFTHALF = 2
-    LEFTWALL = 4
-    RIGHTWALL = 8
-    BOTTOM = 16
-
-
 class RectCoatingLayerBase(
     CoatingLayerBase[
         RectSubstrate, ParametersType, DrawOptionsType, DecoOptionsType, DataType
     ]
 ):
-    """
-    Abstract base class for coating layer over rectangular substrate.
-
-    :class:`RectCoatingLayerBase` is capable of classifying the coating layer
-    pixels by their location relative to the substrate. To get the classification
-    map, use :meth:`label_layer`.
-
-    """
-
-    __slots__ = ("_labelled_layer",)
+    """Abstract base class for coating layer over rectangular substrate."""
 
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
     DecoOptions: Type[DecoOptionsType]
     Data: Type[DataType]
-
-    Region: TypeAlias = LayerRegionFlag
 
     def capbridge_broken(self) -> bool:
         p0 = self.substrate_point()
@@ -136,52 +99,37 @@ class RectCoatingLayerBase(
         roi_binimg = self.binary_image()[top:bot, left:right]
         return bool(np.any(np.all(roi_binimg, axis=1)))
 
-    def label_layer(self) -> npt.NDArray[np.uint8]:
+    def enclosing_surface(self) -> npt.NDArray[np.int32]:
         """
-        Return the classification map of the pixels.
+        Return an open curve which covers the surfaces of every layer region.
 
-        Pixels are labelled with :class:`LayerRegionFlag` by their location
-        relative to the substrate. The values can be combined to denote the pixel
-        in the corner, i.e. ``LEFT | BOTTOM`` for the lower left region.
+        The result is a continuous curve over entire coating layer regions.
+        Discontinuous layers are connected by the substrate surface, i.e. the
+        domains in-between are regarded to be covered with zero-thickness layer.
 
+        See Also
+        ========
+
+        layer_contours
+            Contours for each discrete coating layer region.
+
+        interfaces
+            Substrate-liquid interfaces and gas-liquid interfaces for each
+            discrete coating layer region.
         """
-        if not hasattr(self, "_labelled_layer"):
-            mask = self.extract_layer()
-            points = np.flip(np.stack(np.where(mask)), axis=0).T
+        interfaces = self.interface_points(1)
+        if not interfaces:
+            return np.empty((0, 1, 2), dtype=np.int32)
+        p0, p1 = interfaces[0][-1], interfaces[-1][0]
 
-            p0 = self.substrate_point()
-            tl, bl, br, tr = self.substrate.vertex_points()
-            A = p0 + tl
-            B = p0 + bl
-            C = p0 + br
-            D = p0 + tr
-            M1, M2 = (A + D) / 2, (B + C) / 2
-            M1M2 = M2 - M1
-
-            # cv2.fillPoly is only marginally faster than this (~0.5 ms) so
-            # just use np.cross for the sake of code quality.
-            lefthalf = np.cross(M1M2, points - M1) >= 0
-            leftwall = np.cross(B - A, points - A) >= 0
-            rightwall = np.cross(D - C, points - C) >= 0
-            bottom = np.cross(C - B, points - B) >= 0
-
-            h, w = self.image.shape[:2]
-            ret = np.full((h, w), self.Region.BACKGROUND)
-
-            _x, _y = points.T
-            ret[_y, _x] |= self.Region.LAYER
-            _x, _y = points[lefthalf].T
-            ret[_y, _x] |= self.Region.LEFTHALF
-            _x, _y = points[leftwall].T
-            ret[_y, _x] |= self.Region.LEFTWALL
-            _x, _y = points[rightwall].T
-            ret[_y, _x] |= self.Region.RIGHTWALL
-            _x, _y = points[bottom].T
-            ret[_y, _x] |= self.Region.BOTTOM
-
-            self._labelled_layer = ret
-
-        return self._labelled_layer
+        (cnt,), _ = cv2.findContours(
+            self.coated_substrate().astype(np.uint8),
+            cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_NONE,
+        )
+        idx0 = np.argmin(np.linalg.norm(cnt - p0, axis=-1))
+        idx1 = np.argmin(np.linalg.norm(cnt - p1, axis=-1))
+        return cnt[int(idx0) : int(idx1 + 1)]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -331,7 +279,6 @@ class RectLayerShape(
 
     __slots__ = (
         "_layer_area",
-        "_thickness_points",
         "_uniform_layer",
     )
 
@@ -391,69 +338,51 @@ class RectLayerShape(
             self._layer_area = np.count_nonzero(self.extract_layer())
         return self._layer_area
 
-    def thickness_points(self) -> npt.NDArray[np.float64]:
-        # TODO: make as tuple of points
-        if not hasattr(self, "_thickness_points"):
-            # TODO: use surface and hausdorff distance (maybe scipy)
-            contours = self.layer_contours()
-            if not contours:
-                cnt_points = np.empty((0, 1, 2), dtype=np.int32)
-            else:
-                cnt_points = np.concatenate(contours, axis=0)
-            cnt_x, cnt_y = cnt_points.transpose(2, 0, 1)
+    def surface_projections(
+        self, side: str
+    ) -> List[Tuple[npt.NDArray[np.int64], npt.NDArray[np.float64]]]:
+        """
+        For the relevant surface points, find projection points to a side line.
 
-            cnt_labels = self.label_layer()[cnt_y, cnt_x]
-            on_layer = (cnt_labels & self.Region.LAYER).astype(bool)
-            is_left = (cnt_labels & self.Region.LEFTWALL).astype(bool)
-            is_bottom = (cnt_labels & self.Region.BOTTOM).astype(bool)
-            is_right = (cnt_labels & self.Region.RIGHTWALL).astype(bool)
+        Parameters
+        ----------
+        side: {"left", "bottom", "right"}
 
-            p0 = self.substrate_point()
-            tl, bl, br, tr = self.substrate.vertex_points()
-            A = p0 + tl
-            B = p0 + bl
-            C = p0 + br
-            D = p0 + tr
+        Returns
+        -------
+        list
+            List of tuple of indices and points. Each tuple represents a layer
+            region contour, sorted in the order along the substrate contour.
+            Indices are the location of surface points in the arrays from
+            :meth:`surface_points`.
 
-            def find_thickest(points, A, B):
-                Ap = points - A
-                AB = B - A
-                t = np.dot(Ap, AB) / np.dot(AB, AB)
-                AC = np.tensordot(t, AB, axes=0)
-                dists = np.linalg.norm(Ap - AC, axis=1)
-                mask = dists == np.max(dists)
-                pts = np.stack(
-                    [
-                        np.mean(points[mask], axis=0),
-                        np.mean((A + AC)[mask], axis=0),
-                    ]
-                )
-                return pts
+        Notes
+        -----
+        Relevance of the surface points to side is determined by their position.
 
-            cnt_left = cnt_points[on_layer & is_left & ~is_bottom]
-            if cnt_left.size == 0:
-                p = A / 2 + B / 2
-                left_p = np.stack([p, p])
-            else:
-                left_p = find_thickest(cnt_left, A, B)
+        - `"left"`: Left of the left side line.
+        - `"bottom"`: Under the bottom side line.
+        - `"right"`: Right of the right side line.
+        """
+        A, B, C, D = self.substrate.vertex_points() + self.substrate_point()
+        if side == "left":
+            P1, P2 = A, B
+        elif side == "bottom":
+            P1, P2 = B, C
+        elif side == "right":
+            P1, P2 = C, D
+        else:
+            return []
 
-            cnt_bottom = cnt_points[on_layer & is_bottom]
-            if cnt_bottom.size == 0:
-                p = B / 2 + C / 2
-                bottom_p = np.stack([p, p])
-            else:
-                bottom_p = find_thickest(cnt_bottom, B, C)
+        projections = []
+        surface = self.surface_points(1)
+        for surf in surface:
+            (mask,) = (np.cross(P2 - P1, surf - P1) >= 0).T
+            (indices,) = np.nonzero(mask)
+            proj = find_projection(surf[mask], P1, P2)
+            projections.append((indices, proj))
 
-            cnt_right = cnt_points[on_layer & is_right & ~is_bottom]
-            if cnt_right.size == 0:
-                p = C / 2 + D / 2
-                right_p = np.stack([p, p])
-            else:
-                right_p = find_thickest(cnt_right, C, D)
-
-            self._thickness_points = np.stack([left_p, bottom_p, right_p])
-
-        return self._thickness_points
+        return projections
 
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """
@@ -462,17 +391,12 @@ class RectLayerShape(
         """
         if not hasattr(self, "_uniform_layer"):
             # get contact line points
-            sl_interfaces, _ = self.interfaces()
-            if len(sl_interfaces) == 0:
+            interfaces = self.interface_points(1)
+            if not interfaces:
                 layer = np.empty((0, 1, 2), dtype=np.float64)
                 self._uniform_layer = (np.float64(0), layer)
                 return self._uniform_layer
-            sl_points = np.concatenate(sl_interfaces)
-            if len(sl_points) == 0:
-                layer = np.empty((0, 1, 2), dtype=np.float64)
-                self._uniform_layer = (np.float64(0), layer)
-                return self._uniform_layer
-            p1, p2 = sl_points[0], sl_points[-1]
+            p1, p2 = interfaces[0][-1], interfaces[-1][0]
 
             subst_point = self.substrate_point()
             hull, _ = self.substrate.edge_hull()
@@ -541,7 +465,7 @@ class RectLayerShape(
 
     def roughness(self) -> np.float64:
         """Dimensional roughness value of the coating layer surface."""
-        (surface,) = self.surface().transpose(1, 0, 2)
+        (surface,) = self.enclosing_surface().transpose(1, 0, 2)
         _, uniform_layer = self.uniform_layer()
         if surface.size == 0 or uniform_layer.size == 0:
             return np.float64(np.nan)
@@ -606,30 +530,40 @@ class RectLayerShape(
 
         contactline_opts = self.deco_options.contact_line
         if contactline_opts.thickness > 0:
-            sl_interfaces, _ = self.interfaces()
-            if len(sl_interfaces) != 0:
-                sl_points = np.concatenate(sl_interfaces)
-                if len(sl_points) != 0:
-                    (p1,), (p2,) = sl_points[0], sl_points[-1]
-                    cv2.line(
-                        image,
-                        p1,
-                        p2,
-                        dataclasses.astuple(contactline_opts.color),
-                        contactline_opts.thickness,
-                    )
+            interfaces = self.interface_points(1)
+            if interfaces:
+                (p1,), (p2,) = interfaces[0][-1], interfaces[-1][0]
+                cv2.line(
+                    image,
+                    p1,
+                    p2,
+                    dataclasses.astuple(contactline_opts.color),
+                    contactline_opts.thickness,
+                )
 
         thicknesslines_opts = self.deco_options.thickness_lines
         if thicknesslines_opts.thickness > 0:
-            points = self.thickness_points()
-            for p1, p2 in points:
-                cv2.line(
-                    image,
-                    p1.astype(np.int32),
-                    p2.astype(np.int32),
-                    dataclasses.astuple(thicknesslines_opts.color),
-                    thicknesslines_opts.thickness,
-                )
+            color = dataclasses.astuple(thicknesslines_opts.color)
+            t = thicknesslines_opts.thickness
+            for side in ["left", "bottom", "right"]:
+                surf_pts, proj_pts = [], []
+                for surf, (idx, proj) in zip(
+                    self.surface_points(1), self.surface_projections(side)
+                ):
+                    surf_pts.append(surf[idx])
+                    proj_pts.append(proj)
+                if not surf_pts:
+                    continue
+                surf = np.concatenate(surf_pts, axis=0)
+                proj = np.concatenate(proj_pts, axis=0)
+                dists = np.linalg.norm(surf - proj, axis=-1)
+                max_idxs, _ = np.nonzero(dists == np.max(dists))
+                # split the max indices by continuous locations
+                idx_groups = np.split(max_idxs, np.where(np.diff(max_idxs) != 1)[0] + 1)
+                for idxs in idx_groups:
+                    (p1,) = np.mean(surf[idxs], axis=0).astype(np.int32)
+                    (p2,) = np.mean(proj[idxs], axis=0).astype(np.int32)
+                    cv2.line(image, p1, p2, color, t)
 
         uniformlayer_opts = self.deco_options.uniform_layer
         if uniformlayer_opts.thickness > 0:
@@ -661,25 +595,30 @@ class RectLayerShape(
         AREA = self.layer_area()
 
         _, B, C, _ = self.substrate.vertex_points() + self.substrate_point()
-        sl_interfaces, _ = self.interfaces()
-        if len(sl_interfaces) == 0:
-            LEN_L = LEN_R = np.float64(0)
-        else:
-            sl_points = np.concatenate(sl_interfaces)
-            if len(sl_points) == 0:
-                LEN_L = LEN_R = np.float64(0)
-            else:
-                points = np.concatenate([sl_points[0], sl_points[-1]])
-                Bp = points - B
-                BC = C - B
-                t = np.dot(Bp, BC) / np.dot(BC, BC)
-                dists = np.linalg.norm(Bp - np.tensordot(t, BC, axes=0), axis=1)
-                LEN_L, LEN_R = dists.astype(np.float64)
 
-        tp_l, tp_b, tp_r = self.thickness_points()
-        THCK_L = np.linalg.norm(np.diff(tp_l, axis=0))
-        THCK_B = np.linalg.norm(np.diff(tp_b, axis=0))
-        THCK_R = np.linalg.norm(np.diff(tp_r, axis=0))
+        interfaces = self.interface_points(1)
+        if interfaces:
+            points = np.concatenate([interfaces[0][-1], interfaces[-1][0]])
+            Bp = points - B
+            BC = C - B
+            t = np.dot(Bp, BC) / np.dot(BC, BC)
+            dists = np.linalg.norm(Bp - np.tensordot(t, BC, axes=0), axis=1)
+            LEN_L, LEN_R = dists.astype(np.float64)
+        else:
+            LEN_L = LEN_R = np.float64(0)
+
+        max_dists = []
+        for side in ["left", "bottom", "right"]:
+            dists = []
+            for surf, (idx, proj) in zip(
+                self.surface_points(1), self.surface_projections(side)
+            ):
+                dists.append(np.linalg.norm((surf[idx] - proj), axis=-1))
+            if not dists:
+                max_dists.append(np.float64(0))
+            else:
+                max_dists.append(np.max(np.concatenate(dists, axis=0)))
+        THCK_L, THCK_B, THCK_R = max_dists
 
         THCK_U, _ = self.uniform_layer()
         ROUGH = self.roughness()
@@ -701,19 +640,9 @@ class RectLayerShape(
         )
 
 
-def get_extended_line(
-    frame_shape: Tuple[int, int], p1: npt.NDArray[np.int32], p2: npt.NDArray[np.int32]
-) -> npt.NDArray[np.float64]:
-    # TODO: make it more elegant with matrix determinant and sorta things
-    h, w = frame_shape
-    x1, y1 = p1
-    dx, dy = p2 - p1
-
-    points = []
-    if dx != 0:
-        points.append(np.array([0, dy / dx * (-x1) + y1], dtype=np.float64))
-        points.append(np.array([w, dy / dx * (w - x1) + y1], dtype=np.float64))
-    if dy != 0:
-        points.append(np.array([dx / dy * (-y1) + x1, 0], dtype=np.float64))
-        points.append(np.array([dx / dy * (h - y1) + x1, h], dtype=np.float64))
-    return np.stack(points)
+def find_projection(point, A, B):
+    Ap = point - A
+    AB = B - A
+    t = np.dot(Ap, AB) / np.dot(AB, AB)
+    A_Proj = np.tensordot(t, AB, axes=0)
+    return A + A_Proj

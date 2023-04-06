@@ -33,11 +33,12 @@ Implementation
 
 import abc
 import dataclasses
+import cv2  # type: ignore
 import numpy as np
 import numpy.typing as npt
 from .reference import SubstrateReferenceBase
 from .util import DataclassProtocol, BinaryImageDrawMode, colorize
-from typing import TypeVar, Generic, Type, Optional
+from typing import TypeVar, Generic, Type, Optional, Tuple
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -117,6 +118,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         "_ref",
         "_parameters",
         "_draw_options",
+        "_regions",
     )
 
     Parameters: Type[ParametersType]
@@ -179,20 +181,59 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         x0, y0, x1, y1 = self.reference.substrateROI
         return self.reference.binary_image()[y0:y1, x0:x1]
 
+    @abc.abstractmethod
     def nestled_points(self) -> npt.NDArray[np.int32]:
         """
-        Find the points which are firmly nestled in the substrate.
+        Return the points which are guaranteed to be in each substrate regions.
 
-        This method is used to distinguish connected components in the image
-        which are not connected to the substrate, e.g. fluid bath surface.
-        Subclass may reimplement this method according to the substrate geometry.
+        Notes
+        -----
+        This method is used to process both the bare substrate image and coated
+        substrate image by removing the blobs that are not connected to the
+        substrate. The blobs can be either speck noises or structural object
+        e.g. fluid bath surface.
 
-        Return value is stacked coordinates in ``(x, y)``. Normally only one
-        point is returned, but the result can be multiple points if the substrate
-        consists of unconnected components.
+        Subclass should implement this method using the substrate geometry model.
+        Return value must be an `(N, 2)`-shaped array, where `N` is the number of
+        discrete substrate regions in the bare substrate image. The columns are
+        the coordinates of each point in `[x, y]`.
+
         """
-        w = self.image().shape[1]
-        return np.array([[w / 2, 0]], dtype=np.int32)
+
+    def regions(self) -> Tuple[int, npt.NDArray[np.int32]]:
+        """
+        Return the labelled image of substrate regions.
+
+        Returns
+        -------
+        retval
+            Number of label values in *labels*.
+        labels
+            Labelled image.
+
+        Notes
+        -----
+        This method is similar to ``cv2.connectedComponents`` except that the
+        non-substrate regions are excluded. Substrate regions are identified by
+        the location of :meth:`nestled_points`.
+
+        Substrate region marked by `i`-th point in :meth:`nestled_points` is
+        labelled as `i + 1`. If multiple points mark the same substrate region,
+        points after the first one are ignored. Background is labelled with `0`.
+        """
+        if not hasattr(self, "_regions"):
+            _, labels = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
+            pts = self.nestled_points()
+            subst_lab = np.unique(labels[pts[..., 1], pts[..., 0]])
+            retval = len(subst_lab) + 1
+
+            substrate_map = subst_lab.reshape(-1, 1, 1) == labels[np.newaxis, ...]
+            labels[:] = 0
+            for i in range(1, retval):
+                labels[substrate_map[i - 1, ...]] = i
+
+            self._regions = (retval, labels)
+        return self._regions
 
     @abc.abstractmethod
     def examine(self) -> Optional[SubstrateError]:
@@ -284,6 +325,11 @@ class Substrate(SubstrateBase[SubstrateParameters, SubstrateDrawOptions]):
     DrawOptions = SubstrateDrawOptions
 
     DrawMode: TypeAlias = BinaryImageDrawMode
+
+    def nestled_points(self) -> npt.NDArray[np.int32]:
+        # XXX: Need better way to find center...
+        w = self.image().shape[1]
+        return np.array([[w / 2, 0]], dtype=np.int32)
 
     def examine(self) -> None:
         return None
