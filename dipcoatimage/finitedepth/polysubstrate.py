@@ -265,7 +265,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         corners = self.corners() - SHIFT
         reps = np.diff(np.append(corners, len(self.contour())))
 
-        _, thetas = self.sides().transpose(2, 0, 1)
+        _, thetas = self.side_lines().transpose(2, 0, 1)
         n = np.stack([-np.cos(thetas), -np.sin(thetas)]).transpose(1, 2, 0)
 
         return np.roll(np.repeat(n, reps, axis=0), SHIFT, axis=0)
