@@ -363,7 +363,6 @@ class RectLayerShape(
 
     __slots__ = (
         "_layer_area",
-        "_thickness_points",
         "_uniform_layer",
     )
 
@@ -423,70 +422,6 @@ class RectLayerShape(
             self._layer_area = np.count_nonzero(self.extract_layer())
         return self._layer_area
 
-    def thickness_points(self) -> npt.NDArray[np.float64]:
-        # TODO: make as tuple of points
-        if not hasattr(self, "_thickness_points"):
-            # TODO: use surface and hausdorff distance (maybe scipy)
-            contours = self.layer_contours()
-            if not contours:
-                cnt_points = np.empty((0, 1, 2), dtype=np.int32)
-            else:
-                cnt_points = np.concatenate(contours, axis=0)
-            cnt_x, cnt_y = cnt_points.transpose(2, 0, 1)
-
-            cnt_labels = self.label_layer()[cnt_y, cnt_x]
-            on_layer = (cnt_labels & self.Region.LAYER).astype(bool)
-            is_left = (cnt_labels & self.Region.LEFTWALL).astype(bool)
-            is_bottom = (cnt_labels & self.Region.BOTTOM).astype(bool)
-            is_right = (cnt_labels & self.Region.RIGHTWALL).astype(bool)
-
-            p0 = self.substrate_point()
-            tl, bl, br, tr = self.substrate.vertex_points()
-            A = p0 + tl
-            B = p0 + bl
-            C = p0 + br
-            D = p0 + tr
-
-            def find_thickest(points, A, B):
-                Ap = points - A
-                AB = B - A
-                t = np.dot(Ap, AB) / np.dot(AB, AB)
-                AC = np.tensordot(t, AB, axes=0)
-                dists = np.linalg.norm(Ap - AC, axis=1)
-                mask = dists == np.max(dists)
-                pts = np.stack(
-                    [
-                        np.mean(points[mask], axis=0),
-                        np.mean((A + AC)[mask], axis=0),
-                    ]
-                )
-                return pts
-
-            cnt_left = cnt_points[on_layer & is_left & ~is_bottom]
-            if cnt_left.size == 0:
-                p = A / 2 + B / 2
-                left_p = np.stack([p, p])
-            else:
-                left_p = find_thickest(cnt_left, A, B)
-
-            cnt_bottom = cnt_points[on_layer & is_bottom]
-            if cnt_bottom.size == 0:
-                p = B / 2 + C / 2
-                bottom_p = np.stack([p, p])
-            else:
-                bottom_p = find_thickest(cnt_bottom, B, C)
-
-            cnt_right = cnt_points[on_layer & is_right & ~is_bottom]
-            if cnt_right.size == 0:
-                p = C / 2 + D / 2
-                right_p = np.stack([p, p])
-            else:
-                right_p = find_thickest(cnt_right, C, D)
-
-            self._thickness_points = np.stack([left_p, bottom_p, right_p])
-
-        return self._thickness_points
-
     def surface_projections(
         self, side: str
     ) -> List[Tuple[npt.NDArray[np.int64], npt.NDArray[np.float64]]]:
@@ -526,8 +461,8 @@ class RectLayerShape(
         projections = []
         surface = self.surface_points(1)
         for surf in surface:
-            mask = np.cross(P2 - P1, surf - P1) >= 0
-            indices, _ = np.nonzero(mask)
+            (mask,) = (np.cross(P2 - P1, surf - P1) >= 0).T
+            (indices,) = np.nonzero(mask)
             proj = find_projection(surf[mask], P1, P2)
             projections.append((indices, proj))
 
@@ -692,15 +627,27 @@ class RectLayerShape(
 
         thicknesslines_opts = self.deco_options.thickness_lines
         if thicknesslines_opts.thickness > 0:
-            points = self.thickness_points()
-            for p1, p2 in points:
-                cv2.line(
-                    image,
-                    p1.astype(np.int32),
-                    p2.astype(np.int32),
-                    dataclasses.astuple(thicknesslines_opts.color),
-                    thicknesslines_opts.thickness,
-                )
+            color = dataclasses.astuple(thicknesslines_opts.color)
+            t = thicknesslines_opts.thickness
+            for side in ["left", "bottom", "right"]:
+                surf_pts, proj_pts = [], []
+                for surf, (idx, proj) in zip(
+                    self.surface_points(1), self.surface_projections(side)
+                ):
+                    surf_pts.append(surf[idx])
+                    proj_pts.append(proj)
+                if not surf_pts:
+                    continue
+                surf = np.concatenate(surf_pts, axis=0)
+                proj = np.concatenate(proj_pts, axis=0)
+                dists = np.linalg.norm(surf - proj, axis=-1)
+                max_idxs, _ = np.nonzero(dists == np.max(dists))
+                # split the max indices by continuous locations
+                idx_groups = np.split(max_idxs, np.where(np.diff(max_idxs) != 1)[0] + 1)
+                for idxs in idx_groups:
+                    (p1,) = np.mean(surf[idxs], axis=0).astype(np.int32)
+                    (p2,) = np.mean(proj[idxs], axis=0).astype(np.int32)
+                    cv2.line(image, p1, p2, color, t)
 
         uniformlayer_opts = self.deco_options.uniform_layer
         if uniformlayer_opts.thickness > 0:
@@ -744,10 +691,18 @@ class RectLayerShape(
         else:
             LEN_L = LEN_R = np.float64(0)
 
-        tp_l, tp_b, tp_r = self.thickness_points()
-        THCK_L = np.linalg.norm(np.diff(tp_l, axis=0))
-        THCK_B = np.linalg.norm(np.diff(tp_b, axis=0))
-        THCK_R = np.linalg.norm(np.diff(tp_r, axis=0))
+        max_dists = []
+        for side in ["left", "bottom", "right"]:
+            dists = []
+            for surf, (idx, proj) in zip(
+                self.surface_points(1), self.surface_projections(side)
+            ):
+                dists.append(np.linalg.norm((surf[idx] - proj), axis=-1))
+            if not dists:
+                max_dists.append(np.float64(0))
+            else:
+                max_dists.append(np.max(np.concatenate(dists, axis=0)))
+        THCK_L, THCK_B, THCK_R = max_dists
 
         THCK_U, _ = self.uniform_layer()
         ROUGH = self.roughness()
