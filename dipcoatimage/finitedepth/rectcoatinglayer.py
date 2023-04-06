@@ -36,7 +36,7 @@ import dataclasses
 import enum
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Type, Tuple, Optional
+from typing import TypeVar, Type, Tuple, Optional, List
 from .rectsubstrate import RectSubstrate
 from .coatinglayer import (
     CoatingLayerError,
@@ -68,6 +68,7 @@ __all__ = [
     "RectLayerShapeData",
     "RectLayerShape",
     "get_extended_line",
+    "find_projection",
 ]
 
 
@@ -486,16 +487,44 @@ class RectLayerShape(
 
         return self._thickness_points
 
-    def thickness_points2(self):
-        sides_map = np.zeros(self.image.shape[:2], dtype=np.uint8)
-        _, left, _, bottom, _, right, _, _, _ = np.split(
-            self.substrate_point() + self.substrate.contour(),
-            self.substrate.sides().flatten(),
-        )
-        sides_map[left.transpose(2, 0, 1)[1], left.transpose(2, 0, 1)[0]] = 1
-        sides_map[bottom.transpose(2, 0, 1)[1], bottom.transpose(2, 0, 1)[0]] = 2
-        sides_map[right.transpose(2, 0, 1)[1], right.transpose(2, 0, 1)[0]] = 3
-        sides_label = cv2.dilate(sides_map, np.ones((3, 3)))
+    def surface_projections(self) -> List[List[List[npt.NDArray[np.float64]]]]:
+        """
+        For every surface, find the projection points to each side line.
+        """
+        A, B, C, D = self.substrate.vertex_points() + self.substrate_point()
+
+        ret = []
+        for surface in self.surface_points():
+            dists = []
+            for surf in surface:
+                on_left = np.cross(B - A, surf - A) >= 0
+                on_bottom = np.cross(C - B, surf - B) >= 0
+                on_right = np.cross(D - C, surf - C) >= 0
+
+                left = np.concatenate(
+                    [
+                        np.nonzero(on_left)[0][..., np.newaxis],
+                        find_projection(surf[on_left], B, C),
+                    ],
+                    axis=1,
+                )
+                right = np.concatenate(
+                    [
+                        np.nonzero(on_bottom)[0][..., np.newaxis],
+                        find_projection(surf[on_bottom], B, C),
+                    ],
+                    axis=1,
+                )
+                bottom = np.concatenate(
+                    [
+                        np.nonzero(on_right)[0][..., np.newaxis],
+                        find_projection(surf[on_right], B, C),
+                    ],
+                    axis=1,
+                )
+                dists.append([left, right, bottom])
+            ret.append(dists)
+        return ret
 
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """
@@ -749,3 +778,11 @@ def get_extended_line(
         points.append(np.array([dx / dy * (-y1) + x1, 0], dtype=np.float64))
         points.append(np.array([dx / dy * (h - y1) + x1, h], dtype=np.float64))
     return np.stack(points)
+
+
+def find_projection(point, A, B):
+    Ap = point - A
+    AB = B - A
+    t = np.dot(Ap, AB) / np.dot(AB, AB)
+    A_Proj = np.tensordot(t, AB, axes=0)
+    return A + A_Proj
