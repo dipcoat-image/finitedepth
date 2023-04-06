@@ -487,42 +487,51 @@ class RectLayerShape(
 
         return self._thickness_points
 
-    def surface_projections(self) -> List[List[npt.NDArray[np.float64]]]:
+    def surface_projections(
+        self, side: str
+    ) -> List[Tuple[npt.NDArray[np.int64], npt.NDArray[np.float64]]]:
         """
-        For every surface, find the projection points to each side line.
+        For the relevant surface points, find projection points to a side line.
+
+        Parameters
+        ----------
+        side: {"left", "bottom", "right"}
+
+        Returns
+        -------
+        list
+            List of tuple of indices and points. Each tuple represents a layer
+            region contour, sorted in the order along the substrate contour.
+            Indices are the location of surface points in the arrays from
+            :meth:`surface_points`.
+
+        Notes
+        -----
+        Relevance of the surface points to side is determined by their position.
+
+        - `"left"`: Left of the left side line.
+        - `"bottom"`: Under the bottom side line.
+        - `"right"`: Right of the right side line.
         """
         A, B, C, D = self.substrate.vertex_points() + self.substrate_point()
+        if side == "left":
+            P1, P2 = A, B
+        elif side == "bottom":
+            P1, P2 = B, C
+        elif side == "right":
+            P1, P2 = C, D
+        else:
+            return []
 
-        ret = []
+        projections = []
         surface = self.surface_points(1)
         for surf in surface:
-            on_left = np.cross(B - A, surf - A) >= 0
-            on_bottom = np.cross(C - B, surf - B) >= 0
-            on_right = np.cross(D - C, surf - C) >= 0
+            mask = np.cross(P2 - P1, surf - P1) >= 0
+            indices, _ = np.nonzero(mask)
+            proj = find_projection(surf[mask], P1, P2)
+            projections.append((indices, proj))
 
-            left = np.concatenate(
-                [
-                    np.nonzero(on_left)[0][..., np.newaxis],
-                    find_projection(surf[on_left], B, C),
-                ],
-                axis=1,
-            )
-            right = np.concatenate(
-                [
-                    np.nonzero(on_bottom)[0][..., np.newaxis],
-                    find_projection(surf[on_bottom], B, C),
-                ],
-                axis=1,
-            )
-            bottom = np.concatenate(
-                [
-                    np.nonzero(on_right)[0][..., np.newaxis],
-                    find_projection(surf[on_right], B, C),
-                ],
-                axis=1,
-            )
-            ret.append([left, right, bottom])
-        return ret
+        return projections
 
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """
