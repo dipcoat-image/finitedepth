@@ -33,7 +33,6 @@ Implementation
 
 import cv2  # type: ignore
 import dataclasses
-import enum
 import numpy as np
 import numpy.typing as npt
 from typing import TypeVar, Type, Tuple, Optional, List
@@ -59,7 +58,6 @@ except ImportError:
 
 
 __all__ = [
-    "LayerRegionFlag",
     "RectCoatingLayerBase",
     "MorphologyClosingParameters",
     "RectLayerShapeParameters",
@@ -77,49 +75,17 @@ DecoOptionsType = TypeVar("DecoOptionsType", bound=DataclassProtocol)
 DataType = TypeVar("DataType", bound=DataclassProtocol)
 
 
-class LayerRegionFlag(enum.IntFlag):
-    """
-    Label to classify the coating layer pixels by their regions.
-
-    - BACKGROUND: Null value for pixels that are not the coating layer.
-    - LAYER: Denotes that the pixel is in the coating layer.
-    - LEFTHALF: Left-hand side w.r.t. the vertical center line.
-    - LEFTWALL: Left-hand side w.r.t. the left-hand side substrate wall.
-    - RIGHTWALL: Right-hand side w.r.t. the right-hand side substrate wall.
-    - BOTTOM: Under the substrate bottom surface.
-
-    """
-
-    BACKGROUND = 0
-    LAYER = 1
-    LEFTHALF = 2
-    LEFTWALL = 4
-    RIGHTWALL = 8
-    BOTTOM = 16
-
-
 class RectCoatingLayerBase(
     CoatingLayerBase[
         RectSubstrate, ParametersType, DrawOptionsType, DecoOptionsType, DataType
     ]
 ):
-    """
-    Abstract base class for coating layer over rectangular substrate.
-
-    :class:`RectCoatingLayerBase` is capable of classifying the coating layer
-    pixels by their location relative to the substrate. To get the classification
-    map, use :meth:`label_layer`.
-
-    """
-
-    __slots__ = ("_labelled_layer",)
+    """Abstract base class for coating layer over rectangular substrate."""
 
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
     DecoOptions: Type[DecoOptionsType]
     Data: Type[DataType]
-
-    Region: TypeAlias = LayerRegionFlag
 
     def capbridge_broken(self) -> bool:
         p0 = self.substrate_point()
@@ -167,53 +133,6 @@ class RectCoatingLayerBase(
         idx0 = np.argmin(np.linalg.norm(cnt - p0, axis=-1))
         idx1 = np.argmin(np.linalg.norm(cnt - p1, axis=-1))
         return cnt[int(idx0) : int(idx1 + 1)]
-
-    def label_layer(self) -> npt.NDArray[np.uint8]:
-        """
-        Return the classification map of the pixels.
-
-        Pixels are labelled with :class:`LayerRegionFlag` by their location
-        relative to the substrate. The values can be combined to denote the pixel
-        in the corner, i.e. ``LEFT | BOTTOM`` for the lower left region.
-
-        """
-        if not hasattr(self, "_labelled_layer"):
-            mask = self.extract_layer()
-            points = np.flip(np.stack(np.where(mask)), axis=0).T
-
-            p0 = self.substrate_point()
-            tl, bl, br, tr = self.substrate.vertex_points()
-            A = p0 + tl
-            B = p0 + bl
-            C = p0 + br
-            D = p0 + tr
-            M1, M2 = (A + D) / 2, (B + C) / 2
-            M1M2 = M2 - M1
-
-            # cv2.fillPoly is only marginally faster than this (~0.5 ms) so
-            # just use np.cross for the sake of code quality.
-            lefthalf = np.cross(M1M2, points - M1) >= 0
-            leftwall = np.cross(B - A, points - A) >= 0
-            rightwall = np.cross(D - C, points - C) >= 0
-            bottom = np.cross(C - B, points - B) >= 0
-
-            h, w = self.image.shape[:2]
-            ret = np.full((h, w), self.Region.BACKGROUND)
-
-            _x, _y = points.T
-            ret[_y, _x] |= self.Region.LAYER
-            _x, _y = points[lefthalf].T
-            ret[_y, _x] |= self.Region.LEFTHALF
-            _x, _y = points[leftwall].T
-            ret[_y, _x] |= self.Region.LEFTWALL
-            _x, _y = points[rightwall].T
-            ret[_y, _x] |= self.Region.RIGHTWALL
-            _x, _y = points[bottom].T
-            ret[_y, _x] |= self.Region.BOTTOM
-
-            self._labelled_layer = ret
-
-        return self._labelled_layer
 
 
 @dataclasses.dataclass(frozen=True)
