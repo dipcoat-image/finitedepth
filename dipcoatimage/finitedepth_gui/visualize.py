@@ -110,6 +110,9 @@ class VisualizeWorker(ArrayWorker):
 
 
 class VisualizeManager(QObject):
+    """
+    Object to manage visualization pipeline.
+    """
     _processRequested = Signal(np.ndarray)
     arrayChanged = Signal(np.ndarray)
     roiMaximumChanged = Signal(int, int)
@@ -136,6 +139,7 @@ class VisualizeManager(QObject):
         self._arrayConverter = FrameToArrayConverter()
         self._arrayProcessor = ArrayProcessor()
         self._visualizeWorker = VisualizeWorker()
+        self._arrayProcessor.setWorker(self._visualizeWorker)
 
         self._videoPlayer.setVideoSink(self._playerSink)
 
