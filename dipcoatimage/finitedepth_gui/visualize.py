@@ -113,6 +113,7 @@ class VisualizeManager(QObject):
     """
     Object to manage visualization pipeline.
     """
+
     _processRequested = Signal(np.ndarray)
     arrayChanged = Signal(np.ndarray)
     roiMaximumChanged = Signal(int, int)
