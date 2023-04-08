@@ -216,32 +216,26 @@ class VisualizeManager(QObject):
             coatPaths = []
         self._visualizeWorker.setWorker(worker)
 
-        oldExptKind = self._exptKind
         if (
-            oldExptKind == ExperimentKind.VIDEO
+            self._exptKind == ExperimentKind.VIDEO
             and self._frameSource == FrameSource.FILE
-            and self._currentView
-            not in (
-                DataMember.REFERENCE,
-                DataMember.SUBSTRATE,
-            )
+            and self._currentView.displays() == DataMember.EXPERIMENT
         ):
             state = self._videoPlayer.playbackState()
             if state == QMediaPlayer.PlaybackState.PlayingState:
                 self._videoPlayer.stop()
             self.togglePlayerPipeline(False)
-        exptKind = experiment_kind(coatPaths)
-        if exptKind == ExperimentKind.VIDEO:
-            if self._frameSource == FrameSource.FILE and self._currentView not in (
-                DataMember.REFERENCE,
-                DataMember.SUBSTRATE,
+
+        self._exptKind = experiment_kind(coatPaths)
+        if self._exptKind == ExperimentKind.VIDEO:
+            if (
+                self._frameSource == FrameSource.FILE
+                and self._currentView.displays() == DataMember.EXPERIMENT
             ):
                 self.togglePlayerPipeline(True)
-            source = QUrl.fromLocalFile(coatPaths[0])
-            self._videoPlayer.setSource(source)
+            self._videoPlayer.setSource(QUrl.fromLocalFile(coatPaths[0]))
         else:
             self._videoPlayer.setSource(QUrl())
-        self._exptKind = exptKind
 
         if self._frameSource == FrameSource.CAMERA:
             pass
@@ -267,11 +261,7 @@ class VisualizeManager(QObject):
             if (
                 oldExptKind == ExperimentKind.VIDEO
                 and self._frameSource == FrameSource.FILE
-                and self._currentView
-                not in (
-                    DataMember.REFERENCE,
-                    DataMember.SUBSTRATE,
-                )
+                and self._currentView.displays() == DataMember.EXPERIMENT
             ):
                 state = self._videoPlayer.playbackState()
                 if state == QMediaPlayer.PlaybackState.PlayingState:
@@ -280,9 +270,9 @@ class VisualizeManager(QObject):
             coatPaths = worker.exptData.coat_paths
             exptKind = experiment_kind(coatPaths)
             if exptKind == ExperimentKind.VIDEO:
-                if self._frameSource == FrameSource.FILE and self._currentView not in (
-                    DataMember.REFERENCE,
-                    DataMember.SUBSTRATE,
+                if (
+                    self._frameSource == FrameSource.FILE
+                    and self._currentView.displays() == DataMember.EXPERIMENT
                 ):
                     self.togglePlayerPipeline(True)
                 source = QUrl.fromLocalFile(coatPaths[0])
@@ -328,9 +318,9 @@ class VisualizeManager(QObject):
         if oldSource == FrameSource.CAMERA:
             self.toggleCameraPipeline(False)
         elif oldSource == FrameSource.FILE:
-            if self._exptKind == ExperimentKind.VIDEO and self._currentView not in (
-                DataMember.REFERENCE,
-                DataMember.SUBSTRATE,
+            if (
+                self._exptKind == ExperimentKind.VIDEO
+                and self._currentView.displays() == DataMember.EXPERIMENT
             ):
                 state = self._videoPlayer.playbackState()
                 if state == QMediaPlayer.PlaybackState.PlayingState:
@@ -342,9 +332,9 @@ class VisualizeManager(QObject):
         if frameSource == FrameSource.CAMERA:
             self.toggleCameraPipeline(True)
         elif frameSource == FrameSource.FILE:
-            if self._exptKind == ExperimentKind.VIDEO and self._currentView not in (
-                DataMember.REFERENCE,
-                DataMember.SUBSTRATE,
+            if (
+                self._exptKind == ExperimentKind.VIDEO
+                and self._currentView.displays() == DataMember.EXPERIMENT
             ):
                 self.togglePlayerPipeline(True)
         else:
@@ -365,11 +355,11 @@ class VisualizeManager(QObject):
 
     @Slot(DataMember)
     def setCurrentView(self, currentView: DataMember):
-        def isExptView(view: DataMember):
-            return view not in (DataMember.REFERENCE, DataMember.SUBSTRATE)
-
         oldView = self._currentView
-        if isExptView(oldView) and not isExptView(currentView):
+        if (
+            oldView.displays() == DataMember.EXPERIMENT
+            and currentView.displays() != DataMember.EXPERIMENT
+        ):
             if (
                 self._frameSource == FrameSource.FILE
                 and self._exptKind == ExperimentKind.VIDEO
@@ -383,7 +373,10 @@ class VisualizeManager(QObject):
                 == QMediaPlayer.PlaybackState.PlayingState
             ):
                 self._videoPlayer.pause()
-        elif not isExptView(oldView) and isExptView(currentView):
+        elif (
+            oldView.displays() != DataMember.EXPERIMENT
+            and currentView.displays() == DataMember.EXPERIMENT
+        ):
             if (
                 self._frameSource == FrameSource.FILE
                 and self._exptKind == ExperimentKind.VIDEO
@@ -501,12 +494,6 @@ class VisualizeManager(QObject):
 
     def stop(self):
         self._arrayProcessor.stop()
-
-
-def crop(img: npt.NDArray[np.uint8], roi: OptionalROI):
-    h, w = img.shape[:2]
-    x0, y0, x1, y1 = sanitize_ROI(roi, h, w)
-    return img[y0:y1, x0:x1]
 
 
 def fastVisualize(
