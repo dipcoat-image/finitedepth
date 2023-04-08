@@ -1,4 +1,4 @@
-araviq6==1.0.1.1
+araviq6 >= 2.0.0
 dawiq
 imagesize
 PySide6
