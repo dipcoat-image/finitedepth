@@ -16,7 +16,7 @@ from dipcoatimage.finitedepth_gui.model import (
     ExperimentSignalBlocker,
 )
 from PySide6.QtCore import Signal, Slot, Qt, QUrl, QModelIndex
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
+from PySide6.QtWidgets import QMainWindow, QStackedWidget, QWidget, QVBoxLayout
 from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaRecorder, QMediaPlayer
 from typing import Optional
 from .toolbar import DisplayWidgetToolBar
@@ -47,10 +47,12 @@ class MainDisplayWindow(QMainWindow):
         self._frameSource = FrameSource.NULL
         self._camera = None
 
+        self._displayWidget = QStackedWidget()
         self._displayLabel = NDArrayROILabel()
         self._videoController = MediaController()
         self._displayToolBar = DisplayWidgetToolBar()
 
+        self._displayWidget.addWidget(self._displayLabel)
         self._displayLabel.setAlignment(Qt.AlignCenter)
         self._videoController.setVisible(False)
 
@@ -62,7 +64,7 @@ class MainDisplayWindow(QMainWindow):
 
         self.addToolBar(self._displayToolBar)
         layout = QVBoxLayout()
-        layout.addWidget(self._displayLabel)
+        layout.addWidget(self._displayWidget)
         layout.addWidget(self._videoController)
         centralWidget = QWidget()
         centralWidget.setLayout(layout)
