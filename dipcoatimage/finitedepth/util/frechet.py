@@ -1,15 +1,15 @@
 import numpy as np
 import numpy.typing as npt
 from numba import njit  # type: ignore
+from scipy.spatial.distance import cdist  # type: ignore
 
 
 __all__ = [
-    "discrete_frechet",
+    "df",
 ]
 
 
-@njit
-def discrete_frechet(
+def df(
     P: npt.NDArray[np.float64],
     Q: npt.NDArray[np.float64],
 ) -> np.float64:
@@ -38,26 +38,31 @@ def discrete_frechet(
     .. [2] https://pypi.org/project/similaritymeasures/
 
     """
-    p = len(P)
-    q = len(Q)
+    freespace = cdist(P, Q)
+    return _df(freespace)
+
+
+@njit
+def _df(fs: npt.NDArray[np.float64]) -> np.float64:
+    p, q = fs.shape
     if p == 0 or q == 0:
         return np.float64(0)
 
     ca = np.zeros((p, q), dtype=np.float64)
     ca.fill(-1.0)
 
-    ca[0, 0] = np.sqrt(np.sum((P[0] - Q[0]) ** 2))
+    ca[0, 0] = np.sqrt(fs[0, 0])
 
     for i in range(1, p):
-        ca[i, 0] = max(ca[i - 1, 0], np.sqrt(np.sum((P[i] - Q[0]) ** 2)))
+        ca[i, 0] = max(ca[i - 1, 0], fs[i, 0])
 
     for j in range(1, q):
-        ca[0, j] = max(ca[0, j - 1], np.sqrt(np.sum((P[0] - Q[j]) ** 2)))
+        ca[0, j] = max(ca[0, j - 1], fs[0, j])
 
     for i in range(1, p):
         for j in range(1, q):
             ca[i, j] = max(
                 min(ca[i - 1, j], ca[i, j - 1], ca[i - 1, j - 1]),
-                np.sqrt(np.sum((P[i] - Q[j]) ** 2)),
+                fs[i, j],
             )
     return ca[p - 1, q - 1]
