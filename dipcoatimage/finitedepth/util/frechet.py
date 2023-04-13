@@ -49,7 +49,7 @@ def dfd(
     return _dfd(cdist(P, Q))
 
 
-@njit
+@njit(cache=True)
 def _dfd(freespace: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     p, q = freespace.shape
     ca = np.zeros((p, q), dtype=np.float64)
@@ -131,7 +131,7 @@ def sfd(
     return _sfd(cdist(P, Q))
 
 
-@njit
+@njit(cache=True)
 def _sfd(freespace: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     p, q = freespace.shape
     ca = np.zeros((p, q), dtype=np.float64)
@@ -188,7 +188,7 @@ def sfd_path(ca: npt.NDArray[np.float64]):
     return path[-(len(path) - path_len + 1) :: -1]
 
 
-@njit
+@njit(cache=True)
 def _sfd_path(ca: npt.NDArray[np.float64]):
     p, q = ca.shape
     if p == 0 or q == 0:
@@ -246,7 +246,7 @@ def ssfd(
     return _ssfd(cdist(P, Q))
 
 
-@njit
+@njit(cache=True)
 def _ssfd(freespace: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     p, q = freespace.shape
     ca = np.zeros((p, q), dtype=np.float64)
