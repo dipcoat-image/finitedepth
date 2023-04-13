@@ -30,6 +30,7 @@ Implementation
 
 import cv2  # type: ignore
 import dataclasses
+import enum
 import numpy as np
 import numpy.typing as npt
 from typing import TypeVar, Type, Tuple, Optional, List
@@ -57,6 +58,7 @@ except ImportError:
 __all__ = [
     "RectCoatingLayerBase",
     "MorphologyClosingParameters",
+    "DistanceMeasure",
     "RectLayerShapeParameters",
     "RectLayerShapeDrawOptions",
     "RectLayerShapeDecoOptions",
@@ -139,12 +141,27 @@ class MorphologyClosingParameters:
     iterations: int = 1
 
 
+class DistanceMeasure(enum.Enum):
+    """
+    Distance measure used to define the curve similarity.
+
+    - DFD : Discrete Fréchet Distance
+    - SFD : Summed Fréchet Distance
+    - SSFD : Summed Square Fréchet Distance
+    """
+
+    DFD = "DFD"
+    SFD = "SFD"
+    SSFD = "SSFD"
+
+
 @dataclasses.dataclass(frozen=True)
 class RectLayerShapeParameters:
     """Analysis parameters for :class:`RectLayerShape` instance."""
 
     MorphologyClosing: MorphologyClosingParameters
     ReconstructRadius: int
+    RoughnessMeasure: DistanceMeasure
 
 
 @dataclasses.dataclass
@@ -269,7 +286,8 @@ class RectLayerShape(
        >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
        >>> param_val = dict(
        ...     MorphologyClosing=dict(kernelSize=(1, 1)),
-       ...     ReconstructRadius=50
+       ...     ReconstructRadius=50,
+       ...     RoughnessMeasure="SSFD",
        ... )
        >>> param = data_converter.structure(param_val, RectLayerShape.Parameters)
        >>> coat = RectLayerShape(coat_img, subst, param)

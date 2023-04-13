@@ -260,8 +260,11 @@ class CoatingLayerArgs:
        :context: close-figs
 
        >>> from dipcoatimage.finitedepth import CoatingLayerArgs
-       >>> params = {"MorphologyClosing": {"kernelSize": (0, 0)},
-       ...           "ReconstructRadius": 50}
+       >>> params = dict(
+       ...     MorphologyClosing=dict(kernelSize=(1, 1)),
+       ...     ReconstructRadius=50,
+       ...     RoughnessMeasure="SSFD",
+       ... )
        >>> arg = dict(type={"name": "RectLayerShape"}, parameters=params)
        >>> layerargs = data_converter.structure(arg, CoatingLayerArgs)
        >>> img_path = get_samples_path("coat3.png")
