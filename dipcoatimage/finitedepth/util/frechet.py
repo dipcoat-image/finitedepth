@@ -55,7 +55,7 @@ def _dfd(freespace: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         return ca
     ca.fill(-1.0)
 
-    ca[0, 0] = np.sqrt(freespace[0, 0])
+    ca[0, 0] = freespace[0, 0]
 
     for i in range(1, p):
         ca[i, 0] = max(ca[i - 1, 0], freespace[i, 0])
@@ -136,7 +136,7 @@ def _sfd(freespace: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     if p == 0 or q == 0:
         return ca
 
-    ca[0, 0] = np.sqrt(freespace[0, 0])
+    ca[0, 0] = freespace[0, 0]
 
     for i in range(1, p):
         ca[i, 0] = ca[i - 1, 0] + freespace[i, 0]
