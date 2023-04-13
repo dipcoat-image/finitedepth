@@ -182,15 +182,18 @@ class RectLayerShapeDrawOptions:
 class RectLayerShapeDecoOptions:
     """Decorating options for :class:`RectLayerShape` instance."""
 
-    layer: FeatureDrawingOptions = FeatureDrawingOptions(thickness=1)
+    layer: FeatureDrawingOptions = FeatureDrawingOptions()
     contact_line: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(0, 255, 0), thickness=1
+        color=Color(0, 255, 0),
     )
     thickness_lines: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(0, 0, 255), thickness=1
+        color=Color(0, 0, 255),
     )
     uniform_layer: FeatureDrawingOptions = FeatureDrawingOptions(
         color=Color(255, 0, 0), thickness=0
+    )
+    roughness_pairs: FeatureDrawingOptions = FeatureDrawingOptions(
+        color=Color(0, 255, 255), thickness=0, drawevery=1
     )
 
 
@@ -618,6 +621,24 @@ class RectLayerShape(
                 isClosed=False,
                 color=dataclasses.astuple(uniformlayer_opts.color),
                 thickness=uniformlayer_opts.thickness,
+            )
+
+        roughnesspair_opts = self.deco_options.roughness_pairs
+        if roughnesspair_opts.thickness > 0:
+            _, pairs = self.roughness()
+            for pair in pairs[:: roughnesspair_opts.drawevery]:
+                cv2.line(
+                    image,
+                    *pair.astype(np.int32),
+                    color=dataclasses.astuple(roughnesspair_opts.color),
+                    thickness=roughnesspair_opts.thickness,
+                )
+            # always draw the last line
+            cv2.line(
+                image,
+                *pairs[-1].astype(np.int32),
+                color=dataclasses.astuple(roughnesspair_opts.color),
+                thickness=roughnesspair_opts.thickness,
             )
 
         return image
