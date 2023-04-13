@@ -1,5 +1,6 @@
 cattrs
 numpy >= 1.21
+numba
 scipy
 opencv-python-headless
 tqdm

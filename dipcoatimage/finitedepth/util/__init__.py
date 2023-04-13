@@ -22,6 +22,14 @@ Utilities
 """
 
 from .imgprocess import match_template, images_XOR, images_ANDXOR, binarize, colorize
+from .frechet import (
+    dfd,
+    dfd_pair,
+    sfd,
+    sfd_path,
+    ssfd,
+    ssfd_path,
+)
 from .importing import import_variable, ImportStatus, Importer
 from .path import get_samples_path, cwd
 from .typing import DataclassProtocol, OptionalROI, IntROI, sanitize_ROI
@@ -37,6 +45,12 @@ __all__ = [
     "images_ANDXOR",
     "binarize",
     "colorize",
+    "dfd",
+    "dfd_pair",
+    "sfd",
+    "sfd_path",
+    "ssfd",
+    "ssfd_path",
     "import_variable",
     "ImportStatus",
     "Importer",
