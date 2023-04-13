@@ -128,28 +128,29 @@ def sfd(
     .. [2] https://pypi.org/project/similaritymeasures/
 
     """
-    return _sfd(cdist(P, Q))
+    return _sfd(cdist(P, Q), 1)
 
 
 @njit(cache=True)
-def _sfd(freespace: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+def _sfd(freespace: npt.NDArray[np.float64], order: int) -> npt.NDArray[np.float64]:
     p, q = freespace.shape
     ca = np.zeros((p, q), dtype=np.float64)
     if p == 0 or q == 0:
         return ca
 
-    ca[0, 0] = freespace[0, 0]
+    ca[0, 0] = freespace[0, 0] ** order
 
     for i in range(1, p):
-        ca[i, 0] = ca[i - 1, 0] + freespace[i, 0]
+        ca[i, 0] = ca[i - 1, 0] + freespace[i, 0] ** order
 
     for j in range(1, q):
-        ca[0, j] = ca[0, j - 1] + freespace[0, j]
+        ca[0, j] = ca[0, j - 1] + freespace[0, j] ** order
 
     for i in range(1, p):
         for j in range(1, q):
             ca[i, j] = (
-                min(ca[i - 1, j], ca[i, j - 1], ca[i - 1, j - 1]) + freespace[i, j]
+                min(ca[i - 1, j], ca[i, j - 1], ca[i - 1, j - 1])
+                + freespace[i, j] ** order
             )
 
     return ca
@@ -243,31 +244,7 @@ def ssfd(
         If *P* or *Q* is empty, return value is an empty array.
 
     """
-    return _ssfd(cdist(P, Q))
-
-
-@njit(cache=True)
-def _ssfd(freespace: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-    p, q = freespace.shape
-    ca = np.zeros((p, q), dtype=np.float64)
-    if p == 0 or q == 0:
-        return ca
-
-    ca[0, 0] = freespace[0, 0] ** 2
-
-    for i in range(1, p):
-        ca[i, 0] = ca[i - 1, 0] + freespace[i, 0] ** 2
-
-    for j in range(1, q):
-        ca[0, j] = ca[0, j - 1] + freespace[0, j] ** 2
-
-    for i in range(1, p):
-        for j in range(1, q):
-            ca[i, j] = (
-                min(ca[i - 1, j], ca[i, j - 1], ca[i - 1, j - 1]) + freespace[i, j] ** 2
-            )
-
-    return ca
+    return _sfd(cdist(P, Q), 2)
 
 
 # SSFD path can be acquired using algorithm identical to SFD path.
