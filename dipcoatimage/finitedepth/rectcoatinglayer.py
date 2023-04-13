@@ -304,6 +304,7 @@ class RectLayerShape(
     __slots__ = (
         "_layer_area",
         "_uniform_layer",
+        "_roughness",
     )
 
     Parameters = RectLayerShapeParameters
@@ -488,43 +489,47 @@ class RectLayerShape(
 
         return self._uniform_layer
 
-    def roughness(self) -> np.float64:
+    def roughness(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """Dimensional roughness value of the coating layer surface."""
-        (surface,) = self.enclosing_surface().transpose(1, 0, 2)
-        _, uniform_layer = self.uniform_layer()
-        if surface.size == 0 or uniform_layer.size == 0:
-            return np.float64(np.nan)
+        if not hasattr(self, "_roughness"):
+            (surface,) = self.enclosing_surface().transpose(1, 0, 2)
+            _, uniform_layer = self.uniform_layer()
+            if surface.size == 0 or uniform_layer.size == 0:
+                return (np.float64(np.nan), np.empty((0, 2, 2), dtype=np.float64))
 
-        NUM_POINTS = 1000
+            NUM_POINTS = 1000
 
-        def equidistant_interp(points):
-            # https://stackoverflow.com/a/19122075
-            vec = np.diff(points, axis=0)
-            dist = np.linalg.norm(vec, axis=1)
-            u = np.insert(np.cumsum(dist), 0, 0)
-            t = np.linspace(0, u[-1], NUM_POINTS)
-            y, x = points.T
-            return np.stack([np.interp(t, u, y), np.interp(t, u, x)]).T
+            def equidistant_interp(points):
+                # https://stackoverflow.com/a/19122075
+                vec = np.diff(points, axis=0)
+                dist = np.linalg.norm(vec, axis=1)
+                u = np.insert(np.cumsum(dist), 0, 0)
+                t = np.linspace(0, u[-1], NUM_POINTS)
+                y, x = points.T
+                return np.stack([np.interp(t, u, y), np.interp(t, u, x)]).T
 
-        l_interp = equidistant_interp(surface).astype(np.float64)
-        ul_interp = equidistant_interp(uniform_layer).astype(np.float64)
+            P = equidistant_interp(surface).astype(np.float64)
+            Q = equidistant_interp(uniform_layer).astype(np.float64)
 
-        if self.parameters.RoughnessMeasure == self.RoughnessMeasure.DFD:
-            ca = dfd(l_interp, ul_interp)
-            path = dfd_pair(ca)
-            roughness = ca[-1, -1] / len(path)
-        elif self.parameters.RoughnessMeasure == self.RoughnessMeasure.SFD:
-            ca = sfd(l_interp, ul_interp)
-            path = sfd_path(ca)
-            roughness = ca[-1, -1] / len(path)
-        elif self.parameters.RoughnessMeasure == self.RoughnessMeasure.SSFD:
-            ca = ssfd(l_interp, ul_interp)
-            path = ssfd_path(ca)
-            roughness = np.sqrt(ca[-1, -1] / len(path))
-        else:
-            raise TypeError(f"Unknown option: {self.parameters.RoughnessMeasure}")
+            if self.parameters.RoughnessMeasure == self.RoughnessMeasure.DFD:
+                ca = dfd(P, Q)
+                path = dfd_pair(ca)
+                roughness = ca[-1, -1] / len(path)
+            elif self.parameters.RoughnessMeasure == self.RoughnessMeasure.SFD:
+                ca = sfd(P, Q)
+                path = sfd_path(ca)
+                roughness = ca[-1, -1] / len(path)
+            elif self.parameters.RoughnessMeasure == self.RoughnessMeasure.SSFD:
+                ca = ssfd(P, Q)
+                path = ssfd_path(ca)
+                roughness = np.sqrt(ca[-1, -1] / len(path))
+            else:
+                raise TypeError(f"Unknown option: {self.parameters.RoughnessMeasure}")
 
-        return roughness
+            similarity_pairs = np.stack([P[path[..., 0]], Q[path[..., 1]]])
+            self._roughness = (roughness, similarity_pairs.transpose(1, 0, 2))
+
+        return self._roughness
 
     def draw(self) -> npt.NDArray[np.uint8]:
         background = self.draw_options.background
@@ -660,7 +665,7 @@ class RectLayerShape(
         THCK_L, THCK_B, THCK_R = max_dists
 
         THCK_U, _ = self.uniform_layer()
-        ROUGH = self.roughness()
+        ROUGH, _ = self.roughness()
 
         ERR, _ = self.match_substrate()
         CHIPWIDTH = np.linalg.norm(B - C)
