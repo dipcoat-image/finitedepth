@@ -10,6 +10,8 @@ __all__ = [
     "dfd_pair",
     "sfd",
     "sfd_path",
+    "ssfd",
+    "ssfd_path",
 ]
 
 
@@ -218,3 +220,56 @@ def _sfd_path(ca: npt.NDArray[np.float64]):
         path_len += 1
 
     return path, path_len
+
+
+def ssfd(
+    P: npt.NDArray[np.float64],
+    Q: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """
+    Compute summed square Fréchet distance with Euclidean metric.
+
+    Parameters
+    ----------
+    P, Q : ndarray
+        2D Numpy array with ``np.float64`` dtype. Rows are the points and
+        columns are the dimensions.
+
+    Returns
+    -------
+    ndarray
+        Accumulated cost array for the summed square Fréchet distance.
+        The distance is the last element of the array i.e. `ca[-1, -1]`.
+        If *P* or *Q* is empty, return value is an empty array.
+
+    """
+    return _ssfd(cdist(P, Q))
+
+
+@njit
+def _ssfd(freespace: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    p, q = freespace.shape
+    ca = np.zeros((p, q), dtype=np.float64)
+    if p == 0 or q == 0:
+        return ca
+
+    ca[0, 0] = freespace[0, 0] ** 2
+
+    for i in range(1, p):
+        ca[i, 0] = ca[i - 1, 0] + freespace[i, 0] ** 2
+
+    for j in range(1, q):
+        ca[0, j] = ca[0, j - 1] + freespace[0, j] ** 2
+
+    for i in range(1, p):
+        for j in range(1, q):
+            ca[i, j] = (
+                min(ca[i - 1, j], ca[i, j - 1], ca[i - 1, j - 1]) + freespace[i, j] ** 2
+            )
+
+    return ca
+
+
+# SSFD path can be acquired using algorithm identical to SFD path.
+# We still provide easy aliasing.
+ssfd_path = sfd_path
