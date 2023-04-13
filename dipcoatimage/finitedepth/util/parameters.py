@@ -53,14 +53,20 @@ class FeatureDrawingOptions:
     ==========
 
     color
-        Color in RGB
+        Color of the line or face in RGB
 
     thickness
         Thickness of the line.
         Zero value is the flag to not draw the feature.
         Negative value can be the flag to fill the feature interior.
 
+    drawevery
+        Every N-th feature will be drawn.
+        This option pertains when drawing of multiple features is controlled by
+        a single :class:`FeatureDrawingOptions` instance.
+
     """
 
     color: Color = Color(0, 0, 0)
-    thickness: int = 0
+    thickness: int = 1
+    drawevery: int = 1

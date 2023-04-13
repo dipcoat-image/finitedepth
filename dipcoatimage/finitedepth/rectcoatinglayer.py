@@ -30,6 +30,7 @@ Implementation
 
 import cv2  # type: ignore
 import dataclasses
+import enum
 import numpy as np
 import numpy.typing as npt
 from typing import TypeVar, Type, Tuple, Optional, List
@@ -44,6 +45,12 @@ from .util import (
     images_XOR,
     DataclassProtocol,
     FeatureDrawingOptions,
+    dfd,
+    dfd_pair,
+    sfd,
+    sfd_path,
+    ssfd,
+    ssfd_path,
     Color,
     colorize,
 )
@@ -57,6 +64,7 @@ except ImportError:
 __all__ = [
     "RectCoatingLayerBase",
     "MorphologyClosingParameters",
+    "DistanceMeasure",
     "RectLayerShapeParameters",
     "RectLayerShapeDrawOptions",
     "RectLayerShapeDecoOptions",
@@ -139,12 +147,28 @@ class MorphologyClosingParameters:
     iterations: int = 1
 
 
+class DistanceMeasure(enum.Enum):
+    """
+    Distance measure used to define the curve similarity.
+
+    - DFD : Discrete Fréchet Distance
+    - SFD : Summed Fréchet Distance
+    - SSFD : Summed Square Fréchet Distance
+    """
+
+    DFD = "DFD"
+    SFD = "SFD"
+    SSFD = "SSFD"
+
+
 @dataclasses.dataclass(frozen=True)
 class RectLayerShapeParameters:
     """Analysis parameters for :class:`RectLayerShape` instance."""
 
     MorphologyClosing: MorphologyClosingParameters
     ReconstructRadius: int
+    RoughnessMeasure: DistanceMeasure
+    RoughnessSamples: int
 
 
 @dataclasses.dataclass
@@ -159,15 +183,18 @@ class RectLayerShapeDrawOptions:
 class RectLayerShapeDecoOptions:
     """Decorating options for :class:`RectLayerShape` instance."""
 
-    layer: FeatureDrawingOptions = FeatureDrawingOptions(thickness=1)
+    layer: FeatureDrawingOptions = FeatureDrawingOptions()
     contact_line: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(0, 255, 0), thickness=1
+        color=Color(0, 255, 0),
     )
     thickness_lines: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(0, 0, 255), thickness=1
+        color=Color(0, 0, 255),
     )
     uniform_layer: FeatureDrawingOptions = FeatureDrawingOptions(
         color=Color(255, 0, 0), thickness=0
+    )
+    roughness_pairs: FeatureDrawingOptions = FeatureDrawingOptions(
+        color=Color(0, 255, 255), thickness=0, drawevery=1
     )
 
 
@@ -269,7 +296,9 @@ class RectLayerShape(
        >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
        >>> param_val = dict(
        ...     MorphologyClosing=dict(kernelSize=(1, 1)),
-       ...     ReconstructRadius=50
+       ...     ReconstructRadius=50,
+       ...     RoughnessMeasure="SSFD",
+       ...     RoughnessSamples=100,
        ... )
        >>> param = data_converter.structure(param_val, RectLayerShape.Parameters)
        >>> coat = RectLayerShape(coat_img, subst, param)
@@ -280,6 +309,7 @@ class RectLayerShape(
     __slots__ = (
         "_layer_area",
         "_uniform_layer",
+        "_roughness",
     )
 
     Parameters = RectLayerShapeParameters
@@ -287,6 +317,7 @@ class RectLayerShape(
     DecoOptions = RectLayerShapeDecoOptions
     Data = RectLayerShapeData
 
+    RoughnessMeasure: TypeAlias = DistanceMeasure
     BackgroundDrawMode: TypeAlias = BackgroundDrawMode
     SubtractionDrawMode: TypeAlias = SubtractionDrawMode
 
@@ -463,29 +494,47 @@ class RectLayerShape(
 
         return self._uniform_layer
 
-    def roughness(self) -> np.float64:
+    def roughness(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """Dimensional roughness value of the coating layer surface."""
-        (surface,) = self.enclosing_surface().transpose(1, 0, 2)
-        _, uniform_layer = self.uniform_layer()
-        if surface.size == 0 or uniform_layer.size == 0:
-            return np.float64(np.nan)
+        if not hasattr(self, "_roughness"):
+            (surface,) = self.enclosing_surface().transpose(1, 0, 2)
+            _, uniform_layer = self.uniform_layer()
+            if surface.size == 0 or uniform_layer.size == 0:
+                return (np.float64(np.nan), np.empty((0, 2, 2), dtype=np.float64))
 
-        NUM_POINTS = 1000
+            NUM_POINTS = self.parameters.RoughnessSamples
 
-        def equidistant_interp(points):
-            # https://stackoverflow.com/a/19122075
-            vec = np.diff(points, axis=0)
-            dist = np.linalg.norm(vec, axis=1)
-            u = np.insert(np.cumsum(dist), 0, 0)
-            t = np.linspace(0, u[-1], NUM_POINTS)
-            y, x = points.T
-            return np.stack([np.interp(t, u, y), np.interp(t, u, x)]).T
+            def equidistant_interp(points):
+                # https://stackoverflow.com/a/19122075
+                vec = np.diff(points, axis=0)
+                dist = np.linalg.norm(vec, axis=1)
+                u = np.insert(np.cumsum(dist), 0, 0)
+                t = np.linspace(0, u[-1], NUM_POINTS)
+                y, x = points.T
+                return np.stack([np.interp(t, u, y), np.interp(t, u, x)]).T
 
-        l_interp = equidistant_interp(surface)
-        ul_interp = equidistant_interp(uniform_layer)
-        deviation = np.linalg.norm(l_interp - ul_interp, axis=1)
+            P = equidistant_interp(surface).astype(np.float64)
+            Q = equidistant_interp(uniform_layer).astype(np.float64)
 
-        return np.sqrt(np.trapz(deviation**2) / deviation.shape[0])
+            if self.parameters.RoughnessMeasure == self.RoughnessMeasure.DFD:
+                ca = dfd(P, Q)
+                path = dfd_pair(ca)
+                roughness = ca[-1, -1] / len(path)
+            elif self.parameters.RoughnessMeasure == self.RoughnessMeasure.SFD:
+                ca = sfd(P, Q)
+                path = sfd_path(ca)
+                roughness = ca[-1, -1] / len(path)
+            elif self.parameters.RoughnessMeasure == self.RoughnessMeasure.SSFD:
+                ca = ssfd(P, Q)
+                path = ssfd_path(ca)
+                roughness = np.sqrt(ca[-1, -1] / len(path))
+            else:
+                raise TypeError(f"Unknown option: {self.parameters.RoughnessMeasure}")
+
+            similarity_pairs = np.stack([P[path[..., 0]], Q[path[..., 1]]])
+            self._roughness = (roughness, similarity_pairs.transpose(1, 0, 2))
+
+        return self._roughness
 
     def draw(self) -> npt.NDArray[np.uint8]:
         background = self.draw_options.background
@@ -576,6 +625,24 @@ class RectLayerShape(
                 thickness=uniformlayer_opts.thickness,
             )
 
+        roughnesspair_opts = self.deco_options.roughness_pairs
+        if roughnesspair_opts.thickness > 0:
+            _, pairs = self.roughness()
+            for pair in pairs[:: roughnesspair_opts.drawevery]:
+                cv2.line(
+                    image,
+                    *pair.astype(np.int32),
+                    color=dataclasses.astuple(roughnesspair_opts.color),
+                    thickness=roughnesspair_opts.thickness,
+                )
+            # always draw the last line
+            cv2.line(
+                image,
+                *pairs[-1].astype(np.int32),
+                color=dataclasses.astuple(roughnesspair_opts.color),
+                thickness=roughnesspair_opts.thickness,
+            )
+
         return image
 
     def analyze_layer(
@@ -621,7 +688,7 @@ class RectLayerShape(
         THCK_L, THCK_B, THCK_R = max_dists
 
         THCK_U, _ = self.uniform_layer()
-        ROUGH = self.roughness()
+        ROUGH, _ = self.roughness()
 
         ERR, _ = self.match_substrate()
         CHIPWIDTH = np.linalg.norm(B - C)
