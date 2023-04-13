@@ -45,6 +45,12 @@ from .util import (
     images_XOR,
     DataclassProtocol,
     FeatureDrawingOptions,
+    dfd,
+    dfd_pair,
+    sfd,
+    sfd_path,
+    ssfd,
+    ssfd_path,
     Color,
     colorize,
 )
@@ -305,6 +311,7 @@ class RectLayerShape(
     DecoOptions = RectLayerShapeDecoOptions
     Data = RectLayerShapeData
 
+    RoughnessMeasure: TypeAlias = DistanceMeasure
     BackgroundDrawMode: TypeAlias = BackgroundDrawMode
     SubtractionDrawMode: TypeAlias = SubtractionDrawMode
 
@@ -499,11 +506,25 @@ class RectLayerShape(
             y, x = points.T
             return np.stack([np.interp(t, u, y), np.interp(t, u, x)]).T
 
-        l_interp = equidistant_interp(surface)
-        ul_interp = equidistant_interp(uniform_layer)
-        deviation = np.linalg.norm(l_interp - ul_interp, axis=1)
+        l_interp = equidistant_interp(surface).astype(np.float64)
+        ul_interp = equidistant_interp(uniform_layer).astype(np.float64)
 
-        return np.sqrt(np.trapz(deviation**2) / deviation.shape[0])
+        if self.parameters.RoughnessMeasure == self.RoughnessMeasure.DFD:
+            ca = dfd(l_interp, ul_interp)
+            path = dfd_pair(ca)
+            roughness = ca[-1, -1] / len(path)
+        elif self.parameters.RoughnessMeasure == self.RoughnessMeasure.SFD:
+            ca = sfd(l_interp, ul_interp)
+            path = sfd_path(ca)
+            roughness = ca[-1, -1] / len(path)
+        elif self.parameters.RoughnessMeasure == self.RoughnessMeasure.SSFD:
+            ca = ssfd(l_interp, ul_interp)
+            path = ssfd_path(ca)
+            roughness = np.sqrt(ca[-1, -1] / len(path))
+        else:
+            raise TypeError(f"Unknown option: {self.parameters.RoughnessMeasure}")
+
+        return roughness
 
     def draw(self) -> npt.NDArray[np.uint8]:
         background = self.draw_options.background
