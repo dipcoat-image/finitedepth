@@ -74,7 +74,7 @@ def _dfd(freespace: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     return ca
 
 
-def dfd_pair(ca: npt.NDArray[np.float64]) -> Tuple[np.int64, np.int64]:
+def dfd_pair(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
     """
     Find the point pair which determines the discrete Fréchet distance.
 
@@ -85,7 +85,7 @@ def dfd_pair(ca: npt.NDArray[np.float64]) -> Tuple[np.int64, np.int64]:
 
     Returns
     -------
-    tuple
+    ndarray
         Indices for the two curves to get the point pair.
 
     See Also
@@ -93,7 +93,7 @@ def dfd_pair(ca: npt.NDArray[np.float64]) -> Tuple[np.int64, np.int64]:
     dfd
     """
     i, j = np.nonzero(ca == ca[-1, -1])
-    return (i[0], j[0])
+    return np.array([[i[0], j[0]]], dtype=np.int32)
 
 
 def sfd(
@@ -156,9 +156,9 @@ def _sfd(freespace: npt.NDArray[np.float64], order: int) -> npt.NDArray[np.float
     return ca
 
 
-def sfd_path(ca: npt.NDArray[np.float64]):
+def sfd_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
     """
-    Compute path for optimal summed Fréchet distance in the free space.
+    Compute optimal path for summed Fréchet distance variants in the free space.
 
     Implements the algorithm from [1]_, with modification from [2]_.
 
@@ -190,7 +190,7 @@ def sfd_path(ca: npt.NDArray[np.float64]):
 
 
 @njit(cache=True)
-def _sfd_path(ca: npt.NDArray[np.float64]):
+def _sfd_path(ca: npt.NDArray[np.float64]) -> Tuple[npt.NDArray[np.int32], np.int32]:
     p, q = ca.shape
     if p == 0 or q == 0:
         return np.empty((0, 2), dtype=np.int32), np.int32(0)
