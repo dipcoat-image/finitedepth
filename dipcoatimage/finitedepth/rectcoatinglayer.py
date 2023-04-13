@@ -168,6 +168,7 @@ class RectLayerShapeParameters:
     MorphologyClosing: MorphologyClosingParameters
     ReconstructRadius: int
     RoughnessMeasure: DistanceMeasure
+    RoughnessSamples: int
 
 
 @dataclasses.dataclass
@@ -297,6 +298,7 @@ class RectLayerShape(
        ...     MorphologyClosing=dict(kernelSize=(1, 1)),
        ...     ReconstructRadius=50,
        ...     RoughnessMeasure="SSFD",
+       ...     RoughnessSamples=100,
        ... )
        >>> param = data_converter.structure(param_val, RectLayerShape.Parameters)
        >>> coat = RectLayerShape(coat_img, subst, param)
@@ -500,7 +502,7 @@ class RectLayerShape(
             if surface.size == 0 or uniform_layer.size == 0:
                 return (np.float64(np.nan), np.empty((0, 2, 2), dtype=np.float64))
 
-            NUM_POINTS = 1000
+            NUM_POINTS = self.parameters.RoughnessSamples
 
             def equidistant_interp(points):
                 # https://stackoverflow.com/a/19122075

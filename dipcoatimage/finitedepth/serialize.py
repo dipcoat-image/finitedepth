@@ -264,6 +264,7 @@ class CoatingLayerArgs:
        ...     MorphologyClosing=dict(kernelSize=(1, 1)),
        ...     ReconstructRadius=50,
        ...     RoughnessMeasure="SSFD",
+       ...     RoughnessSamples=100,
        ... )
        >>> arg = dict(type={"name": "RectLayerShape"}, parameters=params)
        >>> layerargs = data_converter.structure(arg, CoatingLayerArgs)
