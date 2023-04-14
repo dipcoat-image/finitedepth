@@ -682,9 +682,14 @@ class RectLayerShape(
             ):
                 dists.append(np.linalg.norm((surf[idx] - proj), axis=-1))
             if not dists:
-                max_dists.append(np.float64(0))
+                max_d = np.float64(0)
             else:
-                max_dists.append(np.max(np.concatenate(dists, axis=0)))
+                dists_concat = np.concatenate(dists, axis=0)
+                if dists_concat.size == 0:
+                    max_d = np.float64(0)
+                else:
+                    max_d = np.max(dists_concat)
+            max_dists.append(max_d)
         THCK_L, THCK_B, THCK_R = max_dists
 
         THCK_U, _ = self.uniform_layer()
