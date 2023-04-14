@@ -455,6 +455,11 @@ class RectLayerShape(
                 [find_projection(p1), find_projection(p2)], key=lambda x: x[0]
             )
             new_hull = hull[int(i1) : int(i2)]
+            if new_hull.size == 0:
+                layer = np.empty((0, 1, 2), dtype=np.float64)
+                self._uniform_layer = (np.float64(0), layer)
+                return self._uniform_layer
+
             if not np.all(new_hull[0] == proj1):
                 new_hull = np.insert(new_hull, 0, proj1, axis=0)
             nh_len = new_hull.shape[0]
