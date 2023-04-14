@@ -601,10 +601,12 @@ class RectLayerShape(
                 ):
                     surf_pts.append(surf[idx])
                     proj_pts.append(proj)
-                if not surf_pts:
+                if not surf_pts or not proj_pts:
                     continue
                 surf = np.concatenate(surf_pts, axis=0)
                 proj = np.concatenate(proj_pts, axis=0)
+                if surf.size == 0 or proj.size == 0:
+                    continue
                 dists = np.linalg.norm(surf - proj, axis=-1)
                 max_idxs, _ = np.nonzero(dists == np.max(dists))
                 # split the max indices by continuous locations
