@@ -454,7 +454,7 @@ class RectLayerShape(
             (i1, proj1), (i2, proj2) = sorted(
                 [find_projection(p1), find_projection(p2)], key=lambda x: x[0]
             )
-            new_hull = hull[int(i1) : int(i2)]
+            new_hull = hull[int(i1) : int(i2)].astype(np.float64)
             if new_hull.size == 0:
                 layer = np.empty((0, 1, 2), dtype=np.float64)
                 self._uniform_layer = (np.float64(0), layer)
