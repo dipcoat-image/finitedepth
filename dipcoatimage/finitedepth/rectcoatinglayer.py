@@ -142,6 +142,12 @@ class RectCoatingLayerBase(
 
 @dataclasses.dataclass(frozen=True)
 class MorphologyClosingParameters:
+    """
+    Parameter to perform Morphological closing operation.
+
+    Kernel sizes MUST be odd lest the operation leaves residue pixels.
+    """
+
     kernelSize: Tuple[int, int]
     anchor: Tuple[int, int] = (-1, -1)
     iterations: int = 1
@@ -322,6 +328,8 @@ class RectLayerShape(
     SubtractionDrawMode: TypeAlias = SubtractionDrawMode
 
     def examine(self) -> Optional[CoatingLayerError]:
+        if not all(i % 2 for i in self.parameters.MorphologyClosing.kernelSize):
+            return CoatingLayerError("Kernel size must be odd.")
         if not self.capbridge_broken():
             return CoatingLayerError("Capillary bridge is not broken.")
         return None
@@ -332,7 +340,7 @@ class RectLayerShape(
             # "closing" because the coating layer is black in original image, but
             # in fact we do opening since the layer is True in extracted layer.
             closingParams = self.parameters.MorphologyClosing
-            kernel = np.ones(closingParams.kernelSize)
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, closingParams.kernelSize)
             img_closed = cv2.morphologyEx(
                 super().extract_layer().astype(np.uint8) * 255,
                 cv2.MORPH_OPEN,
