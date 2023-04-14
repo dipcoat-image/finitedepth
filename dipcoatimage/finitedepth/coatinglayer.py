@@ -425,6 +425,7 @@ class CoatingLayerBase(
             for i, cnt in enumerate(layer_cnt):
                 ((x, y),) = cnt.transpose(1, 2, 0)
                 layer_map[y, x] = i + 1
+            H, W = layer_map.shape[:2]
 
             ret = []
             reg_val, reg_img = self.substrate.regions()
@@ -440,7 +441,8 @@ class CoatingLayerBase(
                 ((adj_x, adj_y),) = adj_points.transpose(1, 2, 0)
                 # `interface_labels` shows which contour does the adjacent point
                 # belongs to. 0 means the point is not covered with the layer.
-                interface_labels = layer_map[adj_y, adj_x]
+                mask = (0 <= adj_x) & (adj_x < W) & (0 <= adj_y) & (adj_y < H)
+                interface_labels = layer_map[adj_y[mask], adj_x[mask]]
 
                 # Sort the interface patches along the substrate contour.
                 label_locs = []
