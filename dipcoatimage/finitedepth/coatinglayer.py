@@ -438,7 +438,8 @@ class CoatingLayerBase(
 
                 # Among every layer contour we find out which intersects with
                 # the substrate vicinity and where the intersection is.
-                interfaces = []
+                interfaces = np.zeros((len(self.layer_contours()), 3), dtype=np.int32)
+                intf_count = 0
                 for i, layer_cnt in enumerate(self.layer_contours()):
                     x, y = layer_cnt.transpose(2, 0, 1)
                     on_intf = dil_cnt[y, x].astype(bool)
@@ -459,10 +460,11 @@ class CoatingLayerBase(
                     else:
                         j = jump[-1]
                         i0, i1 = interface_idxs[j + 1], interface_idxs[j]
-                    interfaces.append([i, i0, i1])
+                    interfaces[intf_count] = [i, i0, i1]
+                    intf_count += 1
+                interfaces = interfaces[:intf_count]
 
-                if interfaces:
-                    interfaces = np.array(interfaces, dtype=np.int32)
+                if interfaces.size != 0:
                     # We sort the interface patches along the substrate contour.
                     # We first select representing points from each interface
                     # patches and find the closest projection to substrate.
@@ -473,8 +475,6 @@ class CoatingLayerBase(
                     # Sort by projection's line segment index and then by t.
                     # Cheap hack: argsort (index + t)!
                     interfaces = interfaces[np.argsort(np.sum(proj, axis=1))]
-                else:
-                    interfaces = np.empty((0, 3), dtype=np.int32)
                 ret.append(interfaces)
 
             self._interfaces = ret
