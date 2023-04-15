@@ -86,6 +86,7 @@ __all__ = [
     "LayerAreaDecoOptions",
     "LayerAreaData",
     "LayerArea",
+    "find_polyline_projections",
 ]
 
 
@@ -396,8 +397,8 @@ class CoatingLayerBase(
         The first column indicates the location of the coating layer contour in
         :meth:`layer_contours`. Combining this information with the row index
         allows sorting the contours. For example, if the first column is
-        `array([[1], [0]])` this means the 2nd contour in :meth:`layer_contours`
-        appears first and the 1st contour appears next along the substrate.
+        `array([[4], [2]])` this means the 5nd contour in :meth:`layer_contours`
+        appears first and the 3st contour appears next along the substrate.
 
         The second and the third column locates the interface in each coating
         layer contour. For example, a row `array([[1, 100, 10]])` describes an
@@ -418,57 +419,63 @@ class CoatingLayerBase(
 
         """
         if not hasattr(self, "_interfaces"):
-            # For each contour, find points which are adjacent to the substrate.
-            # i-th contour in `layer_contours()` is labelled as `i + 1`.
-            layer_cnt = self.layer_contours()
-            layer_map = np.zeros(self.image.shape[:2], dtype=np.uint8)
-            for i, cnt in enumerate(layer_cnt):
-                ((x, y),) = cnt.transpose(1, 2, 0)
-                layer_map[y, x] = i + 1
-            H, W = layer_map.shape[:2]
-
             ret = []
             reg_val, reg_img = self.substrate.regions()
             for v in range(1, reg_val):
-                (dilated_subst_cnt,), _ = cv2.findContours(
-                    cv2.dilate((reg_img == v) * np.uint8(255), np.ones((3, 3))),
-                    cv2.RETR_EXTERNAL,
-                    cv2.CHAIN_APPROX_NONE,
+                # From each layer contour, we want to find the points that are
+                # adjacent to the substrate. For this we make a mask which
+                # indicates the vicinity of the substrate.
+                # XXX: MUST use substrate contour. In the future, substrate with
+                # inner contour (i.e. hole) will be supported.
+                subst = (reg_img == v) * np.uint8(255)
+                (subst_cnt,), _ = cv2.findContours(
+                    subst, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
                 )
-                # `adj_points` is every point that is adjacent to the substrate
-                # in coated substrate image, i.e. interface point candidates.
-                adj_points = self.substrate_point() + dilated_subst_cnt
-                ((adj_x, adj_y),) = adj_points.transpose(1, 2, 0)
-                # `interface_labels` shows which contour does the adjacent point
-                # belongs to. 0 means the point is not covered with the layer.
-                mask = (0 <= adj_x) & (adj_x < W) & (0 <= adj_y) & (adj_y < H)
-                interface_labels = layer_map[adj_y[mask], adj_x[mask]]
+                subst_cnt += self.substrate_point()
+                cnt_img = np.zeros(self.image.shape[:2], dtype=np.uint8)
+                cv2.drawContours(cnt_img, [subst_cnt], -1, 255)
+                dil_cnt = cv2.dilate(cnt_img, np.ones((3, 3)))
 
-                # Sort the interface patches along the substrate contour.
-                label_locs = []
-                for label in range(len(layer_cnt)):
-                    (lab_loc,) = np.where(interface_labels == label + 1)
-                    label_locs.append(lab_loc[0])
-                sorted_labels = interface_labels[
-                    np.sort(np.array(label_locs, dtype=np.int32))
-                ]
+                # Among every layer contour we find out which intersects with
+                # the substrate vicinity and where the intersection is.
+                interfaces = []
+                for i, layer_cnt in enumerate(self.layer_contours()):
+                    x, y = layer_cnt.transpose(2, 0, 1)
+                    on_intf = dil_cnt[y, x].astype(bool)
+                    interface = layer_cnt[on_intf]
+                    if interface.size == 0:
+                        continue
 
-                indices = []
-                for label in sorted_labels:
-                    cnt = layer_cnt[label - 1]
-                    # Points in `interface` is sorted along the substrate contour
-                    interface = adj_points[interface_labels == label]
-                    (i0,), _ = np.where(np.all(cnt == interface[0], axis=-1))
-                    (i1,), _ = np.where(np.all(cnt == interface[-1], axis=-1))
-                    # On the interface, the substrate contour direction is
-                    # opposite to the layer contour direction. Therefore reverse
-                    # order to (i1, i0) to sort by layer contour direction.
-                    indices.append([label - 1, i1, i0])
+                    interface_idxs = np.arange(len(layer_cnt))[..., np.newaxis][on_intf]
+                    # Case A) Contour starts outside of the interface. Here the
+                    # interface will be in like [100, ..., 200] and the result
+                    # index is [100, 200].
+                    # Case B) Contour starts on the interface. Here the interface
+                    # will be in like [0, ..., 10], [21, ...] where 11 to 20 is
+                    # surface. The result index is [21, 10].
+                    (jump,) = np.where(np.diff(interface_idxs) != 1)
+                    if jump.size == 0:  # Case A
+                        i0, i1 = interface_idxs[0], interface_idxs[-1]
+                    else:
+                        j = jump[-1]
+                        i0, i1 = interface_idxs[j + 1], interface_idxs[j]
+                    interfaces.append([i, i0, i1])
 
-                if not indices:
-                    ret.append(np.empty((0, 3), dtype=np.int32))
+                if interfaces:
+                    interfaces = np.array(interfaces, dtype=np.int32)
+                    # We sort the interface patches along the substrate contour.
+                    # We first select representing points from each interface
+                    # patches and find the closest projection to substrate.
+                    rep_pts = np.stack(
+                        [self.layer_contours()[i][j] for i, j, _ in interfaces]
+                    )
+                    proj = find_polyline_projections(rep_pts, subst_cnt)
+                    # Sort by projection's line segment index and then by t.
+                    # Cheap hack: argsort (index + t)!
+                    interfaces = interfaces[np.argsort(np.sum(proj, axis=1))]
                 else:
-                    ret.append(np.array(indices, dtype=np.int32))
+                    interfaces = np.empty((0, 3), dtype=np.int32)
+                ret.append(interfaces)
 
             self._interfaces = ret
         return self._interfaces
@@ -828,3 +835,59 @@ class LayerArea(
     def analyze_layer(self) -> Tuple[int]:
         area = np.count_nonzero(self.extract_layer())
         return (area,)
+
+
+def find_polyline_projections(points, lines) -> npt.NDArray[np.float64]:
+    """
+    Find the projection relation between points and a polyline.
+
+    Parameters
+    ----------
+    points: ndarray
+        Coordinate of the points.
+        The shape must be `(N, 1, D)` where `N` is the number of points and `D`
+        is the dimension.
+    lines: ndarray
+        Vertices of a polyline.
+        The shape must be `(M, 1, D)` where `M` is the number of vertices and
+        `D` is the dimension.
+
+    Returns
+    -------
+    ndarray
+        Projection relation between points and polyline segments.
+        The shape is `(N, 2)`, where `N` is same as the number of points.
+        Index of the row represents the index of point in *points*. Columns
+        represent the index of segment where the point is projected to, and
+        scalar to find the projection.
+        For example, let `n`-th row is `[m, t]`. This means that `n`-th point in
+        *point* is projected to the line between `m`-th vertex (A) and `m + 1`-th
+        vertex (B) in *lines*. The projection point is `A + t*(B - A)`.
+    """
+    # TODO: if this is too slow, consider using numba.
+    points = points.transpose(1, 0, 2)
+    Ap = (points - lines)[:-1]
+    AB = np.diff(lines, axis=0)
+    t = np.sum(Ap * AB, axis=-1) / np.sum(AB * AB, axis=-1)
+    Projs = lines[:-1] + (t[..., np.newaxis] * AB)
+    dists = np.linalg.norm(Projs - points, axis=-1)
+
+    valid_t = (0 <= t) & (t <= 1)
+    valid_lines, valid_points = np.where(valid_t)
+    # One point can be projected to multiple line segments. Therefore group the
+    # projections by point and find the one with minimum distance.
+    # https://stackoverflow.com/a/23161720/11501976
+    pt_idxs = np.split(
+        np.arange(len(valid_points))[np.argsort(valid_points)],
+        np.cumsum(np.bincount(valid_points)[:-1]),
+    )
+
+    # line_t[N] : (M, t) -> Nth point is projected to Mth line with scalar t.
+    line_t = np.zeros((len(pt_idxs), 2), dtype=np.float64)
+    for idx in pt_idxs:
+        pt = valid_points[idx]
+        line = valid_lines[idx]
+        mindist_idx = np.argmin(dists[line, pt])
+        mindist_t = t[line[mindist_idx], pt[mindist_idx]]
+        line_t[pt[mindist_idx]] = [line[mindist_idx], mindist_t]
+    return line_t
