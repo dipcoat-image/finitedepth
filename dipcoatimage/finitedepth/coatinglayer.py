@@ -457,8 +457,8 @@ class CoatingLayerBase(
                     (jump,) = np.where(np.diff(interface_idxs) != 1)
                     if jump.size == 0:  # Case A
                         i0, i1 = interface_idxs[0], interface_idxs[-1]
-                    else:
-                        j = jump[-1]
+                    else:  # Case B
+                        j = jump[0]  # There's no way that jump is multiple
                         i0, i1 = interface_idxs[j + 1], interface_idxs[j]
                     interfaces[intf_count] = [i, i0, i1]
                     intf_count += 1
