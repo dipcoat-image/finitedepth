@@ -480,6 +480,105 @@ class CoatingLayerBase(
             self._interfaces = ret
         return self._interfaces
 
+    def interfaces2(self) -> List[List[npt.NDArray[np.float64]]]:
+        r"""
+        Find interfaces on each substrate contour with each layer contour.
+
+        Returns
+        -------
+        list
+            List of list of arrays.
+            - 1st-level list represents :meth:`SubstrateBase.contours`.
+            - 2nd-level list represents :meth:`layer_contours`.
+            - Array represents the interval for the interfaces.
+
+        Notes
+        -----
+        Interfaces of `j`-th layer contour on `i`-th substrate contour can be
+        acquired by indexing the result with `[i][j]`. It will return an array
+        whose shape is `(k, 2)`, where `k` is the number of interface intervals.
+
+        Each interval describes continuous patch on the substrate contour covered
+        by the layer. Two column values are the parameters that represent the
+        starting point and ending point of the patch, respectively.
+        Each parameter is a non-negative real number. The integer part is the
+        index of polyline segment in substrate contour. The decimal part is the
+        position of the point on the segment.
+
+        For example, with parameter :math:`t` the point :math:`P(t)` is
+
+        .. math::
+
+            P(t) = P_{[t]} + (t - [t])(P_{[t] + 1} - P_{[t]})
+
+        where :math:`P_i` is i-th point of the substrate contour.
+
+        """
+        ret = []
+        for (subst_cnt,), _ in self.substrate.contours():
+            subst_cnt = subst_cnt + self.substrate_point()  # DON'T USE += !!
+            cnt_img = np.zeros(self.image.shape[:2], dtype=np.uint8)
+            cv2.drawContours(cnt_img, [subst_cnt], -1, 255)
+            dilated_cnt = cv2.dilate(cnt_img, np.ones((3, 3)))
+
+            interfaces = []
+            for layer_cnt in self.layer_contours():
+                x, y = layer_cnt.transpose(2, 0, 1)
+                mask = dilated_cnt[y, x].astype(bool)
+                # Two reasons can be accounted for mask discontinuity:
+                # (A) Starting point of contour lies on the interface, therefore
+                # index jumps from the last to first.
+                # (B) Discrete interface.
+                # First, roll the array to handle interface being over boundary.
+                noninterface_idx, _ = np.nonzero(~mask)
+
+                if noninterface_idx.size == len(layer_cnt):
+                    # layer is not adjacent to the substrate
+                    interfaces.append(np.empty((0, 2), dtype=np.float64))
+                    continue
+
+                elif noninterface_idx.size == 0:
+                    # substrate is fully covered with the layer
+                    interfaces.append(np.array([0, len(subst_cnt)], dtype=np.float64))
+                    continue
+
+                SHIFT = len(layer_cnt) - noninterface_idx[-1] - 1
+                shifted_mask = np.roll(mask, SHIFT, axis=0)
+                interface_pts = np.roll(layer_cnt, SHIFT, axis=0)[shifted_mask]
+                interface_idxs = np.roll(
+                    np.arange(len(layer_cnt))[..., np.newaxis], SHIFT, axis=0
+                )[shifted_mask]
+                # Detect the discontinuity
+                diff = np.diff(interface_idxs)
+                (jumps,) = np.nonzero((diff != 1) & (diff != -(len(layer_cnt) - 1)))
+                # Find projection from interface points (in layer contour)
+                # onto substrate, and split by discontinuities.
+                projections = find_polyline_projections(
+                    interface_pts[:, np.newaxis],
+                    np.concatenate([subst_cnt, subst_cnt[:1]]),
+                )
+
+                intervals = np.zeros((len(jumps) + 1, 2), dtype=np.float64)
+                for i, prj in enumerate(np.split(projections, jumps, axis=0)):
+                    # Sort along the substrate contour and store as interval
+                    intervals[i] = np.sort(np.sum(prj, axis=-1))[[0, -1]]
+
+                # merge overlapping intervals
+                # https://www.geeksforgeeks.org/merging-intervals/
+                intervals = intervals[np.argsort(intervals[:, 0])]
+                idx = 0
+                for i in range(1, len(intervals)):
+                    if intervals[idx][1] >= intervals[i][0]:
+                        intervals[idx][1] = max(intervals[idx][1], intervals[i][1])
+                    else:
+                        idx += 1
+                        intervals[idx] = intervals[i]
+                interfaces.append(intervals[: idx + 1])
+
+            ret.append(interfaces)
+
+        return ret
+
     def interface_points(self, substrate_label: int) -> List[npt.NDArray[np.int32]]:
         """
         Return the substrate-liquid interface points on a substrate.
