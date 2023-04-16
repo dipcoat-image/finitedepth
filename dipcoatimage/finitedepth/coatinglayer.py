@@ -537,17 +537,18 @@ class CoatingLayerBase(
                     interfaces.append(np.empty((0, 2), dtype=np.float64))
                     continue
 
-                elif noninterface_idx.size == 0:
-                    # substrate is fully covered with the layer
-                    interfaces.append(np.array([0, len(subst_cnt)], dtype=np.float64))
-                    continue
+                if noninterface_idx.size == 0:
+                    # every point of the layer is interface
+                    (interface_pts,) = layer_cnt.transpose(1, 0, 2)
+                    interface_idxs = np.arange(len(layer_cnt))
+                else:
+                    SHIFT = len(layer_cnt) - noninterface_idx[-1] - 1
+                    shifted_mask = np.roll(mask, SHIFT, axis=0)
+                    interface_pts = np.roll(layer_cnt, SHIFT, axis=0)[shifted_mask]
+                    interface_idxs = np.roll(
+                        np.arange(len(layer_cnt))[..., np.newaxis], SHIFT, axis=0
+                    )[shifted_mask]
 
-                SHIFT = len(layer_cnt) - noninterface_idx[-1] - 1
-                shifted_mask = np.roll(mask, SHIFT, axis=0)
-                interface_pts = np.roll(layer_cnt, SHIFT, axis=0)[shifted_mask]
-                interface_idxs = np.roll(
-                    np.arange(len(layer_cnt))[..., np.newaxis], SHIFT, axis=0
-                )[shifted_mask]
                 # Detect the discontinuity
                 diff = np.diff(interface_idxs)
                 (jumps,) = np.nonzero((diff != 1) & (diff != -(len(layer_cnt) - 1)))
