@@ -964,30 +964,12 @@ def find_polyline_projections(points, lines) -> npt.NDArray[np.float64]:
         *point* is projected to the line between `m`-th vertex (A) and `m + 1`-th
         vertex (B) in *lines*. The projection point is `A + t*(B - A)`.
     """
-    # TODO: if this is too slow, consider using numba.
-    points = points.transpose(1, 0, 2)
-    Ap = (points - lines)[:-1]
-    AB = np.diff(lines, axis=0)
-    t = np.sum(Ap * AB, axis=-1) / np.sum(AB * AB, axis=-1)
-    Projs = lines[:-1] + (t[..., np.newaxis] * AB)
+    lines = lines.transpose(1, 0, 2)
+    Ap = (points - lines)[:, :-1]
+    AB = np.diff(lines, axis=1)
+    t = np.clip(np.sum(Ap * AB, axis=-1) / np.sum(AB * AB, axis=-1), 0, 1)
+    Projs = lines[:, :-1] + (t[..., np.newaxis] * AB)
     dists = np.linalg.norm(Projs - points, axis=-1)
 
-    valid_t = (0 <= t) & (t <= 1)
-    valid_lines, valid_points = np.where(valid_t)
-    # One point can be projected to multiple line segments. Therefore group the
-    # projections by point and find the one with minimum distance.
-    # https://stackoverflow.com/a/23161720/11501976
-    pt_idxs = np.split(
-        np.arange(len(valid_points))[np.argsort(valid_points)],
-        np.cumsum(np.bincount(valid_points)[:-1]),
-    )
-
-    # line_t[N] : (M, t) -> Nth point is projected to Mth line with scalar t.
-    line_t = np.zeros((len(pt_idxs), 2), dtype=np.float64)
-    for idx in pt_idxs:
-        pt = valid_points[idx]
-        line = valid_lines[idx]
-        mindist_idx = np.argmin(dists[line, pt])
-        mindist_t = t[line[mindist_idx], pt[mindist_idx]]
-        line_t[pt[mindist_idx]] = [line[mindist_idx], mindist_t]
-    return line_t
+    closest_lines = np.argmin(dists, axis=1)
+    return np.stack([closest_lines, t[np.arange(len(points)), closest_lines]]).T
