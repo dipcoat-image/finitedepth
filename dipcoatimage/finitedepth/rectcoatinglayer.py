@@ -328,7 +328,8 @@ class RectLayerShape(
     SubtractionDrawMode: TypeAlias = SubtractionDrawMode
 
     def examine(self) -> Optional[CoatingLayerError]:
-        if not all(i % 2 for i in self.parameters.MorphologyClosing.kernelSize):
+        ksize = self.parameters.MorphologyClosing.kernelSize
+        if not all(i == 0 or i % 2 == 1 for i in ksize):
             return CoatingLayerError("Kernel size must be odd.")
         if not self.capbridge_broken():
             return CoatingLayerError("Capillary bridge is not broken.")
@@ -340,20 +341,25 @@ class RectLayerShape(
             # "closing" because the coating layer is black in original image, but
             # in fact we do opening since the layer is True in extracted layer.
             closingParams = self.parameters.MorphologyClosing
-            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, closingParams.kernelSize)
-            img_closed = cv2.morphologyEx(
-                super().extract_layer().astype(np.uint8) * 255,
-                cv2.MORPH_OPEN,
-                kernel,
-                anchor=closingParams.anchor,
-                iterations=closingParams.iterations,
-            )
+            if any(i == 0 for i in closingParams.kernelSize):
+                img = super().extract_layer().astype(np.uint8) * 255
+            else:
+                kernel = cv2.getStructuringElement(
+                    cv2.MORPH_RECT, closingParams.kernelSize
+                )
+                img = cv2.morphologyEx(
+                    super().extract_layer().astype(np.uint8) * 255,
+                    cv2.MORPH_OPEN,
+                    kernel,
+                    anchor=closingParams.anchor,
+                    iterations=closingParams.iterations,
+                )
 
             # closed image may still have error pixels. at least we have to
             # remove the errors that are disconnected to the layer.
             # we identify the layer pixels as the connected components that are
             # close to the bottom line.
-            vicinity_mask = np.zeros(img_closed.shape, np.uint8)
+            vicinity_mask = np.zeros(img.shape, np.uint8)
             p0 = self.substrate_point()
             _, bl, br, _ = self.substrate.vertex_points().astype(np.int32)
             B = p0 + bl
@@ -364,7 +370,7 @@ class RectLayerShape(
             n = np.dot((C - B) / np.linalg.norm((C - B)), ROTATION_MATRIX)
             pts = np.stack([B, B + R * n, C + R * n, C]).astype(np.int32)
             cv2.fillPoly(vicinity_mask, [pts], 1)
-            _, labels = cv2.connectedComponents(img_closed)
+            _, labels = cv2.connectedComponents(img)
             layer_comps = np.unique(labels[np.where(vicinity_mask.astype(bool))])
             layer_mask = np.isin(labels, layer_comps[layer_comps != 0])
 
