@@ -118,7 +118,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         "_ref",
         "_parameters",
         "_draw_options",
-        "_regions",
+        "_contours",
     )
 
     Parameters: Type[ParametersType]
@@ -143,6 +143,18 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
             self._draw_options = self.DrawOptions()
         else:
             self._draw_options = dataclasses.replace(draw_options)
+
+        # cache the contour information
+        reg_count, reg_labels = self.regions()
+        contours = []
+        for region in range(1, reg_count):
+            cnt_info = cv2.findContours(
+                (reg_labels == region) * np.uint8(255),
+                cv2.RETR_CCOMP,
+                cv2.CHAIN_APPROX_SIMPLE,
+            )
+            contours.append(cnt_info)
+        self._contours = tuple(contours)
 
     @property
     def reference(self) -> SubstrateReferenceBase:
@@ -221,19 +233,40 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         labelled as `i + 1`. If multiple points mark the same substrate region,
         points after the first one are ignored. Background is labelled with `0`.
         """
-        if not hasattr(self, "_regions"):
-            _, labels = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
-            pts = self.nestled_points()
-            subst_lab = np.unique(labels[pts[..., 1], pts[..., 0]])
-            retval = len(subst_lab) + 1
+        _, labels = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
+        pts = self.nestled_points()
+        subst_lab = np.unique(labels[pts[..., 1], pts[..., 0]])
+        retval = len(subst_lab) + 1
 
-            substrate_map = subst_lab.reshape(-1, 1, 1) == labels[np.newaxis, ...]
-            labels[:] = 0
-            for i in range(1, retval):
-                labels[substrate_map[i - 1, ...]] = i
+        substrate_map = subst_lab.reshape(-1, 1, 1) == labels[np.newaxis, ...]
+        labels[:] = 0
+        for i in range(1, retval):
+            labels[substrate_map[i - 1, ...]] = i
 
-            self._regions = (retval, labels)
-        return self._regions
+        return (retval, labels)
+
+    def contours(
+        self,
+    ) -> Tuple[
+        Tuple[Tuple[npt.NDArray[np.int32], ...], Tuple[npt.NDArray[np.int32], ...]], ...
+    ]:
+        """
+        Find the contour of every substrate region.
+
+        Returns
+        -------
+        tuple
+            Tuple of the results of :func:`cv2.findContours` on every region.
+
+        Notes
+        -----
+        Contours are approximated using `cv2.CHAIN_APPROX_SIMPLE` flag.
+
+        See Also
+        --------
+        regions
+        """
+        return self._contours
 
     @abc.abstractmethod
     def examine(self) -> Optional[SubstrateError]:
