@@ -107,6 +107,31 @@ class RectCoatingLayerBase(
         roi_binimg = self.binary_image()[top:bot, left:right]
         return bool(np.any(np.all(roi_binimg, axis=1)))
 
+    def interfaces_boundaries(self) -> npt.NDArray[np.float64]:
+        """
+        Return two extremal points of the entire union of interface patches.
+        """
+        (cnt_interfaces,) = self.interfaces2(0)
+        interface_patches = np.concatenate(cnt_interfaces)
+        if len(interface_patches) == 0:
+            return np.empty((0, 1, 2), dtype=np.float64)
+        starts, ends = interface_patches[..., 0], interface_patches[..., 1]
+        t0, t1 = np.sort(starts)[0], np.sort(ends)[-1]
+
+        (subst_cnt,), _ = self.substrate.contours()[0]
+        subst_cnt = subst_cnt + self.substrate_point()  # DON'T USE += !!
+        subst_cnt = np.concatenate([subst_cnt, subst_cnt[:1]])  # closed line
+        vec = np.diff(subst_cnt, axis=0)
+
+        t0_int = np.int32(t0)
+        t0_dec = t0 - t0_int
+        p0 = subst_cnt[t0_int] + vec[t0_int] * t0_dec
+
+        t1_int = np.int32(t1)
+        t1_dec = t1 - t1_int
+        p1 = subst_cnt[t1_int] + vec[t1_int] * t1_dec
+        return np.stack([p0, p1])
+
     def enclosing_surface(self) -> npt.NDArray[np.int32]:
         """
         Return an open curve which covers the surfaces of every layer region.
@@ -125,18 +150,18 @@ class RectCoatingLayerBase(
             Substrate-liquid interfaces and gas-liquid interfaces for each
             discrete coating layer region.
         """
-        interfaces = self.interface_points(1)
-        if not interfaces:
+        contactline_points = self.interfaces_boundaries()
+        if len(contactline_points) == 0:
             return np.empty((0, 1, 2), dtype=np.int32)
-        p0, p1 = interfaces[0][-1], interfaces[-1][0]
 
+        p0, p1 = contactline_points
         (cnt,), _ = cv2.findContours(
             self.coated_substrate().astype(np.uint8),
             cv2.RETR_EXTERNAL,
             cv2.CHAIN_APPROX_NONE,
         )
-        idx0 = np.argmin(np.linalg.norm(cnt - p0, axis=-1))
-        idx1 = np.argmin(np.linalg.norm(cnt - p1, axis=-1))
+        idx0 = np.argmin(np.linalg.norm(cnt - p0[np.newaxis, ...], axis=-1))
+        idx1 = np.argmin(np.linalg.norm(cnt - p1[np.newaxis, ...], axis=-1))
         return cnt[int(idx0) : int(idx1 + 1)]
 
 
@@ -436,12 +461,12 @@ class RectLayerShape(
         """
         if not hasattr(self, "_uniform_layer"):
             # get contact line points
-            interfaces = self.interface_points(1)
-            if not interfaces:
+            contactline_points = self.interfaces_boundaries()
+            if len(contactline_points) == 0:
                 layer = np.empty((0, 1, 2), dtype=np.float64)
                 self._uniform_layer = (np.float64(0), layer)
                 return self._uniform_layer
-            p1, p2 = interfaces[0][-1], interfaces[-1][0]
+            p0, p1 = contactline_points
 
             subst_point = self.substrate_point()
             hull, _ = self.substrate.edge_hull()
@@ -466,7 +491,7 @@ class RectLayerShape(
                 return i + 1, p_proj
 
             (i1, proj1), (i2, proj2) = sorted(
-                [find_projection(p1), find_projection(p2)], key=lambda x: x[0]
+                [find_projection(p0), find_projection(p1)], key=lambda x: x[0]
             )
             new_hull = hull[int(i1) : int(i2)].astype(np.float64)
             if new_hull.size == 0:
@@ -598,13 +623,13 @@ class RectLayerShape(
 
         contactline_opts = self.deco_options.contact_line
         if contactline_opts.thickness > 0:
-            interfaces = self.interface_points(1)
-            if interfaces:
-                (p1,), (p2,) = interfaces[0][-1], interfaces[-1][0]
+            contactline_points = self.interfaces_boundaries()
+            if len(contactline_points) != 0:
+                (p0,), (p1,) = contactline_points.astype(np.int32)
                 cv2.line(
                     image,
+                    p0,
                     p1,
-                    p2,
                     dataclasses.astuple(contactline_opts.color),
                     contactline_opts.thickness,
                 )
@@ -684,13 +709,12 @@ class RectLayerShape(
 
         _, B, C, _ = self.substrate.vertex_points() + self.substrate_point()
 
-        interfaces = self.interface_points(1)
-        if interfaces:
-            points = np.concatenate([interfaces[0][-1], interfaces[-1][0]])
-            Bp = points - B
+        contactline_points = self.interfaces_boundaries()
+        if len(contactline_points) != 0:
+            Bp = contactline_points - B
             BC = C - B
             t = np.dot(Bp, BC) / np.dot(BC, BC)
-            dists = np.linalg.norm(Bp - np.tensordot(t, BC, axes=0), axis=1)
+            dists = np.linalg.norm(Bp - np.tensordot(t, BC, axes=0), axis=-1)
             LEN_L, LEN_R = dists.astype(np.float64)
         else:
             LEN_L = LEN_R = np.float64(0)
