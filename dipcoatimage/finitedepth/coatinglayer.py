@@ -362,198 +362,118 @@ class CoatingLayerBase(
             self._layer_contours = list(contours)
         return self._layer_contours
 
-    def interfaces(self) -> List[npt.NDArray[np.int32]]:
-        """
-        Return indices which can be used to acquire substrate-liquid interface
-        points from :meth:`layer_contours`.
+    def interfaces(self, substrate_region: int) -> List[List[npt.NDArray[np.float64]]]:
+        r"""
+        Find interfaces on each substrate contour with each layer contour.
+
+        Parameters
+        ----------
+        substrate_region : int
+            Index of the substrate region.
 
         Returns
         -------
-        indices
-            Indices for the contours in :meth:`layer_contours`.
+        list
+            List of list of arrays.
+            - 1st-level list represents substrate contours.
+            - 2nd-level list represents layer contours.
+            - Array represents the interval for the interfaces.
 
         Notes
         -----
-        From the layer contours, this method finds the points that are adjacent
-        to the substrate contours - i.e. the solid-liquid interface points on
-        the liquid side.
+        Substrate can consist of many regions, each possibly having multiple
+        contours. *substrate_region* decides which substrate region should the
+        interfaces be searched from. This is same as the top-level index of
+        :meth:`SubstrateBase.contours`.
 
-        The return value is a list of `N` arrays, where `N` is the number of
-        substrate regions in substrate image. `i`-th array represents the
-        interface points on the substrate region which is labelled as `i + 1`
-        by :meth:`SubstrateBase.regions`.
+        Once the substrate region is determined, interfaces of `j`-th layer
+        contour on `i`-th substrate contour can be acquired by indexing the
+        result with `[i][j]`. It will return an array whose shape is `(k, 2)`,
+        where `k` is the number of interface intervals.
 
-        Every array has `M` rows and 3 columns where `M` is the number of
-        discrete interfaces on the substrate. For example if two discrete coating
-        layers are on a substrate region, the array shape is `(2, 3)`.
-        Rows are sorted in the order of appearance along the substrate contour.
+        Each interval describes continuous patch on the substrate contour covered
+        by the layer. Two column values are the parameters that represent the
+        starting point and ending point of the patch, respectively.
+        Each parameter is a non-negative real number. The integer part is the
+        index of polyline segment in substrate contour. The decimal part is the
+        position of the point on the segment.
 
-        Each column describes the coating layer contour:
+        For example, with parameter :math:`t` the point :math:`P(t)` is
 
-        1. Index of coating layer contour in :meth:`layer_contours`.
-        2. Interface-starting index in the coating layer contour.
-        3. Interface-ending index in the coating layer cnotour.
+        .. math::
 
-        The first column indicates the location of the coating layer contour in
-        :meth:`layer_contours`. Combining this information with the row index
-        allows sorting the contours. For example, if the first column is
-        `array([[4], [2]])` this means the 5nd contour in :meth:`layer_contours`
-        appears first and the 3st contour appears next along the substrate.
+            P(t) = P_{[t]} + (t - [t])(P_{[t] + 1} - P_{[t]})
 
-        The second and the third column locates the interface in each coating
-        layer contour. For example, a row `array([[1, 100, 10]])` describes an
-        interface which starts at `cnts[1][100]` and ends at `cnts[1][10]`
-        (where `cnts` is the result of :meth:`layer_contours`).
-
-        The direction from the starting point to the ending point is parallel to
-        the direction of the layer contour. In the previous example, the indices
-        of interface points are `[100, 101, ..., (last index), 0, 1, ..., 10]`,
-        not `[100, 99, ..., 10]`.
-        Note that this direction is opposite to the direction with respect to the
-        substrate contour.
-
-        See Also
-        --------
-        interface_points, surface_points
-            Returns the points using the result of this method.
+        where :math:`P_i` is i-th point of the substrate contour.
 
         """
-        if not hasattr(self, "_interfaces"):
-            ret = []
-            reg_val, reg_img = self.substrate.regions()
-            for v in range(1, reg_val):
-                # From each layer contour, we want to find the points that are
-                # adjacent to the substrate. For this we make a mask which
-                # indicates the vicinity of the substrate.
-                # XXX: MUST use substrate contour. In the future, substrate with
-                # inner contour (i.e. hole) will be supported.
-                subst = (reg_img == v) * np.uint8(255)
-                (subst_cnt,), _ = cv2.findContours(
-                    subst, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        ret = []
+        for subst_cnt in self.substrate.contours()[substrate_region][0]:
+            subst_cnt = subst_cnt + self.substrate_point()  # DON'T USE += !!
+            subst_cnt = np.concatenate([subst_cnt, subst_cnt[:1]])  # closed line
+
+            cnt_img = np.zeros(self.image.shape[:2], dtype=np.uint8)
+            cv2.drawContours(cnt_img, [subst_cnt], -1, 255)
+            dilated_cnt = cv2.dilate(cnt_img, np.ones((3, 3))).astype(bool)
+
+            interfaces = []
+            for layer_cnt in self.layer_contours():
+                x, y = layer_cnt.transpose(2, 0, 1)
+                mask = dilated_cnt[y, x]
+                # Two reasons can be accounted for mask discontinuity:
+                # (A) Starting point of contour lies on the interface, therefore
+                # index jumps from the last to first.
+                # (B) Discrete interface.
+                # First, roll the array to handle interface being over boundary.
+                noninterface_idx, _ = np.nonzero(~mask)
+
+                if noninterface_idx.size == len(layer_cnt):
+                    # layer is not adjacent to the substrate
+                    interfaces.append(np.empty((0, 2), dtype=np.float64))
+                    continue
+
+                if noninterface_idx.size == 0:
+                    # every point of the layer is interface
+                    (interface_pts,) = layer_cnt.transpose(1, 0, 2)
+                    interface_idxs = np.arange(len(layer_cnt))
+                else:
+                    SHIFT = len(layer_cnt) - noninterface_idx[-1] - 1
+                    shifted_mask = np.roll(mask, SHIFT, axis=0)
+                    interface_pts = np.roll(layer_cnt, SHIFT, axis=0)[shifted_mask]
+                    interface_idxs = np.roll(
+                        np.arange(len(layer_cnt))[..., np.newaxis], SHIFT, axis=0
+                    )[shifted_mask]
+
+                # Detect the discontinuity
+                diff = np.diff(interface_idxs)
+                (jumps,) = np.nonzero((diff != 1) & (diff != -(len(layer_cnt) - 1)))
+                # Find projection from interface points (in layer contour)
+                # onto substrate, and split by discontinuities.
+                projections = find_polyline_projections(
+                    interface_pts[:, np.newaxis],
+                    subst_cnt,
                 )
-                subst_cnt += self.substrate_point()
-                cnt_img = np.zeros(self.image.shape[:2], dtype=np.uint8)
-                cv2.drawContours(cnt_img, [subst_cnt], -1, 255)
-                dil_cnt = cv2.dilate(cnt_img, np.ones((3, 3)))
 
-                # Among every layer contour we find out which intersects with
-                # the substrate vicinity and where the intersection is.
-                interfaces = np.zeros((len(self.layer_contours()), 3), dtype=np.int32)
-                intf_count = 0
-                for i, layer_cnt in enumerate(self.layer_contours()):
-                    x, y = layer_cnt.transpose(2, 0, 1)
-                    on_intf = dil_cnt[y, x].astype(bool)
-                    interface = layer_cnt[on_intf]
-                    if interface.size == 0:
-                        continue
+                intervals = np.zeros((len(jumps) + 1, 2), dtype=np.float64)
+                for i, prj in enumerate(np.split(projections, jumps, axis=0)):
+                    # Sort along the substrate contour and store as interval
+                    intervals[i] = np.sort(np.sum(prj, axis=-1))[[0, -1]]
 
-                    interface_idxs = np.arange(len(layer_cnt))[..., np.newaxis][on_intf]
-                    # Case A) Contour starts outside of the interface. Here the
-                    # interface will be in like [100, ..., 200] and the result
-                    # index is [100, 200].
-                    # Case B) Contour starts on the interface. Here the interface
-                    # will be in like [0, ..., 10], [21, ...] where 11 to 20 is
-                    # surface. The result index is [21, 10].
-                    (jump,) = np.where(np.diff(interface_idxs) != 1)
-                    if jump.size == 0:  # Case A
-                        i0, i1 = interface_idxs[0], interface_idxs[-1]
-                    else:  # Case B
-                        j = jump[0]  # There's no way that jump is multiple
-                        i0, i1 = interface_idxs[j + 1], interface_idxs[j]
-                    interfaces[intf_count] = [i, i0, i1]
-                    intf_count += 1
-                interfaces = interfaces[:intf_count]
+                # merge overlapping intervals
+                # https://www.geeksforgeeks.org/merging-intervals/
+                intervals = intervals[np.argsort(intervals[:, 0])]
+                idx = 0
+                for i in range(1, len(intervals)):
+                    if intervals[idx][1] >= intervals[i][0]:
+                        intervals[idx][1] = max(intervals[idx][1], intervals[i][1])
+                    else:
+                        idx += 1
+                        intervals[idx] = intervals[i]
+                interfaces.append(intervals[: idx + 1])
 
-                if interfaces.size != 0:
-                    # We sort the interface patches along the substrate contour.
-                    # We first select representing points from each interface
-                    # patches and find the closest projection to substrate.
-                    rep_pts = np.stack(
-                        [self.layer_contours()[i][j] for i, j, _ in interfaces]
-                    )
-                    proj = find_polyline_projections(rep_pts, subst_cnt)
-                    # Sort by projection's line segment index and then by t.
-                    # Cheap hack: argsort (index + t)!
-                    interfaces = interfaces[np.argsort(np.sum(proj, axis=1))]
-                ret.append(interfaces)
+            ret.append(interfaces)
 
-            self._interfaces = ret
-        return self._interfaces
-
-    def interface_points(self, substrate_label: int) -> List[npt.NDArray[np.int32]]:
-        """
-        Return the substrate-liquid interface points on a substrate.
-
-        Parameters
-        ----------
-        substrate_label: positive int
-            Label of the substrate region in :meth:`SubstrateBase.regions`.
-
-        Returns
-        -------
-        points: list of point vector arrays
-            Each array represents the interface points in each coating layer
-            contour over the substrate. Arrays are sorted in the order of
-            appearance along the substrate contour.
-
-        See Also
-        --------
-        interfaces
-        surface_points
-        """
-        if substrate_label < 1:
-            return []
-
-        indice_arr = self.interfaces()[substrate_label - 1]
-        points = []
-        for cnt_idx, i0, i1 in indice_arr:
-            cnt = self.layer_contours()[cnt_idx]
-            if i0 < i1:
-                pt = cnt[i0 : i1 + 1]
-            else:
-                pt = np.concatenate([cnt[i0:], cnt[: i1 + 1]])
-            points.append(pt)
-        return points
-
-    def surface_points(self, substrate_label: int) -> List[npt.NDArray[np.int32]]:
-        """
-        Return the surface points on a substrate.
-
-        Surface points are the points from a layer region contour that are not
-        adjacent to a substrate of interest. This includes not only the free
-        surface (liquid-air interface) but also the interfaces with other
-        substrate regions.
-
-        Parameters
-        ----------
-        substrate_label: positive int
-            Label of the substrate region in :meth:`SubstrateBase.regions`.
-
-        Returns
-        -------
-        points: list of point vector arrays
-            Each array represents the surface points in each coating layer
-            contour over the substrate. Arrays are sorted in the order of
-            appearance along the substrate contour.
-
-        See Also
-        --------
-        interfaces
-        interface_points
-        """
-        if substrate_label < 1:
-            return []
-
-        indice_arr = self.interfaces()[substrate_label - 1]
-        points = []
-        for cnt_idx, i0, i1 in indice_arr:
-            cnt = self.layer_contours()[cnt_idx]
-            if i0 < i1:
-                pt = np.concatenate([cnt[i1 + 1 :], cnt[:i0]])
-            else:
-                pt = cnt[i1 + 1 : i0]
-            points.append(pt)
-        return points
+        return ret
 
     @abc.abstractmethod
     def examine(self) -> Optional[CoatingLayerError]:
@@ -864,30 +784,12 @@ def find_polyline_projections(points, lines) -> npt.NDArray[np.float64]:
         *point* is projected to the line between `m`-th vertex (A) and `m + 1`-th
         vertex (B) in *lines*. The projection point is `A + t*(B - A)`.
     """
-    # TODO: if this is too slow, consider using numba.
-    points = points.transpose(1, 0, 2)
-    Ap = (points - lines)[:-1]
-    AB = np.diff(lines, axis=0)
-    t = np.sum(Ap * AB, axis=-1) / np.sum(AB * AB, axis=-1)
-    Projs = lines[:-1] + (t[..., np.newaxis] * AB)
+    lines = lines.transpose(1, 0, 2)
+    Ap = (points - lines)[:, :-1]
+    AB = np.diff(lines, axis=1)
+    t = np.clip(np.sum(Ap * AB, axis=-1) / np.sum(AB * AB, axis=-1), 0, 1)
+    Projs = lines[:, :-1] + (t[..., np.newaxis] * AB)
     dists = np.linalg.norm(Projs - points, axis=-1)
 
-    valid_t = (0 <= t) & (t <= 1)
-    valid_lines, valid_points = np.where(valid_t)
-    # One point can be projected to multiple line segments. Therefore group the
-    # projections by point and find the one with minimum distance.
-    # https://stackoverflow.com/a/23161720/11501976
-    pt_idxs = np.split(
-        np.arange(len(valid_points))[np.argsort(valid_points)],
-        np.cumsum(np.bincount(valid_points)[:-1]),
-    )
-
-    # line_t[N] : (M, t) -> Nth point is projected to Mth line with scalar t.
-    line_t = np.zeros((len(pt_idxs), 2), dtype=np.float64)
-    for idx in pt_idxs:
-        pt = valid_points[idx]
-        line = valid_lines[idx]
-        mindist_idx = np.argmin(dists[line, pt])
-        mindist_t = t[line[mindist_idx], pt[mindist_idx]]
-        line_t[pt[mindist_idx]] = [line[mindist_idx], mindist_t]
-    return line_t
+    closest_lines = np.argmin(dists, axis=1)
+    return np.stack([closest_lines, t[np.arange(len(points)), closest_lines]]).T

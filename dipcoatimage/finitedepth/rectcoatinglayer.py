@@ -33,7 +33,7 @@ import dataclasses
 import enum
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Type, Tuple, Optional, List
+from typing import TypeVar, Type, Tuple, Optional
 from .rectsubstrate import RectSubstrate
 from .coatinglayer import (
     CoatingLayerError,
@@ -87,6 +87,8 @@ class RectCoatingLayerBase(
 ):
     """Abstract base class for coating layer over rectangular substrate."""
 
+    __slots__ = ("_interfaces_boundaries",)
+
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
     DecoOptions: Type[DecoOptionsType]
@@ -107,6 +109,36 @@ class RectCoatingLayerBase(
         roi_binimg = self.binary_image()[top:bot, left:right]
         return bool(np.any(np.all(roi_binimg, axis=1)))
 
+    def interfaces_boundaries(self) -> npt.NDArray[np.float64]:
+        """
+        Return two extremal points of the entire union of interface patches.
+        """
+        if not hasattr(self, "_interfaces_boundaries"):
+            (cnt_interfaces,) = self.interfaces(0)
+            if not cnt_interfaces:
+                return np.empty((0, 1, 2), dtype=np.float64)
+            interface_patches = np.concatenate(cnt_interfaces)
+            if len(interface_patches) == 0:
+                return np.empty((0, 1, 2), dtype=np.float64)
+            starts, ends = interface_patches[..., 0], interface_patches[..., 1]
+            t0, t1 = np.sort(starts)[0], np.sort(ends)[-1]
+
+            (subst_cnt,), _ = self.substrate.contours()[0]
+            subst_cnt = subst_cnt + self.substrate_point()  # DON'T USE += !!
+            subst_cnt = np.concatenate([subst_cnt, subst_cnt[:1]])  # closed line
+            vec = np.diff(subst_cnt, axis=0)
+
+            t0_int = np.int32(t0)
+            t0_dec = t0 - t0_int
+            p0 = subst_cnt[t0_int] + vec[t0_int] * t0_dec
+
+            t1_int = np.int32(t1)
+            t1_dec = t1 - t1_int
+            p1 = subst_cnt[t1_int] + vec[t1_int] * t1_dec
+
+            self._interfaces_boundaries = np.stack([p0, p1])
+        return self._interfaces_boundaries
+
     def enclosing_surface(self) -> npt.NDArray[np.int32]:
         """
         Return an open curve which covers the surfaces of every layer region.
@@ -125,18 +157,18 @@ class RectCoatingLayerBase(
             Substrate-liquid interfaces and gas-liquid interfaces for each
             discrete coating layer region.
         """
-        interfaces = self.interface_points(1)
-        if not interfaces:
+        contactline_points = self.interfaces_boundaries()
+        if len(contactline_points) == 0:
             return np.empty((0, 1, 2), dtype=np.int32)
-        p0, p1 = interfaces[0][-1], interfaces[-1][0]
 
+        p0, p1 = contactline_points
         (cnt,), _ = cv2.findContours(
             self.coated_substrate().astype(np.uint8),
             cv2.RETR_EXTERNAL,
             cv2.CHAIN_APPROX_NONE,
         )
-        idx0 = np.argmin(np.linalg.norm(cnt - p0, axis=-1))
-        idx1 = np.argmin(np.linalg.norm(cnt - p1, axis=-1))
+        idx0 = np.argmin(np.linalg.norm(cnt - p0[np.newaxis, ...], axis=-1))
+        idx1 = np.argmin(np.linalg.norm(cnt - p1[np.newaxis, ...], axis=-1))
         return cnt[int(idx0) : int(idx1 + 1)]
 
 
@@ -383,11 +415,10 @@ class RectLayerShape(
             self._layer_area = np.count_nonzero(self.extract_layer())
         return self._layer_area
 
-    def surface_projections(
-        self, side: str
-    ) -> List[Tuple[npt.NDArray[np.int64], npt.NDArray[np.float64]]]:
+    def surface_projections(self, side: str) -> npt.NDArray[np.float64]:
         """
-        For the relevant surface points, find projection points to a side line.
+        For *side*, return the relevant surface points and its projections to
+        side line.
 
         Parameters
         ----------
@@ -395,20 +426,13 @@ class RectLayerShape(
 
         Returns
         -------
-        list
-            List of tuple of indices and points. Each tuple represents a layer
-            region contour, sorted in the order along the substrate contour.
-            Indices are the location of surface points in the arrays from
-            :meth:`surface_points`.
-
-        Notes
-        -----
-        Relevance of the surface points to side is determined by their position.
-
-        - `"left"`: Left of the left side line.
-        - `"bottom"`: Under the bottom side line.
-        - `"right"`: Right of the right side line.
+        ndarray
+            Array of the points and projections coordinates. Shape of the array
+            is `(N, 2, D)`, where `N` is the number of points and `D` is the
+            dimension of the point. On the second axis, 0-th index is the surface
+            points and 1-th index is the projection points.
         """
+        # TODO: filter out the projections not onto the interface
         A, B, C, D = self.substrate.vertex_points() + self.substrate_point()
         if side == "left":
             P1, P2 = A, B
@@ -417,17 +441,13 @@ class RectLayerShape(
         elif side == "right":
             P1, P2 = C, D
         else:
-            return []
+            return np.empty((0, 2, 2), dtype=np.float64)
 
-        projections = []
-        surface = self.surface_points(1)
-        for surf in surface:
-            (mask,) = (np.cross(P2 - P1, surf - P1) >= 0).T
-            (indices,) = np.nonzero(mask)
-            proj = find_projection(surf[mask], P1, P2)
-            projections.append((indices, proj))
-
-        return projections
+        (surface,) = self.enclosing_surface().transpose(1, 0, 2)
+        mask = np.cross(P2 - P1, surface - P1) >= 0
+        pts = surface[mask]
+        proj = find_projection(pts, P1, P2)
+        return np.stack([pts, proj]).transpose(1, 0, 2)
 
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """
@@ -436,12 +456,12 @@ class RectLayerShape(
         """
         if not hasattr(self, "_uniform_layer"):
             # get contact line points
-            interfaces = self.interface_points(1)
-            if not interfaces:
+            contactline_points = self.interfaces_boundaries()
+            if len(contactline_points) == 0:
                 layer = np.empty((0, 1, 2), dtype=np.float64)
                 self._uniform_layer = (np.float64(0), layer)
                 return self._uniform_layer
-            p1, p2 = interfaces[0][-1], interfaces[-1][0]
+            p0, p1 = contactline_points
 
             subst_point = self.substrate_point()
             hull, _ = self.substrate.edge_hull()
@@ -466,7 +486,7 @@ class RectLayerShape(
                 return i + 1, p_proj
 
             (i1, proj1), (i2, proj2) = sorted(
-                [find_projection(p1), find_projection(p2)], key=lambda x: x[0]
+                [find_projection(p0), find_projection(p1)], key=lambda x: x[0]
             )
             new_hull = hull[int(i1) : int(i2)].astype(np.float64)
             if new_hull.size == 0:
@@ -598,13 +618,13 @@ class RectLayerShape(
 
         contactline_opts = self.deco_options.contact_line
         if contactline_opts.thickness > 0:
-            interfaces = self.interface_points(1)
-            if interfaces:
-                (p1,), (p2,) = interfaces[0][-1], interfaces[-1][0]
+            contactline_points = self.interfaces_boundaries()
+            if len(contactline_points) != 0:
+                (p0,), (p1,) = contactline_points.astype(np.int32)
                 cv2.line(
                     image,
+                    p0,
                     p1,
-                    p2,
                     dataclasses.astuple(contactline_opts.color),
                     contactline_opts.thickness,
                 )
@@ -614,26 +634,17 @@ class RectLayerShape(
             color = dataclasses.astuple(thicknesslines_opts.color)
             t = thicknesslines_opts.thickness
             for side in ["left", "bottom", "right"]:
-                surf_pts, proj_pts = [], []
-                for surf, (idx, proj) in zip(
-                    self.surface_points(1), self.surface_projections(side)
-                ):
-                    surf_pts.append(surf[idx])
-                    proj_pts.append(proj)
-                if not surf_pts or not proj_pts:
+                surf_proj = self.surface_projections(side)
+                dists = np.linalg.norm(np.diff(surf_proj, axis=1), axis=-1)
+                if dists.size == 0:
                     continue
-                surf = np.concatenate(surf_pts, axis=0)
-                proj = np.concatenate(proj_pts, axis=0)
-                if surf.size == 0 or proj.size == 0:
-                    continue
-                dists = np.linalg.norm(surf - proj, axis=-1)
                 max_idxs, _ = np.nonzero(dists == np.max(dists))
                 # split the max indices by continuous locations
                 idx_groups = np.split(max_idxs, np.where(np.diff(max_idxs) != 1)[0] + 1)
                 for idxs in idx_groups:
-                    (p1,) = np.mean(surf[idxs], axis=0).astype(np.int32)
-                    (p2,) = np.mean(proj[idxs], axis=0).astype(np.int32)
-                    cv2.line(image, p1, p2, color, t)
+                    surf = np.mean(surf_proj[:, 0][idxs], axis=0).astype(np.int32)
+                    proj = np.mean(surf_proj[:, 1][idxs], axis=0).astype(np.int32)
+                    cv2.line(image, surf, proj, color, t)
 
         uniformlayer_opts = self.deco_options.uniform_layer
         if uniformlayer_opts.thickness > 0:
@@ -684,33 +695,24 @@ class RectLayerShape(
 
         _, B, C, _ = self.substrate.vertex_points() + self.substrate_point()
 
-        interfaces = self.interface_points(1)
-        if interfaces:
-            points = np.concatenate([interfaces[0][-1], interfaces[-1][0]])
-            Bp = points - B
+        contactline_points = self.interfaces_boundaries()
+        if len(contactline_points) != 0:
+            Bp = contactline_points - B
             BC = C - B
             t = np.dot(Bp, BC) / np.dot(BC, BC)
-            dists = np.linalg.norm(Bp - np.tensordot(t, BC, axes=0), axis=1)
-            LEN_L, LEN_R = dists.astype(np.float64)
+            dists = np.linalg.norm(Bp - np.tensordot(t, BC, axes=0), axis=-1)
+            (LEN_L,), (LEN_R,) = dists.astype(np.float64)
         else:
             LEN_L = LEN_R = np.float64(0)
 
         max_dists = []
         for side in ["left", "bottom", "right"]:
-            dists = []
-            for surf, (idx, proj) in zip(
-                self.surface_points(1), self.surface_projections(side)
-            ):
-                dists.append(np.linalg.norm((surf[idx] - proj), axis=-1))
-            if not dists:
-                max_d = np.float64(0)
+            surf_proj = self.surface_projections(side)
+            dists = np.linalg.norm(np.diff(surf_proj, axis=1), axis=-1)
+            if dists.size == 0:
+                max_dists.append(np.float64(0))
             else:
-                dists_concat = np.concatenate(dists, axis=0)
-                if dists_concat.size == 0:
-                    max_d = np.float64(0)
-                else:
-                    max_d = np.max(dists_concat)
-            max_dists.append(max_d)
+                max_dists.append(dists.max())
         THCK_L, THCK_B, THCK_R = max_dists
 
         THCK_U, _ = self.uniform_layer()
