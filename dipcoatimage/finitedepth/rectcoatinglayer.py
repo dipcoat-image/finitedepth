@@ -115,6 +115,8 @@ class RectCoatingLayerBase(
         """
         if not hasattr(self, "_interfaces_boundaries"):
             (cnt_interfaces,) = self.interfaces(0)
+            if not cnt_interfaces:
+                return np.empty((0, 1, 2), dtype=np.float64)
             interface_patches = np.concatenate(cnt_interfaces)
             if len(interface_patches) == 0:
                 return np.empty((0, 1, 2), dtype=np.float64)
