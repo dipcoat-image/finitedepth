@@ -749,7 +749,7 @@ class RectLayerShape(
             BC = C - B
             t = np.dot(Bp, BC) / np.dot(BC, BC)
             dists = np.linalg.norm(Bp - np.tensordot(t, BC, axes=0), axis=-1)
-            LEN_L, LEN_R = dists.astype(np.float64)
+            (LEN_L,), (LEN_R,) = dists.astype(np.float64)
         else:
             LEN_L = LEN_R = np.float64(0)
 
