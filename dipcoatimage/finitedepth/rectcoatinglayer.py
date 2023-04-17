@@ -634,6 +634,8 @@ class RectLayerShape(
             for side in ["left", "bottom", "right"]:
                 surf_proj = self.surface_projections(side)
                 dists = np.linalg.norm(np.diff(surf_proj, axis=1), axis=-1)
+                if dists.size == 0:
+                    continue
                 max_idxs, _ = np.nonzero(dists == np.max(dists))
                 # split the max indices by continuous locations
                 idx_groups = np.split(max_idxs, np.where(np.diff(max_idxs) != 1)[0] + 1)
@@ -705,7 +707,10 @@ class RectLayerShape(
         for side in ["left", "bottom", "right"]:
             surf_proj = self.surface_projections(side)
             dists = np.linalg.norm(np.diff(surf_proj, axis=1), axis=-1)
-            max_dists.append(dists.max())
+            if dists.size == 0:
+                max_dists.append(np.float64(0))
+            else:
+                max_dists.append(dists.max())
         THCK_L, THCK_B, THCK_R = max_dists
 
         THCK_U, _ = self.uniform_layer()
