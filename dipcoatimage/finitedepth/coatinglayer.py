@@ -528,6 +528,8 @@ class CoatingLayerBase(
         ret = []
         for subst_cnt in self.substrate.contours()[substrate_region][0]:
             subst_cnt = subst_cnt + self.substrate_point()  # DON'T USE += !!
+            subst_cnt = np.concatenate([subst_cnt, subst_cnt[:1]])  # closed line
+
             cnt_img = np.zeros(self.image.shape[:2], dtype=np.uint8)
             cv2.drawContours(cnt_img, [subst_cnt], -1, 255)
             dilated_cnt = cv2.dilate(cnt_img, np.ones((3, 3))).astype(bool)
@@ -567,7 +569,7 @@ class CoatingLayerBase(
                 # onto substrate, and split by discontinuities.
                 projections = find_polyline_projections(
                     interface_pts[:, np.newaxis],
-                    np.concatenate([subst_cnt, subst_cnt[:1]]),
+                    subst_cnt,
                 )
 
                 intervals = np.zeros((len(jumps) + 1, 2), dtype=np.float64)
@@ -625,6 +627,66 @@ class CoatingLayerBase(
                 pt = np.concatenate([cnt[i0:], cnt[: i1 + 1]])
             points.append(pt)
         return points
+
+    def interface_points2(self, substrate_region: int):
+        """
+        Convert the result of :meth:`interfaces2` to coordinates.
+
+        Parameters
+        ----------
+        substrate_region : int
+            Index of the substrate region.
+
+        Returns
+        -------
+        list
+            List of list of arrays.
+            - 1st-level list represents substrate contours.
+            - 2nd-level list represents layer contours.
+            - Array represents the interval for the interfaces.
+
+        Notes
+        -----
+        The resulting array is 4-th order array with shape `(N, 2, 1, D)`, where
+        `N` is the number of interface patches and `D` is the dimension of the
+        point. Dimension of the 2nd index is always 2, which represent starting
+        and ending points of the interface interval. The 3rd index is for
+        compatibility with `cv2.findContours`.
+
+        See Also
+        --------
+        interfaces2
+            Interface points in parameters.
+
+        """
+        ret = []
+        for subst_cnt, interfaces_on_subst_cnt in zip(
+            self.substrate.contours()[substrate_region][0],
+            self.interfaces2(substrate_region),
+        ):
+            subst_cnt = subst_cnt + self.substrate_point()  # DON'T USE += !!
+            subst_cnt = np.concatenate([subst_cnt, subst_cnt[:1]])  # closed line
+            vec = np.diff(subst_cnt, axis=0)
+
+            interfaces = []
+            for interface_arr in interfaces_on_subst_cnt:
+                starts, ends = interface_arr[..., 0], interface_arr[..., 1]
+
+                starts_idx = starts.astype(np.int32)
+                starts_pts = subst_cnt[starts_idx] + vec[starts_idx] * (
+                    starts - starts_idx
+                ).reshape((-1, 1, 1))
+
+                ends_idx = ends.astype(np.int32)
+                ends_pts = subst_cnt[ends_idx] + vec[ends_idx] * (
+                    ends - ends_idx
+                ).reshape((-1, 1, 1))
+
+                interfaces.append(
+                    np.stack([starts_pts, ends_pts]).transpose(1, 0, 2, 3)
+                )
+            ret.append(interfaces)
+        return ret
 
     def surface_points(self, substrate_label: int) -> List[npt.NDArray[np.int32]]:
         """
