@@ -33,7 +33,7 @@ import dataclasses
 import enum
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Type, Tuple, Optional, List
+from typing import TypeVar, Type, Tuple, Optional
 from .rectsubstrate import RectSubstrate
 from .coatinglayer import (
     CoatingLayerError,
