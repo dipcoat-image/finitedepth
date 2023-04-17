@@ -111,7 +111,7 @@ class RectCoatingLayerBase(
         """
         Return two extremal points of the entire union of interface patches.
         """
-        (cnt_interfaces,) = self.interfaces2(0)
+        (cnt_interfaces,) = self.interfaces(0)
         interface_patches = np.concatenate(cnt_interfaces)
         if len(interface_patches) == 0:
             return np.empty((0, 1, 2), dtype=np.float64)
