@@ -454,6 +454,40 @@ class RectLayerShape(
 
         return projections
 
+    def surface_projections2(self, side: str) -> npt.NDArray[np.float64]:
+        """
+        For *side*, return the relevant surface points and its projections to
+        side line.
+
+        Parameters
+        ----------
+        side: {"left", "bottom", "right"}
+
+        Returns
+        -------
+        ndarray
+            Array of the points and projections coordinates. Shape of the array
+            is `(N, 2, D)`, where `N` is the number of points and `D` is the
+            dimension of the point. On the second axis, 0-th index is the surface
+            points and 1-th index is the projection points.
+        """
+        # TODO: filter out the projections not onto the interface
+        A, B, C, D = self.substrate.vertex_points() + self.substrate_point()
+        if side == "left":
+            P1, P2 = A, B
+        elif side == "bottom":
+            P1, P2 = B, C
+        elif side == "right":
+            P1, P2 = C, D
+        else:
+            return np.empty((0, 2, 2), dtype=np.float64)
+
+        (surface,) = self.enclosing_surface().transpose(1, 0, 2)
+        mask = np.cross(P2 - P1, surface - P1) >= 0
+        pts = surface[mask]
+        proj = find_projection(pts, P1, P2)
+        return np.stack([pts, proj]).transpose(1, 0, 2)
+
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """
         Return thickness and points for uniform layer that satisfies
