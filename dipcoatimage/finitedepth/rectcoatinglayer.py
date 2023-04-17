@@ -408,53 +408,7 @@ class RectLayerShape(
             self._layer_area = np.count_nonzero(self.extract_layer())
         return self._layer_area
 
-    def surface_projections(
-        self, side: str
-    ) -> List[Tuple[npt.NDArray[np.int64], npt.NDArray[np.float64]]]:
-        """
-        For the relevant surface points, find projection points to a side line.
-
-        Parameters
-        ----------
-        side: {"left", "bottom", "right"}
-
-        Returns
-        -------
-        list
-            List of tuple of indices and points. Each tuple represents a layer
-            region contour, sorted in the order along the substrate contour.
-            Indices are the location of surface points in the arrays from
-            :meth:`surface_points`.
-
-        Notes
-        -----
-        Relevance of the surface points to side is determined by their position.
-
-        - `"left"`: Left of the left side line.
-        - `"bottom"`: Under the bottom side line.
-        - `"right"`: Right of the right side line.
-        """
-        A, B, C, D = self.substrate.vertex_points() + self.substrate_point()
-        if side == "left":
-            P1, P2 = A, B
-        elif side == "bottom":
-            P1, P2 = B, C
-        elif side == "right":
-            P1, P2 = C, D
-        else:
-            return []
-
-        projections = []
-        surface = self.surface_points(1)
-        for surf in surface:
-            (mask,) = (np.cross(P2 - P1, surf - P1) >= 0).T
-            (indices,) = np.nonzero(mask)
-            proj = find_projection(surf[mask], P1, P2)
-            projections.append((indices, proj))
-
-        return projections
-
-    def surface_projections2(self, side: str) -> npt.NDArray[np.float64]:
+    def surface_projections(self, side: str) -> npt.NDArray[np.float64]:
         """
         For *side*, return the relevant surface points and its projections to
         side line.
@@ -673,26 +627,15 @@ class RectLayerShape(
             color = dataclasses.astuple(thicknesslines_opts.color)
             t = thicknesslines_opts.thickness
             for side in ["left", "bottom", "right"]:
-                surf_pts, proj_pts = [], []
-                for surf, (idx, proj) in zip(
-                    self.surface_points(1), self.surface_projections(side)
-                ):
-                    surf_pts.append(surf[idx])
-                    proj_pts.append(proj)
-                if not surf_pts or not proj_pts:
-                    continue
-                surf = np.concatenate(surf_pts, axis=0)
-                proj = np.concatenate(proj_pts, axis=0)
-                if surf.size == 0 or proj.size == 0:
-                    continue
-                dists = np.linalg.norm(surf - proj, axis=-1)
+                surf_proj = self.surface_projections(side)
+                dists = np.linalg.norm(np.diff(surf_proj, axis=1), axis=-1)
                 max_idxs, _ = np.nonzero(dists == np.max(dists))
                 # split the max indices by continuous locations
                 idx_groups = np.split(max_idxs, np.where(np.diff(max_idxs) != 1)[0] + 1)
                 for idxs in idx_groups:
-                    (p1,) = np.mean(surf[idxs], axis=0).astype(np.int32)
-                    (p2,) = np.mean(proj[idxs], axis=0).astype(np.int32)
-                    cv2.line(image, p1, p2, color, t)
+                    surf = np.mean(surf_proj[:, 0][idxs], axis=0).astype(np.int32)
+                    proj = np.mean(surf_proj[:, 1][idxs], axis=0).astype(np.int32)
+                    cv2.line(image, surf, proj, color, t)
 
         uniformlayer_opts = self.deco_options.uniform_layer
         if uniformlayer_opts.thickness > 0:
@@ -755,20 +698,9 @@ class RectLayerShape(
 
         max_dists = []
         for side in ["left", "bottom", "right"]:
-            dists = []
-            for surf, (idx, proj) in zip(
-                self.surface_points(1), self.surface_projections(side)
-            ):
-                dists.append(np.linalg.norm((surf[idx] - proj), axis=-1))
-            if not dists:
-                max_d = np.float64(0)
-            else:
-                dists_concat = np.concatenate(dists, axis=0)
-                if dists_concat.size == 0:
-                    max_d = np.float64(0)
-                else:
-                    max_d = np.max(dists_concat)
-            max_dists.append(max_d)
+            surf_proj = self.surface_projections(side)
+            dists = np.linalg.norm(np.diff(surf_proj, axis=1), axis=-1)
+            max_dists.append(dists.max())
         THCK_L, THCK_B, THCK_R = max_dists
 
         THCK_U, _ = self.uniform_layer()
