@@ -480,23 +480,34 @@ class CoatingLayerBase(
             self._interfaces = ret
         return self._interfaces
 
-    def interfaces2(self) -> List[List[npt.NDArray[np.float64]]]:
+    def interfaces2(self, substrate_region: int) -> List[List[npt.NDArray[np.float64]]]:
         r"""
         Find interfaces on each substrate contour with each layer contour.
+
+        Parameters
+        ----------
+        substrate_region : int
+            Index of the substrate region.
 
         Returns
         -------
         list
             List of list of arrays.
-            - 1st-level list represents :meth:`SubstrateBase.contours`.
-            - 2nd-level list represents :meth:`layer_contours`.
+            - 1st-level list represents substrate contours.
+            - 2nd-level list represents layer contours.
             - Array represents the interval for the interfaces.
 
         Notes
         -----
-        Interfaces of `j`-th layer contour on `i`-th substrate contour can be
-        acquired by indexing the result with `[i][j]`. It will return an array
-        whose shape is `(k, 2)`, where `k` is the number of interface intervals.
+        Substrate can consist of many regions, each possibly having multiple
+        contours. *substrate_region* decides which substrate region should the
+        interfaces be searched from. This is same as the top-level index of
+        :meth:`SubstrateBase.contours`.
+
+        Once the substrate region is determined, interfaces of `j`-th layer
+        contour on `i`-th substrate contour can be acquired by indexing the
+        result with `[i][j]`. It will return an array whose shape is `(k, 2)`,
+        where `k` is the number of interface intervals.
 
         Each interval describes continuous patch on the substrate contour covered
         by the layer. Two column values are the parameters that represent the
@@ -515,16 +526,16 @@ class CoatingLayerBase(
 
         """
         ret = []
-        for (subst_cnt,), _ in self.substrate.contours():
+        for subst_cnt in self.substrate.contours()[substrate_region][0]:
             subst_cnt = subst_cnt + self.substrate_point()  # DON'T USE += !!
             cnt_img = np.zeros(self.image.shape[:2], dtype=np.uint8)
             cv2.drawContours(cnt_img, [subst_cnt], -1, 255)
-            dilated_cnt = cv2.dilate(cnt_img, np.ones((3, 3)))
+            dilated_cnt = cv2.dilate(cnt_img, np.ones((3, 3))).astype(bool)
 
             interfaces = []
             for layer_cnt in self.layer_contours():
                 x, y = layer_cnt.transpose(2, 0, 1)
-                mask = dilated_cnt[y, x].astype(bool)
+                mask = dilated_cnt[y, x]
                 # Two reasons can be accounted for mask discontinuity:
                 # (A) Starting point of contour lies on the interface, therefore
                 # index jumps from the last to first.
