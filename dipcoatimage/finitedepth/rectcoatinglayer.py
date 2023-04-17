@@ -87,9 +87,7 @@ class RectCoatingLayerBase(
 ):
     """Abstract base class for coating layer over rectangular substrate."""
 
-    __slots__ = (
-        "_interfaces_boundaries",
-    )
+    __slots__ = ("_interfaces_boundaries",)
 
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
