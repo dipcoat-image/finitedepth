@@ -87,6 +87,10 @@ class RectCoatingLayerBase(
 ):
     """Abstract base class for coating layer over rectangular substrate."""
 
+    __slots__ = (
+        "_interfaces_boundaries",
+    )
+
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
     DecoOptions: Type[DecoOptionsType]
@@ -111,26 +115,29 @@ class RectCoatingLayerBase(
         """
         Return two extremal points of the entire union of interface patches.
         """
-        (cnt_interfaces,) = self.interfaces(0)
-        interface_patches = np.concatenate(cnt_interfaces)
-        if len(interface_patches) == 0:
-            return np.empty((0, 1, 2), dtype=np.float64)
-        starts, ends = interface_patches[..., 0], interface_patches[..., 1]
-        t0, t1 = np.sort(starts)[0], np.sort(ends)[-1]
+        if not hasattr(self, "_interfaces_boundaries"):
+            (cnt_interfaces,) = self.interfaces(0)
+            interface_patches = np.concatenate(cnt_interfaces)
+            if len(interface_patches) == 0:
+                return np.empty((0, 1, 2), dtype=np.float64)
+            starts, ends = interface_patches[..., 0], interface_patches[..., 1]
+            t0, t1 = np.sort(starts)[0], np.sort(ends)[-1]
 
-        (subst_cnt,), _ = self.substrate.contours()[0]
-        subst_cnt = subst_cnt + self.substrate_point()  # DON'T USE += !!
-        subst_cnt = np.concatenate([subst_cnt, subst_cnt[:1]])  # closed line
-        vec = np.diff(subst_cnt, axis=0)
+            (subst_cnt,), _ = self.substrate.contours()[0]
+            subst_cnt = subst_cnt + self.substrate_point()  # DON'T USE += !!
+            subst_cnt = np.concatenate([subst_cnt, subst_cnt[:1]])  # closed line
+            vec = np.diff(subst_cnt, axis=0)
 
-        t0_int = np.int32(t0)
-        t0_dec = t0 - t0_int
-        p0 = subst_cnt[t0_int] + vec[t0_int] * t0_dec
+            t0_int = np.int32(t0)
+            t0_dec = t0 - t0_int
+            p0 = subst_cnt[t0_int] + vec[t0_int] * t0_dec
 
-        t1_int = np.int32(t1)
-        t1_dec = t1 - t1_int
-        p1 = subst_cnt[t1_int] + vec[t1_int] * t1_dec
-        return np.stack([p0, p1])
+            t1_int = np.int32(t1)
+            t1_dec = t1 - t1_int
+            p1 = subst_cnt[t1_int] + vec[t1_int] * t1_dec
+
+            self._interfaces_boundaries = np.stack([p0, p1])
+        return self._interfaces_boundaries
 
     def enclosing_surface(self) -> npt.NDArray[np.int32]:
         """
