@@ -18,7 +18,6 @@ import numpy.typing as npt
 import os
 import tqdm  # type: ignore
 from typing import List, Type, Optional, Dict, Any, Generator
-from .coatinglayer import CoatingLayerBase
 from .experiment import ExperimentBase
 
 
@@ -233,9 +232,12 @@ class Analyzer:
         Progress bar is printed. Pass *name* for the progress bar name.
 
         """
-        expt_kind = experiment_kind(self.paths)
+        analysis_gen = self.analysis_generator(
+            data_path, image_path, video_path, fps=fps
+        )
+        next(analysis_gen)
 
-        # make image generator
+        expt_kind = experiment_kind(self.paths)
         if (
             expt_kind == ExperimentKind.SINGLE_IMAGE
             or expt_kind == ExperimentKind.MULTI_IMAGE
@@ -244,7 +246,10 @@ class Analyzer:
             if fps is None:
                 fps = 0
 
-            total = len(self.paths)
+            for img in tqdm.tqdm(img_gen, total=len(self.paths), desc=name):
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                analysis_gen.send(img)
+            analysis_gen.send(None)
 
         elif expt_kind == ExperimentKind.VIDEO:
             (path,) = self.paths
@@ -253,47 +258,16 @@ class Analyzer:
             img_gen = (cap.read()[1] for _ in range(fnum))
             fps = cap.get(cv2.CAP_PROP_FPS)
 
-            total = fnum
+            try:
+                for img in tqdm.tqdm(img_gen, total=fnum, desc=name):
+                    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                    analysis_gen.send(img)
+                analysis_gen.send(None)
+            finally:
+                cap.release()
 
         else:
             raise TypeError(f"Unsupported experiment kind: {expt_kind}")
-
-        analysis_gen = self.analysis_generator(
-            data_path, image_path, video_path, fps=fps
-        )
-        next(analysis_gen)
-
-        for img in tqdm.tqdm(img_gen, total=total, desc=name):
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            analysis_gen.send(img)
-        analysis_gen.send(None)
-
-    def layer_generator(
-        self, prev: Optional[CoatingLayerBase] = None
-    ) -> Generator[CoatingLayerBase, npt.NDArray[np.uint8], None]:
-        """
-        Generator which receives coated substrate image to yield instance of
-        :attr:`layer_type`.
-
-        As new image is sent, coating layer instance is created using
-        :meth:`construct_coatinglayer` of :attr:`experiment` with the previous
-        coating layer instance. *prev* is used as the previous instance for the
-        first yield value.
-
-        Parameters
-        ==========
-
-        prev
-            Coating layer instance treated to be previous one to construct the
-            first coating layer instance.
-
-        """
-        expt = self.experiment
-        while True:
-            img = yield  # type: ignore
-            layer = expt.construct_coatinglayer(img, prev)
-            yield layer
-            prev = layer
 
     def analysis_generator(
         self,
@@ -365,7 +339,7 @@ class Analyzer:
         else:
             write_video = False
 
-        layer_gen = self.layer_generator()
+        layer_gen = self.experiment.layer_generator()
         i = 0
         try:
             while True:

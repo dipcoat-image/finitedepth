@@ -37,7 +37,7 @@ import abc
 import dataclasses
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Generic, Type, Optional
+from typing import TypeVar, Generic, Type, Optional, Generator
 
 from .substrate import SubstrateBase
 from .coatinglayer import CoatingLayerBase
@@ -213,6 +213,30 @@ class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
             deco_options=self.layer_decooptions,
         )
         return ret
+
+    def layer_generator(
+        self, prev: Optional[CoatingLayerBase] = None
+    ) -> Generator[CoatingLayerBase, npt.NDArray[np.uint8], None]:
+        """
+        Generator which receives coated substrate image to yield coating layer.
+
+        As new image is sent, coating layer instance is created using
+        :meth:`construct_coatinglayer` with the previous coating layer instance.
+        *prev* parameter is used as the previous instance for the initial value.
+
+        Parameters
+        ==========
+
+        prev : CoatingLayerBase, optional
+            Coating layer instance treated to be previous one to construct the
+            first coating layer instance.
+
+        """
+        while True:
+            img = yield  # type: ignore
+            layer = self.construct_coatinglayer(img, prev)
+            yield layer
+            prev = layer
 
 
 @dataclasses.dataclass(frozen=True)

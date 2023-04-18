@@ -15,7 +15,7 @@ from .reference import SubstrateReferenceBase
 from .substrate import SubstrateBase
 from .coatinglayer import CoatingLayerBase
 from .experiment import ExperimentBase
-from .analysis import Analyzer
+from .analysis import ExperimentKind, experiment_kind, Analyzer
 from .util import import_variable, OptionalROI, DataclassProtocol
 
 
@@ -419,17 +419,61 @@ class ExperimentData:
     experiment: ExperimentArgs = dataclasses.field(default_factory=ExperimentArgs)
     analysis: AnalysisArgs = dataclasses.field(default_factory=AnalysisArgs)
 
-    def analyze(self, name: str = ""):
-        """Analyze and save the data."""
+    def get_reference(self) -> SubstrateReferenceBase:
         refimg = cv2.cvtColor(cv2.imread(self.ref_path), cv2.COLOR_BGR2RGB)
-        ref = self.reference.as_reference(refimg)
-        subst = self.substrate.as_substrate(ref)
+        return self.reference.as_reference(refimg)
 
+    def get_substrate(self) -> SubstrateBase:
+        ref = self.get_reference()
+        return self.substrate.as_substrate(ref)
+
+    def get_experiment(self) -> ExperimentBase:
+        subst = self.get_substrate()
         layercls, params, drawopts, decoopts = self.coatinglayer.as_structured_args()
-
         expt = self.experiment.as_experiment(
             subst, layercls, params, drawopts, decoopts
         )
+        return expt
+
+    def get_coatinglayer(self, image_index: int = 0) -> CoatingLayerBase:
+        layer_gen = self.get_experiment().layer_generator()
+        next(layer_gen)
+
+        expt_kind = experiment_kind(self.coat_paths)
+        if (
+            expt_kind == ExperimentKind.SINGLE_IMAGE
+            or expt_kind == ExperimentKind.MULTI_IMAGE
+        ):
+            if image_index > len(self.coat_paths) - 1:
+                raise ValueError("image_index exceeds image numbers.")
+            img_gen = (cv2.imread(path) for path in self.coat_paths)
+
+            for _ in range(image_index + 1):
+                img = next(img_gen)
+                layer = layer_gen.send(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+
+        elif expt_kind == ExperimentKind.VIDEO:
+            (path,) = self.coat_paths
+            cap = cv2.VideoCapture(path)
+            if image_index > cap.get(cv2.CAP_PROP_FRAME_COUNT) - 1:
+                raise ValueError("image_index exceeds video frames.")
+
+            try:
+                for _ in range(image_index + 1):
+                    ok, img = cap.read()
+                    if not ok:
+                        raise ValueError("Failed to read frame.")
+                    layer = layer_gen.send(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+            finally:
+                cap.release()
+        else:
+            raise TypeError("Invalid coating layer paths.")
+
+        return layer
+
+    def analyze(self, name: str = ""):
+        """Analyze and save the data."""
+        expt = self.get_experiment()
         analyzer = Analyzer(self.coat_paths, expt)
 
         analyzer.analyze(
