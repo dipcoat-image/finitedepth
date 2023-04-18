@@ -448,7 +448,7 @@ class ExperimentData:
                 raise ValueError("image_index exceeds image numbers.")
             img_gen = (cv2.imread(path) for path in self.coat_paths)
 
-            for _ in range(image_index):
+            for _ in range(image_index + 1):
                 img = next(img_gen)
                 layer = layer_gen.send(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
 
@@ -459,7 +459,7 @@ class ExperimentData:
                 raise ValueError("image_index exceeds video frames.")
 
             try:
-                for _ in range(image_index):
+                for _ in range(image_index + 1):
                     ok, img = cap.read()
                     if not ok:
                         raise ValueError("Failed to read frame.")
