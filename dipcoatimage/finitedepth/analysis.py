@@ -232,9 +232,12 @@ class Analyzer:
         Progress bar is printed. Pass *name* for the progress bar name.
 
         """
-        expt_kind = experiment_kind(self.paths)
+        analysis_gen = self.analysis_generator(
+            data_path, image_path, video_path, fps=fps
+        )
+        next(analysis_gen)
 
-        # make image generator
+        expt_kind = experiment_kind(self.paths)
         if (
             expt_kind == ExperimentKind.SINGLE_IMAGE
             or expt_kind == ExperimentKind.MULTI_IMAGE
@@ -243,7 +246,10 @@ class Analyzer:
             if fps is None:
                 fps = 0
 
-            total = len(self.paths)
+            for img in tqdm.tqdm(img_gen, total=len(self.paths), desc=name):
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                analysis_gen.send(img)
+            analysis_gen.send(None)
 
         elif expt_kind == ExperimentKind.VIDEO:
             (path,) = self.paths
@@ -252,20 +258,16 @@ class Analyzer:
             img_gen = (cap.read()[1] for _ in range(fnum))
             fps = cap.get(cv2.CAP_PROP_FPS)
 
-            total = fnum
+            try:
+                for img in tqdm.tqdm(img_gen, total=fnum, desc=name):
+                    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                    analysis_gen.send(img)
+                analysis_gen.send(None)
+            finally:
+                cap.release()
 
         else:
             raise TypeError(f"Unsupported experiment kind: {expt_kind}")
-
-        analysis_gen = self.analysis_generator(
-            data_path, image_path, video_path, fps=fps
-        )
-        next(analysis_gen)
-
-        for img in tqdm.tqdm(img_gen, total=total, desc=name):
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            analysis_gen.send(img)
-        analysis_gen.send(None)
 
     def analysis_generator(
         self,
