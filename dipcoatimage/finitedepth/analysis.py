@@ -232,20 +232,19 @@ class Analyzer:
         Progress bar is printed. Pass *name* for the progress bar name.
 
         """
-        analysis_gen = self.analysis_generator(
-            data_path, image_path, video_path, fps=fps
-        )
-        next(analysis_gen)
-
         expt_kind = experiment_kind(self.paths)
         if (
             expt_kind == ExperimentKind.SINGLE_IMAGE
             or expt_kind == ExperimentKind.MULTI_IMAGE
         ):
-            img_gen = (cv2.imread(path) for path in self.paths)
             if fps is None:
-                fps = 0
+                fps = 0.0
+            analysis_gen = self.analysis_generator(
+                data_path, image_path, video_path, fps=fps
+            )
+            next(analysis_gen)
 
+            img_gen = (cv2.imread(path) for path in self.paths)
             for img in tqdm.tqdm(img_gen, total=len(self.paths), desc=name):
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                 analysis_gen.send(img)
@@ -254,16 +253,22 @@ class Analyzer:
         elif expt_kind == ExperimentKind.VIDEO:
             (path,) = self.paths
             cap = cv2.VideoCapture(path)
-            fnum = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            img_gen = (cap.read()[1] for _ in range(fnum))
-            fps = cap.get(cv2.CAP_PROP_FPS)
+
+            if fps is None:
+                fps = cap.get(cv2.CAP_PROP_FPS)
+            analysis_gen = self.analysis_generator(
+                data_path, image_path, video_path, fps=fps
+            )
+            next(analysis_gen)
 
             try:
+                fnum = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                img_gen = (cap.read()[1] for _ in range(fnum))
                 for img in tqdm.tqdm(img_gen, total=fnum, desc=name):
                     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                     analysis_gen.send(img)
-                analysis_gen.send(None)
             finally:
+                analysis_gen.send(None)
                 cap.release()
 
         else:
@@ -275,7 +280,7 @@ class Analyzer:
         image_path: str = "",
         video_path: str = "",
         *,
-        fps: Optional[float] = None,
+        fps: float = 0.0,
     ) -> Generator[None, Optional[npt.NDArray[np.uint8]], None]:
         """
         Send the coating layer image to this generator to analyze it.
