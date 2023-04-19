@@ -419,24 +419,24 @@ class ExperimentData:
     experiment: ExperimentArgs = dataclasses.field(default_factory=ExperimentArgs)
     analysis: AnalysisArgs = dataclasses.field(default_factory=AnalysisArgs)
 
-    def get_reference(self) -> SubstrateReferenceBase:
+    def construct_reference(self) -> SubstrateReferenceBase:
         refimg = cv2.cvtColor(cv2.imread(self.ref_path), cv2.COLOR_BGR2RGB)
         return self.reference.as_reference(refimg)
 
-    def get_substrate(self) -> SubstrateBase:
-        ref = self.get_reference()
+    def construct_substrate(self) -> SubstrateBase:
+        ref = self.construct_reference()
         return self.substrate.as_substrate(ref)
 
-    def get_experiment(self) -> ExperimentBase:
-        subst = self.get_substrate()
+    def construct_experiment(self) -> ExperimentBase:
+        subst = self.construct_substrate()
         layercls, params, drawopts, decoopts = self.coatinglayer.as_structured_args()
         expt = self.experiment.as_experiment(
             subst, layercls, params, drawopts, decoopts
         )
         return expt
 
-    def get_coatinglayer(self, image_index: int = 0) -> CoatingLayerBase:
-        layer_gen = self.get_experiment().layer_generator()
+    def construct_coatinglayer(self, image_index: int = 0) -> CoatingLayerBase:
+        layer_gen = self.construct_experiment().layer_generator()
         next(layer_gen)
 
         expt_kind = experiment_kind(self.coat_paths)
@@ -473,7 +473,7 @@ class ExperimentData:
 
     def analyze(self, name: str = ""):
         """Analyze and save the data."""
-        expt = self.get_experiment()
+        expt = self.construct_experiment()
         analyzer = Analyzer(self.coat_paths, expt)
 
         analyzer.analyze(
