@@ -668,12 +668,13 @@ class RectLayerShape(
                     thickness=roughnesspair_opts.thickness,
                 )
             # always draw the last line
-            cv2.line(
-                image,
-                *pairs[-1].astype(np.int32),
-                color=dataclasses.astuple(roughnesspair_opts.color),
-                thickness=roughnesspair_opts.thickness,
-            )
+            if pairs.size > 0:
+                cv2.line(
+                    image,
+                    *pairs[-1].astype(np.int32),
+                    color=dataclasses.astuple(roughnesspair_opts.color),
+                    thickness=roughnesspair_opts.thickness,
+                )
 
         return image
 
