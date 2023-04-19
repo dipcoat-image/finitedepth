@@ -420,14 +420,23 @@ class ExperimentData:
     analysis: AnalysisArgs = dataclasses.field(default_factory=AnalysisArgs)
 
     def construct_reference(self) -> SubstrateReferenceBase:
+        """
+        Construct and return :class:`SubstrateReferenceBase` from the data.
+        """
         refimg = cv2.cvtColor(cv2.imread(self.ref_path), cv2.COLOR_BGR2RGB)
         return self.reference.as_reference(refimg)
 
     def construct_substrate(self) -> SubstrateBase:
+        """
+        Construct and return :class:`SubstrateBase` from the data.
+        """
         ref = self.construct_reference()
         return self.substrate.as_substrate(ref)
 
     def construct_experiment(self) -> ExperimentBase:
+        """
+        Construct and return :class:`ExperimentBase` from the data.
+        """
         subst = self.construct_substrate()
         layercls, params, drawopts, decoopts = self.coatinglayer.as_structured_args()
         expt = self.experiment.as_experiment(
@@ -436,6 +445,12 @@ class ExperimentData:
         return expt
 
     def construct_coatinglayer(self, image_index: int = 0) -> CoatingLayerBase:
+        """
+        Construct and return :class:`CoatingLayerBase` from the data.
+
+        If the experiment consists of multiple frames (images or video), the
+        index of image can be specified by *image_index*.
+        """
         layer_gen = self.construct_experiment().layer_generator()
         next(layer_gen)
 
