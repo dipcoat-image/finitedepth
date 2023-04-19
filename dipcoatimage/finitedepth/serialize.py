@@ -503,7 +503,6 @@ class ExperimentData:
                 raise ValueError("image_index exceeds video frames.")
 
             try:
-
                 if sequential:
                     for _ in range(image_index + 1):
                         ok, img = cap.read()
