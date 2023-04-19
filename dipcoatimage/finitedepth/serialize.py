@@ -419,24 +419,64 @@ class ExperimentData:
     experiment: ExperimentArgs = dataclasses.field(default_factory=ExperimentArgs)
     analysis: AnalysisArgs = dataclasses.field(default_factory=AnalysisArgs)
 
-    def get_reference(self) -> SubstrateReferenceBase:
+    def construct_reference(self) -> SubstrateReferenceBase:
+        """
+        Construct and return :class:`SubstrateReferenceBase` from the data.
+        """
         refimg = cv2.cvtColor(cv2.imread(self.ref_path), cv2.COLOR_BGR2RGB)
         return self.reference.as_reference(refimg)
 
-    def get_substrate(self) -> SubstrateBase:
-        ref = self.get_reference()
+    def construct_substrate(self) -> SubstrateBase:
+        """
+        Construct and return :class:`SubstrateBase` from the data.
+        """
+        ref = self.construct_reference()
         return self.substrate.as_substrate(ref)
 
-    def get_experiment(self) -> ExperimentBase:
-        subst = self.get_substrate()
+    def construct_experiment(self) -> ExperimentBase:
+        """
+        Construct and return :class:`ExperimentBase` from the data.
+        """
+        subst = self.construct_substrate()
         layercls, params, drawopts, decoopts = self.coatinglayer.as_structured_args()
         expt = self.experiment.as_experiment(
             subst, layercls, params, drawopts, decoopts
         )
         return expt
 
-    def get_coatinglayer(self, image_index: int = 0) -> CoatingLayerBase:
-        layer_gen = self.get_experiment().layer_generator()
+    def construct_coatinglayer(
+        self, image_index: int = 0, sequential: bool = True
+    ) -> CoatingLayerBase:
+        """
+        Construct and return :class:`CoatingLayerBase` from the data.
+
+        Parameters
+        ----------
+        image_index : int
+            Index of the image to construct the coating layer instance in
+            multiframe experiment.
+
+        sequential: bool
+            If True, construction of instance is done by passing `n`-th image and
+            `(n-1)`-th instance to :meth:`ExperimentBase.layer_generator`,
+            recursively.
+
+        Notes
+        -----
+        If the experiment consists of multiple frames (images or video), the
+        index of image can be specified by *image_index*.
+
+        For speed, you may want to explicitly pass `sequential=False`. This
+        method first constructs :class:`ExperimentBase` to use it as a coating
+        layer instance factory, and by default recursively generates the instance
+        from the first frame to `image-index`-th frame. This approach honors the
+        modification by :class:`ExperimentBase` implementation but can be
+        extremely slow. `sequential=False` ignores the recursive generation and
+        directly constructs the instance as if it were the first frame of the
+        experiment.
+
+        """
+        layer_gen = self.construct_experiment().layer_generator()
         next(layer_gen)
 
         expt_kind = experiment_kind(self.coat_paths)
@@ -446,10 +486,14 @@ class ExperimentData:
         ):
             if image_index > len(self.coat_paths) - 1:
                 raise ValueError("image_index exceeds image numbers.")
-            img_gen = (cv2.imread(path) for path in self.coat_paths)
 
-            for _ in range(image_index + 1):
-                img = next(img_gen)
+            if sequential:
+                img_gen = (cv2.imread(path) for path in self.coat_paths)
+                for _ in range(image_index + 1):
+                    img = next(img_gen)
+                    layer = layer_gen.send(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+            else:
+                img = cv2.imread(self.coat_paths[0])
                 layer = layer_gen.send(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
 
         elif expt_kind == ExperimentKind.VIDEO:
@@ -459,11 +503,19 @@ class ExperimentData:
                 raise ValueError("image_index exceeds video frames.")
 
             try:
-                for _ in range(image_index + 1):
+                if sequential:
+                    for _ in range(image_index + 1):
+                        ok, img = cap.read()
+                        if not ok:
+                            raise ValueError("Failed to read frame.")
+                        layer = layer_gen.send(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+                else:
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, image_index)
                     ok, img = cap.read()
                     if not ok:
                         raise ValueError("Failed to read frame.")
                     layer = layer_gen.send(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+
             finally:
                 cap.release()
         else:
@@ -473,7 +525,7 @@ class ExperimentData:
 
     def analyze(self, name: str = ""):
         """Analyze and save the data."""
-        expt = self.get_experiment()
+        expt = self.construct_experiment()
         analyzer = Analyzer(self.coat_paths, expt)
 
         analyzer.analyze(
