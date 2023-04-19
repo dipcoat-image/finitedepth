@@ -479,11 +479,6 @@ class ExperimentData:
         layer_gen = self.construct_experiment().layer_generator()
         next(layer_gen)
 
-        if sequential:
-            RANGE = range(0, image_index + 1)
-        else:
-            RANGE = range(image_index, image_index + 1)
-
         expt_kind = experiment_kind(self.coat_paths)
         if (
             expt_kind == ExperimentKind.SINGLE_IMAGE
@@ -491,10 +486,14 @@ class ExperimentData:
         ):
             if image_index > len(self.coat_paths) - 1:
                 raise ValueError("image_index exceeds image numbers.")
-            img_gen = (cv2.imread(path) for path in self.coat_paths)
 
-            for _ in RANGE:
-                img = next(img_gen)
+            if sequential:
+                img_gen = (cv2.imread(path) for path in self.coat_paths)
+                for _ in range(image_index + 1):
+                    img = next(img_gen)
+                    layer = layer_gen.send(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+            else:
+                img = cv2.imread(self.coat_paths[0])
                 layer = layer_gen.send(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
 
         elif expt_kind == ExperimentKind.VIDEO:
@@ -504,11 +503,20 @@ class ExperimentData:
                 raise ValueError("image_index exceeds video frames.")
 
             try:
-                for _ in RANGE:
+
+                if sequential:
+                    for _ in range(image_index + 1):
+                        ok, img = cap.read()
+                        if not ok:
+                            raise ValueError("Failed to read frame.")
+                        layer = layer_gen.send(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+                else:
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, image_index)
                     ok, img = cap.read()
                     if not ok:
                         raise ValueError("Failed to read frame.")
                     layer = layer_gen.send(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+
             finally:
                 cap.release()
         else:
