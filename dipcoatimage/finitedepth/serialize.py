@@ -444,15 +444,45 @@ class ExperimentData:
         )
         return expt
 
-    def construct_coatinglayer(self, image_index: int = 0) -> CoatingLayerBase:
+    def construct_coatinglayer(
+        self, image_index: int = 0, sequential: bool = True
+    ) -> CoatingLayerBase:
         """
         Construct and return :class:`CoatingLayerBase` from the data.
 
+        Parameters
+        ----------
+        image_index : int
+            Index of the image to construct the coating layer instance in
+            multiframe experiment.
+
+        sequential: bool
+            If True, construction of instance is done by passing `n`-th image and
+            `(n-1)`-th instance to :meth:`ExperimentBase.layer_generator`,
+            recursively.
+
+        Notes
+        -----
         If the experiment consists of multiple frames (images or video), the
         index of image can be specified by *image_index*.
+
+        For speed, you may want to explicitly pass `sequential=False`. This
+        method first constructs :class:`ExperimentBase` to use it as a coating
+        layer instance factory, and by default recursively generates the instance
+        from the first frame to `image-index`-th frame. This approach honors the
+        modification by :class:`ExperimentBase` implementation but can be
+        extremely slow. `sequential=False` ignores the recursive generation and
+        directly constructs the instance as if it were the first frame of the
+        experiment.
+
         """
         layer_gen = self.construct_experiment().layer_generator()
         next(layer_gen)
+
+        if sequential:
+            RANGE = range(0, image_index + 1)
+        else:
+            RANGE = range(image_index, image_index + 1)
 
         expt_kind = experiment_kind(self.coat_paths)
         if (
@@ -463,7 +493,7 @@ class ExperimentData:
                 raise ValueError("image_index exceeds image numbers.")
             img_gen = (cv2.imread(path) for path in self.coat_paths)
 
-            for _ in range(image_index + 1):
+            for _ in RANGE:
                 img = next(img_gen)
                 layer = layer_gen.send(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
 
@@ -474,7 +504,7 @@ class ExperimentData:
                 raise ValueError("image_index exceeds video frames.")
 
             try:
-                for _ in range(image_index + 1):
+                for _ in RANGE:
                     ok, img = cap.read()
                     if not ok:
                         raise ValueError("Failed to read frame.")
