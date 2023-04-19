@@ -493,7 +493,7 @@ class ExperimentData:
                     img = next(img_gen)
                     layer = layer_gen.send(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
             else:
-                img = cv2.imread(self.coat_paths[0])
+                img = cv2.imread(self.coat_paths[image_index])
                 layer = layer_gen.send(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
 
         elif expt_kind == ExperimentKind.VIDEO:
