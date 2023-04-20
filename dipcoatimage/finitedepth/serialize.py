@@ -10,6 +10,7 @@ import cv2  # type: ignore
 import dataclasses
 import numpy as np
 import numpy.typing as npt
+import os
 from typing import List, Type, Optional, Tuple
 from .reference import SubstrateReferenceBase
 from .substrate import SubstrateBase
@@ -409,6 +410,8 @@ class AnalysisArgs:
 class ExperimentData:
     """
     Class which wraps every information to construct and analyze the experiment.
+
+    Environment variables are allowed in *ref_path* and *coat_paths* fields.
     """
 
     ref_path: str = ""
@@ -418,6 +421,10 @@ class ExperimentData:
     coatinglayer: CoatingLayerArgs = dataclasses.field(default_factory=CoatingLayerArgs)
     experiment: ExperimentArgs = dataclasses.field(default_factory=ExperimentArgs)
     analysis: AnalysisArgs = dataclasses.field(default_factory=AnalysisArgs)
+
+    def __post_init__(self):
+        self.ref_path = os.path.expandvars(self.ref_path)
+        self.coat_paths = [os.path.expandvars(p) for p in self.coat_paths]
 
     def construct_reference(self) -> SubstrateReferenceBase:
         """
