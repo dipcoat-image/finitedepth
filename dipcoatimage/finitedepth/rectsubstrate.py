@@ -151,7 +151,7 @@ class RectSubstrate(
             mask = np.zeros((h, w), bool)
             ((x, y),) = self.contour().transpose(1, 2, 0)
             mask[y, x] = True
-            image = mask * np.uint8(255)
+            image = ~mask * np.uint8(255)
         else:
             raise TypeError("Unrecognized draw mode: %s" % draw_mode)
         ret = colorize(image)
