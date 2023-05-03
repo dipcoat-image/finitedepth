@@ -244,13 +244,11 @@ class RectLayerShapeData:
     - Area: Number of the pixels in the coating layer region.
     - LayerLength_{Left/Right}: Number of the pixels between the lower
       vertices of the substrate and the upper limit of the coating layer.
-    - Thickness_{Left/Bottom/Right}: Number of the pixels for the maximum
+    - MeanThickness_Global: Mean thickness in pixel number.
+    - Roughness_Global: Roughness of the coating layer compared to the mean
+      thickness.
+    - MaxThickness_{Left/Bottom/Right}: Number of the pixels for the maximum
       thickness on each region.
-    - UniformThickness: Number of the pixels for the thickness of the fictitous
-      uniform coating layer whose area is same as ``Area``.
-    - Roughness: Roughness of the coating layer shape compared to the fictitous
-      uniform coating layer. This value has a dimension which is the pixel number
-      and can be normalized by dividing with ``UniformThickness``.
 
     The following data are the metadata for the analysis.
 
@@ -264,12 +262,13 @@ class RectLayerShapeData:
     LayerLength_Left: np.float64
     LayerLength_Right: np.float64
 
-    Thickness_Left: np.float64
-    Thickness_Bottom: np.float64
-    Thickness_Right: np.float64
+    MeanThickness_Global: np.float64
 
-    UniformThickness: np.float64
-    Roughness: np.float64
+    Roughness_Global: np.float64
+
+    MaxThickness_Left: np.float64
+    MaxThickness_Bottom: np.float64
+    MaxThickness_Right: np.float64
 
     MatchError: float
     ChipWidth: np.float32
@@ -706,6 +705,9 @@ class RectLayerShape(
         else:
             LEN_L = LEN_R = np.float64(0)
 
+        MEANTHCK_G, _ = self.uniform_layer()
+        ROUGH_G, _ = self.roughness()
+
         max_dists = []
         for side in ["left", "bottom", "right"]:
             surf_proj = self.surface_projections(side)
@@ -716,9 +718,6 @@ class RectLayerShape(
                 max_dists.append(dists.max())
         THCK_L, THCK_B, THCK_R = max_dists
 
-        THCK_U, _ = self.uniform_layer()
-        ROUGH, _ = self.roughness()
-
         ERR, _ = self.match_substrate()
         CHIPWIDTH = np.linalg.norm(B - C)
 
@@ -726,11 +725,11 @@ class RectLayerShape(
             AREA,
             LEN_L,
             LEN_R,
+            MEANTHCK_G,
+            ROUGH_G,
             THCK_L,
             THCK_B,
             THCK_R,
-            THCK_U,
-            ROUGH,
             ERR,
             CHIPWIDTH,
         )
