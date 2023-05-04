@@ -6,6 +6,7 @@ Polygonal Substrate
 substrate with polygonal cross section.
 
 """
+import cv2  # type: ignore
 import dataclasses
 import numpy as np
 import numpy.typing as npt
@@ -80,6 +81,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     """
 
     __slots__ = (
+        "_contour",
         "_vertices",
         "_sidelines",
     )
@@ -94,9 +96,15 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         return np.array([[w / 2, 0]], dtype=np.int32)
 
     def contour(self) -> npt.NDArray[np.int32]:
-        """Return the contour of the substrate."""
-        (((cnt,), _),) = self.contours()
-        return cnt
+        """Return the unapproximated contour of the substrate."""
+        if not hasattr(self, "_contour"):
+            (cnt,), _ = cv2.findContours(
+                self.regions()[1].astype(bool) * np.uint8(255),
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_NONE,
+            )
+            self._contour = cnt.astype(np.int32)
+        return self._contour
 
     def vertices(self) -> npt.NDArray[np.int32]:
         """
@@ -130,31 +138,30 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         if not hasattr(self, "_vertices"):
             # 1. Calculate the change of direction instead of curvature because
             # it's faster and still gives accurate result.
+            r = np.concatenate([self.contour(), self.contour()[:1]])  # closed line
+            dr = np.diff(r, axis=0)
+            drds = dr / np.linalg.norm(dr, axis=-1)[..., np.newaxis]
+            theta_smooth = gaussian_filter1d(
+                np.arctan2(drds[..., 1], drds[..., 0]),
+                self.parameters.Sigma,
+                axis=0,
+                order=0,
+                mode="wrap",
+            )
+            tg = np.gradient(theta_smooth, axis=0)
             # Since the contour is periodic we repeat the data in both directions
             # to ensure boundary peaks are be found.
-            L = len(self.contour())
-            contour2 = np.concatenate(
-                [
-                    self.contour()[-(L // 2) :],
-                    self.contour(),
-                    self.contour()[: (L // 2)],
-                ],
-                axis=0,
-            )
-            tan2 = np.diff(contour2, axis=0)
-            theta2 = np.arctan2(tan2[..., 1], tan2[..., 0])
-            # Take smooth derivative to deal with jittery noises.
-            grad = gaussian_filter1d(theta2, self.parameters.Sigma, axis=0, order=1)
+            L = len(tg)
+            tg_repeated = np.concatenate([tg[-(L // 2) :], tg, tg[: (L // 2)]], axis=0)
 
             # 2. Find peak. Each peak shows the point where side changes.
             # This allows us to discern individual sides lying on same line.
-            # Since we repeated theta, we select the peaks in desired region.
-            theta2_abs = np.abs(grad)[..., 0]
-            peaks2, _ = find_peaks(theta2_abs)
-            peaks2 = peaks2.astype(np.int32)
-            (idxs,) = np.where((L // 2 <= peaks2) & (peaks2 < 3 * L // 2))
-            peaks = peaks2[idxs]
-            prom, _, _ = peak_prominences(theta2_abs, peaks)
+            # Since we repeated tg, we select the peaks in desired region.
+            tg_rep_abs = np.abs(tg_repeated)[..., 0]
+            peaks = find_peaks(tg_rep_abs)[0].astype(np.int32)
+            (idxs,) = np.where((L // 2 <= peaks) & (peaks < 3 * L // 2))
+            peaks = peaks[idxs]
+            prom, _, _ = peak_prominences(tg_rep_abs, peaks)
             if len(prom) < self.SidesNum:
                 msg = (
                     "Insufficient number of vertices"
@@ -164,9 +171,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             prom_peaks = peaks[np.sort(np.argsort(prom)[-self.SidesNum :])]
             vertices = np.sort(prom_peaks) - (L // 2)
 
-            # 3. Compensate index-by-one error, which is probably from np.diff().
-            # This error makes perfectly sharp corner incorrectly located by -1.
-            self._vertices = np.sort((vertices + 1) % L)
+            self._vertices = np.sort(vertices % L)
         return self._vertices
 
     def sides(self) -> Tuple[npt.NDArray[np.int32], ...]:

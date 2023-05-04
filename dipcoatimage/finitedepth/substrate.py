@@ -144,18 +144,6 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         else:
             self._draw_options = dataclasses.replace(draw_options)
 
-        # cache the contour information
-        reg_count, reg_labels = self.regions()
-        contours = []
-        for region in range(1, reg_count):
-            cnt_info = cv2.findContours(
-                (reg_labels == region) * np.uint8(255),
-                cv2.RETR_CCOMP,
-                cv2.CHAIN_APPROX_NONE,
-            )
-            contours.append(cnt_info)
-        self._contours = tuple(contours)
-
     @property
     def reference(self) -> SubstrateReferenceBase:
         """Substrate reference instance passed to constructor."""
@@ -266,6 +254,17 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         --------
         regions
         """
+        if not hasattr(self, "_contours"):
+            reg_count, reg_labels = self.regions()
+            contours = []
+            for region in range(1, reg_count):
+                cnt = cv2.findContours(
+                    (reg_labels == region) * np.uint8(255),
+                    cv2.RETR_CCOMP,
+                    cv2.CHAIN_APPROX_SIMPLE,
+                )
+                contours.append(cnt)
+            self._contours = tuple(contours)
         return self._contours
 
     @abc.abstractmethod
