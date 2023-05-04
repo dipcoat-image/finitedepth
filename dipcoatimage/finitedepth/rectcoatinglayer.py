@@ -303,8 +303,8 @@ class RectLayerShape(
        ...     get_samples_path)
        >>> ref_path = get_samples_path("ref3.png")
        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
-       >>> tempROI = (100, 50, 1200, 200)
-       >>> substROI = (300, 100, 950, 600)
+       >>> tempROI = (13, 10, 1246, 200)
+       >>> substROI = (100, 100, 1200, 500)
        >>> ref = SubstrateReference(img, tempROI, substROI)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP

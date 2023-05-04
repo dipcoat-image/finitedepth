@@ -185,8 +185,8 @@ We construct a reference with Otsu's binarization, and draw with original image.
 
    >>> from dipcoatimage.finitedepth import get_samples_path
    >>> ref_img = cv2.imread(get_samples_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
-   >>> tempROI = (100, 20, 1150, 160)
-   >>> substROI = (50, 10, 1200, 650)
+   >>> tempROI = (13, 10, 1246, 200)
+   >>> substROI = (100, 100, 1200, 500)
    >>> params = ThresholdParameters(0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
    >>> ref = BinaryReference(ref_img, tempROI, substROI, parameters=params)
    >>> import matplotlib.pyplot as plt #doctest: +SKIP
