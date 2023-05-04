@@ -97,8 +97,8 @@ class RectCoatingLayerBase(
     def capbridge_broken(self) -> bool:
         p0 = self.substrate_point()
         _, p1, p2, _ = self.substrate.contour()[self.substrate.vertices()]
-        bl = (p0 + p1).astype(np.int32)
-        br = (p0 + p2).astype(np.int32)
+        (bl,) = (p0 + p1).astype(np.int32)
+        (br,) = (p0 + p2).astype(np.int32)
         top = np.max([bl[1], br[1]])
         bot = self.binary_image().shape[0]
         if top > bot:
@@ -393,8 +393,8 @@ class RectLayerShape(
             vicinity_mask = np.zeros(img.shape, np.uint8)
             p0 = self.substrate_point()
             _, bl, br, _ = self.substrate.contour()[self.substrate.vertices()]
-            B = p0 + bl
-            C = p0 + br
+            (B,) = p0 + bl
+            (C,) = p0 + br
             R = self.parameters.ReconstructRadius
             cv2.circle(vicinity_mask, B, R, 1, -1)
             cv2.circle(vicinity_mask, C, R, 1, -1)
