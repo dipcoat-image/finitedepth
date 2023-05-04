@@ -41,8 +41,7 @@ class PolySubstrateParameters:
     Parameters
     ----------
     Sigma: positive float
-        Standard deviation of Gaussian kernel to smooth the signal for
-        vertex finding.
+        Standard deviation of Gaussian kernel to smooth the noise.
     Rho: positive float
         Radian resolution for Hough transformation to detect the sidelines.
     Theta: positive float
@@ -138,8 +137,10 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         if not hasattr(self, "_vertices"):
             # 1. Calculate the change of direction instead of curvature because
             # it's faster and still gives accurate result.
+            # DO NOT calculate theta of smoothed contour. Calculate the theta
+            # from raw contour first and then perform smoothing!
             r = np.concatenate([self.contour(), self.contour()[:1]])  # closed line
-            dr = np.diff(r, axis=0)
+            dr = np.gradient(r, axis=0)
             drds = dr / np.linalg.norm(dr, axis=-1)[..., np.newaxis]
             theta_smooth = gaussian_filter1d(
                 np.arctan2(drds[..., 1], drds[..., 0]),
@@ -195,8 +196,10 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         sidelines
             Linear model of sides.
         """
-        N = self.vertices()[0]
-        return tuple(np.split(np.roll(self.contour(), -N, axis=0), self.vertices() - N))
+        SHIFT = self.vertices()[0]
+        vertices = self.vertices() - SHIFT
+        cnt_roll = np.roll(self.contour(), -SHIFT, axis=0)
+        return tuple(np.split(cnt_roll, vertices[1:], axis=0))
 
     def sidelines(self) -> npt.NDArray[np.float32]:
         r"""
@@ -228,15 +231,14 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         .. [1] https://en.wikipedia.org/wiki/Extended_sides
         """
         if not hasattr(self, "_sidelines"):
-            SHIFT = self.vertices()[0]
-            vertices = self.vertices() - SHIFT
-            cnt_roll = np.roll(self.contour(), -SHIFT, axis=0)
-
+            # Do not find the line from smoothed contour. Noise is removed anyway
+            # without smoothing by Hough transformation. In fact, smoothing
+            # propagates the outlier error to nearby data.
             RHO_RES = self.parameters.Rho
             THETA_RES = self.parameters.Theta
             lines = []
             # Directly use Hough transformation to find lines
-            for c in np.split(cnt_roll, vertices[1:], axis=0):
+            for c in self.sides():
                 tan = np.diff(c, axis=0)
                 atan = np.arctan2(tan[..., 1], tan[..., 0])  # -pi < atan <= pi
                 theta = atan - np.pi / 2
