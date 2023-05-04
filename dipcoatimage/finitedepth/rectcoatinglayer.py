@@ -96,7 +96,7 @@ class RectCoatingLayerBase(
 
     def capbridge_broken(self) -> bool:
         p0 = self.substrate_point()
-        _, p1, p2, _ = self.substrate.vertex_points()
+        _, p1, p2, _ = self.substrate.contour()[self.substrate.vertices()]
         bl = (p0 + p1).astype(np.int32)
         br = (p0 + p2).astype(np.int32)
         top = np.max([bl[1], br[1]])
@@ -386,13 +386,13 @@ class RectLayerShape(
                     iterations=closingParams.iterations,
                 )
 
-            # closed image may still have error pixels. at least we have to
+            # closed image may still have error pixels, and at least we have to
             # remove the errors that are disconnected to the layer.
             # we identify the layer pixels as the connected components that are
-            # close to the bottom line.
+            # close to the lower vertices.
             vicinity_mask = np.zeros(img.shape, np.uint8)
             p0 = self.substrate_point()
-            _, bl, br, _ = self.substrate.vertex_points().astype(np.int32)
+            _, bl, br, _ = self.substrate.contour()[self.substrate.vertices()]
             B = p0 + bl
             C = p0 + br
             R = self.parameters.ReconstructRadius
@@ -432,7 +432,7 @@ class RectLayerShape(
             points and 1-th index is the projection points.
         """
         # TODO: filter out the projections not onto the interface
-        A, B, C, D = self.substrate.vertex_points() + self.substrate_point()
+        A, B, C, D = self.substrate.sideline_intersections() + self.substrate_point()
         if side == "left":
             P1, P2 = A, B
         elif side == "bottom":
@@ -693,7 +693,7 @@ class RectLayerShape(
     ]:
         AREA = self.layer_area()
 
-        _, B, C, _ = self.substrate.vertex_points() + self.substrate_point()
+        _, B, C, _ = self.substrate.sideline_intersections() + self.substrate_point()
 
         contactline_points = self.interfaces_boundaries()
         if len(contactline_points) != 0:

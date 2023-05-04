@@ -158,7 +158,7 @@ class RectSubstrate(
 
         side_opts = self.draw_options.sides
         if side_opts.thickness > 0:
-            tl, bl, br, tr = self.vertex_points().astype(np.int32)
+            tl, bl, br, tr = self.sideline_intersections().astype(np.int32)
 
             color = dataclasses.astuple(side_opts.color)
             thickness = side_opts.thickness

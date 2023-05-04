@@ -151,7 +151,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
             cnt_info = cv2.findContours(
                 (reg_labels == region) * np.uint8(255),
                 cv2.RETR_CCOMP,
-                cv2.CHAIN_APPROX_SIMPLE,
+                cv2.CHAIN_APPROX_NONE,
             )
             contours.append(cnt_info)
         self._contours = tuple(contours)

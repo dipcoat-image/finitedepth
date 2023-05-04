@@ -6,13 +6,12 @@ Polygonal Substrate
 substrate with polygonal cross section.
 
 """
-import cv2  # type: ignore
 import dataclasses
 import numpy as np
 import numpy.typing as npt
 from scipy.ndimage import gaussian_filter1d  # type: ignore
 from scipy.signal import find_peaks, peak_prominences  # type: ignore
-from typing import TypeVar, Optional, Type
+from typing import TypeVar, Optional, Type, Tuple
 from .substrate import SubstrateError, SubstrateBase
 from .util import DataclassProtocol
 
@@ -41,12 +40,12 @@ class PolySubstrateParameters:
     Parameters
     ----------
     Sigma: positive float
-        Standard deviation for Gaussian kernel. Used to smooth the signal for
-        finding corners and edges.
+        Standard deviation of Gaussian kernel to smooth the signal for
+        vertex finding.
     Rho: positive float
-        Radian resolution for Hough transformation to detect the polygon sides.
+        Radian resolution for Hough transformation to detect the sidelines.
     Theta: positive float
-        Angle resolution for Hough transformation to detect the polygon sides.
+        Angle resolution for Hough transformation to detect the sidelines.
 
     """
 
@@ -61,21 +60,28 @@ DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
 
 class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     """
-    Abstract base class for a substrate whose cross section is simple polygon.
+    Abstract base class for substrates whose cross section is a simple
+    polygon[1]_.
 
     :class:`PolySubstrateBase` provides method to detect the sides of the
-    a (smooth) polygonal substrate. Only one substrate region must exist.
+    a polygonal substrate. The sides are expected to be mostly linear. Smooth
+    corners are allowed.
 
     Concrete class must define :attr:`SidesNum` class attribute, which is the
     number of the sides of the polygon.
+
+    The following substrate images are not supported:
+    - Multiple substrates in one image
+    - Multiple contours (e.g. substrate with holes)
+
+    References
+    ----------
+    .. [1] https://en.wikipedia.org/wiki/Simple_polygon
     """
 
     __slots__ = (
-        "_contour",
-        "_corners",
-        "_side_lines",
-        "_vertex_points",
-        "_sides",
+        "_vertices",
+        "_sidelines",
     )
 
     Parameters: Type[ParametersType]
@@ -89,37 +95,43 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
     def contour(self) -> npt.NDArray[np.int32]:
         """Return the contour of the substrate."""
-        if not hasattr(self, "_contour"):
-            img = self.regions()[1].astype(bool) * np.uint8(255)
-            (cnt,), _ = cv2.findContours(
-                img,
-                cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_NONE,
-            )
-            self._contour = cnt.astype(np.int32)
-        return self._contour
+        (((cnt,), _),) = self.contours()
+        return cnt
 
-    def corners(self) -> npt.NDArray[np.int32]:
+    def vertices(self) -> npt.NDArray[np.int32]:
         """
-        Return the indices of the corner points on contour.
+        Find the polygon vertices.
 
-        This method returns the indices of the local maxima of the changes in the
-        direction of the tangent vector. To get the entire corner region of
-        smooth polygon, split the contour with indices from :meth:`sides`.
+        Returns
+        -------
+        ndarray
+            Indices of the vertex points in :meth:`contour`.
+
+        Notes
+        -----
+        A vertex is a point where two or more sides of a polygon meet[1]_.
+        The sides can be curves, where the vertices can be defined as local
+        extrema of curvature[2]_.
+
+        This method finds the vertices by locating a certain number (defined by
+        :attr:`SidesNum`) of curvature extrema.
 
         See Also
         --------
-        side_lines
-            Detects linear model of sides.
-        vertex_points
-            Return coordinates of intersections of sides.
+        sides
+            Points of each side split by vertices.
+
+        References
+        ----------
+        .. [1] https://en.wikipedia.org/wiki/Vertex_(geometry)
+        .. [2] https://en.wikipedia.org/wiki/Vertex_(curve)
 
         """
-        if not hasattr(self, "_corners"):
-            # 1. Get thetas of the tangent curve and take smooth derivative.
-            # This allows us to find corners even from jittery polygons.
-            # Since the contour is periodic we repeat theta in both direction to
-            # ensure smoothing is uniformly done and boundary peaks can be found.
+        if not hasattr(self, "_vertices"):
+            # 1. Calculate the change of direction instead of curvature because
+            # it's faster and still gives accurate result.
+            # Since the contour is periodic we repeat the data in both directions
+            # to ensure boundary peaks are be found.
             L = len(self.contour())
             contour2 = np.concatenate(
                 [
@@ -128,9 +140,10 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
                     self.contour()[: (L // 2)],
                 ],
                 axis=0,
-            )  # DON'T replace with gaussian mode="wrap" (peak finding will fail)
+            )
             tan2 = np.diff(contour2, axis=0)
             theta2 = np.arctan2(tan2[..., 1], tan2[..., 0])
+            # Take smooth derivative to deal with jittery noises.
             grad = gaussian_filter1d(theta2, self.parameters.Sigma, axis=0, order=1)
 
             # 2. Find peak. Each peak shows the point where side changes.
@@ -144,21 +157,48 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             prom, _, _ = peak_prominences(theta2_abs, peaks)
             if len(prom) < self.SidesNum:
                 msg = (
-                    "Insufficient number of corners"
+                    "Insufficient number of vertices"
                     f" (needs {self.SidesNum}, detected {len(prom)})"
                 )
                 raise PolySubstrateError(msg)
             prom_peaks = peaks[np.sort(np.argsort(prom)[-self.SidesNum :])]
-            corners = np.sort(prom_peaks) - (L // 2)
+            vertices = np.sort(prom_peaks) - (L // 2)
 
             # 3. Compensate index-by-one error, which is probably from np.diff().
             # This error makes perfectly sharp corner incorrectly located by -1.
-            self._corners = np.sort((corners + 1) % L)
-        return self._corners
+            self._vertices = np.sort((vertices + 1) % L)
+        return self._vertices
 
-    def side_lines(self) -> npt.NDArray[np.float32]:
+    def sides(self) -> Tuple[npt.NDArray[np.int32], ...]:
+        """
+        Return the points of each side of the polygon.
+
+        Returns
+        -------
+        tuple_of_points: tuple
+
+        Notes
+        -----
+        Side can be curved and can have noises. Use :meth:`sidelines` to get the
+        linear models for each side.
+
+        The term "side" is used instead of "edge" to avoid confusion from other
+        image processing methods (e.g. Canny edge detection).
+
+        See Also
+        --------
+        sidelines
+            Linear model of sides.
+        """
+        N = self.vertices()[0]
+        return tuple(np.split(np.roll(self.contour(), -N, axis=0), self.vertices() - N))
+
+    def sidelines(self) -> npt.NDArray[np.float32]:
         r"""
-        Find linear model of polygon sides using Hough line transformation.
+        Find linear model of polygon sides.
+
+        Sides of the polygon can be curves and can have noises. This method finds
+        straight sidelines[1]_ using Hough line transformation.
 
         Returns
         -------
@@ -172,17 +212,26 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         The ranges of parameters are $\rho \in (-\infty, \infty)$ and
         $\theta \in (-\frac{3 \pi}{2}, \frac{\pi}{2}]$. Arctan direction of the
         side vector can be acquired by $\theta + \frac{\pi}{2}$.
+
+        See Also
+        --------
+        sideline_intersections
+            Return coordinates of intersections of sidelines.
+
+        References
+        ----------
+        .. [1] https://en.wikipedia.org/wiki/Extended_sides
         """
-        if not hasattr(self, "_side_lines"):
-            SHIFT = self.corners()[0]
-            corners = self.corners() - SHIFT
+        if not hasattr(self, "_sidelines"):
+            SHIFT = self.vertices()[0]
+            vertices = self.vertices() - SHIFT
             cnt_roll = np.roll(self.contour(), -SHIFT, axis=0)
 
             RHO_RES = self.parameters.Rho
             THETA_RES = self.parameters.Theta
             lines = []
             # Directly use Hough transformation to find lines
-            for c in np.split(cnt_roll, corners[1:], axis=0):
+            for c in np.split(cnt_roll, vertices[1:], axis=0):
                 tan = np.diff(c, axis=0)
                 atan = np.arctan2(tan[..., 1], tan[..., 0])  # -pi < atan <= pi
                 theta = atan - np.pi / 2
@@ -199,7 +248,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
                 theta_idxs = np.arange(len(theta_rng))
 
                 # encode 2d array into 1d array for faster accumulation
-                # TODO: try Cython to make faster. (iterate over 2D rows, not encode)
+                # TODO: try numba to make faster. (iterate over 2D rows, not encode)
                 idxs = (rho_digit - rho_min) * len(theta_idxs) + theta_idxs
                 val, counts = np.unique(idxs, return_counts=True)
                 max_idx = val[np.argmax(counts)]
@@ -210,47 +259,31 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
                 t0 = theta_rng[t0_idx]
                 lines.append([[r0, t0]])
 
-            self._side_lines = np.array(lines, dtype=np.float32)
-        return self._side_lines
+            self._sidelines = np.array(lines, dtype=np.float32)
+        return self._sidelines
 
-    def vertex_points(self) -> npt.NDArray[np.float32]:
+    def sideline_intersections(self) -> npt.NDArray[np.float32]:
         """
-        Return the coordinates of intersections of polygon side lines.
+        Return the coordinates of intersections of polygon sidelines.
 
         If the polygon has smooth corner, the vertex points are different from
         the corner points on the contour.
 
         See Also
         --------
-        corners
+        vertices
             Return indices of the corner points on contour.
 
         """
-        if not hasattr(self, "_vertex_points"):
-            ((r1, t1),) = self.side_lines().transpose(1, 2, 0)
-            ((r2, t2),) = np.roll(self.side_lines(), 1, axis=0).transpose(1, 2, 0)
-            mat = np.array(
-                [[np.cos(t1), np.sin(t1)], [np.cos(t2), np.sin(t2)]]
-            ).transpose(2, 0, 1)
-            vec = np.array([[r1], [r2]]).transpose(2, 0, 1)
+        ((r1, t1),) = self.sidelines().transpose(1, 2, 0)
+        ((r2, t2),) = np.roll(self.sidelines(), 1, axis=0).transpose(1, 2, 0)
+        mat = np.array([[np.cos(t1), np.sin(t1)], [np.cos(t2), np.sin(t2)]]).transpose(
+            2, 0, 1
+        )
+        vec = np.array([[r1], [r2]]).transpose(2, 0, 1)
 
-            (self._vertex_points,) = (np.linalg.inv(mat) @ vec).transpose(2, 0, 1)
-        return self._vertex_points
-
-    def sides(self) -> npt.NDArray[np.int32]:
-        """
-        Return the indices of the contour points which fit best to linear sides.
-        """
-        if not hasattr(self, "_sides"):
-            # XXX: implement corner region detection
-            ret = np.column_stack(
-                [
-                    self.corners(),
-                    np.append(self.corners()[1:], len(self.contour())),
-                ]
-            )
-            self._sides = ret
-        return self._sides
+        (ret,) = (np.linalg.inv(mat) @ vec).transpose(2, 0, 1)
+        return ret
 
     def normal(self):
         """
@@ -260,18 +293,18 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         """
         # XXX: Current model assumes sharp polygon.
         # After smooth corner region detection is done, enhance this!
-        SHIFT = self.corners()[0]
-        corners = self.corners() - SHIFT
-        reps = np.diff(np.append(corners, len(self.contour())))
+        SHIFT = self.vertices()[0]
+        vertices = self.vertices() - SHIFT
+        reps = np.diff(np.append(vertices, len(self.contour())))
 
-        _, thetas = self.side_lines().transpose(2, 0, 1)
+        _, thetas = self.sidelines().transpose(2, 0, 1)
         n = np.stack([-np.cos(thetas), -np.sin(thetas)]).transpose(1, 2, 0)
 
         return np.roll(np.repeat(n, reps, axis=0), SHIFT, axis=0)
 
     def examine(self) -> Optional[PolySubstrateError]:
         try:
-            self.corners()
+            self.vertices()
         except PolySubstrateError as err:
             return err
         return None
