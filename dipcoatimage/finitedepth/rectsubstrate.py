@@ -136,7 +136,7 @@ class RectSubstrate(
     DrawMode: TypeAlias = RectSubstrateDrawMode
 
     def hull(self):
-        return cv2.convexHull(self.contour())
+        return np.flip(cv2.convexHull(self.contour()), axis=0)
 
     def hull_projections(self):
         if not hasattr(self, "_hull_projections"):

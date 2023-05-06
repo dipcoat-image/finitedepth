@@ -463,8 +463,7 @@ class RectLayerShape(
             p0, p1 = contactline_points
 
             subst_point = self.substrate_point()
-            hull = np.flip(self.substrate.hull(), axis=0)
-            (hull,) = (hull + subst_point).transpose(1, 0, 2)
+            (hull,) = (self.substrate.hull() + subst_point).transpose(1, 0, 2)
             dh = np.diff(hull, axis=0)
             dh_dot_dh = np.sum(dh * dh, axis=-1)
 
