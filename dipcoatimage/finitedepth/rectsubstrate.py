@@ -20,13 +20,13 @@ import dataclasses
 import enum
 import numpy as np
 import numpy.typing as npt
-from typing import Tuple
 from .polysubstrate import PolySubstrateParameters, PolySubstrateBase
 from .util import (
     colorize,
     FeatureDrawingOptions,
     Color,
 )
+from .util.geometry import find_polyline_projections
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -127,18 +127,27 @@ class RectSubstrate(
 
     """
 
+    __slots__ = ("_hull_projections",)
+
     Parameters = PolySubstrateParameters
     DrawOptions = RectSubstrateDrawOptions
     SidesNum = 4
 
     DrawMode: TypeAlias = RectSubstrateDrawMode
 
-    def edge_hull(self) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.float64]]:
-        hull = np.flip(cv2.convexHull(self.contour()), axis=0)
-        # TODO: get more points by interpolating to `hull`
-        tangent = np.gradient(hull, axis=0)
-        # TODO: perform edge tangent flow to get smoother curve
-        return hull, tangent
+    def hull(self):
+        return cv2.convexHull(self.contour())
+
+    def hull_projections(self):
+        if not hasattr(self, "_hull_projections"):
+            hull = self.hull()
+            hull = np.concatenate([hull, hull[:1]])
+            # project contour points to hull
+            m, t = find_polyline_projections(self.contour(), hull).T
+            m = m.astype(int)
+            A, B = hull[m], hull[m + 1]
+            self._hull_projections = A + t[..., np.newaxis, np.newaxis] * (B - A)
+        return self._hull_projections
 
     def draw(self) -> npt.NDArray[np.uint8]:
         draw_mode = self.draw_options.draw_mode
@@ -169,10 +178,9 @@ class RectSubstrate(
 
         hull_opts = self.draw_options.hull
         if hull_opts.thickness > 0:
-            hull, _ = self.edge_hull()
             cv2.polylines(
                 ret,
-                [hull],
+                [self.hull().astype(np.int32)],
                 isClosed=False,
                 color=dataclasses.astuple(hull_opts.color),
                 thickness=hull_opts.thickness,
