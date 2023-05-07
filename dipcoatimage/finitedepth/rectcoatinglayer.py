@@ -33,6 +33,7 @@ import dataclasses
 import enum
 import numpy as np
 import numpy.typing as npt
+from scipy.optimize import root  # type: ignore
 from typing import TypeVar, Type, Tuple, Optional
 from .rectsubstrate import RectSubstrate
 from .coatinglayer import (
@@ -498,36 +499,15 @@ class RectLayerShape(
             nh_len = new_hull.shape[0]
             if not np.all(new_hull[nh_len - 1] == proj2):
                 new_hull = np.insert(new_hull, nh_len, proj2, axis=0)
-            t = np.arange(new_hull.shape[0])
-
-            # find thickness
-            dt = np.diff(t, append=t[-1] + (t[-1] - t[-2]))
-            tangent = np.gradient(new_hull, t, axis=0)
-            normal = np.dot(tangent, ROTATION_MATRIX)
-            n = normal / np.linalg.norm(normal, axis=1)[..., np.newaxis]
-            dndt = np.gradient(n, t, axis=0)
 
             S = self.layer_area()
-            L0 = 10  # initial value
-            L_NUM = 100  # interval number
+            L0 = 10
+            L = root(lambda t: polyline_parallel_area(new_hull, t) - S, L0).x
 
-            def findL(l0, l_num):
-                l_pts = np.linspace(0, l0, l_num)
-                dl = np.diff(l_pts, append=l_pts[-1] + (l_pts[-1] - l_pts[-2]))
-                e_t = tangent[..., np.newaxis] + np.tensordot(dndt, l_pts, axes=0)
-                G = (
-                    np.sum(e_t * e_t, axis=1)
-                    - np.tensordot(np.sum(n * dndt, axis=1), l_pts, axes=0) ** 2
-                )
-                dS = np.sqrt(G) * dt[..., np.newaxis] * dl
-                S_i = np.cumsum(np.sum(dS, axis=0))
-                k0 = (S_i[-1] - S_i[-2]) / dl[-1]
-                newL = max(0, (S - S_i[-1]) / k0 + l0)
-                if l_pts[-2] <= newL <= l_pts[-1]:
-                    return newL
-                return findL(newL, l_num)
+            tan = np.gradient(new_hull, axis=0)
+            normal = np.dot(tan, ROTATION_MATRIX)
+            n = normal / np.linalg.norm(normal, axis=1)[..., np.newaxis]
 
-            L = findL(L0, L_NUM)
             self._uniform_layer = (L, new_hull + L * n)
 
         return self._uniform_layer
