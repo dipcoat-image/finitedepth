@@ -71,6 +71,7 @@ __all__ = [
     "RectLayerShapeData",
     "RectLayerShape",
     "find_projection",
+    "polyline_parallel_area",
 ]
 
 
@@ -740,3 +741,10 @@ def find_projection(point, A, B):
     t = np.dot(Ap, AB) / np.dot(AB, AB)
     A_Proj = np.tensordot(t, AB, axes=0)
     return A + A_Proj
+
+
+def polyline_parallel_area(P: npt.NDArray, t: float):
+    vec = np.diff(P, axis=0)
+    d_l = np.linalg.norm(vec, axis=-1)
+    d_theta = np.abs(np.diff(np.arctan2(vec[..., 1], vec[..., 0])))
+    return np.sum(d_l) * t + np.sum(d_theta) * (t**2) / 2
