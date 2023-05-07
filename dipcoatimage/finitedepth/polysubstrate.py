@@ -292,23 +292,6 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         (ret,) = (np.linalg.inv(mat) @ vec).transpose(2, 0, 1)
         return ret
 
-    def normal(self):
-        """
-        Return unit normal vectors on each point of contour.
-
-        Uses polygon model.
-        """
-        # XXX: Current model assumes sharp polygon.
-        # After smooth corner region detection is done, enhance this!
-        SHIFT = self.vertices()[0]
-        vertices = self.vertices() - SHIFT
-        reps = np.diff(np.append(vertices, len(self.contour())))
-
-        _, thetas = self.sidelines().transpose(2, 0, 1)
-        n = np.stack([-np.cos(thetas), -np.sin(thetas)]).transpose(1, 2, 0)
-
-        return np.roll(np.repeat(n, reps, axis=0), SHIFT, axis=0)
-
     def examine(self) -> Optional[PolySubstrateError]:
         try:
             self.vertices()
