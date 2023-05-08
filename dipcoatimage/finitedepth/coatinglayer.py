@@ -424,6 +424,7 @@ class CoatingLayerBase(
                 # (A) Starting point of contour lies on the interface, therefore
                 # index jumps from the last to first.
                 # (B) Discrete interface.
+
                 # First, roll the array to handle interface being over boundary.
                 noninterface_idx, _ = np.nonzero(~mask)
 
@@ -453,8 +454,10 @@ class CoatingLayerBase(
 
                 intervals = np.zeros((len(jumps) + 1, 2), dtype=np.float64)
                 for i, prj in enumerate(np.split(prj, jumps, axis=0)):
-                    # Sort along the substrate contour and store as interval
-                    intervals[i] = np.sort(prj)[[0, -1]]
+                    # Store as interval. Points are reversed (-1 is the first)
+                    # because prj is sorted by the direction of interface, which
+                    # is opposite to the substrate contour.
+                    intervals[i] = prj[[-1, 0]]
 
                 # merge overlapping intervals
                 # https://www.geeksforgeeks.org/merging-intervals/

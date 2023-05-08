@@ -136,6 +136,7 @@ class RectSubstrate(
     DrawMode: TypeAlias = RectSubstrateDrawMode
 
     def hull(self):
+        # Flip s.t. the hull has same direction with the contour.
         return np.flip(cv2.convexHull(self.contour()), axis=0)
 
     def hull_projections(self):
