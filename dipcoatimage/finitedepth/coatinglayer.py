@@ -68,7 +68,7 @@ from .util import (
     binarize,
     colorize,
 )
-from .util.geometry import find_polyline_projections
+from .util.geometry import project_on_polyline
 from typing import TypeVar, Generic, Type, Optional, Tuple, List
 
 try:
@@ -449,15 +449,12 @@ class CoatingLayerBase(
                 (jumps,) = np.nonzero((diff != 1) & (diff != -(len(layer_cnt) - 1)))
                 # Find projection from interface points (in layer contour)
                 # onto substrate, and split by discontinuities.
-                projections = find_polyline_projections(
-                    interface_pts[:, np.newaxis],
-                    subst_cnt,
-                )
+                prj = project_on_polyline(interface_pts[:, np.newaxis], subst_cnt)
 
                 intervals = np.zeros((len(jumps) + 1, 2), dtype=np.float64)
-                for i, prj in enumerate(np.split(projections, jumps, axis=0)):
+                for i, prj in enumerate(np.split(prj, jumps, axis=0)):
                     # Sort along the substrate contour and store as interval
-                    intervals[i] = np.sort(np.sum(prj, axis=-1))[[0, -1]]
+                    intervals[i] = np.sort(prj)[[0, -1]]
 
                 # merge overlapping intervals
                 # https://www.geeksforgeeks.org/merging-intervals/

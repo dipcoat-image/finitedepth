@@ -26,7 +26,7 @@ from .util import (
     FeatureDrawingOptions,
     Color,
 )
-from .util.geometry import find_polyline_projections
+from .util.geometry import project_on_polyline, polyline_points
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -142,11 +142,8 @@ class RectSubstrate(
         if not hasattr(self, "_hull_projections"):
             hull = self.hull()
             hull = np.concatenate([hull, hull[:1]])
-            # project contour points to hull
-            m, t = find_polyline_projections(self.contour(), hull).T
-            m = m.astype(int)
-            A, B = hull[m], hull[m + 1]
-            self._hull_projections = A + t[..., np.newaxis, np.newaxis] * (B - A)
+            prj = project_on_polyline(self.contour(), hull)
+            self._hull_projections = polyline_points(prj, hull)
         return self._hull_projections
 
     def draw(self) -> npt.NDArray[np.uint8]:

@@ -55,7 +55,7 @@ from .util import (
     Color,
     colorize,
 )
-from .util.geometry import find_polyline_projections
+from .util.geometry import project_on_polyline, polyline_points
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -466,17 +466,13 @@ class RectLayerShape(
 
             hull = self.substrate.hull() + self.substrate_point()
             hull = np.concatenate([hull, hull[:1]])
-            i0, i1 = np.sum(find_polyline_projections(contact_points, hull), axis=-1)
+            i0, i1 = project_on_polyline(contact_points, hull)
             idx = np.arange(int(i0 + 1), int(i1 + 1), dtype=float)
             if idx[0] > i0:
                 idx = np.insert(idx, 0, i0)
             if idx[-1] < i1:
                 idx = np.insert(idx, len(idx), i1)
-
-            idx_int = idx.astype(int)
-            vec = np.diff(hull, axis=0)[idx_int]
-            idx_shape = (-1,) + (1,) * (len(vec.shape) - 1)
-            new_hull = hull[idx_int] + vec * (idx - idx_int).reshape(idx_shape)
+            new_hull = polyline_points(idx, hull)
 
             S = self.layer_area()
             L0 = 10
