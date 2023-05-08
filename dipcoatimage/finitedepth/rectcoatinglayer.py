@@ -55,6 +55,7 @@ from .util import (
     Color,
     colorize,
 )
+from .util.geometry import find_polyline_projections
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -457,48 +458,25 @@ class RectLayerShape(
         """
         if not hasattr(self, "_uniform_layer"):
             # get contact line points
-            contactline_points = self.interfaces_boundaries()
-            if len(contactline_points) == 0:
-                layer = np.empty((0, 1, 2), dtype=np.float64)
-                self._uniform_layer = (np.float64(0), layer)
-                return self._uniform_layer
-            p0, p1 = contactline_points
-
-            subst_point = self.substrate_point()
-            (hull,) = (self.substrate.hull() + subst_point).transpose(1, 0, 2)
-            dh = np.diff(hull, axis=0)
-            dh_dot_dh = np.sum(dh * dh, axis=-1)
-
-            def find_projection(p):
-                h_p = p - hull[:-1, ...]
-                dh_scale_p = np.sum(h_p * dh, axis=-1) / dh_dot_dh
-                p_mask = (0 <= dh_scale_p) & (dh_scale_p <= 1)
-                if np.any(p_mask):
-                    p_proj_origins = hull[:-1, ...][p_mask, ...]
-                    p_proj_vecs = dh_scale_p[p_mask][..., np.newaxis] * dh[p_mask, ...]
-                    p_proj_dists = np.linalg.norm(h_p[p_mask] - p_proj_vecs, axis=-1)
-                    idx = np.argmin(p_proj_dists)
-                    i = np.arange(hull[:-1, ...].shape[0])[p_mask][idx]
-                    p_proj = (p_proj_origins + p_proj_vecs)[idx]
-                else:
-                    i = 0
-                    p_proj = np.empty((0, 2), dtype=np.float64)
-                return i + 1, p_proj
-
-            (i1, proj1), (i2, proj2) = sorted(
-                [find_projection(p0), find_projection(p1)], key=lambda x: x[0]
-            )
-            new_hull = hull[int(i1) : int(i2)].astype(np.float64)
-            if new_hull.size == 0:
+            contact_points = self.interfaces_boundaries()
+            if len(contact_points) == 0:
                 layer = np.empty((0, 1, 2), dtype=np.float64)
                 self._uniform_layer = (np.float64(0), layer)
                 return self._uniform_layer
 
-            if not np.all(new_hull[0] == proj1):
-                new_hull = np.insert(new_hull, 0, proj1, axis=0)
-            nh_len = new_hull.shape[0]
-            if not np.all(new_hull[nh_len - 1] == proj2):
-                new_hull = np.insert(new_hull, nh_len, proj2, axis=0)
+            hull = self.substrate.hull() + self.substrate_point()
+            hull = np.concatenate([hull, hull[:1]])
+            i0, i1 = np.sum(find_polyline_projections(contact_points, hull), axis=-1)
+            idx = np.arange(int(i0 + 1), int(i1 + 1), dtype=float)
+            if idx[0] > i0:
+                idx = np.insert(idx, 0, i0)
+            if idx[-1] < i1:
+                idx = np.insert(idx, len(idx), i1)
+
+            idx_int = idx.astype(int)
+            vec = np.diff(hull, axis=0)[idx_int]
+            idx_shape = (-1,) + (1,) * (len(vec.shape) - 1)
+            new_hull = hull[idx_int] + vec * (idx - idx_int).reshape(idx_shape)
 
             S = self.layer_area()
             L0 = 10
@@ -506,7 +484,7 @@ class RectLayerShape(
 
             tan = np.gradient(new_hull, axis=0)
             normal = np.dot(tan, ROTATION_MATRIX)
-            n = normal / np.linalg.norm(normal, axis=1)[..., np.newaxis]
+            n = normal / np.linalg.norm(normal, axis=-1)[..., np.newaxis]
 
             self._uniform_layer = (L, new_hull + L * n)
 
