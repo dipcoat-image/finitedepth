@@ -88,34 +88,32 @@ def lines_points(
     A, B = lines.transpose(1, 0, 2)  # shape: (M, D)
     AB = B - A  # shape: (M, D)
     idx = parameters.astype(int)
-    idx_shape = idx.shape + (-1,)
-    return A[idx] + AB * (parameters - idx).reshape(idx_shape)
+    return A[idx] + AB * (parameters - idx)[..., np.newaxis]
 
 
 def project_on_polyline(
-    points: npt.NDArray, line: npt.NDArray
+    points: npt.NDArray, polyline: npt.NDArray
 ) -> npt.NDArray[np.float64]:
     """
-    Find the projections[1]_ of points onto a polyline[2]_.
-
-    The resulting projections are the points in the *line* with the smallest
-    distance to each *points*.
+    Find the projections[1]_ of points with the smallest distance onto a
+    polyline[2]_.
 
     Parameters
     ----------
     points: ndarray
-        Coordinate of the points.
+        Coordinate of the points which are projected to *polyline*.
         The shape must be `(N, 1, D)` where `N` is the number of points and `D`
         is the dimension.
-    line: ndarray
-        Vertices of a polyline.
-        The shape must be `(M, 1, D)` where `M` is the number of vertices and
+    polyline: ndarray
+        Coordinates of the polyline vertices.
+        The shape must be `(1, M, D)` where `M` is the number of vertices and
         `D` is the dimension.
 
     Returns
     -------
     ndarray
         Parameters for the projection points on the polyline.
+        The shape is `(N,)`.
 
     Notes
     -----
@@ -133,13 +131,14 @@ def project_on_polyline(
     .. [1] https://en.wikipedia.org/wiki/Projection_(mathematics)
     .. [2] https://en.wikipedia.org/wiki/Polygonal_chain
     """
-    line = line.transpose(1, 0, 2)
-    Ap = (points - line)[:, :-1]
-    AB = np.diff(line, axis=1)
-    t = np.clip(np.sum(Ap * AB, axis=-1) / np.sum(AB * AB, axis=-1), 0, 1)
-    Projs = line[:, :-1] + (t[..., np.newaxis] * AB)
-    dists = np.linalg.norm(Projs - points, axis=-1)
-    closest_lines = np.argmin(dists, axis=1)
+    A = polyline[:, :-1, :]  # shape: (1, M - 1, D)
+    Ap = points - A  # shape: (N, M - 1, D)
+    AB = np.diff(polyline, axis=1)  # shape: (1, M - 1, D)
+    t = np.sum(Ap * AB, axis=-1) / np.sum(AB * AB, axis=-1)  # shape: (N, M - 1)
+    t = np.clip(t, 0, 1)
+    Projs = A + AB * t[..., np.newaxis]  # shape: (N, M - 1, D)
+    dists = np.linalg.norm(Projs - points, axis=-1)  # shape: (N, M - 1)
+    closest_lines = np.argmin(dists, axis=-1)  # shape: (N,)
     return closest_lines + t[np.arange(len(points)), closest_lines]
 
 

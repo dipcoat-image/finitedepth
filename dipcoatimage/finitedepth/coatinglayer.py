@@ -450,7 +450,10 @@ class CoatingLayerBase(
                 (jumps,) = np.nonzero((diff != 1) & (diff != -(len(layer_cnt) - 1)))
                 # Find projection from interface points (in layer contour)
                 # onto substrate, and split by discontinuities.
-                prj = project_on_polyline(interface_pts[:, np.newaxis], subst_cnt)
+                prj = project_on_polyline(
+                    interface_pts[:, np.newaxis],
+                    subst_cnt.transpose(1, 0, 2),
+                )
 
                 intervals = np.zeros((len(jumps) + 1, 2), dtype=np.float64)
                 for i, prj in enumerate(np.split(prj, jumps, axis=0)):
