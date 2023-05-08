@@ -2,172 +2,175 @@ import numpy as np
 import numpy.typing as npt
 
 __all__ = [
-    "project_on_lines",
-    "lines_points",
-    "project_on_polyline",
-    "polyline_points",
+    "project_on_polylines",
+    "polylines_external_points",
+    "closest_in_polylines",
+    "polylines_internal_points",
     "polyline_parallel_area",
 ]
 
 
-def project_on_lines(
-    points: npt.NDArray, lines: npt.NDArray
+def project_on_polylines(
+    points: npt.NDArray, polylines: npt.NDArray
 ) -> npt.NDArray[np.float64]:
     """
-    Find orthogonal projections[1]_ of points onto lines.
+    Find orthogonal projections[1]_ of points onto extended edges of the
+    polylines[2]_ which have same number of vertices.
 
     Parameters
     ----------
     points: ndarray
-        Coordinate of the points which are projected to *lines*.
+        Coordinates of the points which are projected to *polylines*.
         The shape must be `(N, 1, D)` where `N` is the number of points and `D`
         is the dimension.
-    lines: ndarray
-        Coordinate of the points representing infinite lines.
-        The shape must be `(M, 2, D)` where `M` is the number of lines and `D` is
-        the dimension. The second axis is for the two points which constitute a
-        line.
+    polylines: ndarray
+        Coordinates of the polyline vertices.
+        The shape must be `(M, V, D)` where `M` is the number of polylines,
+        `V` is the number of vertices and `D` is the dimension.
 
     Returns
     -------
     ndarray
         Parameters for the projection points on each line.
-        The shape is `(N, M)`.
+        The shape is `(N, M, V - 1)`.
 
     Notes
     -----
     This function takes orthogonal projection onto the infinite lines represented
     by two points, not onto the line segment.
 
+    A parameter is a real number which specifies the position of a point in the
+    infinite line. For example, if a point on the line which passes through
+    points $P_1$ and $P_2$ is specified the parameter $1.2$, its location is
+    $P_1 + 1.2(P_2 - P_1)$.
+
     See Also
     --------
-    lines_points : Converts the line parameters to line points.
+    polylines_external_points : Converts the parameters to points on extended
+    edges of polylines.
 
     References
     ----------
     .. [1] https://en.wikipedia.org/wiki/Projection_(linear_algebra)
-
+    .. [2] https://en.wikipedia.org/wiki/Polygonal_chain
     """
-    A, B = lines.transpose(1, 0, 2)  # shape: (M, D)
-    Ap = points - A  # shape: (N, M, D)
-    AB = B - A  # shape: (M, D)
-    return np.sum(Ap * AB, axis=-1) / np.sum(AB * AB, axis=-1)  # shape: (N, M)
+    A = polylines[:, :-1, :]  # shape: (M, V - 1, D)
+    Ap = points[:, np.newaxis] - A[np.newaxis, :]  # shape: (N, M, V - 1, D)
+    AB = np.diff(polylines, axis=1)[np.newaxis, ...]  # shape: (1, M, V - 1, D)
+    return np.sum(Ap * AB, axis=-1) / np.sum(AB * AB, axis=-1)
 
 
-def lines_points(
-    parameters: npt.NDArray, lines: npt.NDArray
+def polylines_external_points(
+    parameters: npt.NDArray, polylines: npt.NDArray
 ) -> npt.NDArray[np.float64]:
     """
-    Get the coordinates of points in infinite lines from the parameters.
+    Get the coordinates of points in extended edges of polylines[1]_ from the
+    parameters.
 
     Parameters
     ----------
     parameters: ndarray
-        Parameters for the points in lines.
-        The shape must be `(N, M)` where `N` is the number of points and `M` is
-        the number of lines.
-    lines: ndarray
-        Coordinate of the points representing infinite lines.
-        The shape must be `(M, 2, D)` where `M` is the number of lines and `D` is
-        the dimension. The second axis is for the two points which constitute a
-        line.
+        Parameters for the points in polylines.
+        The shape must be `(N, M, V - 1)` where `N` is the number of points,
+        where `M` is the number of polylines and `V` is the number of vertices.
+    polylines: ndarray
+        Coordinates of the polyline vertices.
+        The shape must be `(M, V, D)` where `M` is the number of polylines,
+        `V` is the number of vertices and `D` is the dimension.
 
     Returns
     -------
     ndarray
-        Coordinates of the points in each line.
-        The shape is `(N, M, D)`.
+        Coordinates of the points in extended edges of polylines.
+        The shape is `(N, M, V - 1, D)`.
 
-    Notes
-    -----
-    A parameter is a real number which specifies the position of a point in the
-    infinite line represented by two points. For example, a parameter $1.2$
-    represents $P_1 + 1.2(P_2 - P_1)$ on the line which passes through $P_1$ and
-    $P_2$.
+    References
+    ----------
+    .. [1] https://en.wikipedia.org/wiki/Polygonal_chain
+
     """
-    A, B = lines.transpose(1, 0, 2)  # shape: (M, D)
-    AB = B - A  # shape: (M, D)
-    idx = parameters.astype(int)
-    return A[idx] + AB * (parameters - idx)[..., np.newaxis]
+    A = polylines[:, :-1, :]  # shape: (M, V - 1, D)
+    AB = np.diff(polylines, axis=1)[np.newaxis, ...]  # shape: (1, M, V - 1, D)
+    t = parameters[..., np.newaxis]  # shape: (N, M, V - 1, 1)
+    return A + AB * t
 
 
-def project_on_polyline(
-    points: npt.NDArray, polyline: npt.NDArray
+def closest_in_polylines(
+    points: npt.NDArray, polylines: npt.NDArray
 ) -> npt.NDArray[np.float64]:
     """
-    Find the projections[1]_ of points with the smallest distance onto a
-    polyline[2]_.
+    Find the projections[1]_ of points with the smallest distance onto
+    polylines[2]_.
 
     Parameters
     ----------
     points: ndarray
-        Coordinate of the points which are projected to *polyline*.
+        Coordinates of the points which are projected to *polylines*.
         The shape must be `(N, 1, D)` where `N` is the number of points and `D`
         is the dimension.
-    polyline: ndarray
+    polylines: ndarray
         Coordinates of the polyline vertices.
-        The shape must be `(1, V, D)` where `V` is the number of vertices and
-        `D` is the dimension.
+        The shape must be `(M, V, D)` where `M` is the number of polylines,
+        `V` is the number of vertices and `D` is the dimension.
 
     Returns
     -------
     ndarray
-        Parameters for the projection points on the polyline.
-        The shape is `(N,)`.
+        Parameters for the projection points on polylines.
+        The shape is `(N, M)`.
 
     Notes
     -----
     This function does not take the projection onto the extension of the line
-    segment. All projections are confined in the polyline. If an orthogonal
+    segment. All projections are confined in each polyline. If an orthogonal
     projection lies outside of the line segment, the closest point in the segment
     is returned.
 
     See Also
     --------
-    polyline_points : Converts the polyline parameters to polyline points.
+    polylines_internal_points : Converts the parameters to points on internal
+    edges of polylines.
 
     References
     ----------
     .. [1] https://en.wikipedia.org/wiki/Projection_(mathematics)
     .. [2] https://en.wikipedia.org/wiki/Polygonal_chain
     """
-    A = polyline[:, :-1, :]  # shape: (1, V - 1, D)
-    Ap = points - A  # shape: (N, V - 1, D)
-    AB = np.diff(polyline, axis=1)  # shape: (1, V - 1, D)
-    t = np.sum(Ap * AB, axis=-1) / np.sum(AB * AB, axis=-1)  # shape: (N, V - 1)
-    t = np.clip(t, 0, 1)
-    Projs = A + AB * t[..., np.newaxis]  # shape: (N, V - 1, D)
-    dists = np.linalg.norm(Projs - points, axis=-1)  # shape: (N, V - 1)
-    closest_lines = np.argmin(dists, axis=-1)  # shape: (N,)
-    return closest_lines + t[np.arange(len(points)), closest_lines]
+    t = np.clip(project_on_polylines(points, polylines), 0, 1)  # shape: (N, M, V - 1)
+    prj = polylines_external_points(t, polylines)  # (N, M, V - 1, D)
+    dists = np.linalg.norm(points[..., np.newaxis, :] - prj, axis=-1)  # (N, M, V - 1)
+    closest_lines = np.argmin(dists, axis=-1)  # (N, M)
+    idx_arr = np.ix_(*[np.arange(dim) for dim in closest_lines.shape])
+    return closest_lines + t[idx_arr + (closest_lines,)]
 
 
-def polyline_points(
-    parameters: npt.NDArray, polyline: npt.NDArray
+def polylines_internal_points(
+    parameters: npt.NDArray, polylines: npt.NDArray
 ) -> npt.NDArray[np.float64]:
     """
-    Get the coordinates of points in a polyline[1]_ from the parameters.
+    Get the coordinates of points in edges of polylines[1]_ from the parameters.
 
     Parameters
     ----------
     parameters: ndarray
         Parameters for the points in polylines.
-        The shape must be `(N,)` where `N` is the number of points.
-    polyline: ndarray
+        The shape must be `(N, M)` where `N` is the number of points and `M` is
+        the number of polylines.
+    polylines: ndarray
         Coordinates of the polyline vertices.
-        The shape must be `(1, V, D)` where `V` is the number of vertices and
-        `D` is the dimension.
+        The shape must be `(M, V, D)` where `M` is the number of polylines,
+        `V` is the number of vertices and `D` is the dimension.
 
     Returns
     -------
     ndarray
-        Coordinates of the points in the polyline.
-        The shape is `(N, 1, D)`.
+        Coordinates of the points in polylines.
+        The shape is `(N, M, D)`.
 
     Notes
     -----
-    A parameter is a non-negative real number which specifies the position of a
-    point in the polyline. The integer part describes which line segment the
+    The parameters are non-negative real numbers which specify the position of
+    points in the polylines. The integer part describes which line segment the
     point belongs to and the decimal parts where the point is in the segment.
     For example, a parameter $1.2$ represents $P_1 + 0.2(P_2 - P_1)$ where
     $P_i$ is i-th vertex of the polyline.
@@ -177,11 +180,12 @@ def polyline_points(
     .. [1] https://en.wikipedia.org/wiki/Polygonal_chain
 
     """
-    AB = np.diff(polyline, axis=1)  # shape: (1, V - 1, D)
-    idx = parameters.astype(int)  # shape: (N,)
-    A = polyline.transpose(1, 0, 2)[idx]  # shape: (N, 1, D)
-    t = AB.transpose(1, 0, 2)[idx] * (parameters - idx)[..., np.newaxis, np.newaxis]
-    return A + t
+    A = polylines[:, :-1, :].transpose(1, 0, 2)  # shape: (V - 1, M, D)
+    AB = np.diff(polylines, axis=1).transpose(1, 0, 2)  # shape: (V - 1, M, D)
+    idx = parameters.astype(int)  # shape: (N, M)
+    idx_arr = np.ix_(*[np.arange(dim) for dim in idx.shape])
+    t = (parameters - idx)[..., np.newaxis]
+    return A[(idx,) + idx_arr[1:]] + t * AB[(idx,) + idx_arr[1:]]
 
 
 def polyline_parallel_area(line: npt.NDArray, t: float) -> np.float64:

@@ -26,7 +26,7 @@ from .util import (
     FeatureDrawingOptions,
     Color,
 )
-from .util.geometry import project_on_polyline, polyline_points
+from .util.geometry import closest_in_polylines, polylines_internal_points
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -141,10 +141,11 @@ class RectSubstrate(
 
     def hull_projections(self):
         if not hasattr(self, "_hull_projections"):
+            cnt_pts = self.contour()  # shape: (N, 1, D)
             hull = self.hull()
-            hull = np.concatenate([hull, hull[:1]]).transpose(1, 0, 2)
-            prj = project_on_polyline(self.contour(), hull)
-            self._hull_projections = polyline_points(prj, hull)
+            hull = np.concatenate([hull, hull[:1]]).transpose(1, 0, 2)  # (M, V, D)
+            idxs = closest_in_polylines(cnt_pts, hull)
+            self._hull_projections = polylines_internal_points(idxs, hull)
         return self._hull_projections
 
     def draw(self) -> npt.NDArray[np.uint8]:

@@ -56,10 +56,10 @@ from .util import (
     colorize,
 )
 from .util.geometry import (
-    project_on_lines,
-    lines_points,
-    project_on_polyline,
-    polyline_points,
+    project_on_polylines,
+    polylines_external_points,
+    closest_in_polylines,
+    polylines_internal_points,
     polyline_parallel_area,
 )
 
@@ -452,8 +452,9 @@ class RectLayerShape(
         mask = np.cross(P2 - P1, surface - P1) >= 0
         pts = surface[mask][:, np.newaxis]
         lines = np.stack([P1, P2])[np.newaxis, ...]
-        prj = project_on_lines(pts, lines)
-        prj_pts = lines_points(prj, lines)
+
+        prj = project_on_polylines(pts, lines)
+        prj_pts = np.squeeze(polylines_external_points(prj, lines), axis=2)
         return np.concatenate([pts, prj_pts], axis=1)
 
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
@@ -471,13 +472,13 @@ class RectLayerShape(
 
             hull = self.substrate.hull() + self.substrate_point()
             hull = np.concatenate([hull, hull[:1]]).transpose(1, 0, 2)
-            i0, i1 = project_on_polyline(contact_points, hull)
+            ((i0, i1),) = closest_in_polylines(contact_points, hull).T
             idx = np.arange(int(i0 + 1), int(i1 + 1), dtype=float)
             if idx[0] > i0:
                 idx = np.insert(idx, 0, i0)
             if idx[-1] < i1:
                 idx = np.insert(idx, len(idx), i1)
-            new_hull = polyline_points(idx, hull)
+            new_hull = polylines_internal_points(idx.reshape(-1, 1), hull)
 
             S = self.layer_area()
             L0 = 10

@@ -68,7 +68,7 @@ from .util import (
     binarize,
     colorize,
 )
-from .util.geometry import project_on_polyline
+from .util.geometry import closest_in_polylines
 from typing import TypeVar, Generic, Type, Optional, Tuple, List
 
 try:
@@ -450,10 +450,10 @@ class CoatingLayerBase(
                 (jumps,) = np.nonzero((diff != 1) & (diff != -(len(layer_cnt) - 1)))
                 # Find projection from interface points (in layer contour)
                 # onto substrate, and split by discontinuities.
-                prj = project_on_polyline(
+                (prj,) = closest_in_polylines(
                     interface_pts[:, np.newaxis],
                     subst_cnt.transpose(1, 0, 2),
-                )
+                ).T
 
                 intervals = np.zeros((len(jumps) + 1, 2), dtype=np.float64)
                 for i, prj in enumerate(np.split(prj, jumps, axis=0)):
