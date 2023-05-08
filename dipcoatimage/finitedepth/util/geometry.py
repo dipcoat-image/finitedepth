@@ -106,7 +106,7 @@ def project_on_polyline(
         is the dimension.
     polyline: ndarray
         Coordinates of the polyline vertices.
-        The shape must be `(1, M, D)` where `M` is the number of vertices and
+        The shape must be `(1, V, D)` where `V` is the number of vertices and
         `D` is the dimension.
 
     Returns
@@ -131,19 +131,19 @@ def project_on_polyline(
     .. [1] https://en.wikipedia.org/wiki/Projection_(mathematics)
     .. [2] https://en.wikipedia.org/wiki/Polygonal_chain
     """
-    A = polyline[:, :-1, :]  # shape: (1, M - 1, D)
-    Ap = points - A  # shape: (N, M - 1, D)
-    AB = np.diff(polyline, axis=1)  # shape: (1, M - 1, D)
-    t = np.sum(Ap * AB, axis=-1) / np.sum(AB * AB, axis=-1)  # shape: (N, M - 1)
+    A = polyline[:, :-1, :]  # shape: (1, V - 1, D)
+    Ap = points - A  # shape: (N, V - 1, D)
+    AB = np.diff(polyline, axis=1)  # shape: (1, V - 1, D)
+    t = np.sum(Ap * AB, axis=-1) / np.sum(AB * AB, axis=-1)  # shape: (N, V - 1)
     t = np.clip(t, 0, 1)
-    Projs = A + AB * t[..., np.newaxis]  # shape: (N, M - 1, D)
-    dists = np.linalg.norm(Projs - points, axis=-1)  # shape: (N, M - 1)
+    Projs = A + AB * t[..., np.newaxis]  # shape: (N, V - 1, D)
+    dists = np.linalg.norm(Projs - points, axis=-1)  # shape: (N, V - 1)
     closest_lines = np.argmin(dists, axis=-1)  # shape: (N,)
     return closest_lines + t[np.arange(len(points)), closest_lines]
 
 
 def polyline_points(
-    parameters: npt.NDArray, line: npt.NDArray
+    parameters: npt.NDArray, polyline: npt.NDArray
 ) -> npt.NDArray[np.float64]:
     """
     Get the coordinates of points in a polyline[1]_ from the parameters.
@@ -151,15 +151,18 @@ def polyline_points(
     Parameters
     ----------
     parameters: ndarray
-        1-D array of non-negative real number.
-    line: ndarray
-        Vertices of a polyline.
-        Length of the first axis must be the number of vertices.
+        Parameters for the points in polylines.
+        The shape must be `(N,)` where `N` is the number of points.
+    polyline: ndarray
+        Coordinates of the polyline vertices.
+        The shape must be `(1, V, D)` where `V` is the number of vertices and
+        `D` is the dimension.
 
     Returns
     -------
     ndarray
         Coordinates of the points in the polyline.
+        The shape is `(N, 1, D)`.
 
     Notes
     -----
@@ -174,10 +177,11 @@ def polyline_points(
     .. [1] https://en.wikipedia.org/wiki/Polygonal_chain
 
     """
-    idx = parameters.astype(int)
-    vec = np.diff(line, axis=0)[idx]
-    idx_shape = (-1,) + (1,) * (len(vec.shape) - 1)
-    return line[idx] + vec * (parameters - idx).reshape(idx_shape)
+    AB = np.diff(polyline, axis=1)  # shape: (1, V - 1, D)
+    idx = parameters.astype(int)  # shape: (N,)
+    A = polyline.transpose(1, 0, 2)[idx]  # shape: (N, 1, D)
+    t = AB.transpose(1, 0, 2)[idx] * (parameters - idx)[..., np.newaxis, np.newaxis]
+    return A + t
 
 
 def polyline_parallel_area(line: npt.NDArray, t: float) -> np.float64:

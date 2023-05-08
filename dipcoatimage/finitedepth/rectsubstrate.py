@@ -142,8 +142,8 @@ class RectSubstrate(
     def hull_projections(self):
         if not hasattr(self, "_hull_projections"):
             hull = self.hull()
-            hull = np.concatenate([hull, hull[:1]])
-            prj = project_on_polyline(self.contour(), hull.transpose(1, 0, 2))
+            hull = np.concatenate([hull, hull[:1]]).transpose(1, 0, 2)
+            prj = project_on_polyline(self.contour(), hull)
             self._hull_projections = polyline_points(prj, hull)
         return self._hull_projections
 

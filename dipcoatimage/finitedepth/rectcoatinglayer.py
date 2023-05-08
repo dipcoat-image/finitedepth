@@ -470,8 +470,8 @@ class RectLayerShape(
                 return self._uniform_layer
 
             hull = self.substrate.hull() + self.substrate_point()
-            hull = np.concatenate([hull, hull[:1]])
-            i0, i1 = project_on_polyline(contact_points, hull.transpose(1, 0, 2))
+            hull = np.concatenate([hull, hull[:1]]).transpose(1, 0, 2)
+            i0, i1 = project_on_polyline(contact_points, hull)
             idx = np.arange(int(i0 + 1), int(i1 + 1), dtype=float)
             if idx[0] > i0:
                 idx = np.insert(idx, 0, i0)
