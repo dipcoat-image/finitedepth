@@ -58,7 +58,7 @@ def lines_points(
     parameters: npt.NDArray, lines: npt.NDArray
 ) -> npt.NDArray[np.float64]:
     """
-    Get the coordinates of points in lines from the parameters.
+    Get the coordinates of points in infinite lines from the parameters.
 
     Parameters
     ----------
@@ -77,6 +77,13 @@ def lines_points(
     ndarray
         Coordinates of the points in each line.
         The shape is `(N, M, D)`.
+
+    Notes
+    -----
+    A parameter is a real number which specifies the position of a point in the
+    infinite line represented by two points. For example, a parameter $1.2$
+    represents $P_1 + 1.2(P_2 - P_1)$ on the line which passes through $P_1$ and
+    $P_2$.
     """
     A, B = lines.transpose(1, 0, 2)  # shape: (M, D)
     AB = B - A  # shape: (M, D)
