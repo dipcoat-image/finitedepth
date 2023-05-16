@@ -33,7 +33,6 @@ import dataclasses
 import enum
 import numpy as np
 import numpy.typing as npt
-from scipy.optimize import root  # type: ignore
 from typing import TypeVar, Type, Tuple, Optional
 from .rectsubstrate import RectSubstrate
 from .coatinglayer import (
@@ -60,7 +59,7 @@ from .util.geometry import (
     polylines_external_points,
     closest_in_polylines,
     polylines_internal_points,
-    polyline_parallel_area,
+    equidistant_interpolate,
 )
 
 try:
@@ -421,6 +420,45 @@ class RectLayerShape(
             self._layer_area = np.count_nonzero(self.extract_layer())
         return self._layer_area
 
+    def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
+        """
+        Return thickness and points for uniform layer that satisfies
+        :meth:`layer_area`.
+        """
+        if not hasattr(self, "_uniform_layer"):
+            # get contact line points
+            contact_points = self.interfaces_boundaries()
+            if len(contact_points) == 0:
+                layer = np.empty((0, 1, 2), dtype=np.float64)
+                self._uniform_layer = (np.float64(0), layer)
+                return self._uniform_layer
+
+            hull = self.substrate.hull() + self.substrate_point()
+            hull = np.concatenate([hull, hull[:1]]).transpose(1, 0, 2)
+            ((i0, i1),) = closest_in_polylines(contact_points, hull).T
+            idx = np.arange(int(i0 + 1), int(i1 + 1), dtype=float)
+            if idx[0] > i0:
+                idx = np.insert(idx, 0, i0)
+            if idx[-1] < i1:
+                idx = np.insert(idx, len(idx), i1)
+            new_hull = polylines_internal_points(idx.reshape(-1, 1), hull)
+
+            NUM_POINTS = self.parameters.RoughnessSamples
+            P = equidistant_interpolate(new_hull, NUM_POINTS).astype(np.float64)
+            surface = self.enclosing_surface()
+            Q = equidistant_interpolate(surface, NUM_POINTS).astype(np.float64)
+            ca = sfd(np.squeeze(P, axis=1), np.squeeze(Q, axis=1))
+            path = sfd_path(ca)
+            L = ca[-1, -1] / len(path)
+
+            tan = np.gradient(new_hull, axis=0)
+            normal = np.dot(tan, ROTATION_MATRIX)
+            n = normal / np.linalg.norm(normal, axis=-1)[..., np.newaxis]
+
+            self._uniform_layer = (np.float64(L), new_hull + L * n)
+
+        return self._uniform_layer
+
     def surface_projections(self, side: str) -> npt.NDArray[np.float64]:
         """
         For *side*, return the relevant surface points and its projections to
@@ -456,41 +494,6 @@ class RectLayerShape(
         prj = project_on_polylines(pts, lines)
         prj_pts = np.squeeze(polylines_external_points(prj, lines), axis=2)
         return np.concatenate([pts, prj_pts], axis=1)
-
-    def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
-        """
-        Return thickness and points for uniform layer that satisfies
-        :meth:`layer_area`.
-        """
-        if not hasattr(self, "_uniform_layer"):
-            # get contact line points
-            contact_points = self.interfaces_boundaries()
-            if len(contact_points) == 0:
-                layer = np.empty((0, 1, 2), dtype=np.float64)
-                self._uniform_layer = (np.float64(0), layer)
-                return self._uniform_layer
-
-            hull = self.substrate.hull() + self.substrate_point()
-            hull = np.concatenate([hull, hull[:1]]).transpose(1, 0, 2)
-            ((i0, i1),) = closest_in_polylines(contact_points, hull).T
-            idx = np.arange(int(i0 + 1), int(i1 + 1), dtype=float)
-            if idx[0] > i0:
-                idx = np.insert(idx, 0, i0)
-            if idx[-1] < i1:
-                idx = np.insert(idx, len(idx), i1)
-            new_hull = polylines_internal_points(idx.reshape(-1, 1), hull)
-
-            S = self.layer_area()
-            L0 = 10
-            (L,) = root(lambda t: polyline_parallel_area(new_hull, t) - S, L0).x
-
-            tan = np.gradient(new_hull, axis=0)
-            normal = np.dot(tan, ROTATION_MATRIX)
-            n = normal / np.linalg.norm(normal, axis=-1)[..., np.newaxis]
-
-            self._uniform_layer = (np.float64(L), new_hull + L * n)
-
-        return self._uniform_layer
 
     def roughness(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """Dimensional roughness value of the coating layer surface."""

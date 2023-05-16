@@ -7,6 +7,7 @@ __all__ = [
     "closest_in_polylines",
     "polylines_internal_points",
     "polyline_parallel_area",
+    "equidistant_interpolate",
 ]
 
 
@@ -214,3 +215,13 @@ def polyline_parallel_area(line: npt.NDArray, t: float) -> np.float64:
     d_l = np.linalg.norm(vec, axis=-1)
     d_theta = np.abs(np.diff(np.arctan2(vec[..., 1], vec[..., 0])))
     return np.float64(np.sum(d_l) * t + np.sum(d_theta) * (t**2) / 2)
+
+
+def equidistant_interpolate(points, n):
+    # https://stackoverflow.com/a/19122075
+    vec = np.diff(points, axis=0)
+    dist = np.linalg.norm(vec, axis=-1)
+    u = np.insert(np.cumsum(dist), 0, 0)
+    t = np.linspace(0, u[-1], n)
+    ret = np.column_stack([np.interp(t, u, a) for a in np.squeeze(points, axis=1).T])
+    return ret.reshape((n,) + points.shape[1:])
