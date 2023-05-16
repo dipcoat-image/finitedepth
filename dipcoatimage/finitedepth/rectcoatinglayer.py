@@ -350,7 +350,6 @@ class RectLayerShape(
     """
 
     __slots__ = (
-        "_layer_area",
         "_uniform_layer",
         "_roughness",
     )
@@ -414,17 +413,8 @@ class RectLayerShape(
             self._extracted_layer = layer_mask
         return self._extracted_layer
 
-    def layer_area(self) -> int:
-        """Return the number of pixels in coating layer region."""
-        if not hasattr(self, "_layer_area"):
-            self._layer_area = np.count_nonzero(self.extract_layer())
-        return self._layer_area
-
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
-        """
-        Return thickness and points for uniform layer that satisfies
-        :meth:`layer_area`.
-        """
+        """Return thickness and points for uniform layer."""
         if not hasattr(self, "_uniform_layer"):
             # get contact line points
             contact_points = self.interfaces_boundaries()
@@ -655,7 +645,7 @@ class RectLayerShape(
         float,
         np.float32,
     ]:
-        AREA = self.layer_area()
+        AREA = np.count_nonzero(self.extract_layer())
 
         _, B, C, _ = self.substrate.sideline_intersections() + self.substrate_point()
 
