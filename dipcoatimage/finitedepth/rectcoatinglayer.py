@@ -93,7 +93,10 @@ class RectCoatingLayerBase(
 ):
     """Abstract base class for coating layer over rectangular substrate."""
 
-    __slots__ = ("_interfaces_boundaries",)
+    __slots__ = (
+        "_interfaces_boundaries",
+        "_enclosing_surface",
+    )
 
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
@@ -145,7 +148,7 @@ class RectCoatingLayerBase(
             self._interfaces_boundaries = np.stack([p0, p1])
         return self._interfaces_boundaries
 
-    def enclosing_surface(self) -> npt.NDArray[np.int32]:
+    def enclosing_surface(self) -> npt.NDArray[np.float64]:
         """
         Return an open curve which covers the surfaces of every layer region.
 
@@ -163,19 +166,27 @@ class RectCoatingLayerBase(
             Substrate-liquid interfaces and gas-liquid interfaces for each
             discrete coating layer region.
         """
-        contactline_points = self.interfaces_boundaries()
-        if len(contactline_points) == 0:
-            return np.empty((0, 1, 2), dtype=np.int32)
+        if not hasattr(self, "_enclosing_surface"):
+            contactline_points = self.interfaces_boundaries()
+            if len(contactline_points) == 0:
+                return np.empty((0, 1, 2), dtype=np.int32)
 
-        p0, p1 = contactline_points
-        (cnt,), _ = cv2.findContours(
-            self.coated_substrate().astype(np.uint8),
-            cv2.RETR_EXTERNAL,
-            cv2.CHAIN_APPROX_NONE,
-        )
-        idx0 = np.argmin(np.linalg.norm(cnt - p0[np.newaxis, ...], axis=-1))
-        idx1 = np.argmin(np.linalg.norm(cnt - p1[np.newaxis, ...], axis=-1))
-        return cnt[int(idx0) : int(idx1 + 1)]
+            (cnt,), _ = cv2.findContours(
+                self.coated_substrate().astype(np.uint8),
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_SIMPLE,
+            )
+            poly = cnt.transpose(1, 0, 2)
+            ((i0, i1),) = closest_in_polylines(contactline_points, poly).T
+            idx = np.arange(int(i0 + 1), int(i1 + 1), dtype=float)
+            if idx[0] > i0:
+                idx = np.insert(idx, 0, i0)
+            if idx[-1] < i1:
+                idx = np.insert(idx, len(idx), i1)
+            idx = idx.reshape(-1, 1)
+
+            self._enclosing_surface = polylines_internal_points(idx, poly)
+        return self._enclosing_surface
 
 
 @dataclasses.dataclass(frozen=True)
@@ -413,6 +424,13 @@ class RectLayerShape(
             self._extracted_layer = layer_mask
         return self._extracted_layer
 
+    def enclosing_surface(self) -> npt.NDArray[np.float64]:
+        if not hasattr(self, "_enclosing_surface"):
+            pts = super().enclosing_surface()
+            NUM_POINTS = self.parameters.RoughnessSamples
+            self._enclosing_surface = equidistant_interpolate(pts, NUM_POINTS)
+        return self._enclosing_surface
+
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """Return thickness and points for uniform layer."""
         if not hasattr(self, "_uniform_layer"):
@@ -435,8 +453,7 @@ class RectLayerShape(
 
             NUM_POINTS = self.parameters.RoughnessSamples
             P = equidistant_interpolate(new_hull, NUM_POINTS).astype(np.float64)
-            surface = self.enclosing_surface()
-            Q = equidistant_interpolate(surface, NUM_POINTS).astype(np.float64)
+            Q = self.enclosing_surface()
             ca = sfd(np.squeeze(P, axis=1), np.squeeze(Q, axis=1))
             path = sfd_path(ca)
             L = ca[-1, -1] / len(path)
@@ -505,25 +522,24 @@ class RectLayerShape(
                 y, x = points.T
                 return np.stack([np.interp(t, u, y), np.interp(t, u, x)]).T
 
-            P = equidistant_interp(surface).astype(np.float64)
             Q = equidistant_interp(uniform_layer).astype(np.float64)
 
             if self.parameters.RoughnessMeasure == self.RoughnessMeasure.DFD:
-                ca = dfd(P, Q)
+                ca = dfd(surface, Q)
                 path = dfd_pair(ca)
                 roughness = ca[-1, -1] / len(path)
             elif self.parameters.RoughnessMeasure == self.RoughnessMeasure.SFD:
-                ca = sfd(P, Q)
+                ca = sfd(surface, Q)
                 path = sfd_path(ca)
                 roughness = ca[-1, -1] / len(path)
             elif self.parameters.RoughnessMeasure == self.RoughnessMeasure.SSFD:
-                ca = ssfd(P, Q)
+                ca = ssfd(surface, Q)
                 path = ssfd_path(ca)
                 roughness = np.sqrt(ca[-1, -1] / len(path))
             else:
                 raise TypeError(f"Unknown option: {self.parameters.RoughnessMeasure}")
 
-            similarity_pairs = np.stack([P[path[..., 0]], Q[path[..., 1]]])
+            similarity_pairs = np.stack([surface[path[..., 0]], Q[path[..., 1]]])
             self._roughness = (roughness, similarity_pairs.transpose(1, 0, 2))
 
         return self._roughness
