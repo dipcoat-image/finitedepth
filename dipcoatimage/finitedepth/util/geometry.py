@@ -217,8 +217,29 @@ def polyline_parallel_area(line: npt.NDArray, t: float) -> np.float64:
     return np.float64(np.sum(d_l) * t + np.sum(d_theta) * (t**2) / 2)
 
 
-def equidistant_interpolate(points, n):
+def equidistant_interpolate(points, n) -> npt.NDArray[np.float64]:
+    """
+    Interpolate *points* with *n* number of points with same distances.
+
+    Parameters
+    ----------
+    points: ndarray
+        Points that are interpolated.
+        The shape must be `(N, 1, D)` where `N` is the number of points and `D`
+        is the dimension.
+    n: int
+        Number of new points.
+
+    Returns
+    -------
+    ndarray
+        Interpolated points with same distances.
+        If `N` is positive number, the shape is `(n, 1, D)`. If `N` is zero,
+        the shape is `(n, 0, D)`.
+    """
     # https://stackoverflow.com/a/19122075
+    if points.size == 0:
+        return np.empty((n, 0, points.shape[-1]), dtype=np.float64)
     vec = np.diff(points, axis=0)
     dist = np.linalg.norm(vec, axis=-1)
     u = np.insert(np.cumsum(dist), 0, 0)
