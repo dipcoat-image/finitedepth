@@ -2,6 +2,7 @@ import numpy as np
 import numpy.typing as npt
 
 __all__ = [
+    "line_polyline_intersections",
     "project_on_polylines",
     "polylines_external_points",
     "closest_in_polylines",
@@ -9,6 +10,44 @@ __all__ = [
     "polyline_parallel_area",
     "equidistant_interpolate",
 ]
+
+
+def line_polyline_intersections(
+    line: npt.NDArray, polyline: npt.NDArray
+) -> npt.NDArray[np.float64]:
+    """
+    Find cross sections of an infinite line and a polyline[1]_.
+
+    Parameters
+    ----------
+    line: ndarray
+        Coordinates of the points which make lines.
+        The shape must be `(1, 2, D)` where `D` is the dimension. The second axis
+        is for two points that make each line.
+    polylines: ndarray
+        Coordinates of the polyline vertices.
+        The shape must be `(1, V, D)` where `V` is the number of vertices and
+        `D` is the dimension.
+
+    Returns
+    -------
+    ndarray
+        Parameters to locate the intersection points in the polyline.
+        The shape is `(N,)` where `N` is the number of intersections.
+
+    References
+    ----------
+    .. [1] https://en.wikipedia.org/wiki/Polygonal_chain
+    """
+    line1, line2 = polyline, line
+    line1_vec = np.diff(line1, axis=1)
+    line2_vec = np.diff(line2, axis=1)
+    startpt_vec = line2[:, :1, :] - line1[:, :-1, :]
+    det = np.cross(line1_vec, line2_vec)
+    exists = np.nonzero(det)
+    t = np.cross(startpt_vec, line2_vec)[exists] / det[exists]
+    valid = np.nonzero((0 <= t) & (t < 1))
+    return t[valid] + exists[1][valid]
 
 
 def project_on_polylines(

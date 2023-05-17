@@ -55,6 +55,7 @@ from .util import (
     colorize,
 )
 from .util.geometry import (
+    line_polyline_intersections,
     project_on_polylines,
     polylines_external_points,
     closest_in_polylines,
@@ -84,6 +85,9 @@ ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
 DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
 DecoOptionsType = TypeVar("DecoOptionsType", bound=DataclassProtocol)
 DataType = TypeVar("DataType", bound=DataclassProtocol)
+
+
+ROTATION_MATRIX = np.array([[0, 1], [-1, 0]])
 
 
 class RectCoatingLayerBase(
@@ -207,6 +211,39 @@ class RectCoatingLayerBase(
             self._enclosing_interface = polylines_internal_points(idx, poly)
         return self._enclosing_interface
 
+    def surface_on_sides(self) -> npt.NDArray[np.float64]:
+        vert = subst.contour()[subst.vertices()[[1, 2]]] + self.substrate_point()
+        surf = self.enclosing_surface().transpose(1, 0, 2)
+        intf = self.enclosing_interface().transpose(1, 0, 2)
+        hull_vert_idx = closest_in_polylines(vert, intf)
+        hull_vert_pts = polylines_internal_points(hull_vert_idx, intf)
+        n1 = np.dot(
+            hull_vert_pts
+            - polylines_internal_points(np.ceil(hull_vert_idx - 1), intf),
+            ROTATION_MATRIX,
+        )
+        n2 = np.dot(
+            polylines_internal_points(np.floor(hull_vert_idx + 1), intf)
+            - hull_vert_pts,
+            ROTATION_MATRIX,
+        )
+
+        idx1 = []
+        for line in np.concatenate([hull_vert_pts, pts + n1], axis=1):
+            intrsct_idx = line_polyline_intersections(line[np.newaxis, ...], surf)
+            intrsct_pts = polylines_internal_points(intrsct_idx, surf)  # shape: (1, N)
+            dist = np.linalg.norm(intrsct_pts - line[np.newaxis, :1, :], axis=-1)
+            idx1.append(intrsct_idx[np.argmin(dist, axis=-1)])
+
+        idx2 = []
+        for line in np.concatenate([hull_vert_pts, pts + n2], axis=1):
+            intrsct_idx = line_polyline_intersections(line[np.newaxis, ...], surf)
+            intrsct_pts = polylines_internal_points(intrsct_idx, surf)  # shape: (1, N)
+            dist = np.linalg.norm(intrsct_pts - line[np.newaxis, :1, :], axis=-1)
+            idx2.append(intrsct_idx[np.argmin(dist, axis=-1)])
+
+        return hull_vert_idx, np.stack(idx1), np.stack(idx2)
+
 
 @dataclasses.dataclass(frozen=True)
 class MorphologyClosingParameters:
@@ -308,9 +345,6 @@ class RectLayerShapeData:
 
     MatchError: float
     ChipWidth: np.float32
-
-
-ROTATION_MATRIX = np.array([[0, 1], [-1, 0]])
 
 
 class RectLayerShape(
