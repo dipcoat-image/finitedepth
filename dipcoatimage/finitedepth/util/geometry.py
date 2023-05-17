@@ -2,7 +2,6 @@ import numpy as np
 import numpy.typing as npt
 
 __all__ = [
-    "closest_points",
     "project_on_polylines",
     "polylines_external_points",
     "closest_in_polylines",
@@ -10,34 +9,6 @@ __all__ = [
     "polyline_parallel_area",
     "equidistant_interpolate",
 ]
-
-
-def closest_points(
-    points1: npt.NDArray, points2: npt.NDArray
-) -> npt.NDArray[np.int64]:
-    """
-    For each point in *points1*, find the closest point in *points2*.
-
-    Parameters
-    ----------
-    points1: ndarray
-        Coordinates of the points.
-        The shape must be `(N, 1, D)` where `N` is the number of points and `D`
-        is the dimension.
-    points2: ndarray
-        Coordinates of the points.
-        The shape must be `(M, 1, D)` where `M` is the number of points and `D`
-        is the dimension.
-
-    Returns
-    -------
-    ndarray
-        Indices of the closest points in *points2*.
-        The shape is `(N,)`.
-
-    """
-    dist = np.linalg.norm(points1 - points2.transpose(1, 0, 2), axis=-1)
-    return np.argmin(dist, axis=-1)
 
 
 def project_on_polylines(

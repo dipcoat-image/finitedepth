@@ -443,24 +443,12 @@ class RectLayerShape(
             self._extracted_layer = layer_mask
         return self._extracted_layer
 
-    def enclosing_surface(self) -> npt.NDArray[np.float64]:
-        if not hasattr(self, "_enclosing_surface"):
-            pts = super().enclosing_surface()
-            NUM_POINTS = self.parameters.RoughnessSamples
-            self._enclosing_surface = equidistant_interpolate(pts, NUM_POINTS)
-        return self._enclosing_surface
-
-    def enclosing_interface(self) -> npt.NDArray[np.float64]:
-        if not hasattr(self, "_enclosing_interface"):
-            pts = super().enclosing_interface()
-            NUM_POINTS = self.parameters.RoughnessSamples
-            self._enclosing_interface = equidistant_interpolate(pts, NUM_POINTS)
-        return self._enclosing_interface
-
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """Return thickness and points for uniform layer."""
         if not hasattr(self, "_uniform_layer"):
-            surf, intf = self.enclosing_surface(), self.enclosing_interface()
+            NUM_POINTS = self.parameters.RoughnessSamples
+            surf = equidistant_interpolate(self.enclosing_surface(), NUM_POINTS)
+            intf = equidistant_interpolate(self.enclosing_interface(), NUM_POINTS)
             if surf.size == 0 or intf.size == 0:
                 return (np.float64(0), np.empty((0, 1, 2), dtype=np.float64))
 
@@ -514,7 +502,8 @@ class RectLayerShape(
     def roughness(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """Dimensional roughness value of the coating layer surface."""
         if not hasattr(self, "_roughness"):
-            surf = self.enclosing_surface()
+            NUM_POINTS = self.parameters.RoughnessSamples
+            surf = equidistant_interpolate(self.enclosing_surface(), NUM_POINTS)
             _, uniform = self.uniform_layer()
 
             if surf.size == 0 or uniform.size == 0:
