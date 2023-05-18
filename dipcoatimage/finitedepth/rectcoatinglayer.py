@@ -139,7 +139,6 @@ class RectCoatingLayerBase(
 
             (subst_cnt,), _ = self.substrate.contours()[0]
             subst_cnt = subst_cnt + self.substrate_point()  # DON'T USE += !!
-            subst_cnt = np.concatenate([subst_cnt, subst_cnt[:1]])  # closed line
             vec = np.diff(subst_cnt, axis=0)
 
             t0_int = np.int32(t0)
