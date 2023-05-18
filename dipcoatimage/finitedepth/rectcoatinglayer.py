@@ -33,6 +33,7 @@ import dataclasses
 import enum
 import numpy as np
 import numpy.typing as npt
+from scipy.optimize import root  # type: ignore
 from typing import TypeVar, Type, Tuple, Optional
 from .rectsubstrate import RectSubstrate
 from .coatinglayer import (
@@ -62,6 +63,7 @@ from .util.geometry import (
     closest_in_polylines,
     polylines_internal_points,
     equidistant_interpolate,
+    polyline_parallel_area,
 )
 
 try:
@@ -545,9 +547,9 @@ class RectLayerShape(
             if surf.size == 0 or intf.size == 0:
                 return (np.float64(0), np.empty((0, 1, 2), dtype=np.float64))
 
-            ca = sfd(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))
-            path = sfd_path(ca)
-            L = ca[-1, -1] / len(path)
+            S = np.count_nonzero(self.extract_layer())
+            L0 = 10
+            (L,) = root(lambda t: polyline_parallel_area(intf, t) - S, L0).x
 
             tan = np.gradient(intf, axis=0)
             normal = np.dot(tan, ROTATION_MATRIX)
