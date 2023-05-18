@@ -1,7 +1,9 @@
 import numpy as np
 import numpy.typing as npt
+from typing import List
 
 __all__ = [
+    "split_polyline",
     "line_polyline_intersections",
     "project_on_polylines",
     "polylines_external_points",
@@ -10,6 +12,41 @@ __all__ = [
     "polyline_parallel_area",
     "equidistant_interpolate",
 ]
+
+
+def split_polyline(
+    points: npt.NDArray, polyline: npt.NDArray
+) -> List[npt.NDArray[np.float64]]:
+    """
+    Split a polyline using the points on itself.
+
+    Parameters
+    ----------
+    points: ndarray
+        Parameters for the points in polyline.
+        The shape must be `(N, 1)` where `N` is the number of points.
+    polyline: ndarray
+        Coordinates of the polyline vertices.
+        The shape must be `(1, V, D)` where `V` is the number of vertices and
+        `D` is the dimension.
+
+    Returns
+    -------
+    segments: list of ndarray
+        Coordinates for the vertices of each polyline segments.
+
+    Notes
+    -----
+    Each segment contains the boundary points.
+    """
+    boundary_pts = polylines_internal_points(points, polyline)
+    segments = np.split(polyline, np.floor(points + 1).astype(int).reshape(-1), axis=1)
+    for i, t in enumerate(points.reshape(-1)):
+        pt = boundary_pts[i]
+        segments[i + 1] = np.concatenate((pt[np.newaxis, ...], segments[i + 1]), axis=1)
+        if t % 1:
+            segments[i] = np.concatenate((segments[i], pt[np.newaxis, ...]), axis=1)
+    return segments
 
 
 def line_polyline_intersections(
@@ -24,7 +61,7 @@ def line_polyline_intersections(
         Coordinates of the points which make lines.
         The shape must be `(1, 2, D)` where `D` is the dimension. The second axis
         is for two points that make each line.
-    polylines: ndarray
+    polyline: ndarray
         Coordinates of the polyline vertices.
         The shape must be `(1, V, D)` where `V` is the number of vertices and
         `D` is the dimension.
@@ -112,7 +149,7 @@ def polylines_external_points(
     parameters: ndarray
         Parameters for the points in polylines.
         The shape must be `(N, M, V - 1)` where `N` is the number of points,
-        where `M` is the number of polylines and `V` is the number of vertices.
+        `M` is the number of polylines and `V` is the number of vertices.
     polylines: ndarray
         Coordinates of the polyline vertices.
         The shape must be `(M, V, D)` where `M` is the number of polylines,

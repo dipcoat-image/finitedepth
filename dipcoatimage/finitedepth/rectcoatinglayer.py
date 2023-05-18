@@ -55,6 +55,7 @@ from .util import (
     colorize,
 )
 from .util.geometry import (
+    split_polyline,
     line_polyline_intersections,
     project_on_polylines,
     polylines_external_points,
@@ -236,8 +237,8 @@ class RectCoatingLayerBase(
             The first array is the parameters for the vertex points on enclosing
             interface, and the second array is the parameters for the vertex
             points on enclosing surface.
-            The first array has shape `(1, N)`, where `N` is the number of
-            vertices. The second array has shape `(2, 1, N)`, where the first
+            The first array has shape `(N, 1)`, where `N` is the number of
+            vertices. The second array has shape `(2, N, 1)`, where the first
             axis indicates two one-sided limits[1]_ that determins the normal
             vector.
 
@@ -253,8 +254,8 @@ class RectCoatingLayerBase(
 
         See Also
         --------
-        enclosing_surface : Open curve over liquid-gas surfaces.
         enclosing_interface : Open curve over solid-liquid interfaces.
+        enclosing_surface : Open curve over liquid-gas surfaces.
 
         References
         ----------
@@ -292,6 +293,15 @@ class RectCoatingLayerBase(
             idx2.append(intrsct_idx[np.argmin(dist, axis=-1)])
 
         return hull_vert_idx, np.stack((np.stack(idx1), np.stack(idx2)))
+
+    def regional_interfaces_surfaces(self):
+        intf, surf = self.enclosing_interface(), self.enclosing_surface()
+        intf_vert, surf_vert = self.layer_vertices()
+        reg_intf = split_polyline(intf_vert, intf.transpose(1, 0, 2))
+        reg_surf = split_polyline(
+            surf_vert.transpose(1, 0, 2).reshape(-1, 1), surf.transpose(1, 0, 2)
+        )
+        return reg_intf, reg_surf
 
 
 @dataclasses.dataclass(frozen=True)
