@@ -153,10 +153,47 @@ class RectCoatingLayerBase(
             self._interfaces_boundaries = np.stack([p0, p1])
         return self._interfaces_boundaries
 
+    def enclosing_interface(self) -> npt.NDArray[np.float64]:
+        """
+        Return an open curve over solid-liquid interfaces of every coating layer
+        region.
+
+        Returns
+        -------
+        points: ndarray
+            Coordinates of the contour points over solid-liquid interfaces.
+
+        See Also
+        --------
+        enclosing_surface : Open curve over liquid-gas surfaces.
+        """
+        if not hasattr(self, "_enclosing_interface"):
+            contactline_points = self.interfaces_boundaries()
+            if len(contactline_points) == 0:
+                return np.empty((0, 1, 2), dtype=np.int32)
+
+            cnt = self.substrate.hull() + self.substrate_point()
+            poly = cnt.transpose(1, 0, 2)
+            ((i0, i1),) = closest_in_polylines(contactline_points, poly).T
+            idx = np.arange(int(i0 + 1), int(i1 + 1), dtype=float)
+            if idx[0] > i0:
+                idx = np.insert(idx, 0, i0)
+            if idx[-1] < i1:
+                idx = np.insert(idx, len(idx), i1)
+            idx = idx.reshape(-1, 1)
+
+            self._enclosing_interface = polylines_internal_points(idx, poly)
+        return self._enclosing_interface
+
     def enclosing_surface(self) -> npt.NDArray[np.float64]:
         """
         Return an open curve over liquid-gas surfaces of every coating layer
         region.
+
+        Returns
+        -------
+        points: ndarray
+            Coordinates of the contour points over liquid-gas surfaces.
 
         See Also
         --------
@@ -184,42 +221,55 @@ class RectCoatingLayerBase(
             self._enclosing_surface = polylines_internal_points(idx, poly)
         return self._enclosing_surface
 
-    def enclosing_interface(self) -> npt.NDArray[np.float64]:
+    def layer_vertices(
+        self,
+    ) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
         """
-        Return an open curve over solid-liquid interfaces of every coating layer
-        region.
+        Return the parameters for the vertex points on enclosing interface and
+        enclosing surface of the coating layer.
+
+        This method can be used to divide the interface and the surface into
+        multiple sections over each side of the substrate.
+
+        Returns
+        -------
+        indices: tuple of ndarray
+            The first array is the parameters for the vertex points on enclosing
+            interface, and the second array is the parameters for the vertex
+            points on enclosing surface.
+            The first array has shape `(1, N)`, where `N` is the number of
+            vertices. The second array has shape `(2, 1, N)`, where the first
+            axis indicates two one-sided limits[1]_ that determins the normal
+            vector.
+
+        Notes
+        -----
+        The vertex points on the surface are the intersections between the normal
+        vector from the interface vertex points and the surface contour.
+        Two normal vectors are used for each vertex point: the normal from the
+        left and the normal from the right.
+
+        Use :func:`polylines_internal_points` to convert the resulting parameters
+        to the coordinates.
 
         See Also
         --------
         enclosing_surface : Open curve over liquid-gas surfaces.
+        enclosing_interface : Open curve over solid-liquid interfaces.
+
+        References
+        ----------
+        .. [1] https://en.wikipedia.org/wiki/One-sided_limit
+
         """
-        if not hasattr(self, "_enclosing_interface"):
-            contactline_points = self.interfaces_boundaries()
-            if len(contactline_points) == 0:
-                return np.empty((0, 1, 2), dtype=np.int32)
-
-            cnt = self.substrate.hull() + self.substrate_point()
-            poly = cnt.transpose(1, 0, 2)
-            ((i0, i1),) = closest_in_polylines(contactline_points, poly).T
-            idx = np.arange(int(i0 + 1), int(i1 + 1), dtype=float)
-            if idx[0] > i0:
-                idx = np.insert(idx, 0, i0)
-            if idx[-1] < i1:
-                idx = np.insert(idx, len(idx), i1)
-            idx = idx.reshape(-1, 1)
-
-            self._enclosing_interface = polylines_internal_points(idx, poly)
-        return self._enclosing_interface
-
-    def surface_on_sides(self) -> npt.NDArray[np.float64]:
+        subst = self.substrate
         vert = subst.contour()[subst.vertices()[[1, 2]]] + self.substrate_point()
         surf = self.enclosing_surface().transpose(1, 0, 2)
         intf = self.enclosing_interface().transpose(1, 0, 2)
         hull_vert_idx = closest_in_polylines(vert, intf)
         hull_vert_pts = polylines_internal_points(hull_vert_idx, intf)
         n1 = np.dot(
-            hull_vert_pts
-            - polylines_internal_points(np.ceil(hull_vert_idx - 1), intf),
+            hull_vert_pts - polylines_internal_points(np.ceil(hull_vert_idx - 1), intf),
             ROTATION_MATRIX,
         )
         n2 = np.dot(
@@ -229,20 +279,20 @@ class RectCoatingLayerBase(
         )
 
         idx1 = []
-        for line in np.concatenate([hull_vert_pts, pts + n1], axis=1):
+        for line in np.concatenate([hull_vert_pts, hull_vert_pts + n1], axis=1):
             intrsct_idx = line_polyline_intersections(line[np.newaxis, ...], surf)
-            intrsct_pts = polylines_internal_points(intrsct_idx, surf)  # shape: (1, N)
+            intrsct_pts = polylines_internal_points(intrsct_idx, surf)
             dist = np.linalg.norm(intrsct_pts - line[np.newaxis, :1, :], axis=-1)
             idx1.append(intrsct_idx[np.argmin(dist, axis=-1)])
 
         idx2 = []
-        for line in np.concatenate([hull_vert_pts, pts + n2], axis=1):
+        for line in np.concatenate([hull_vert_pts, hull_vert_pts + n2], axis=1):
             intrsct_idx = line_polyline_intersections(line[np.newaxis, ...], surf)
-            intrsct_pts = polylines_internal_points(intrsct_idx, surf)  # shape: (1, N)
+            intrsct_pts = polylines_internal_points(intrsct_idx, surf)
             dist = np.linalg.norm(intrsct_pts - line[np.newaxis, :1, :], axis=-1)
             idx2.append(intrsct_idx[np.argmin(dist, axis=-1)])
 
-        return hull_vert_idx, np.stack(idx1), np.stack(idx2)
+        return hull_vert_idx, np.stack((np.stack(idx1), np.stack(idx2)))
 
 
 @dataclasses.dataclass(frozen=True)
