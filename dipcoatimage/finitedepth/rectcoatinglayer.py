@@ -82,6 +82,7 @@ __all__ = [
     "RectLayerShapeData",
     "RectLayerShape",
     "uniform_layer",
+    "roughness",
 ]
 
 
@@ -485,7 +486,6 @@ class RectLayerShape(
     DecoOptions = RectLayerShapeDecoOptions
     Data = RectLayerShapeData
 
-    RoughnessMeasure: TypeAlias = DistanceMeasure
     BackgroundDrawMode: TypeAlias = BackgroundDrawMode
     SubtractionDrawMode: TypeAlias = SubtractionDrawMode
 
@@ -590,28 +590,11 @@ class RectLayerShape(
             _, _, ul = self.uniform_layer()
 
             if surf.size == 0 or ul.size == 0:
-                return (np.float64(np.nan), np.empty((0, 2, 2), dtype=np.float64))
+                return (np.float64(np.nan), np.empty((2, 0, 1, 2), dtype=np.float64))
 
             surf = equidistant_interpolate(surf, self.parameters.RoughnessSamples)
             ul = equidistant_interpolate(ul, self.parameters.RoughnessSamples)
-
-            if self.parameters.RoughnessMeasure == self.RoughnessMeasure.DFD:
-                ca = dfd(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
-                path = dfd_pair(ca)
-                roughness = ca[-1, -1] / len(path)
-            elif self.parameters.RoughnessMeasure == self.RoughnessMeasure.SFD:
-                ca = sfd(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
-                path = sfd_path(ca)
-                roughness = ca[-1, -1] / len(path)
-            elif self.parameters.RoughnessMeasure == self.RoughnessMeasure.SSFD:
-                ca = ssfd(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
-                path = ssfd_path(ca)
-                roughness = np.sqrt(ca[-1, -1] / len(path))
-            else:
-                raise TypeError(f"Unknown option: {self.parameters.RoughnessMeasure}")
-
-            pairs = np.stack([surf[path[..., 0]], ul[path[..., 1]]])
-            self._roughness = (roughness, np.squeeze(pairs, axis=2).transpose(1, 0, 2))
+            self._roughness = roughness(surf, ul, self.parameters.RoughnessMeasure)
 
         return self._roughness
 
@@ -697,23 +680,26 @@ class RectLayerShape(
                 thickness=uniformlayer_opts.thickness,
             )
 
-        roughnesspair_opts = self.deco_options.roughness_pairs
-        if roughnesspair_opts.thickness > 0:
+        pair_opts = self.deco_options.roughness_pairs
+        if pair_opts.thickness > 0:
             _, pairs = self.roughness()
-            for pair in pairs[:: roughnesspair_opts.drawevery]:
+            pairs = pairs.astype(np.int32)
+            for surf_pt, ul_pt in pairs.transpose(1, 0, 2, 3)[:: pair_opts.drawevery]:
                 cv2.line(
                     image,
-                    *pair.astype(np.int32),
-                    color=dataclasses.astuple(roughnesspair_opts.color),
-                    thickness=roughnesspair_opts.thickness,
+                    *surf_pt,
+                    *ul_pt,
+                    color=dataclasses.astuple(pair_opts.color),
+                    thickness=pair_opts.thickness,
                 )
             # always draw the last line
             if pairs.size > 0:
                 cv2.line(
                     image,
-                    *pairs[-1].astype(np.int32),
-                    color=dataclasses.astuple(roughnesspair_opts.color),
-                    thickness=roughnesspair_opts.thickness,
+                    *pairs[0, -1, ...],
+                    *pairs[1, -1, ...],
+                    color=dataclasses.astuple(pair_opts.color),
+                    thickness=pair_opts.thickness,
                 )
 
         return image
@@ -812,3 +798,48 @@ def uniform_layer(
     normal = np.dot(np.gradient(interface, axis=0), ROTATION_MATRIX)
     n = normal / np.linalg.norm(normal, axis=-1)[..., np.newaxis]
     return (S, L, interface + L * n)
+
+
+def roughness(
+    surface: npt.NDArray, uniform_layer: npt.NDArray, measure: DistanceMeasure
+) -> Tuple[np.float64, npt.NDArray[np.float64]]:
+    """
+    Calculate the roughness of arbitrary curve.
+
+    Parameters
+    ----------
+    surface, uniform_layer: ndarray
+        Coordinates of the polyline vertices for the liquid-gas surface and the
+        uniform layer that the surface is compared to. The shape must be
+        `(N, 1, D)` where `N` is the number of vertices and `D` is the dimension.
+    measure: DistanceMeasure
+        Type of the measure of similarity between two curves.
+
+    Returns
+    -------
+    roughness: float64
+        Roughness value of *surface*.
+    pairs: ndarray
+        Coordinates of Frechet pairs between *surface* and *uniform_layer*.
+        The shape is `(2, P, 1, D)` where `P` is the number of pairs.
+        The first axis represents the points on *surface* and *uniform_layer*,
+        respectively.
+
+    """
+    if measure == DistanceMeasure.DFD:
+        ca = dfd(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
+        path = dfd_pair(ca)
+        roughness = ca[-1, -1] / len(path)
+    elif measure == DistanceMeasure.SFD:
+        ca = sfd(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
+        path = sfd_path(ca)
+        roughness = ca[-1, -1] / len(path)
+    elif measure == DistanceMeasure.SSFD:
+        ca = ssfd(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
+        path = ssfd_path(ca)
+        roughness = np.sqrt(ca[-1, -1] / len(path))
+    else:
+        raise TypeError(f"Unknown measure: {measure}")
+
+    pairs = np.stack([surface[path[..., 0]], uniform_layer[path[..., 1]]])
+    return (roughness, pairs)
