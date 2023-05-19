@@ -33,6 +33,7 @@ import dataclasses
 import enum
 import numpy as np
 import numpy.typing as npt
+from scipy.optimize import root  # type: ignore
 from typing import TypeVar, Type, Tuple, Optional
 from .rectsubstrate import RectSubstrate
 from .coatinglayer import (
@@ -54,6 +55,16 @@ from .util import (
     Color,
     colorize,
 )
+from .util.geometry import (
+    split_polyline,
+    line_polyline_intersections,
+    project_on_polylines,
+    polylines_external_points,
+    closest_in_polylines,
+    polylines_internal_points,
+    equidistant_interpolate,
+    polyline_parallel_area,
+)
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -70,7 +81,8 @@ __all__ = [
     "RectLayerShapeDecoOptions",
     "RectLayerShapeData",
     "RectLayerShape",
-    "find_projection",
+    "uniform_layer",
+    "roughness",
 ]
 
 
@@ -80,6 +92,9 @@ DecoOptionsType = TypeVar("DecoOptionsType", bound=DataclassProtocol)
 DataType = TypeVar("DataType", bound=DataclassProtocol)
 
 
+ROTATION_MATRIX = np.array([[0, 1], [-1, 0]])
+
+
 class RectCoatingLayerBase(
     CoatingLayerBase[
         RectSubstrate, ParametersType, DrawOptionsType, DecoOptionsType, DataType
@@ -87,7 +102,11 @@ class RectCoatingLayerBase(
 ):
     """Abstract base class for coating layer over rectangular substrate."""
 
-    __slots__ = ("_interfaces_boundaries",)
+    __slots__ = (
+        "_interfaces_boundaries",
+        "_enclosing_surface",
+        "_enclosing_interface",
+    )
 
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
@@ -96,9 +115,9 @@ class RectCoatingLayerBase(
 
     def capbridge_broken(self) -> bool:
         p0 = self.substrate_point()
-        _, p1, p2, _ = self.substrate.vertex_points()
-        bl = (p0 + p1).astype(np.int32)
-        br = (p0 + p2).astype(np.int32)
+        _, p1, p2, _ = self.substrate.contour()[self.substrate.vertices()]
+        (bl,) = (p0 + p1).astype(np.int32)
+        (br,) = (p0 + p2).astype(np.int32)
         top = np.max([bl[1], br[1]])
         bot = self.binary_image().shape[0]
         if top > bot:
@@ -125,7 +144,6 @@ class RectCoatingLayerBase(
 
             (subst_cnt,), _ = self.substrate.contours()[0]
             subst_cnt = subst_cnt + self.substrate_point()  # DON'T USE += !!
-            subst_cnt = np.concatenate([subst_cnt, subst_cnt[:1]])  # closed line
             vec = np.diff(subst_cnt, axis=0)
 
             t0_int = np.int32(t0)
@@ -139,37 +157,161 @@ class RectCoatingLayerBase(
             self._interfaces_boundaries = np.stack([p0, p1])
         return self._interfaces_boundaries
 
-    def enclosing_surface(self) -> npt.NDArray[np.int32]:
+    def enclosing_interface(self) -> npt.NDArray[np.float64]:
         """
-        Return an open curve which covers the surfaces of every layer region.
+        Return an open curve over solid-liquid interfaces of every coating layer
+        region.
 
-        The result is a continuous curve over entire coating layer regions.
-        Discontinuous layers are connected by the substrate surface, i.e. the
-        domains in-between are regarded to be covered with zero-thickness layer.
+        Returns
+        -------
+        points: ndarray
+            Coordinates of the contour points over solid-liquid interfaces.
 
         See Also
-        ========
-
-        layer_contours
-            Contours for each discrete coating layer region.
-
-        interfaces
-            Substrate-liquid interfaces and gas-liquid interfaces for each
-            discrete coating layer region.
+        --------
+        enclosing_surface : Open curve over liquid-gas surfaces.
         """
-        contactline_points = self.interfaces_boundaries()
-        if len(contactline_points) == 0:
-            return np.empty((0, 1, 2), dtype=np.int32)
+        if not hasattr(self, "_enclosing_interface"):
+            contactline_points = self.interfaces_boundaries()
+            if len(contactline_points) == 0:
+                return np.empty((0, 1, 2), dtype=np.int32)
 
-        p0, p1 = contactline_points
-        (cnt,), _ = cv2.findContours(
-            self.coated_substrate().astype(np.uint8),
-            cv2.RETR_EXTERNAL,
-            cv2.CHAIN_APPROX_NONE,
+            cnt = self.substrate.hull() + self.substrate_point()
+            poly = cnt.transpose(1, 0, 2)
+            ((i0, i1),) = closest_in_polylines(contactline_points, poly).T
+            idx = np.arange(int(i0 + 1), int(i1 + 1), dtype=float)
+            if idx[0] > i0:
+                idx = np.insert(idx, 0, i0)
+            if idx[-1] < i1:
+                idx = np.insert(idx, len(idx), i1)
+            idx = idx.reshape(-1, 1)
+
+            self._enclosing_interface = polylines_internal_points(idx, poly)
+        return self._enclosing_interface
+
+    def enclosing_surface(self) -> npt.NDArray[np.float64]:
+        """
+        Return an open curve over liquid-gas surfaces of every coating layer
+        region.
+
+        Returns
+        -------
+        points: ndarray
+            Coordinates of the contour points over liquid-gas surfaces.
+
+        See Also
+        --------
+        enclosing_interface : Open curve over solid-liquid interfaces.
+        """
+        if not hasattr(self, "_enclosing_surface"):
+            contactline_points = self.interfaces_boundaries()
+            if len(contactline_points) == 0:
+                return np.empty((0, 1, 2), dtype=np.int32)
+
+            (cnt,), _ = cv2.findContours(
+                self.coated_substrate().astype(np.uint8),
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_SIMPLE,
+            )
+            poly = cnt.transpose(1, 0, 2)
+            ((i0, i1),) = closest_in_polylines(contactline_points, poly).T
+            idx = np.arange(int(i0 + 1), int(i1 + 1), dtype=float)
+            if idx[0] > i0:
+                idx = np.insert(idx, 0, i0)
+            if idx[-1] < i1:
+                idx = np.insert(idx, len(idx), i1)
+            idx = idx.reshape(-1, 1)
+
+            self._enclosing_surface = polylines_internal_points(idx, poly)
+        return self._enclosing_surface
+
+    def layer_vertices(
+        self,
+    ) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+        """
+        Return the parameters for the vertex points on enclosing interface and
+        enclosing surface of the coating layer.
+
+        This method can be used to divide the interface and the surface into
+        multiple sections over each side of the substrate.
+
+        Returns
+        -------
+        indices: tuple of ndarray
+            The first array is the parameters for the vertex points on enclosing
+            interface, and the second array is the parameters for the vertex
+            points on enclosing surface.
+            The first array has shape `(N, 1)`, where `N` is the number of
+            vertices. The second array has shape `(2, N, 1)`, where the first
+            axis indicates two one-sided limits[1]_ that determins the normal
+            vector.
+
+        Notes
+        -----
+        The vertex points on the surface are the intersections between the normal
+        vector from the interface vertex points and the surface contour.
+        Two normal vectors are used for each vertex point: the normal from the
+        left and the normal from the right.
+
+        Use :func:`polylines_internal_points` to convert the resulting parameters
+        to the coordinates.
+
+        See Also
+        --------
+        enclosing_interface : Open curve over solid-liquid interfaces.
+        enclosing_surface : Open curve over liquid-gas surfaces.
+
+        References
+        ----------
+        .. [1] https://en.wikipedia.org/wiki/One-sided_limit
+
+        """
+        subst = self.substrate
+        vert = subst.contour()[subst.vertices()[[1, 2]]] + self.substrate_point()
+        surf = self.enclosing_surface().transpose(1, 0, 2)
+        intf = self.enclosing_interface().transpose(1, 0, 2)
+        hull_vert_idx = closest_in_polylines(vert, intf)
+        hull_vert_pts = polylines_internal_points(hull_vert_idx, intf)
+        n1 = np.dot(
+            hull_vert_pts - polylines_internal_points(np.ceil(hull_vert_idx - 1), intf),
+            ROTATION_MATRIX,
         )
-        idx0 = np.argmin(np.linalg.norm(cnt - p0[np.newaxis, ...], axis=-1))
-        idx1 = np.argmin(np.linalg.norm(cnt - p1[np.newaxis, ...], axis=-1))
-        return cnt[int(idx0) : int(idx1 + 1)]
+        n2 = np.dot(
+            polylines_internal_points(np.floor(hull_vert_idx + 1), intf)
+            - hull_vert_pts,
+            ROTATION_MATRIX,
+        )
+
+        idx1 = []
+        for line in np.concatenate([hull_vert_pts, hull_vert_pts + n1], axis=1):
+            intrsct_idx = line_polyline_intersections(line[np.newaxis, ...], surf)
+            intrsct_pts = polylines_internal_points(intrsct_idx, surf)
+            dist = np.linalg.norm(intrsct_pts - line[np.newaxis, :1, :], axis=-1)
+            idx1.append(intrsct_idx[np.argmin(dist, axis=-1)])
+
+        idx2 = []
+        for line in np.concatenate([hull_vert_pts, hull_vert_pts + n2], axis=1):
+            intrsct_idx = line_polyline_intersections(line[np.newaxis, ...], surf)
+            intrsct_pts = polylines_internal_points(intrsct_idx, surf)
+            dist = np.linalg.norm(intrsct_pts - line[np.newaxis, :1, :], axis=-1)
+            idx2.append(intrsct_idx[np.argmin(dist, axis=-1)])
+
+        return hull_vert_idx, np.stack((np.stack(idx1), np.stack(idx2)))
+
+    def regional_interfaces_surfaces(self):
+        intf, surf = self.enclosing_interface(), self.enclosing_surface()
+        intf_vert, surf_vert = self.layer_vertices()
+        reg_intf = [
+            intf.transpose(1, 0, 2)
+            for intf in split_polyline(intf_vert, intf.transpose(1, 0, 2))
+        ]
+        reg_surf = [
+            surf.transpose(1, 0, 2)
+            for surf in split_polyline(
+                surf_vert.transpose(1, 0, 2).reshape(-1, 1), surf.transpose(1, 0, 2)
+            )
+        ]
+        return reg_intf, reg_surf
 
 
 @dataclasses.dataclass(frozen=True)
@@ -241,16 +383,13 @@ class RectLayerShapeData:
     """
     Analysis data for :class:`RectLayerShape` instance.
 
-    - Area: Number of the pixels in the coating layer region.
-    - LayerLength_{Left/Right}: Number of the pixels between the lower
-      vertices of the substrate and the upper limit of the coating layer.
-    - Thickness_{Left/Bottom/Right}: Number of the pixels for the maximum
+    - LayerLength_{Left, Right}: Distance between the bottom sideline of the
+      substrate and the upper limit of the coating layer.
+    - AverageThickness_{Global, Left, Bottom, Right}: Average thickness of the
+      coating layer.
+    - Roughness_{Global, Left, Bottom, Right}: Roughness of the coating layer.
+    - MaxThickness_{Left, Bottom, Right}: Number of the pixels for the maximum
       thickness on each region.
-    - UniformThickness: Number of the pixels for the thickness of the fictitous
-      uniform coating layer whose area is same as ``Area``.
-    - Roughness: Roughness of the coating layer shape compared to the fictitous
-      uniform coating layer. This value has a dimension which is the pixel number
-      and can be normalized by dividing with ``UniformThickness``.
 
     The following data are the metadata for the analysis.
 
@@ -259,23 +398,24 @@ class RectLayerShapeData:
 
     """
 
-    Area: int
-
     LayerLength_Left: np.float64
     LayerLength_Right: np.float64
 
-    Thickness_Left: np.float64
-    Thickness_Bottom: np.float64
-    Thickness_Right: np.float64
+    AverageThickness_Global: np.float64
+    Roughness_Global: np.float64
+    AverageThickness_Left: np.float64
+    Roughness_Left: np.float64
+    AverageThickness_Bottom: np.float64
+    Roughness_Bottom: np.float64
+    AverageThickness_Right: np.float64
+    Roughness_Right: np.float64
 
-    UniformThickness: np.float64
-    Roughness: np.float64
+    MaxThickness_Left: np.float64
+    MaxThickness_Bottom: np.float64
+    MaxThickness_Right: np.float64
 
     MatchError: float
     ChipWidth: np.float32
-
-
-ROTATION_MATRIX = np.array([[0, 1], [-1, 0]])
 
 
 class RectLayerShape(
@@ -304,8 +444,8 @@ class RectLayerShape(
        ...     get_samples_path)
        >>> ref_path = get_samples_path("ref3.png")
        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
-       >>> tempROI = (100, 50, 1200, 200)
-       >>> substROI = (300, 100, 950, 600)
+       >>> tempROI = (13, 10, 1246, 200)
+       >>> substROI = (100, 100, 1200, 500)
        >>> ref = SubstrateReference(img, tempROI, substROI)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
@@ -345,7 +485,6 @@ class RectLayerShape(
     """
 
     __slots__ = (
-        "_layer_area",
         "_uniform_layer",
         "_roughness",
     )
@@ -355,7 +494,6 @@ class RectLayerShape(
     DecoOptions = RectLayerShapeDecoOptions
     Data = RectLayerShapeData
 
-    RoughnessMeasure: TypeAlias = DistanceMeasure
     BackgroundDrawMode: TypeAlias = BackgroundDrawMode
     SubtractionDrawMode: TypeAlias = SubtractionDrawMode
 
@@ -387,15 +525,15 @@ class RectLayerShape(
                     iterations=closingParams.iterations,
                 )
 
-            # closed image may still have error pixels. at least we have to
+            # closed image may still have error pixels, and at least we have to
             # remove the errors that are disconnected to the layer.
             # we identify the layer pixels as the connected components that are
-            # close to the bottom line.
+            # close to the lower vertices.
             vicinity_mask = np.zeros(img.shape, np.uint8)
             p0 = self.substrate_point()
-            _, bl, br, _ = self.substrate.vertex_points().astype(np.int32)
-            B = p0 + bl
-            C = p0 + br
+            _, bl, br, _ = self.substrate.contour()[self.substrate.vertices()]
+            (B,) = p0 + bl
+            (C,) = p0 + br
             R = self.parameters.ReconstructRadius
             cv2.circle(vicinity_mask, B, R, 1, -1)
             cv2.circle(vicinity_mask, C, R, 1, -1)
@@ -409,11 +547,13 @@ class RectLayerShape(
             self._extracted_layer = layer_mask
         return self._extracted_layer
 
-    def layer_area(self) -> int:
-        """Return the number of pixels in coating layer region."""
-        if not hasattr(self, "_layer_area"):
-            self._layer_area = np.count_nonzero(self.extract_layer())
-        return self._layer_area
+    def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
+        """Return thickness and points for uniform layer."""
+        if not hasattr(self, "_uniform_layer"):
+            intf, surf = self.enclosing_interface(), self.enclosing_surface()
+            L, ul = uniform_layer(intf.astype(np.float32), surf.astype(np.float32))
+            self._uniform_layer = (L, ul)
+        return self._uniform_layer
 
     def surface_projections(self, side: str) -> npt.NDArray[np.float64]:
         """
@@ -432,8 +572,7 @@ class RectLayerShape(
             dimension of the point. On the second axis, 0-th index is the surface
             points and 1-th index is the projection points.
         """
-        # TODO: filter out the projections not onto the interface
-        A, B, C, D = self.substrate.vertex_points() + self.substrate_point()
+        A, B, C, D = self.substrate.sideline_intersections() + self.substrate_point()
         if side == "left":
             P1, P2 = A, B
         elif side == "bottom":
@@ -443,135 +582,27 @@ class RectLayerShape(
         else:
             return np.empty((0, 2, 2), dtype=np.float64)
 
-        (surface,) = self.enclosing_surface().transpose(1, 0, 2)
+        surface = self.enclosing_surface()
         mask = np.cross(P2 - P1, surface - P1) >= 0
-        pts = surface[mask]
-        proj = find_projection(pts, P1, P2)
-        return np.stack([pts, proj]).transpose(1, 0, 2)
+        pts = surface[mask][:, np.newaxis]
+        lines = np.stack([P1, P2])[np.newaxis, ...]
 
-    def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
-        """
-        Return thickness and points for uniform layer that satisfies
-        :meth:`layer_area`.
-        """
-        if not hasattr(self, "_uniform_layer"):
-            # get contact line points
-            contactline_points = self.interfaces_boundaries()
-            if len(contactline_points) == 0:
-                layer = np.empty((0, 1, 2), dtype=np.float64)
-                self._uniform_layer = (np.float64(0), layer)
-                return self._uniform_layer
-            p0, p1 = contactline_points
-
-            subst_point = self.substrate_point()
-            hull, _ = self.substrate.edge_hull()
-            (hull,) = (hull + subst_point).transpose(1, 0, 2)
-            dh = np.diff(hull, axis=0)
-            dh_dot_dh = np.sum(dh * dh, axis=-1)
-
-            def find_projection(p):
-                h_p = p - hull[:-1, ...]
-                dh_scale_p = np.sum(h_p * dh, axis=-1) / dh_dot_dh
-                p_mask = (0 <= dh_scale_p) & (dh_scale_p <= 1)
-                if np.any(p_mask):
-                    p_proj_origins = hull[:-1, ...][p_mask, ...]
-                    p_proj_vecs = dh_scale_p[p_mask][..., np.newaxis] * dh[p_mask, ...]
-                    p_proj_dists = np.linalg.norm(h_p[p_mask] - p_proj_vecs, axis=-1)
-                    idx = np.argmin(p_proj_dists)
-                    i = np.arange(hull[:-1, ...].shape[0])[p_mask][idx]
-                    p_proj = (p_proj_origins + p_proj_vecs)[idx]
-                else:
-                    i = 0
-                    p_proj = np.empty((0, 2), dtype=np.float64)
-                return i + 1, p_proj
-
-            (i1, proj1), (i2, proj2) = sorted(
-                [find_projection(p0), find_projection(p1)], key=lambda x: x[0]
-            )
-            new_hull = hull[int(i1) : int(i2)].astype(np.float64)
-            if new_hull.size == 0:
-                layer = np.empty((0, 1, 2), dtype=np.float64)
-                self._uniform_layer = (np.float64(0), layer)
-                return self._uniform_layer
-
-            if not np.all(new_hull[0] == proj1):
-                new_hull = np.insert(new_hull, 0, proj1, axis=0)
-            nh_len = new_hull.shape[0]
-            if not np.all(new_hull[nh_len - 1] == proj2):
-                new_hull = np.insert(new_hull, nh_len, proj2, axis=0)
-            t = np.arange(new_hull.shape[0])
-
-            # find thickness
-            dt = np.diff(t, append=t[-1] + (t[-1] - t[-2]))
-            tangent = np.gradient(new_hull, t, axis=0)
-            normal = np.dot(tangent, ROTATION_MATRIX)
-            n = normal / np.linalg.norm(normal, axis=1)[..., np.newaxis]
-            dndt = np.gradient(n, t, axis=0)
-
-            S = self.layer_area()
-            L0 = 10  # initial value
-            L_NUM = 100  # interval number
-
-            def findL(l0, l_num):
-                l_pts = np.linspace(0, l0, l_num)
-                dl = np.diff(l_pts, append=l_pts[-1] + (l_pts[-1] - l_pts[-2]))
-                e_t = tangent[..., np.newaxis] + np.tensordot(dndt, l_pts, axes=0)
-                G = (
-                    np.sum(e_t * e_t, axis=1)
-                    - np.tensordot(np.sum(n * dndt, axis=1), l_pts, axes=0) ** 2
-                )
-                dS = np.sqrt(G) * dt[..., np.newaxis] * dl
-                S_i = np.cumsum(np.sum(dS, axis=0))
-                k0 = (S_i[-1] - S_i[-2]) / dl[-1]
-                newL = max(0, (S - S_i[-1]) / k0 + l0)
-                if l_pts[-2] <= newL <= l_pts[-1]:
-                    return newL
-                return findL(newL, l_num)
-
-            L = findL(L0, L_NUM)
-            self._uniform_layer = (L, new_hull + L * n)
-
-        return self._uniform_layer
+        prj = project_on_polylines(pts, lines)
+        prj_pts = np.squeeze(polylines_external_points(prj, lines), axis=2)
+        return np.concatenate([pts, prj_pts], axis=1)
 
     def roughness(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """Dimensional roughness value of the coating layer surface."""
         if not hasattr(self, "_roughness"):
-            (surface,) = self.enclosing_surface().transpose(1, 0, 2)
-            _, uniform_layer = self.uniform_layer()
-            if surface.size == 0 or uniform_layer.size == 0:
-                return (np.float64(np.nan), np.empty((0, 2, 2), dtype=np.float64))
+            surf = self.enclosing_surface()
+            _, ul = self.uniform_layer()
 
-            NUM_POINTS = self.parameters.RoughnessSamples
+            if surf.size == 0 or ul.size == 0:
+                return (np.float64(np.nan), np.empty((2, 0, 1, 2), dtype=np.float64))
 
-            def equidistant_interp(points):
-                # https://stackoverflow.com/a/19122075
-                vec = np.diff(points, axis=0)
-                dist = np.linalg.norm(vec, axis=1)
-                u = np.insert(np.cumsum(dist), 0, 0)
-                t = np.linspace(0, u[-1], NUM_POINTS)
-                y, x = points.T
-                return np.stack([np.interp(t, u, y), np.interp(t, u, x)]).T
-
-            P = equidistant_interp(surface).astype(np.float64)
-            Q = equidistant_interp(uniform_layer).astype(np.float64)
-
-            if self.parameters.RoughnessMeasure == self.RoughnessMeasure.DFD:
-                ca = dfd(P, Q)
-                path = dfd_pair(ca)
-                roughness = ca[-1, -1] / len(path)
-            elif self.parameters.RoughnessMeasure == self.RoughnessMeasure.SFD:
-                ca = sfd(P, Q)
-                path = sfd_path(ca)
-                roughness = ca[-1, -1] / len(path)
-            elif self.parameters.RoughnessMeasure == self.RoughnessMeasure.SSFD:
-                ca = ssfd(P, Q)
-                path = ssfd_path(ca)
-                roughness = np.sqrt(ca[-1, -1] / len(path))
-            else:
-                raise TypeError(f"Unknown option: {self.parameters.RoughnessMeasure}")
-
-            similarity_pairs = np.stack([P[path[..., 0]], Q[path[..., 1]]])
-            self._roughness = (roughness, similarity_pairs.transpose(1, 0, 2))
+            surf = equidistant_interpolate(surf, self.parameters.RoughnessSamples)
+            ul = equidistant_interpolate(ul, self.parameters.RoughnessSamples)
+            self._roughness = roughness(surf, ul, self.parameters.RoughnessMeasure)
 
         return self._roughness
 
@@ -657,44 +688,32 @@ class RectLayerShape(
                 thickness=uniformlayer_opts.thickness,
             )
 
-        roughnesspair_opts = self.deco_options.roughness_pairs
-        if roughnesspair_opts.thickness > 0:
+        pair_opts = self.deco_options.roughness_pairs
+        if pair_opts.thickness > 0:
             _, pairs = self.roughness()
-            for pair in pairs[:: roughnesspair_opts.drawevery]:
+            pairs = pairs.astype(np.int32)
+            for surf_pt, ul_pt in pairs.transpose(1, 0, 2, 3)[:: pair_opts.drawevery]:
                 cv2.line(
                     image,
-                    *pair.astype(np.int32),
-                    color=dataclasses.astuple(roughnesspair_opts.color),
-                    thickness=roughnesspair_opts.thickness,
+                    *surf_pt,
+                    *ul_pt,
+                    color=dataclasses.astuple(pair_opts.color),
+                    thickness=pair_opts.thickness,
                 )
             # always draw the last line
             if pairs.size > 0:
                 cv2.line(
                     image,
-                    *pairs[-1].astype(np.int32),
-                    color=dataclasses.astuple(roughnesspair_opts.color),
-                    thickness=roughnesspair_opts.thickness,
+                    *pairs[0, -1, ...],
+                    *pairs[1, -1, ...],
+                    color=dataclasses.astuple(pair_opts.color),
+                    thickness=pair_opts.thickness,
                 )
 
         return image
 
-    def analyze_layer(
-        self,
-    ) -> Tuple[
-        int,
-        np.float64,
-        np.float64,
-        np.float64,
-        np.float64,
-        np.float64,
-        np.float64,
-        np.float64,
-        float,
-        np.float32,
-    ]:
-        AREA = self.layer_area()
-
-        _, B, C, _ = self.substrate.vertex_points() + self.substrate_point()
+    def analyze_layer(self):
+        _, B, C, _ = self.substrate.sideline_intersections() + self.substrate_point()
 
         contactline_points = self.interfaces_boundaries()
         if len(contactline_points) != 0:
@@ -706,6 +725,39 @@ class RectLayerShape(
         else:
             LEN_L = LEN_R = np.float64(0)
 
+        AVRGTHCK_G, _ = self.uniform_layer()
+        ROUGH_G, _ = self.roughness()
+
+        reg_intf_surf = self.regional_interfaces_surfaces()
+        (intf_L, intf_B, intf_R), (surf_L, _, surf_B, _, surf_R) = reg_intf_surf
+        AVRGTHCK_L, ul_L = uniform_layer(
+            intf_L.astype(np.float32),
+            surf_L.astype(np.float32),
+        )
+        ROUGH_L, _ = roughness(
+            equidistant_interpolate(surf_L, self.parameters.RoughnessSamples),
+            equidistant_interpolate(ul_L, self.parameters.RoughnessSamples),
+            self.parameters.RoughnessMeasure,
+        )
+        AVRGTHCK_B, ul_B = uniform_layer(
+            intf_B.astype(np.float32),
+            surf_B.astype(np.float32),
+        )
+        ROUGH_B, _ = roughness(
+            equidistant_interpolate(surf_B, self.parameters.RoughnessSamples),
+            equidistant_interpolate(ul_B, self.parameters.RoughnessSamples),
+            self.parameters.RoughnessMeasure,
+        )
+        AVRGTHCK_R, ul_R = uniform_layer(
+            intf_R.astype(np.float32),
+            surf_R.astype(np.float32),
+        )
+        ROUGH_R, _ = roughness(
+            equidistant_interpolate(surf_R, self.parameters.RoughnessSamples),
+            equidistant_interpolate(ul_R, self.parameters.RoughnessSamples),
+            self.parameters.RoughnessMeasure,
+        )
+
         max_dists = []
         for side in ["left", "bottom", "right"]:
             surf_proj = self.surface_projections(side)
@@ -716,29 +768,105 @@ class RectLayerShape(
                 max_dists.append(dists.max())
         THCK_L, THCK_B, THCK_R = max_dists
 
-        THCK_U, _ = self.uniform_layer()
-        ROUGH, _ = self.roughness()
-
         ERR, _ = self.match_substrate()
         CHIPWIDTH = np.linalg.norm(B - C)
 
         return (
-            AREA,
             LEN_L,
             LEN_R,
+            AVRGTHCK_G,
+            ROUGH_G,
+            AVRGTHCK_L,
+            ROUGH_L,
+            AVRGTHCK_B,
+            ROUGH_B,
+            AVRGTHCK_R,
+            ROUGH_R,
             THCK_L,
             THCK_B,
             THCK_R,
-            THCK_U,
-            ROUGH,
             ERR,
             CHIPWIDTH,
         )
 
 
-def find_projection(point, A, B):
-    Ap = point - A
-    AB = B - A
-    t = np.dot(Ap, AB) / np.dot(AB, AB)
-    A_Proj = np.tensordot(t, AB, axes=0)
-    return A + A_Proj
+def uniform_layer(
+    interface: npt.NDArray[np.float32], surface: npt.NDArray[np.float32]
+) -> Tuple[np.float64, npt.NDArray[np.float64]]:
+    """
+    Return the information of uniform layer from the interface and the surface.
+
+    Parameters
+    ----------
+    interface, surface: ndarray
+        Coordinates of the polyline vertices for the solid-liquid interface and
+        liquid-gas surface. The shape must be `(N, 1, D)`, where `N` is the
+        number of vertices and `D` is the dimension.
+
+    Returns
+    -------
+    L: float64
+        Thickness of the uniform layer.
+    uniform_layer: ndarray
+        Coordinates polyline vertices for the uniform layer.
+
+    Notes
+    -----
+    Uniform layer is defined as "what the layer would be if the liquid was
+    uniformly distributed". Mathematically, it is a parallel line of the
+    interface having same area to the layer.
+    """
+    if interface.size == 0 or surface.size == 0:
+        return (np.float64(0), np.empty((0, 1, 2), dtype=np.float64))
+
+    S = cv2.contourArea(np.concatenate([interface, np.flip(surface, axis=0)]))
+    (L,) = root(lambda t: polyline_parallel_area(interface, t) - S, 0).x
+
+    normal = np.dot(np.gradient(interface, axis=0), ROTATION_MATRIX)
+    n = normal / np.linalg.norm(normal, axis=-1)[..., np.newaxis]
+    return (L, interface + L * n)
+
+
+def roughness(
+    surface: npt.NDArray, uniform_layer: npt.NDArray, measure: DistanceMeasure
+) -> Tuple[np.float64, npt.NDArray[np.float64]]:
+    """
+    Calculate the roughness of arbitrary curve.
+
+    Parameters
+    ----------
+    surface, uniform_layer: ndarray
+        Coordinates of the polyline vertices for the liquid-gas surface and the
+        uniform layer that the surface is compared to. The shape must be
+        `(N, 1, D)` where `N` is the number of vertices and `D` is the dimension.
+    measure: DistanceMeasure
+        Type of the measure of similarity between two curves.
+
+    Returns
+    -------
+    roughness: float64
+        Roughness value of *surface*.
+    pairs: ndarray
+        Coordinates of Frechet pairs between *surface* and *uniform_layer*.
+        The shape is `(2, P, 1, D)` where `P` is the number of pairs.
+        The first axis represents the points on *surface* and *uniform_layer*,
+        respectively.
+
+    """
+    if measure == DistanceMeasure.DFD:
+        ca = dfd(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
+        path = dfd_pair(ca)
+        roughness = ca[-1, -1] / len(path)
+    elif measure == DistanceMeasure.SFD:
+        ca = sfd(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
+        path = sfd_path(ca)
+        roughness = ca[-1, -1] / len(path)
+    elif measure == DistanceMeasure.SSFD:
+        ca = ssfd(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
+        path = ssfd_path(ca)
+        roughness = np.sqrt(ca[-1, -1] / len(path))
+    else:
+        raise TypeError(f"Unknown measure: {measure}")
+
+    pairs = np.stack([surface[path[..., 0]], uniform_layer[path[..., 1]]])
+    return (roughness, pairs)

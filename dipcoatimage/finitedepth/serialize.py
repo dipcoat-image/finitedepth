@@ -66,8 +66,8 @@ class ReferenceArgs:
 
        >>> import cv2
        >>> from dipcoatimage.finitedepth import ReferenceArgs, get_samples_path
-       >>> refargs = ReferenceArgs(templateROI=(100, 50, 1200, 200),
-       ...                         substrateROI=(300, 100, 950, 600))
+       >>> refargs = ReferenceArgs(templateROI=(13, 10, 1246, 200),
+       ...                         substrateROI=(100, 100, 1200, 500))
        >>> ref = refargs.as_reference(cv2.imread(get_samples_path("ref3.png")))
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
@@ -153,8 +153,8 @@ class SubstrateArgs:
 
        >>> import cv2
        >>> from dipcoatimage.finitedepth import ReferenceArgs, get_samples_path
-       >>> refargs = ReferenceArgs(templateROI=(100, 50, 1200, 200),
-       ...                         substrateROI=(300, 100, 950, 600))
+       >>> refargs = ReferenceArgs(templateROI=(13, 10, 1246, 200),
+       ...                         substrateROI=(100, 100, 1200, 500))
        >>> ref = refargs.as_reference(cv2.imread(get_samples_path("ref3.png")))
 
     Construct substrate instance from the data.
@@ -246,8 +246,8 @@ class CoatingLayerArgs:
        >>> import cv2
        >>> from dipcoatimage.finitedepth import (data_converter, ReferenceArgs,
        ...     SubstrateArgs, get_samples_path)
-       >>> refargs = ReferenceArgs(templateROI=(100, 50, 1200, 200),
-       ...                         substrateROI=(300, 100, 950, 600))
+       >>> refargs = ReferenceArgs(templateROI=(13, 10, 1246, 200),
+       ...                         substrateROI=(100, 100, 1200, 500))
        >>> ref = refargs.as_reference(cv2.imread(get_samples_path("ref3.png")))
        >>> params = dict(Sigma=3.0, Rho=1.0, Theta=0.01)
        >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)

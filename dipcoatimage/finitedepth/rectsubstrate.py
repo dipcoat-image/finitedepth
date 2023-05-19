@@ -20,13 +20,13 @@ import dataclasses
 import enum
 import numpy as np
 import numpy.typing as npt
-from typing import Tuple
 from .polysubstrate import PolySubstrateParameters, PolySubstrateBase
 from .util import (
     colorize,
     FeatureDrawingOptions,
     Color,
 )
+from .util.geometry import closest_in_polylines, polylines_internal_points
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -97,8 +97,8 @@ class RectSubstrate(
        ...     get_samples_path)
        >>> ref_path = get_samples_path("ref3.png")
        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
-       >>> tempROI = (100, 50, 1200, 200)
-       >>> substROI = (300, 100, 950, 600)
+       >>> tempROI = (13, 10, 1246, 200)
+       >>> substROI = (100, 100, 1200, 500)
        >>> ref = SubstrateReference(img, tempROI, substROI)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
@@ -127,18 +127,26 @@ class RectSubstrate(
 
     """
 
+    __slots__ = ("_hull_projections",)
+
     Parameters = PolySubstrateParameters
     DrawOptions = RectSubstrateDrawOptions
     SidesNum = 4
 
     DrawMode: TypeAlias = RectSubstrateDrawMode
 
-    def edge_hull(self) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.float64]]:
-        hull = np.flip(cv2.convexHull(self.contour()), axis=0)
-        # TODO: get more points by interpolating to `hull`
-        tangent = np.gradient(hull, axis=0)
-        # TODO: perform edge tangent flow to get smoother curve
-        return hull, tangent
+    def hull(self):
+        # Flip s.t. the hull has same direction with the contour.
+        return np.flip(cv2.convexHull(self.contour()), axis=0)
+
+    def hull_projections(self):
+        if not hasattr(self, "_hull_projections"):
+            cnt_pts = self.contour()  # shape: (N, 1, D)
+            hull = self.hull()
+            hull = np.concatenate([hull, hull[:1]]).transpose(1, 0, 2)  # (M, V, D)
+            idxs = closest_in_polylines(cnt_pts, hull)
+            self._hull_projections = polylines_internal_points(idxs, hull)
+        return self._hull_projections
 
     def draw(self) -> npt.NDArray[np.uint8]:
         draw_mode = self.draw_options.draw_mode
@@ -158,7 +166,7 @@ class RectSubstrate(
 
         side_opts = self.draw_options.sides
         if side_opts.thickness > 0:
-            tl, bl, br, tr = self.vertex_points().astype(np.int32)
+            tl, bl, br, tr = self.sideline_intersections().astype(np.int32)
 
             color = dataclasses.astuple(side_opts.color)
             thickness = side_opts.thickness
@@ -169,10 +177,9 @@ class RectSubstrate(
 
         hull_opts = self.draw_options.hull
         if hull_opts.thickness > 0:
-            hull, _ = self.edge_hull()
             cv2.polylines(
                 ret,
-                [hull],
+                [self.hull().astype(np.int32)],
                 isClosed=False,
                 color=dataclasses.astuple(hull_opts.color),
                 thickness=hull_opts.thickness,

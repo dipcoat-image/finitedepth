@@ -60,7 +60,7 @@ Temporal evolution of the coating layer can be assessed by analyzing the series 
    from dipcoatimage.finitedepth import SubstrateReference, Substrate, LayerArea
 
    ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
-   ref = SubstrateReference(ref_img, (100, 50, 1200, 200), (300, 100, 950, 600))
+   ref = SubstrateReference(ref_img, (13, 10, 1246, 200), (100, 100, 1200, 500))
    subst = Substrate(ref)
    coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
    coat = LayerArea(coat_img, subst)
@@ -138,7 +138,7 @@ To analyze the coating layer shape, the coating layer instance uses the substrat
    >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
    >>> coat = LayerArea(coat_img, subst)
    >>> coat.analyze()
-   LayerAreaData(Area=41519)
+   LayerAreaData(Area=52698)
    >>> coat.draw_options.subtract_mode = coat.SubtractionDrawMode.FULL
    >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
