@@ -377,7 +377,6 @@ class RectLayerShapeData:
     """
     Analysis data for :class:`RectLayerShape` instance.
 
-    - Area: Area of the entire coating layer region.
     - LayerLength_{Left/Right}: Number of the pixels between the lower
       vertices of the substrate and the upper limit of the coating layer.
     - MeanThickness_Global: Mean thickness in pixel number.
@@ -392,8 +391,6 @@ class RectLayerShapeData:
     - ChipWidth: Number of the pixels between lower vertices of the substrate.
 
     """
-
-    Area: float
 
     LayerLength_Left: np.float64
     LayerLength_Right: np.float64
@@ -539,12 +536,12 @@ class RectLayerShape(
             self._extracted_layer = layer_mask
         return self._extracted_layer
 
-    def uniform_layer(self) -> Tuple[float, np.float64, npt.NDArray[np.float64]]:
+    def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """Return thickness and points for uniform layer."""
         if not hasattr(self, "_uniform_layer"):
             intf, surf = self.enclosing_interface(), self.enclosing_surface()
-            S, L, ul = uniform_layer(intf.astype(np.float32), surf.astype(np.float32))
-            self._uniform_layer = (S, L, ul)
+            L, ul = uniform_layer(intf.astype(np.float32), surf.astype(np.float32))
+            self._uniform_layer = (L, ul)
         return self._uniform_layer
 
     def surface_projections(self, side: str) -> npt.NDArray[np.float64]:
@@ -587,7 +584,7 @@ class RectLayerShape(
         """Dimensional roughness value of the coating layer surface."""
         if not hasattr(self, "_roughness"):
             surf = self.enclosing_surface()
-            _, _, ul = self.uniform_layer()
+            _, ul = self.uniform_layer()
 
             if surf.size == 0 or ul.size == 0:
                 return (np.float64(np.nan), np.empty((2, 0, 1, 2), dtype=np.float64))
@@ -671,7 +668,7 @@ class RectLayerShape(
 
         uniformlayer_opts = self.deco_options.uniform_layer
         if uniformlayer_opts.thickness > 0:
-            _, _, points = self.uniform_layer()
+            _, points = self.uniform_layer()
             cv2.polylines(
                 image,
                 [points.astype(np.int32)],
@@ -707,7 +704,6 @@ class RectLayerShape(
     def analyze_layer(
         self,
     ) -> Tuple[
-        float,
         np.float64,
         np.float64,
         np.float64,
@@ -718,7 +714,7 @@ class RectLayerShape(
         float,
         np.float32,
     ]:
-        AREA, MEANTHCK_G, _ = self.uniform_layer()
+        MEANTHCK_G, _ = self.uniform_layer()
 
         _, B, C, _ = self.substrate.sideline_intersections() + self.substrate_point()
 
@@ -748,7 +744,6 @@ class RectLayerShape(
         CHIPWIDTH = np.linalg.norm(B - C)
 
         return (
-            AREA,
             LEN_L,
             LEN_R,
             MEANTHCK_G,
@@ -763,7 +758,7 @@ class RectLayerShape(
 
 def uniform_layer(
     interface: npt.NDArray[np.float32], surface: npt.NDArray[np.float32]
-) -> Tuple[float, np.float64, npt.NDArray[np.float64]]:
+) -> Tuple[np.float64, npt.NDArray[np.float64]]:
     """
     Return the information of uniform layer from the interface and the surface.
 
@@ -776,8 +771,6 @@ def uniform_layer(
 
     Returns
     -------
-    S: float
-        Area of the layer.
     L: float64
         Thickness of the uniform layer.
     uniform_layer: ndarray
@@ -790,14 +783,14 @@ def uniform_layer(
     interface having same area to the layer.
     """
     if interface.size == 0 or surface.size == 0:
-        return (float(0), np.float64(0), np.empty((0, 1, 2), dtype=np.float64))
+        return (np.float64(0), np.empty((0, 1, 2), dtype=np.float64))
 
     S = cv2.contourArea(np.concatenate([interface, np.flip(surface, axis=0)]))
     (L,) = root(lambda t: polyline_parallel_area(interface, t) - S, 0).x
 
     normal = np.dot(np.gradient(interface, axis=0), ROTATION_MATRIX)
     n = normal / np.linalg.norm(normal, axis=-1)[..., np.newaxis]
-    return (S, L, interface + L * n)
+    return (L, interface + L * n)
 
 
 def roughness(
