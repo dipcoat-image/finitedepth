@@ -118,10 +118,13 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         -----
         A vertex is a point where two or more sides of a polygon meet[1]_.
         The sides can be curves, where the vertices can be defined as local
-        extrema of curvature[2]_.
+        extrema of curvature[2]_. This method finds the vertices by locating a
+        certain number (defined by d:attr:`SidesNum`) of curvature extrema.
 
-        This method finds the vertices by locating a certain number (defined by
-        :attr:`SidesNum`) of curvature extrema.
+        The order of the vertices is sorted by the index number in the contour.
+        Because the contour forms a closed curve, a vertex point closest to the
+        first contour point can appear either at the beginning or at the end of
+        the line.
 
         See Also
         --------
@@ -139,8 +142,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             # it's faster and still gives accurate result.
             # DO NOT calculate theta of smoothed contour. Calculate the theta
             # from raw contour first and then perform smoothing!
-            r = np.concatenate([self.contour(), self.contour()[:1]])  # closed line
-            dr = np.gradient(r, axis=0)
+            dr = np.gradient(self.contour(), axis=0)
             drds = dr / np.linalg.norm(dr, axis=-1)[..., np.newaxis]
             theta_smooth = gaussian_filter1d(
                 np.arctan2(drds[..., 1], drds[..., 0]),
@@ -149,11 +151,12 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
                 order=0,
                 mode="wrap",
             )
-            tg = np.gradient(theta_smooth, axis=0)
-            # Since the contour is periodic we repeat the data in both directions
-            # to ensure boundary peaks are be found.
-            L = len(tg)
-            tg_repeated = np.concatenate([tg[-(L // 2) :], tg, tg[: (L // 2)]], axis=0)
+            L = len(theta_smooth)
+            ts_repeated = np.concatenate(
+                [theta_smooth[-(L // 2) :], theta_smooth, theta_smooth[: (L // 2)]],
+                axis=0,
+            )
+            tg_repeated = np.gradient(ts_repeated, axis=0)
 
             # 2. Find peak. Each peak shows the point where side changes.
             # This allows us to discern individual sides lying on same line.
@@ -169,10 +172,10 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
                     f" (needs {self.SidesNum}, detected {len(prom)})"
                 )
                 raise PolySubstrateError(msg)
-            prom_peaks = peaks[np.sort(np.argsort(prom)[-self.SidesNum :])]
-            vertices = np.sort(prom_peaks) - (L // 2)
+            prom_peaks = peaks[np.argsort(prom)[-self.SidesNum :]]
+            vertices = np.sort((prom_peaks - (L // 2)) % L)
 
-            self._vertices = np.sort(vertices % L)
+            self._vertices = vertices
         return self._vertices
 
     def sides(self) -> Tuple[npt.NDArray[np.int32], ...]:
