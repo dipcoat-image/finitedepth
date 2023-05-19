@@ -301,10 +301,16 @@ class RectCoatingLayerBase(
     def regional_interfaces_surfaces(self):
         intf, surf = self.enclosing_interface(), self.enclosing_surface()
         intf_vert, surf_vert = self.layer_vertices()
-        reg_intf = split_polyline(intf_vert, intf.transpose(1, 0, 2))
-        reg_surf = split_polyline(
-            surf_vert.transpose(1, 0, 2).reshape(-1, 1), surf.transpose(1, 0, 2)
-        )
+        reg_intf = [
+            intf.transpose(1, 0, 2)
+            for intf in split_polyline(intf_vert, intf.transpose(1, 0, 2))
+        ]
+        reg_surf = [
+            surf.transpose(1, 0, 2)
+            for surf in split_polyline(
+                surf_vert.transpose(1, 0, 2).reshape(-1, 1), surf.transpose(1, 0, 2)
+            )
+        ]
         return reg_intf, reg_surf
 
 
@@ -377,12 +383,12 @@ class RectLayerShapeData:
     """
     Analysis data for :class:`RectLayerShape` instance.
 
-    - LayerLength_{Left/Right}: Number of the pixels between the lower
-      vertices of the substrate and the upper limit of the coating layer.
-    - MeanThickness_Global: Mean thickness in pixel number.
-    - Roughness_Global: Roughness of the coating layer compared to the mean
-      thickness.
-    - MaxThickness_{Left/Bottom/Right}: Number of the pixels for the maximum
+    - LayerLength_{Left, Right}: Distance between the bottom sideline of the
+      substrate and the upper limit of the coating layer.
+    - AverageThickness_{Global, Left, Bottom, Right}: Average thickness of the
+      coating layer.
+    - Roughness_{Global, Left, Bottom, Right}: Roughness of the coating layer.
+    - MaxThickness_{Left, Bottom, Right}: Number of the pixels for the maximum
       thickness on each region.
 
     The following data are the metadata for the analysis.
@@ -395,9 +401,14 @@ class RectLayerShapeData:
     LayerLength_Left: np.float64
     LayerLength_Right: np.float64
 
-    MeanThickness_Global: np.float64
-
+    AverageThickness_Global: np.float64
     Roughness_Global: np.float64
+    AverageThickness_Left: np.float64
+    Roughness_Left: np.float64
+    AverageThickness_Bottom: np.float64
+    Roughness_Bottom: np.float64
+    AverageThickness_Right: np.float64
+    Roughness_Right: np.float64
 
     MaxThickness_Left: np.float64
     MaxThickness_Bottom: np.float64
@@ -701,21 +712,7 @@ class RectLayerShape(
 
         return image
 
-    def analyze_layer(
-        self,
-    ) -> Tuple[
-        np.float64,
-        np.float64,
-        np.float64,
-        np.float64,
-        np.float64,
-        np.float64,
-        np.float64,
-        float,
-        np.float32,
-    ]:
-        MEANTHCK_G, _ = self.uniform_layer()
-
+    def analyze_layer(self):
         _, B, C, _ = self.substrate.sideline_intersections() + self.substrate_point()
 
         contactline_points = self.interfaces_boundaries()
@@ -728,7 +725,38 @@ class RectLayerShape(
         else:
             LEN_L = LEN_R = np.float64(0)
 
+        AVRGTHCK_G, _ = self.uniform_layer()
         ROUGH_G, _ = self.roughness()
+
+        reg_intf_surf = self.regional_interfaces_surfaces()
+        (intf_L, intf_B, intf_R), (surf_L, _, surf_B, _, surf_R) = reg_intf_surf
+        AVRGTHCK_L, ul_L = uniform_layer(
+            intf_L.astype(np.float32),
+            surf_L.astype(np.float32),
+        )
+        ROUGH_L, _ = roughness(
+            equidistant_interpolate(surf_L, self.parameters.RoughnessSamples),
+            equidistant_interpolate(ul_L, self.parameters.RoughnessSamples),
+            self.parameters.RoughnessMeasure,
+        )
+        AVRGTHCK_B, ul_B = uniform_layer(
+            intf_B.astype(np.float32),
+            surf_B.astype(np.float32),
+        )
+        ROUGH_B, _ = roughness(
+            equidistant_interpolate(surf_B, self.parameters.RoughnessSamples),
+            equidistant_interpolate(ul_B, self.parameters.RoughnessSamples),
+            self.parameters.RoughnessMeasure,
+        )
+        AVRGTHCK_R, ul_R = uniform_layer(
+            intf_R.astype(np.float32),
+            surf_R.astype(np.float32),
+        )
+        ROUGH_R, _ = roughness(
+            equidistant_interpolate(surf_R, self.parameters.RoughnessSamples),
+            equidistant_interpolate(ul_R, self.parameters.RoughnessSamples),
+            self.parameters.RoughnessMeasure,
+        )
 
         max_dists = []
         for side in ["left", "bottom", "right"]:
@@ -746,8 +774,14 @@ class RectLayerShape(
         return (
             LEN_L,
             LEN_R,
-            MEANTHCK_G,
+            AVRGTHCK_G,
             ROUGH_G,
+            AVRGTHCK_L,
+            ROUGH_L,
+            AVRGTHCK_B,
+            ROUGH_B,
+            AVRGTHCK_R,
+            ROUGH_R,
             THCK_L,
             THCK_B,
             THCK_R,
