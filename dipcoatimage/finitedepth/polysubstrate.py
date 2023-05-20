@@ -121,10 +121,8 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         extrema of curvature[2]_. This method finds the vertices by locating a
         certain number (defined by d:attr:`SidesNum`) of curvature extrema.
 
-        The order of the vertices is sorted by the index number in the contour.
-        Because the contour forms a closed curve, a vertex point closest to the
-        first contour point can appear either at the beginning or at the end of
-        the line.
+        The order of the vertices is sorted along :meth:`contour`, with the
+        vertex closest to the starting point of the contour coming first.
 
         See Also
         --------
@@ -142,7 +140,8 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             # it's faster and still gives accurate result.
             # DO NOT calculate theta of smoothed contour. Calculate the theta
             # from raw contour first and then perform smoothing!
-            dr = np.gradient(self.contour(), axis=0)
+            cnt = self.contour()
+            dr = np.gradient(cnt, axis=0)
             drds = dr / np.linalg.norm(dr, axis=-1)[..., np.newaxis]
             theta_smooth = gaussian_filter1d(
                 np.arctan2(drds[..., 1], drds[..., 0]),
@@ -174,6 +173,10 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
                 raise PolySubstrateError(msg)
             prom_peaks = peaks[np.argsort(prom)[-self.SidesNum :]]
             vertices = np.sort((prom_peaks - (L // 2)) % L)
+
+            # Roll s.t. vertex nearest to starting point of contour comes first
+            dist = np.linalg.norm(cnt[vertices] - cnt[0], axis=-1)
+            vertices = np.roll(vertices, -np.argmin(dist))
 
             self._vertices = vertices
         return self._vertices
