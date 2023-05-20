@@ -144,17 +144,12 @@ class RectCoatingLayerBase(
 
             (subst_cnt,), _ = self.substrate.contours()[0]
             subst_cnt = subst_cnt + self.substrate_point()  # DON'T USE += !!
-            vec = np.diff(subst_cnt, axis=0)
+            pts = polylines_internal_points(
+                np.stack([t0, t1]).reshape(-1, 1),
+                subst_cnt.transpose(1, 0, 2),
+            )
 
-            t0_int = np.int32(t0)
-            t0_dec = t0 - t0_int
-            p0 = subst_cnt[t0_int] + vec[t0_int] * t0_dec
-
-            t1_int = np.int32(t1)
-            t1_dec = t1 - t1_int
-            p1 = subst_cnt[t1_int] + vec[t1_int] * t1_dec
-
-            self._interfaces_boundaries = np.stack([p0, p1])
+            self._interfaces_boundaries = pts
         return self._interfaces_boundaries
 
     def enclosing_interface(self) -> npt.NDArray[np.float64]:
@@ -178,15 +173,16 @@ class RectCoatingLayerBase(
 
             cnt = self.substrate.hull() + self.substrate_point()
             poly = cnt.transpose(1, 0, 2)
-            ((i0, i1),) = closest_in_polylines(contactline_points, poly).T
-            idx = np.arange(int(i0 + 1), int(i1 + 1), dtype=float)
-            if idx[0] > i0:
-                idx = np.insert(idx, 0, i0)
-            if idx[-1] < i1:
-                idx = np.insert(idx, len(idx), i1)
-            idx = idx.reshape(-1, 1)
+            idx = closest_in_polylines(contactline_points, poly).reshape(-1)
+            idx_range = np.arange(*np.floor(idx + 1))
 
-            self._enclosing_interface = polylines_internal_points(idx, poly)
+            if idx_range[0] > idx[0]:
+                idx_range = np.insert(idx_range, 0, idx[0])
+            if idx_range[-1] < idx[-1]:
+                idx_range = np.insert(idx_range, len(idx_range), idx[-1])
+            idx_range = idx_range.reshape(-1, 1)
+
+            self._enclosing_interface = polylines_internal_points(idx_range, poly)
         return self._enclosing_interface
 
     def enclosing_surface(self) -> npt.NDArray[np.float64]:
@@ -214,15 +210,16 @@ class RectCoatingLayerBase(
                 cv2.CHAIN_APPROX_SIMPLE,
             )
             poly = cnt.transpose(1, 0, 2)
-            ((i0, i1),) = closest_in_polylines(contactline_points, poly).T
-            idx = np.arange(int(i0 + 1), int(i1 + 1), dtype=float)
-            if idx[0] > i0:
-                idx = np.insert(idx, 0, i0)
-            if idx[-1] < i1:
-                idx = np.insert(idx, len(idx), i1)
-            idx = idx.reshape(-1, 1)
+            idx = closest_in_polylines(contactline_points, poly).reshape(-1)
+            idx_range = np.arange(*np.floor(idx + 1))
 
-            self._enclosing_surface = polylines_internal_points(idx, poly)
+            if idx_range[0] > idx[0]:
+                idx_range = np.insert(idx_range, 0, idx[0])
+            if idx_range[-1] < idx[-1]:
+                idx_range = np.insert(idx_range, len(idx_range), idx[-1])
+            idx_range = idx_range.reshape(-1, 1)
+
+            self._enclosing_surface = polylines_internal_points(idx_range, poly)
         return self._enclosing_surface
 
     def layer_vertices(
