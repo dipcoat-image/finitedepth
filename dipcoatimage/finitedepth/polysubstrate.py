@@ -15,7 +15,7 @@ from scipy.signal import find_peaks, peak_prominences  # type: ignore
 from typing import TypeVar, Optional, Type, Tuple
 from .substrate import SubstrateError, SubstrateBase
 from .util import DataclassProtocol
-from .util.geometry import equidistant_interpolate, closest_in_polylines
+from .util.geometry import split_polyline, equidistant_interpolate, closest_in_polylines
 
 
 __all__ = [
@@ -281,6 +281,34 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         vertices = self.vertices() - SHIFT
         cnt_roll = np.roll(self.contour(), -SHIFT, axis=0)
         return tuple(np.split(cnt_roll, vertices[1:], axis=0))
+
+    def sides2(self) -> Tuple[npt.NDArray[np.float64], ...]:
+        """
+        Return the points of each side of the polygon.
+
+        Returns
+        -------
+        tuple_of_points: tuple
+
+        Notes
+        -----
+        Adjacent sides share boundary points. Side can be curved and can have
+        noises.
+
+        The term "side" is used instead of "edge" to avoid confusion from other
+        image processing methods (e.g. Canny edge detection).
+
+        """
+        vert = self.vertices2()
+        cnt = self.contour2().transpose(1, 0, 2)
+        split = [a.transpose(1, 0, 2) for a in split_polyline(vert, cnt)]
+        if vert[0] < 0:
+            sides = split[:-1]
+            sides[0] = np.concatenate([split[-1], split[0]], axis=0)
+        elif vert[0] >= 0:
+            sides = split[1:]
+            sides[-1] = np.concatenate([split[-1], split[0]], axis=0)
+        return tuple(sides)
 
     def sidelines(self) -> npt.NDArray[np.float32]:
         r"""
