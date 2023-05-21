@@ -257,12 +257,13 @@ def polylines_internal_points(
     .. [1] https://en.wikipedia.org/wiki/Polygonal_chain
 
     """
-    A = polylines[:, :-1, :].transpose(1, 0, 2)  # shape: (V - 1, M, D)
-    AB = np.diff(polylines, axis=1).transpose(1, 0, 2)  # shape: (V - 1, M, D)
+    A = polylines.transpose(1, 0, 2)  # shape: (V, M, D)
+    # AB has same size to A s.t. to deal with the parameter for the last point.
+    AB = np.diff(np.concatenate([A, A[-1:]]), axis=0)  # shape: (V, M, D)
     idx = parameters.astype(int)  # shape: (N, M)
-    idx_arr = np.ix_(*[np.arange(dim) for dim in idx.shape])
+    idx_arr = (idx,) + np.ix_(*[np.arange(dim) for dim in idx.shape])[1:]
     t = (parameters - idx)[..., np.newaxis]
-    return A[(idx,) + idx_arr[1:]] + t * AB[(idx,) + idx_arr[1:]]
+    return A[idx_arr] + t * AB[idx_arr]
 
 
 def polyline_parallel_area(line: npt.NDArray, t: float) -> np.float64:

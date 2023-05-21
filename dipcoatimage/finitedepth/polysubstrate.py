@@ -15,6 +15,7 @@ from scipy.signal import find_peaks, peak_prominences  # type: ignore
 from typing import TypeVar, Optional, Type, Tuple
 from .substrate import SubstrateError, SubstrateBase
 from .util import DataclassProtocol
+from .util.geometry import equidistant_interpolate, closest_in_polylines
 
 
 __all__ = [
@@ -105,6 +106,11 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             self._contour = cnt.astype(np.int32)
         return self._contour
 
+    def contour2(self) -> npt.NDArray[np.int32]:
+        """Return the polygon contour."""
+        (cnt,), _ = self.contours()[0]
+        return cnt
+
     def vertices(self) -> npt.NDArray[np.int32]:
         """
         Find the polygon vertices.
@@ -180,6 +186,75 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
             self._vertices = vertices
         return self._vertices
+
+    def vertices2(self) -> npt.NDArray[np.float64]:
+        """
+        Find the polygon vertices.
+
+        Returns
+        -------
+        ndarray
+            Parameters of the vertex points in :meth:`contour2`.
+
+        Notes
+        -----
+        A vertex is a point where two or more sides of a polygon meet[1]_.
+        The sides can be curves, where the vertices can be defined as local
+        extrema of curvature[2]_. This method finds the vertices by locating a
+        certain number (defined by d:attr:`SidesNum`) of curvature extrema.
+
+        The order of the vertices is sorted along :meth:`contour`, with the
+        vertex closest to the starting point of the contour coming first.
+
+        Passing this result to :func:`polylines_internal_points` with
+        :meth:`contour2` returns coordinates of the vertex points.
+
+        References
+        ----------
+        .. [1] https://en.wikipedia.org/wiki/Vertex_(geometry)
+        .. [2] https://en.wikipedia.org/wiki/Vertex_(curve)
+
+        """
+        # 1. Calculate the change of direction instead of curvature because
+        # it's faster and still gives accurate result.
+        # DO NOT calculate theta of smoothed contour. Calculate the theta
+        # from raw contour first and then perform smoothing!
+        cnt = self.contour2()
+        cnt_closed = np.concatenate([cnt, cnt[:1]])
+        C = np.sum(np.linalg.norm(np.diff(cnt_closed, axis=0), axis=-1), axis=0)
+        cnt_intrp = equidistant_interpolate(cnt_closed, int(C))
+
+        dr = np.diff(cnt_intrp, axis=0)
+        theta_smooth = gaussian_filter1d(
+            np.arctan2(dr[..., 1], dr[..., 0]),
+            self.parameters.Sigma,
+            axis=0,
+            order=0,
+            mode="wrap",
+        )
+        L = len(theta_smooth)
+        ts_repeated = np.concatenate(
+            [theta_smooth[-(L // 2) :], theta_smooth, theta_smooth[: (L // 2)]],
+            axis=0,
+        )
+        tg_repeated = np.gradient(ts_repeated, axis=0)
+        tg_rep_abs = np.abs(tg_repeated)[..., 0]
+
+        # 2. Find peak. Each peak shows the point where side changes.
+        # This allows us to discern individual sides lying on same line.
+        # Since we repeated tg, we select the peaks in desired region.
+        peaks = find_peaks(tg_rep_abs)[0].astype(np.int32)
+        (idxs,) = np.where((L // 2 <= peaks) & (peaks < 3 * L // 2))
+        peaks = peaks[idxs]
+        prom, _, _ = peak_prominences(tg_rep_abs, peaks)
+        prom_peaks = peaks[np.argsort(prom)[-self.SidesNum :]]
+
+        # Roll s.t. vertex nearest to starting point of contour comes first
+        vertex_pts = cnt_intrp[np.sort((prom_peaks - (L // 2)) % L)]
+        dist = np.linalg.norm(vertex_pts - cnt_intrp[0], axis=-1)
+        vertex_pts = np.roll(vertex_pts, -np.argmin(dist), axis=0)
+
+        return closest_in_polylines(vertex_pts, cnt.transpose(1, 0, 2))
 
     def sides(self) -> Tuple[npt.NDArray[np.int32], ...]:
         """
