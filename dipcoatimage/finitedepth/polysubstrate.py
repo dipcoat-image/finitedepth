@@ -347,24 +347,26 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             THETA_RES = self.parameters.Theta
             lines = []
             # Directly use Hough transformation to find lines
-            for c in self.sides():
-                tan = np.diff(c, axis=0)
+            for side in self.sides2():
+                tan = np.diff(side, axis=0)
                 atan = np.arctan2(tan[..., 1], tan[..., 0])  # -pi < atan <= pi
                 theta = atan - np.pi / 2
                 tmin, tmax = theta.min(), theta.max()
-
                 if tmin < tmax:
                     theta_rng = np.arange(tmin, tmax, THETA_RES, dtype=np.float32)
                 else:
                     theta_rng = np.array([tmin], dtype=np.float32)
+
+                c = equidistant_interpolate(
+                    side, int(np.sum(np.linalg.norm(np.diff(side, axis=0), axis=-1)))
+                )
                 rho = c[..., 0] * np.cos(theta_rng) + c[..., 1] * np.sin(theta_rng)
                 rho_digit = (rho / RHO_RES).astype(np.int32)
 
-                rho_min = rho_digit.min()
-                theta_idxs = np.arange(len(theta_rng))
-
                 # encode 2d array into 1d array for faster accumulation
                 # TODO: try numba to make faster. (iterate over 2D rows, not encode)
+                rho_min = rho_digit.min()
+                theta_idxs = np.arange(len(theta_rng))
                 idxs = (rho_digit - rho_min) * len(theta_idxs) + theta_idxs
                 val, counts = np.unique(idxs, return_counts=True)
                 max_idx = val[np.argmax(counts)]
