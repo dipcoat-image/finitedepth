@@ -260,6 +260,9 @@ class RectCoatingLayerBase(
 
         surf_reg = []
         for reg in intf_reg:
+            if not len(reg) > 1:
+                surf_reg.append(np.empty((0, 1, 2), dtype=np.float64))
+                continue
             boundary_dr = reg[[1, -1]] - reg[[0, -2]]
             if np.any(np.linalg.norm(boundary_dr, axis=-1) == 0):
                 surf_reg.append(np.empty((0, 1, 2), dtype=np.float64))
