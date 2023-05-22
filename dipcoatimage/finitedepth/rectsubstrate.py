@@ -134,6 +134,7 @@ class RectSubstrate(
 
     def contour(self):
         # Flip s.t. the hull has same direction with the contour.
+        # XXX: remove after implementing uniform layer for convex polyline
         return np.flip(cv2.convexHull(super().contour()), axis=0)
 
     def draw(self) -> npt.NDArray[np.uint8]:

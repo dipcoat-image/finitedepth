@@ -34,7 +34,7 @@ import enum
 import numpy as np
 import numpy.typing as npt
 from scipy.optimize import root  # type: ignore
-from typing import TypeVar, Type, Tuple, Optional
+from typing import TypeVar, Type, Tuple, List, Optional
 from .rectsubstrate import RectSubstrate
 from .coatinglayer import (
     CoatingLayerError,
@@ -103,6 +103,7 @@ class RectCoatingLayerBase(
     """Abstract base class for coating layer over rectangular substrate."""
 
     __slots__ = (
+        "_contour",
         "_interfaces_boundaries",
         "_enclosing_surface",
         "_enclosing_interface",
@@ -128,10 +129,23 @@ class RectCoatingLayerBase(
         roi_binimg = self.binary_image()[top:bot, left:right]
         return bool(np.any(np.all(roi_binimg, axis=1)))
 
+    def contour(self) -> npt.NDArray[np.int32]:
+        if not hasattr(self, "_contour"):
+            (cnt,), _ = cv2.findContours(
+                self.coated_substrate().astype(np.uint8),
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_SIMPLE,
+            )
+            self._contour = cnt
+        return self._contour
+
     def interfaces_boundaries(self) -> npt.NDArray[np.float64]:
         """
         Return two extremal points of the entire union of interface patches.
         """
+        # XXX: after implementing uniform layer for convex polyline and removing
+        # contour() overriding of RectSubstrate, make this method return
+        # parameters for boundaries in contour().
         if not hasattr(self, "_interfaces_boundaries"):
             (cnt_interfaces,) = self.interfaces(0)
             if not cnt_interfaces:
@@ -154,166 +168,114 @@ class RectCoatingLayerBase(
 
     def enclosing_interface(self) -> npt.NDArray[np.float64]:
         """
-        Return an open curve over solid-liquid interfaces of every coating layer
-        region.
+        Return parameters of substrate contour for open curve over solid-liquid
+        interfaces of every coating layer region.
 
         Returns
         -------
         points: ndarray
-            Coordinates of the contour points over solid-liquid interfaces.
+            Parameters for the interval in substrate contour.
 
         See Also
         --------
         enclosing_surface : Open curve over liquid-gas surfaces.
+
+        Notes
+        -----
+        To get the coordinates of polyline vertices, pass this result with
+        substrate contour to :func:`split_polyline`.
         """
         if not hasattr(self, "_enclosing_interface"):
             contactline_points = self.interfaces_boundaries()
             if len(contactline_points) == 0:
                 return np.empty((0, 1, 2), dtype=np.int32)
-
-            cnt = self.substrate.contour() + self.substrate_point()
-            poly = cnt.transpose(1, 0, 2)
-            idx = closest_in_polylines(contactline_points, poly).reshape(-1)
-            idx_range = np.arange(*np.floor(idx + 1))
-
-            if idx_range[0] > idx[0]:
-                idx_range = np.insert(idx_range, 0, idx[0])
-            if idx_range[-1] < idx[-1]:
-                idx_range = np.insert(idx_range, len(idx_range), idx[-1])
-            idx_range = idx_range.reshape(-1, 1)
-
-            self._enclosing_interface = polylines_internal_points(idx_range, poly)
+            self._enclosing_interface = closest_in_polylines(
+                contactline_points - self.substrate_point(),
+                self.substrate.contour().transpose(1, 0, 2),
+            )
         return self._enclosing_interface
 
     def enclosing_surface(self) -> npt.NDArray[np.float64]:
         """
-        Return an open curve over liquid-gas surfaces of every coating layer
-        region.
+        Return parameters of substrate contour for open curve over liquid-gas
+        surfaces of every coating layer region.
 
         Returns
         -------
         points: ndarray
-            Coordinates of the contour points over liquid-gas surfaces.
+            Parameters for the interval in coated substrate contour.
 
         See Also
         --------
         enclosing_interface : Open curve over solid-liquid interfaces.
+
+        Notes
+        -----
+        To get the coordinates of polyline vertices, pass this result with
+        :meth:`contour` to :func:`split_polyline`.
         """
         if not hasattr(self, "_enclosing_surface"):
             contactline_points = self.interfaces_boundaries()
             if len(contactline_points) == 0:
                 return np.empty((0, 1, 2), dtype=np.int32)
-
-            (cnt,), _ = cv2.findContours(
-                self.coated_substrate().astype(np.uint8),
-                cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_SIMPLE,
+            self._enclosing_surface = closest_in_polylines(
+                contactline_points,
+                self.contour().transpose(1, 0, 2),
             )
-            poly = cnt.transpose(1, 0, 2)
-            idx = closest_in_polylines(contactline_points, poly).reshape(-1)
-            idx_range = np.arange(*np.floor(idx + 1))
-
-            if idx_range[0] > idx[0]:
-                idx_range = np.insert(idx_range, 0, idx[0])
-            if idx_range[-1] < idx[-1]:
-                idx_range = np.insert(idx_range, len(idx_range), idx[-1])
-            idx_range = idx_range.reshape(-1, 1)
-
-            self._enclosing_surface = polylines_internal_points(idx_range, poly)
         return self._enclosing_surface
 
-    def layer_vertices(
+    def layer_regions(
         self,
-    ) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    ) -> Tuple[List[npt.NDArray[np.float64]], List[npt.NDArray[np.float64]]]:
         """
-        Return the parameters for the vertex points on enclosing interface and
-        enclosing surface of the coating layer.
-
-        This method can be used to divide the interface and the surface into
-        multiple sections over each side of the substrate.
+        Return the interface points and the surface points for the layer on each
+        region of the substrate, i.e. left, bottom, and right.
 
         Returns
         -------
-        indices: tuple of ndarray
-            The first array is the parameters for the vertex points on enclosing
-            interface, and the second array is the parameters for the vertex
-            points on enclosing surface.
-            The first array has shape `(N, 1)`, where `N` is the number of
-            vertices. The second array has shape `(2, N, 1)`, where the first
-            axis indicates two one-sided limits[1]_ that determins the normal
-            vector.
+        intf_reg, surf_reg: list of ndarray
+            Coordinates of points. Each array represents a portion of
+            :meth:`enclosing_interface` or :meth:`enclosing_surface`, split by
+            the substrate surface regions.
 
         Notes
         -----
-        The vertex points on the surface are the intersections between the normal
-        vector from the interface vertex points and the surface contour.
-        Two normal vectors are used for each vertex point: the normal from the
-        left and the normal from the right.
-
-        Use :func:`polylines_internal_points` to convert the resulting parameters
-        to the coordinates.
-
-        See Also
-        --------
-        enclosing_interface : Open curve over solid-liquid interfaces.
-        enclosing_surface : Open curve over liquid-gas surfaces.
-
-        References
-        ----------
-        .. [1] https://en.wikipedia.org/wiki/One-sided_limit
-
+        The substrate region is split by the vertex points on the substrate
+        surface. For each of two boundaries of the substrate region, normal
+        vector is drawn and the closest intersection with the coaating layer
+        surface is found. The coating layer region is split by this intersection.
         """
-        subst = self.substrate
-        vert = (
-            polylines_internal_points(
-                subst.vertices()[[1, 2]], subst.contour().transpose(1, 0, 2)
-            )
-            + self.substrate_point()
-        )
-        surf = self.enclosing_surface().transpose(1, 0, 2)
-        intf = self.enclosing_interface().transpose(1, 0, 2)
-        hull_vert_idx = closest_in_polylines(vert, intf)
-        hull_vert_pts = polylines_internal_points(hull_vert_idx, intf)
-        n1 = np.dot(
-            hull_vert_pts - polylines_internal_points(np.ceil(hull_vert_idx - 1), intf),
-            ROTATION_MATRIX,
-        )
-        n2 = np.dot(
-            polylines_internal_points(np.floor(hull_vert_idx + 1), intf)
-            - hull_vert_pts,
-            ROTATION_MATRIX,
-        )
+        subst_cnt = self.substrate.contour() + self.substrate_point()
+        subst_vert_idx = np.clip(self.substrate.vertices(), *self.enclosing_interface())
+        intf_reg = split_polyline(subst_vert_idx, subst_cnt.transpose(1, 0, 2))[1:-1]
+        intf_reg = [reg.transpose(1, 0, 2) for reg in intf_reg]
 
-        idx1 = []
-        for line in np.concatenate([hull_vert_pts, hull_vert_pts + n1], axis=1):
-            intrsct_idx = line_polyline_intersections(line[np.newaxis, ...], surf)
-            intrsct_pts = polylines_internal_points(intrsct_idx, surf)
-            dist = np.linalg.norm(intrsct_pts - line[np.newaxis, :1, :], axis=-1)
-            idx1.append(intrsct_idx[np.argmin(dist, axis=-1)])
+        # Use entire contour instead of enclosing surface to ensure intersection
+        surf = self.contour().transpose(1, 0, 2)
 
-        idx2 = []
-        for line in np.concatenate([hull_vert_pts, hull_vert_pts + n2], axis=1):
-            intrsct_idx = line_polyline_intersections(line[np.newaxis, ...], surf)
-            intrsct_pts = polylines_internal_points(intrsct_idx, surf)
-            dist = np.linalg.norm(intrsct_pts - line[np.newaxis, :1, :], axis=-1)
-            idx2.append(intrsct_idx[np.argmin(dist, axis=-1)])
+        surf_reg = []
+        for reg in intf_reg:
+            boundary_dr = reg[[1, -1]] - reg[[0, -2]]
+            if np.any(np.linalg.norm(boundary_dr, axis=-1) == 0):
+                surf_reg.append(np.empty((0, 1, 2), dtype=np.float64))
+                continue
 
-        return hull_vert_idx, np.stack((np.stack(idx1), np.stack(idx2)))
+            pt = reg[[0, -1]]
+            n = np.dot(boundary_dr, ROTATION_MATRIX)
+            surf_reg_idx = []
+            for line in np.concatenate([pt, pt + n], axis=1):
+                intrsct_idx = line_polyline_intersections(line[np.newaxis, ...], surf)
+                intrsct_pts = polylines_internal_points(
+                    intrsct_idx[..., np.newaxis], surf
+                )
+                dist = np.linalg.norm(intrsct_pts - line[np.newaxis, :1, :], axis=-1)
+                # TODO: filter out the points which are in opposite direction
+                surf_reg_idx.append(intrsct_idx[np.argmin(dist)])
 
-    def regional_interfaces_surfaces(self):
-        intf, surf = self.enclosing_interface(), self.enclosing_surface()
-        intf_vert, surf_vert = self.layer_vertices()
-        reg_intf = [
-            intf.transpose(1, 0, 2)
-            for intf in split_polyline(intf_vert, intf.transpose(1, 0, 2))
-        ]
-        reg_surf = [
-            surf.transpose(1, 0, 2)
-            for surf in split_polyline(
-                surf_vert.transpose(1, 0, 2).reshape(-1, 1), surf.transpose(1, 0, 2)
-            )
-        ]
-        return reg_intf, reg_surf
+            _, sreg, _ = split_polyline(np.array(surf_reg_idx)[..., np.newaxis], surf)
+            surf_reg.append(sreg.transpose(1, 0, 2))
+
+        return intf_reg, surf_reg
 
 
 @dataclasses.dataclass(frozen=True)
@@ -404,13 +366,13 @@ class RectLayerShapeData:
     LayerLength_Right: np.float64
 
     AverageThickness_Global: np.float64
-    Roughness_Global: np.float64
+    Roughness_Global: float
     AverageThickness_Left: np.float64
-    Roughness_Left: np.float64
+    Roughness_Left: float
     AverageThickness_Bottom: np.float64
-    Roughness_Bottom: np.float64
+    Roughness_Bottom: float
     AverageThickness_Right: np.float64
-    Roughness_Right: np.float64
+    Roughness_Right: float
 
     MaxThickness_Left: np.float64
     MaxThickness_Bottom: np.float64
@@ -554,7 +516,18 @@ class RectLayerShape(
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """Return thickness and points for uniform layer."""
         if not hasattr(self, "_uniform_layer"):
-            intf, surf = self.enclosing_interface(), self.enclosing_surface()
+            subst_cnt = self.substrate.contour() + self.substrate_point()
+            _, intf, _ = split_polyline(
+                self.enclosing_interface(), subst_cnt.transpose(1, 0, 2)
+            )
+            intf = intf.transpose(1, 0, 2)
+
+            layer_cnt = self.contour()
+            _, surf, _ = split_polyline(
+                self.enclosing_surface(), layer_cnt.transpose(1, 0, 2)
+            )
+            surf = surf.transpose(1, 0, 2)
+
             L, ul = uniform_layer(intf.astype(np.float32), surf.astype(np.float32))
             self._uniform_layer = (L, ul)
         return self._uniform_layer
@@ -586,7 +559,12 @@ class RectLayerShape(
         else:
             return np.empty((0, 2, 2), dtype=np.float64)
 
-        surface = self.enclosing_surface()
+        layer_cnt = self.contour()
+        _, surface, _ = split_polyline(
+            self.enclosing_surface(), layer_cnt.transpose(1, 0, 2)
+        )
+        surface = surface.transpose(1, 0, 2)
+
         mask = np.cross(P2 - P1, surface - P1) >= 0
         pts = surface[mask][:, np.newaxis]
         lines = np.stack([P1, P2])[np.newaxis, ...]
@@ -595,14 +573,19 @@ class RectLayerShape(
         prj_pts = np.squeeze(polylines_external_points(prj, lines), axis=2)
         return np.concatenate([pts, prj_pts], axis=1)
 
-    def roughness(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
+    def roughness(self) -> Tuple[float, npt.NDArray[np.float64]]:
         """Dimensional roughness value of the coating layer surface."""
         if not hasattr(self, "_roughness"):
-            surf = self.enclosing_surface()
+            layer_cnt = self.contour()
+            _, surf, _ = split_polyline(
+                self.enclosing_surface(), layer_cnt.transpose(1, 0, 2)
+            )
+            surf = surf.transpose(1, 0, 2)
+
             _, ul = self.uniform_layer()
 
             if surf.size == 0 or ul.size == 0:
-                return (np.float64(np.nan), np.empty((2, 0, 1, 2), dtype=np.float64))
+                return (np.nan, np.empty((2, 0, 1, 2), dtype=np.float64))
 
             surf = equidistant_interpolate(surf, self.parameters.RoughnessSamples)
             ul = equidistant_interpolate(ul, self.parameters.RoughnessSamples)
@@ -732,8 +715,7 @@ class RectLayerShape(
         AVRGTHCK_G, _ = self.uniform_layer()
         ROUGH_G, _ = self.roughness()
 
-        reg_intf_surf = self.regional_interfaces_surfaces()
-        (intf_L, intf_B, intf_R), (surf_L, _, surf_B, _, surf_R) = reg_intf_surf
+        (intf_L, intf_B, intf_R), (surf_L, surf_B, surf_R) = self.layer_regions()
         AVRGTHCK_L, ul_L = uniform_layer(
             intf_L.astype(np.float32),
             surf_L.astype(np.float32),
@@ -833,7 +815,7 @@ def uniform_layer(
 
 def roughness(
     surface: npt.NDArray, uniform_layer: npt.NDArray, measure: DistanceMeasure
-) -> Tuple[np.float64, npt.NDArray[np.float64]]:
+) -> Tuple[float, npt.NDArray[np.float64]]:
     """
     Calculate the roughness of arbitrary curve.
 
@@ -848,7 +830,7 @@ def roughness(
 
     Returns
     -------
-    roughness: float64
+    roughness: float
         Roughness value of *surface*.
     pairs: ndarray
         Coordinates of Frechet pairs between *surface* and *uniform_layer*.
@@ -857,6 +839,9 @@ def roughness(
         respectively.
 
     """
+    if surface.size == 0 or uniform_layer.size == 0:
+        return np.nan, np.empty((2, 0, 1, surface.shape[-1]), dtype=np.float64)
+
     if measure == DistanceMeasure.DFD:
         ca = dfd(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
         path = dfd_pair(ca)
@@ -873,4 +858,4 @@ def roughness(
         raise TypeError(f"Unknown measure: {measure}")
 
     pairs = np.stack([surface[path[..., 0]], uniform_layer[path[..., 1]]])
-    return (roughness, pairs)
+    return (float(roughness), pairs)
