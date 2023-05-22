@@ -132,9 +132,9 @@ class RectSubstrate(
 
     DrawMode: TypeAlias = RectSubstrateDrawMode
 
-    def hull(self):
+    def contour(self):
         # Flip s.t. the hull has same direction with the contour.
-        return np.flip(cv2.convexHull(self.contour()), axis=0)
+        return np.flip(cv2.convexHull(super().contour()), axis=0)
 
     def draw(self) -> npt.NDArray[np.uint8]:
         draw_mode = self.draw_options.draw_mode
@@ -167,7 +167,7 @@ class RectSubstrate(
         if hull_opts.thickness > 0:
             cv2.polylines(
                 ret,
-                [self.hull().astype(np.int32)],
+                [self.contour().astype(np.int32)],
                 isClosed=False,
                 color=dataclasses.astuple(hull_opts.color),
                 thickness=hull_opts.thickness,

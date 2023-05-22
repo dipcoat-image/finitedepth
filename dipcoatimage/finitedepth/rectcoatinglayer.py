@@ -171,7 +171,7 @@ class RectCoatingLayerBase(
             if len(contactline_points) == 0:
                 return np.empty((0, 1, 2), dtype=np.int32)
 
-            cnt = self.substrate.hull() + self.substrate_point()
+            cnt = self.substrate.contour() + self.substrate_point()
             poly = cnt.transpose(1, 0, 2)
             idx = closest_in_polylines(contactline_points, poly).reshape(-1)
             idx_range = np.arange(*np.floor(idx + 1))
