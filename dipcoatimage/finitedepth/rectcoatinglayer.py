@@ -246,7 +246,8 @@ class RectCoatingLayerBase(
         surface is found. The coating layer region is split by this intersection.
         """
         intf_idx = self.enclosing_interface()
-        if intf_idx.size == 0:
+        surf_idx = self.enclosing_surface()
+        if intf_idx.size == 0 or surf_idx.size == 0:
             intf_reg = [np.empty((0, 1, 2), dtype=np.float64) for _ in range(3)]
             surf_reg = [np.empty((0, 1, 2), dtype=np.float64) for _ in range(3)]
             return intf_reg, surf_reg
@@ -255,8 +256,7 @@ class RectCoatingLayerBase(
         intf_reg = split_polyline(subst_vert_idx, subst_cnt.transpose(1, 0, 2))[1:-1]
         intf_reg = [reg.transpose(1, 0, 2) for reg in intf_reg]
 
-        # Use entire contour instead of enclosing surface to ensure intersection
-        surf = self.contour().transpose(1, 0, 2)
+        _, surf, _ = split_polyline(surf_idx, self.contour().transpose(1, 0, 2))
 
         surf_reg = []
         for reg in intf_reg:
@@ -273,11 +273,20 @@ class RectCoatingLayerBase(
             surf_reg_idx = []
             for line in np.concatenate([pt, pt + n], axis=1):
                 intrsct_idx = line_polyline_intersections(line[np.newaxis, ...], surf)
+                if intrsct_idx.size == 0:
+                    # Intersection not found due to pixel accuracy error!
+                    # Fallback to closest point.
+                    pt = line[0].reshape(1, 1, -1)
+                    (idx,) = closest_in_polylines(pt, surf).reshape(-1)
+                    surf_reg_idx.append(idx)
+                    continue
                 intrsct_pts = polylines_internal_points(
                     intrsct_idx[..., np.newaxis], surf
                 )
+                # TODO: filter out intersection in opposite direction.
+                # If intersection does not exist in same direction, use closest
+                # opposite intersection as fallback.
                 dist = np.linalg.norm(intrsct_pts - line[np.newaxis, :1, :], axis=-1)
-                # TODO: filter out the points which are in opposite direction
                 surf_reg_idx.append(intrsct_idx[np.argmin(dist)])
 
             _, sreg, _ = split_polyline(np.array(surf_reg_idx)[..., np.newaxis], surf)
