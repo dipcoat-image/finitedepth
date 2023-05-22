@@ -115,7 +115,9 @@ class RectCoatingLayerBase(
 
     def capbridge_broken(self) -> bool:
         p0 = self.substrate_point()
-        _, p1, p2, _ = self.substrate.contour()[self.substrate.vertices()]
+        _, p1, p2, _ = polylines_internal_points(
+            self.substrate.vertices(), self.substrate.contour().transpose(1, 0, 2)
+        )
         (bl,) = (p0 + p1).astype(np.int32)
         (br,) = (p0 + p2).astype(np.int32)
         top = np.max([bl[1], br[1]])
@@ -264,7 +266,12 @@ class RectCoatingLayerBase(
 
         """
         subst = self.substrate
-        vert = subst.contour()[subst.vertices()[[1, 2]]] + self.substrate_point()
+        vert = (
+            polylines_internal_points(
+                subst.vertices()[[1, 2]], subst.contour().transpose(1, 0, 2)
+            )
+            + self.substrate_point()
+        )
         surf = self.enclosing_surface().transpose(1, 0, 2)
         intf = self.enclosing_interface().transpose(1, 0, 2)
         hull_vert_idx = closest_in_polylines(vert, intf)
@@ -528,12 +535,14 @@ class RectLayerShape(
             # close to the lower vertices.
             vicinity_mask = np.zeros(img.shape, np.uint8)
             p0 = self.substrate_point()
-            _, bl, br, _ = self.substrate.contour()[self.substrate.vertices()]
+            _, bl, br, _ = polylines_internal_points(
+                self.substrate.vertices(), self.substrate.contour().transpose(1, 0, 2)
+            )
             (B,) = p0 + bl
             (C,) = p0 + br
             R = self.parameters.ReconstructRadius
-            cv2.circle(vicinity_mask, B, R, 1, -1)
-            cv2.circle(vicinity_mask, C, R, 1, -1)
+            cv2.circle(vicinity_mask, B.astype(np.int32), R, 1, -1)
+            cv2.circle(vicinity_mask, C.astype(np.int32), R, 1, -1)
             n = np.dot((C - B) / np.linalg.norm((C - B)), ROTATION_MATRIX)
             pts = np.stack([B, B + R * n, C + R * n, C]).astype(np.int32)
             cv2.fillPoly(vicinity_mask, [pts], 1)
