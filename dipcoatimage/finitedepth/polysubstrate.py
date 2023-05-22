@@ -6,21 +6,23 @@ Polygonal Substrate
 substrate with polygonal cross section.
 
 """
-import cv2  # type: ignore
 import dataclasses
 import numpy as np
 import numpy.typing as npt
+from numba import njit  # type: ignore
 from scipy.ndimage import gaussian_filter1d  # type: ignore
 from scipy.signal import find_peaks, peak_prominences  # type: ignore
 from typing import TypeVar, Optional, Type, Tuple
 from .substrate import SubstrateError, SubstrateBase
 from .util import DataclassProtocol
+from .util.geometry import split_polyline, equidistant_interpolate, closest_in_polylines
 
 
 __all__ = [
     "PolySubstrateError",
     "PolySubstrateParameters",
     "PolySubstrateBase",
+    "houghline_accum",
 ]
 
 
@@ -80,7 +82,6 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     """
 
     __slots__ = (
-        "_contour",
         "_vertices",
         "_sidelines",
     )
@@ -95,38 +96,31 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         return np.array([[w / 2, 0]], dtype=np.int32)
 
     def contour(self) -> npt.NDArray[np.int32]:
-        """Return the unapproximated contour of the substrate."""
-        if not hasattr(self, "_contour"):
-            (cnt,), _ = cv2.findContours(
-                self.regions()[1].astype(bool) * np.uint8(255),
-                cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_NONE,
-            )
-            self._contour = cnt.astype(np.int32)
-        return self._contour
+        """Return the polygon contour."""
+        (cnt,), _ = self.contours()[0]
+        return cnt
 
-    def vertices(self) -> npt.NDArray[np.int32]:
+    def vertices(self) -> npt.NDArray[np.float64]:
         """
         Find the polygon vertices.
 
         Returns
         -------
         ndarray
-            Indices of the vertex points in :meth:`contour`.
+            Parameters of the vertex points in :meth:`contour`.
 
         Notes
         -----
         A vertex is a point where two or more sides of a polygon meet[1]_.
         The sides can be curves, where the vertices can be defined as local
-        extrema of curvature[2]_.
+        extrema of curvature[2]_. This method finds the vertices by locating a
+        certain number (defined by d:attr:`SidesNum`) of curvature extrema.
 
-        This method finds the vertices by locating a certain number (defined by
-        :attr:`SidesNum`) of curvature extrema.
+        The order of the vertices is sorted along :meth:`contour`, with the
+        vertex closest to the starting point of the contour coming first.
 
-        See Also
-        --------
-        sides
-            Points of each side split by vertices.
+        Passing this result to :func:`polylines_internal_points` with
+        :meth:`contour` returns coordinates of the vertex points.
 
         References
         ----------
@@ -139,43 +133,46 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             # it's faster and still gives accurate result.
             # DO NOT calculate theta of smoothed contour. Calculate the theta
             # from raw contour first and then perform smoothing!
-            r = np.concatenate([self.contour(), self.contour()[:1]])  # closed line
-            dr = np.gradient(r, axis=0)
-            drds = dr / np.linalg.norm(dr, axis=-1)[..., np.newaxis]
+            cnt = self.contour()
+            cnt_closed = np.concatenate([cnt, cnt[:1]])
+            C = np.sum(np.linalg.norm(np.diff(cnt_closed, axis=0), axis=-1), axis=0)
+            cnt_intrp = equidistant_interpolate(cnt_closed, int(C))
+
+            dr = np.diff(cnt_intrp, axis=0)
             theta_smooth = gaussian_filter1d(
-                np.arctan2(drds[..., 1], drds[..., 0]),
+                np.arctan2(dr[..., 1], dr[..., 0]),
                 self.parameters.Sigma,
                 axis=0,
                 order=0,
                 mode="wrap",
             )
-            tg = np.gradient(theta_smooth, axis=0)
-            # Since the contour is periodic we repeat the data in both directions
-            # to ensure boundary peaks are be found.
-            L = len(tg)
-            tg_repeated = np.concatenate([tg[-(L // 2) :], tg, tg[: (L // 2)]], axis=0)
+            L = len(theta_smooth)
+            ts_repeated = np.concatenate(
+                [theta_smooth[-(L // 2) :], theta_smooth, theta_smooth[: (L // 2)]],
+                axis=0,
+            )
+            tg_repeated = np.gradient(ts_repeated, axis=0)
+            tg_rep_abs = np.abs(tg_repeated)[..., 0]
 
             # 2. Find peak. Each peak shows the point where side changes.
             # This allows us to discern individual sides lying on same line.
             # Since we repeated tg, we select the peaks in desired region.
-            tg_rep_abs = np.abs(tg_repeated)[..., 0]
             peaks = find_peaks(tg_rep_abs)[0].astype(np.int32)
             (idxs,) = np.where((L // 2 <= peaks) & (peaks < 3 * L // 2))
             peaks = peaks[idxs]
             prom, _, _ = peak_prominences(tg_rep_abs, peaks)
-            if len(prom) < self.SidesNum:
-                msg = (
-                    "Insufficient number of vertices"
-                    f" (needs {self.SidesNum}, detected {len(prom)})"
-                )
-                raise PolySubstrateError(msg)
-            prom_peaks = peaks[np.sort(np.argsort(prom)[-self.SidesNum :])]
-            vertices = np.sort(prom_peaks) - (L // 2)
+            prom_peaks = peaks[np.argsort(prom)[-self.SidesNum :]]
 
-            self._vertices = np.sort(vertices % L)
+            # Roll s.t. vertex nearest to starting point of contour comes first
+            vertex_pts = cnt_intrp[np.sort((prom_peaks - (L // 2)) % L)]
+            dist = np.linalg.norm(vertex_pts - cnt_intrp[0], axis=-1)
+            vertex_pts = np.roll(vertex_pts, -np.argmin(dist), axis=0)
+
+            self._vertices = closest_in_polylines(vertex_pts, cnt.transpose(1, 0, 2))
+
         return self._vertices
 
-    def sides(self) -> Tuple[npt.NDArray[np.int32], ...]:
+    def sides(self) -> Tuple[npt.NDArray[np.float64], ...]:
         """
         Return the points of each side of the polygon.
 
@@ -196,10 +193,16 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         sidelines
             Linear model of sides.
         """
-        SHIFT = self.vertices()[0]
-        vertices = self.vertices() - SHIFT
-        cnt_roll = np.roll(self.contour(), -SHIFT, axis=0)
-        return tuple(np.split(cnt_roll, vertices[1:], axis=0))
+        vert = self.vertices()
+        cnt = self.contour().transpose(1, 0, 2)
+        split = [a.transpose(1, 0, 2) for a in split_polyline(vert, cnt)]
+        if vert[0] < 0:
+            sides = split[:-1]
+            sides[0] = np.concatenate([split[-1], split[0]], axis=0)
+        elif vert[0] >= 0:
+            sides = split[1:]
+            sides[-1] = np.concatenate([split[-1], split[0]], axis=0)
+        return tuple(sides)
 
     def sidelines(self) -> npt.NDArray[np.float32]:
         r"""
@@ -238,33 +241,30 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             THETA_RES = self.parameters.Theta
             lines = []
             # Directly use Hough transformation to find lines
-            for c in self.sides():
-                tan = np.diff(c, axis=0)
+            for side in self.sides():
+                tan = np.diff(side, axis=0)
                 atan = np.arctan2(tan[..., 1], tan[..., 0])  # -pi < atan <= pi
                 theta = atan - np.pi / 2
                 tmin, tmax = theta.min(), theta.max()
-
                 if tmin < tmax:
                     theta_rng = np.arange(tmin, tmax, THETA_RES, dtype=np.float32)
                 else:
                     theta_rng = np.array([tmin], dtype=np.float32)
+
+                # Interpolate & perform hough transformation.
+                # Sample points by 10 pixel distances for performace.
+                # Hopefully this does not affect the line detection quality...
+                c = equidistant_interpolate(
+                    side,
+                    int(
+                        np.sum(np.linalg.norm(np.diff(side, axis=0), axis=-1) / 10),
+                    ),
+                )
                 rho = c[..., 0] * np.cos(theta_rng) + c[..., 1] * np.sin(theta_rng)
                 rho_digit = (rho / RHO_RES).astype(np.int32)
 
-                rho_min = rho_digit.min()
-                theta_idxs = np.arange(len(theta_rng))
-
-                # encode 2d array into 1d array for faster accumulation
-                # TODO: try numba to make faster. (iterate over 2D rows, not encode)
-                idxs = (rho_digit - rho_min) * len(theta_idxs) + theta_idxs
-                val, counts = np.unique(idxs, return_counts=True)
-                max_idx = val[np.argmax(counts)]
-
-                r0_idx = max_idx // len(theta_idxs)
-                r0 = (r0_idx + rho_min) * RHO_RES
-                t0_idx = max_idx % len(theta_idxs)
-                t0 = theta_rng[t0_idx]
-                lines.append([[r0, t0]])
+                _, (rho, theta_idx) = houghline_accum(rho_digit)
+                lines.append([[rho * RHO_RES, theta_rng[theta_idx]]])
 
             self._sidelines = np.array(lines, dtype=np.float32)
         return self._sidelines
@@ -298,3 +298,46 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         except PolySubstrateError as err:
             return err
         return None
+
+
+@njit(cache=True)
+def houghline_accum(
+    rho_array: npt.NDArray[np.int32],
+) -> Tuple[npt.NDArray[np.int32], Tuple[float, int]]:
+    """
+    Performs hough line accumulation.
+
+    Parameters
+    ----------
+    rho_array: ndarray
+        Array which contains rho and theta values for every points.
+        The shape must be `(P, T)`, where `P` is the number of points and `T` is
+        the length of digitized theta ranges.
+        If an element at index `(p, t)` has value `r`, it indicates that a line:
+        * Passing `p`-th point
+        * Angle is `t`-th element in digitized theta range.
+        * Distance from the origin is `r`.
+
+    Returns
+    -------
+    accum: ndarray
+        Accumulation matrix.
+    rho_theta: tuple
+        `(rho, theta_idx)` value for the detected line.
+
+    """
+    rho_min = np.min(rho_array)
+    n_rho = np.max(rho_array) - rho_min + 1
+    n_pts, n_theta = rho_array.shape
+    accum = np.zeros((n_rho, n_theta), dtype=np.int32)
+
+    maxloc = (0, 0)
+    for i in range(n_pts):
+        for j in range(n_theta):
+            r = rho_array[i, j] - rho_min
+            accum[r, j] += 1
+            if accum[r, j] > accum[maxloc]:
+                maxloc = (r, j)
+
+    rho_theta = (float(maxloc[0] + rho_min), int(maxloc[1]))
+    return accum, rho_theta

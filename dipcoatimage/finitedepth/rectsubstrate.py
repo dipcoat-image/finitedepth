@@ -26,7 +26,6 @@ from .util import (
     FeatureDrawingOptions,
     Color,
 )
-from .util.geometry import closest_in_polylines, polylines_internal_points
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -127,26 +126,16 @@ class RectSubstrate(
 
     """
 
-    __slots__ = ("_hull_projections",)
-
     Parameters = PolySubstrateParameters
     DrawOptions = RectSubstrateDrawOptions
     SidesNum = 4
 
     DrawMode: TypeAlias = RectSubstrateDrawMode
 
-    def hull(self):
+    def contour(self):
         # Flip s.t. the hull has same direction with the contour.
-        return np.flip(cv2.convexHull(self.contour()), axis=0)
-
-    def hull_projections(self):
-        if not hasattr(self, "_hull_projections"):
-            cnt_pts = self.contour()  # shape: (N, 1, D)
-            hull = self.hull()
-            hull = np.concatenate([hull, hull[:1]]).transpose(1, 0, 2)  # (M, V, D)
-            idxs = closest_in_polylines(cnt_pts, hull)
-            self._hull_projections = polylines_internal_points(idxs, hull)
-        return self._hull_projections
+        # XXX: remove after implementing uniform layer for convex polyline
+        return np.flip(cv2.convexHull(super().contour()), axis=0)
 
     def draw(self) -> npt.NDArray[np.uint8]:
         draw_mode = self.draw_options.draw_mode
@@ -179,7 +168,7 @@ class RectSubstrate(
         if hull_opts.thickness > 0:
             cv2.polylines(
                 ret,
-                [self.hull().astype(np.int32)],
+                [self.contour().astype(np.int32)],
                 isClosed=False,
                 color=dataclasses.astuple(hull_opts.color),
                 thickness=hull_opts.thickness,

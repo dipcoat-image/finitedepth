@@ -248,7 +248,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
 
         Notes
         -----
-        Contours are approximated using `cv2.CHAIN_APPROX_SIMPLE` flag.
+        Contours are sparse, i.e. only the polyline vertices are stored.
 
         See Also
         --------
