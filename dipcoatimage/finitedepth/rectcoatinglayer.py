@@ -273,21 +273,24 @@ class RectCoatingLayerBase(
             surf_reg_idx = []
             for line in np.concatenate([pt, pt + n], axis=1):
                 intrsct_idx = line_polyline_intersections(line[np.newaxis, ...], surf)
-                if intrsct_idx.size == 0:
-                    # Intersection not found due to pixel accuracy error!
-                    # Fallback to closest point.
-                    pt = line[0].reshape(1, 1, -1)
-                    (idx,) = closest_in_polylines(pt, surf).reshape(-1)
-                    surf_reg_idx.append(idx)
-                    continue
                 intrsct_pts = polylines_internal_points(
                     intrsct_idx[..., np.newaxis], surf
                 )
-                # TODO: filter out intersection in opposite direction.
-                # If intersection does not exist in same direction, use closest
-                # opposite intersection as fallback.
-                dist = np.linalg.norm(intrsct_pts - line[np.newaxis, :1, :], axis=-1)
-                surf_reg_idx.append(intrsct_idx[np.argmin(dist)])
+                vec = intrsct_pts - line[0]
+                # Find intersection which is on external direction
+                valid = np.dot(vec, line[1] - line[0]) >= 0
+                if not np.any(valid):
+                    # Intersection not found due to pixel accuracy error!
+                    # Fallback to closest point.
+                    line_start = line[0].reshape(1, 1, -1)
+                    (idx,) = closest_in_polylines(line_start, surf).reshape(-1)
+                    surf_reg_idx.append(idx)
+                    continue
+                dist = np.linalg.norm(
+                    intrsct_pts[valid] - line[np.newaxis, :1, :], axis=-1
+                )
+                (idx,) = intrsct_idx.reshape(-1, 1, 1)[valid][np.argmin(dist)]
+                surf_reg_idx.append(idx)
 
             _, sreg, _ = split_polyline(np.array(surf_reg_idx)[..., np.newaxis], surf)
             surf_reg.append(sreg.transpose(1, 0, 2))
