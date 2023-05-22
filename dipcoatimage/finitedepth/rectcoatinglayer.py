@@ -245,8 +245,13 @@ class RectCoatingLayerBase(
         vector is drawn and the closest intersection with the coaating layer
         surface is found. The coating layer region is split by this intersection.
         """
+        intf_idx = self.enclosing_interface()
+        if intf_idx.size == 0:
+            intf_reg = [np.empty((0, 1, 2), dtype=np.float64) for _ in range(3)]
+            surf_reg = [np.empty((0, 1, 2), dtype=np.float64) for _ in range(3)]
+            return intf_reg, surf_reg
+        subst_vert_idx = np.clip(self.substrate.vertices(), *intf_idx)
         subst_cnt = self.substrate.contour() + self.substrate_point()
-        subst_vert_idx = np.clip(self.substrate.vertices(), *self.enclosing_interface())
         intf_reg = split_polyline(subst_vert_idx, subst_cnt.transpose(1, 0, 2))[1:-1]
         intf_reg = [reg.transpose(1, 0, 2) for reg in intf_reg]
 
@@ -516,17 +521,21 @@ class RectLayerShape(
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """Return thickness and points for uniform layer."""
         if not hasattr(self, "_uniform_layer"):
-            subst_cnt = self.substrate.contour() + self.substrate_point()
-            _, intf, _ = split_polyline(
-                self.enclosing_interface(), subst_cnt.transpose(1, 0, 2)
-            )
-            intf = intf.transpose(1, 0, 2)
+            intf_idx = self.enclosing_interface()
+            if intf_idx.size == 0:
+                intf = np.empty((0, 1, 2), dtype=np.float64)
+            else:
+                subst_cnt = self.substrate.contour() + self.substrate_point()
+                _, intf, _ = split_polyline(intf_idx, subst_cnt.transpose(1, 0, 2))
+                intf = intf.transpose(1, 0, 2)
 
-            layer_cnt = self.contour()
-            _, surf, _ = split_polyline(
-                self.enclosing_surface(), layer_cnt.transpose(1, 0, 2)
-            )
-            surf = surf.transpose(1, 0, 2)
+            surf_idx = self.enclosing_surface()
+            if surf_idx.size == 0:
+                surf = np.empty((0, 1, 2), dtype=np.float64)
+            else:
+                layer_cnt = self.contour()
+                _, surf, _ = split_polyline(surf_idx, layer_cnt.transpose(1, 0, 2))
+                surf = surf.transpose(1, 0, 2)
 
             L, ul = uniform_layer(intf.astype(np.float32), surf.astype(np.float32))
             self._uniform_layer = (L, ul)
@@ -559,11 +568,13 @@ class RectLayerShape(
         else:
             return np.empty((0, 2, 2), dtype=np.float64)
 
-        layer_cnt = self.contour()
-        _, surface, _ = split_polyline(
-            self.enclosing_surface(), layer_cnt.transpose(1, 0, 2)
-        )
-        surface = surface.transpose(1, 0, 2)
+        surf_idx = self.enclosing_surface()
+        if surf_idx.size == 0:
+            surface = np.empty((0, 1, 2), dtype=np.float64)
+        else:
+            layer_cnt = self.contour()
+            _, surface, _ = split_polyline(surf_idx, layer_cnt.transpose(1, 0, 2))
+            surface = surface.transpose(1, 0, 2)
 
         mask = np.cross(P2 - P1, surface - P1) >= 0
         pts = surface[mask][:, np.newaxis]
@@ -576,11 +587,13 @@ class RectLayerShape(
     def roughness(self) -> Tuple[float, npt.NDArray[np.float64]]:
         """Dimensional roughness value of the coating layer surface."""
         if not hasattr(self, "_roughness"):
-            layer_cnt = self.contour()
-            _, surf, _ = split_polyline(
-                self.enclosing_surface(), layer_cnt.transpose(1, 0, 2)
-            )
-            surf = surf.transpose(1, 0, 2)
+            surf_idx = self.enclosing_surface()
+            if surf_idx.size == 0:
+                surf = np.empty((0, 1, 2), dtype=np.float64)
+            else:
+                layer_cnt = self.contour()
+                _, surf, _ = split_polyline(surf_idx, layer_cnt.transpose(1, 0, 2))
+                surf = surf.transpose(1, 0, 2)
 
             _, ul = self.uniform_layer()
 
