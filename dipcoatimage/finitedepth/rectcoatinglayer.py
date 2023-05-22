@@ -188,7 +188,7 @@ class RectCoatingLayerBase(
         if not hasattr(self, "_enclosing_interface"):
             contactline_points = self.interfaces_boundaries()
             if len(contactline_points) == 0:
-                return np.empty((0, 1, 2), dtype=np.int32)
+                return np.empty((0, 1), dtype=np.int32)
             self._enclosing_interface = closest_in_polylines(
                 contactline_points - self.substrate_point(),
                 self.substrate.contour().transpose(1, 0, 2),
@@ -217,7 +217,7 @@ class RectCoatingLayerBase(
         if not hasattr(self, "_enclosing_surface"):
             contactline_points = self.interfaces_boundaries()
             if len(contactline_points) == 0:
-                return np.empty((0, 1, 2), dtype=np.int32)
+                return np.empty((0, 1), dtype=np.int32)
             self._enclosing_surface = closest_in_polylines(
                 contactline_points,
                 self.contour().transpose(1, 0, 2),
