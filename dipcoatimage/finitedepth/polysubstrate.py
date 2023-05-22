@@ -10,6 +10,7 @@ import cv2  # type: ignore
 import dataclasses
 import numpy as np
 import numpy.typing as npt
+from numba import njit  # type: ignore
 from scipy.ndimage import gaussian_filter1d  # type: ignore
 from scipy.signal import find_peaks, peak_prominences  # type: ignore
 from typing import TypeVar, Optional, Type, Tuple
@@ -22,6 +23,7 @@ __all__ = [
     "PolySubstrateError",
     "PolySubstrateParameters",
     "PolySubstrateBase",
+    "houghline_accum",
 ]
 
 
@@ -363,19 +365,8 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
                 rho = c[..., 0] * np.cos(theta_rng) + c[..., 1] * np.sin(theta_rng)
                 rho_digit = (rho / RHO_RES).astype(np.int32)
 
-                # encode 2d array into 1d array for faster accumulation
-                # TODO: try numba to make faster. (iterate over 2D rows, not encode)
-                rho_min = rho_digit.min()
-                theta_idxs = np.arange(len(theta_rng))
-                idxs = (rho_digit - rho_min) * len(theta_idxs) + theta_idxs
-                val, counts = np.unique(idxs, return_counts=True)
-                max_idx = val[np.argmax(counts)]
-
-                r0_idx = max_idx // len(theta_idxs)
-                r0 = (r0_idx + rho_min) * RHO_RES
-                t0_idx = max_idx % len(theta_idxs)
-                t0 = theta_rng[t0_idx]
-                lines.append([[r0, t0]])
+                _, (rho, theta_idx) = houghline_accum(rho_digit)
+                lines.append([[rho * RHO_RES, theta_rng[theta_idx]]])
 
             self._sidelines = np.array(lines, dtype=np.float32)
         return self._sidelines
@@ -409,3 +400,46 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         except PolySubstrateError as err:
             return err
         return None
+
+
+@njit(cache=True)
+def houghline_accum(
+    rho_array: npt.NDArray[np.int32],
+) -> Tuple[npt.NDArray[np.int32], Tuple[float, int]]:
+    """
+    Performs hough line accumulation.
+
+    Parameters
+    ----------
+    rho_array: ndarray
+        Array which contains rho and theta values for every points.
+        The shape must be `(P, T)`, where `P` is the number of points and `T` is
+        the length of digitized theta ranges.
+        If an element at index `(p, t)` has value `r`, it indicates that a line:
+        * Passing `p`-th point
+        * Angle is `t`-th element in digitized theta range.
+        * Distance from the origin is `r`.
+
+    Returns
+    -------
+    accum: ndarray
+        Accumulation matrix.
+    rho_theta: tuple
+        `(rho, theta_idx)` value for the detected line.
+
+    """
+    rho_min = np.min(rho_array)
+    n_rho = np.max(rho_array) - rho_min + 1
+    n_pts, n_theta = rho_array.shape
+    accum = np.zeros((n_rho, n_theta), dtype=np.int32)
+
+    maxloc = (0, 0)
+    for i in range(n_pts):
+        for j in range(n_theta):
+            r = rho_array[i, j] - rho_min
+            accum[r, j] += 1
+            if accum[r, j] > accum[maxloc]:
+                maxloc = (r, j)
+
+    rho_theta = (float(maxloc[0] + rho_min), int(maxloc[1]))
+    return accum, rho_theta
