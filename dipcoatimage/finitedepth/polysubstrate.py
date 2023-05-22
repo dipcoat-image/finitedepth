@@ -251,8 +251,14 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
                 else:
                     theta_rng = np.array([tmin], dtype=np.float32)
 
+                # Interpolate & perform hough transformation.
+                # Sample points by 10 pixel distances for performace.
+                # Hopefully this does not affect the line detection quality...
                 c = equidistant_interpolate(
-                    side, int(np.sum(np.linalg.norm(np.diff(side, axis=0), axis=-1)))
+                    side,
+                    int(
+                        np.sum(np.linalg.norm(np.diff(side, axis=0), axis=-1) / 10),
+                    ),
                 )
                 rho = c[..., 0] * np.cos(theta_rng) + c[..., 1] * np.sin(theta_rng)
                 rho_digit = (rho / RHO_RES).astype(np.int32)
