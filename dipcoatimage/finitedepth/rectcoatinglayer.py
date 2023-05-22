@@ -114,12 +114,10 @@ class RectCoatingLayerBase(
     Data: Type[DataType]
 
     def capbridge_broken(self) -> bool:
-        p0 = self.substrate_point()
-        _, p1, p2, _ = polylines_internal_points(
+        vert = polylines_internal_points(
             self.substrate.vertices(), self.substrate.contour().transpose(1, 0, 2)
         )
-        (bl,) = (p0 + p1).astype(np.int32)
-        (br,) = (p0 + p2).astype(np.int32)
+        _, (bl,), (br,), _ = (vert + self.substrate_point()).astype(np.int32)
         top = np.max([bl[1], br[1]])
         bot = self.binary_image().shape[0]
         if top > bot:
