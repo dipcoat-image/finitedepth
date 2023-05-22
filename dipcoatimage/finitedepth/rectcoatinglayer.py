@@ -807,6 +807,8 @@ def uniform_layer(
 
     S = cv2.contourArea(np.concatenate([interface, np.flip(surface, axis=0)]))
     (L,) = root(lambda t: polyline_parallel_area(interface, t) - S, 0).x
+    if L == 0:
+        return (np.float64(0), np.empty((0, 1, 2), dtype=np.float64))
 
     normal = np.dot(np.gradient(interface, axis=0), ROTATION_MATRIX)
     n = normal / np.linalg.norm(normal, axis=-1)[..., np.newaxis]
