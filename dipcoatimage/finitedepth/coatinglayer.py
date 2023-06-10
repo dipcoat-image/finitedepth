@@ -602,8 +602,10 @@ class LayerAreaDecoOptions:
 
     """
 
-    layer: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(0, 0, 255), thickness=-1
+    layer: FeatureDrawingOptions = dataclasses.field(
+        default_factory=lambda: FeatureDrawingOptions(
+            color=Color(0, 0, 255), thickness=-1
+        )
     )
 
 

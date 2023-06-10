@@ -302,11 +302,15 @@ class SubstrateReferenceDrawOptions:
     """Drawing options for :class:`SubstrateReference`."""
 
     draw_mode: BinaryImageDrawMode = BinaryImageDrawMode.BINARY
-    templateROI: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(0, 255, 0), thickness=1
+    templateROI: FeatureDrawingOptions = dataclasses.field(
+        default_factory=lambda: FeatureDrawingOptions(
+            color=Color(0, 255, 0), thickness=1
+        )
     )
-    substrateROI: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(255, 0, 0), thickness=1
+    substrateROI: FeatureDrawingOptions = dataclasses.field(
+        default_factory=lambda: FeatureDrawingOptions(
+            color=Color(255, 0, 0), thickness=1
+        )
     )
 
 

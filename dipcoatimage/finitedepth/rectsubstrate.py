@@ -68,11 +68,15 @@ class RectSubstrateDrawOptions:
     """Drawing options for :class:`RectSubstrate`."""
 
     draw_mode: RectSubstrateDrawMode = RectSubstrateDrawMode.BINARY
-    sides: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(0, 0, 255), thickness=1
+    sides: FeatureDrawingOptions = dataclasses.field(
+        default_factory=lambda: FeatureDrawingOptions(
+            color=Color(0, 0, 255), thickness=1
+        )
     )
-    hull: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(255, 0, 0), thickness=1
+    hull: FeatureDrawingOptions = dataclasses.field(
+        default_factory=lambda: FeatureDrawingOptions(
+            color=Color(255, 0, 0), thickness=1
+        )
     )
 
 

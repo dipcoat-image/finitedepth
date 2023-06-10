@@ -797,7 +797,9 @@ class ExperimentDataModel(QAbstractItemModel):
             data = exptData[i]
             worker = ExperimentWorker(self)
             self._workers.insert(row + i, worker)
-            worker.setExperimentData(data, reduce(lambda x, y: x | y, WorkerUpdateFlag))
+            worker.setExperimentData(
+                data, reduce(lambda x, y: x | y, WorkerUpdateFlag)  # type: ignore
+            )
 
         if reactivate:
             newRow = activatedRow + count
@@ -871,7 +873,8 @@ class ExperimentDataModel(QAbstractItemModel):
             for i in range(count):
                 newWorker = ExperimentWorker(self)
                 newWorker.setExperimentData(
-                    exptData[i], reduce(lambda x, y: x | y, WorkerUpdateFlag)
+                    exptData[i],
+                    reduce(lambda x, y: x | y, WorkerUpdateFlag),  # type: ignore
                 )
                 self._workers.insert(destinationChild + i, newWorker)
 

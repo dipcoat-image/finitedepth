@@ -347,18 +347,24 @@ class RectLayerShapeDrawOptions:
 class RectLayerShapeDecoOptions:
     """Decorating options for :class:`RectLayerShape` instance."""
 
-    layer: FeatureDrawingOptions = FeatureDrawingOptions()
-    contact_line: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(0, 255, 0),
+    layer: FeatureDrawingOptions = dataclasses.field(
+        default_factory=FeatureDrawingOptions
     )
-    thickness_lines: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(0, 0, 255),
+    contact_line: FeatureDrawingOptions = dataclasses.field(
+        default_factory=lambda: FeatureDrawingOptions(color=Color(0, 255, 0))
     )
-    uniform_layer: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(255, 0, 0), thickness=0
+    thickness_lines: FeatureDrawingOptions = dataclasses.field(
+        default_factory=lambda: FeatureDrawingOptions(color=Color(0, 0, 255))
     )
-    roughness_pairs: FeatureDrawingOptions = FeatureDrawingOptions(
-        color=Color(0, 255, 255), thickness=0, drawevery=1
+    uniform_layer: FeatureDrawingOptions = dataclasses.field(
+        default_factory=lambda: FeatureDrawingOptions(
+            color=Color(255, 0, 0), thickness=0
+        )
+    )
+    roughness_pairs: FeatureDrawingOptions = dataclasses.field(
+        default_factory=lambda: FeatureDrawingOptions(
+            color=Color(0, 255, 255), thickness=0, drawevery=1
+        )
     )
 
 
