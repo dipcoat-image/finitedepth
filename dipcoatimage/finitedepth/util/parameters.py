@@ -67,6 +67,6 @@ class FeatureDrawingOptions:
 
     """
 
-    color: Color = Color(0, 0, 0)
+    color: Color = dataclasses.field(default_factory=Color)
     thickness: int = 1
     drawevery: int = 1
