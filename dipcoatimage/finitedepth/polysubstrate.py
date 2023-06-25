@@ -231,7 +231,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         References
         ----------
-        .. [1] https://en.wikipedia.org/wiki/Extended_sides
+        .. [1] https://en.wikipedia.org/wiki/Extended_side
         """
         if not hasattr(self, "_sidelines"):
             # Do not find the line from smoothed contour. Noise is removed anyway
