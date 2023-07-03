@@ -8,12 +8,14 @@ from typing import Tuple
 __all__ = [
     "dfd",
     "dfd_pair",
-    "dtw",
-    "dtw_path",
     "sfd",
     "sfd_path",
     "ssfd",
     "ssfd_path",
+    "ifd",
+    "ifd_path",
+    "isfd",
+    "isfd_path",
 ]
 
 
@@ -22,7 +24,7 @@ def dfd(
     Q: npt.NDArray[np.float64],
 ) -> npt.NDArray[np.float64]:
     """
-    Compute discrete Fréchet distance with Euclidean metric.
+    Compute discrete Fréchet distance between two series, using L2 norm.
 
     Implements the algorithm from [1]_, with modification from [2]_.
 
@@ -35,7 +37,7 @@ def dfd(
     Returns
     -------
     ndarray
-        Accumulated cost array for the Fréchet distance.
+        Accumulated cost array for the discrete Fréchet distance.
         The distance is the last element of the array i.e. `ca[-1, -1]`.
         If *P* or *Q* is empty, return value is an empty array.
 
@@ -87,12 +89,12 @@ def dfd_pair(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
     Parameters
     ----------
     ca: ndarray
-        Accumulated cost array of discrete Fréchet distance between two curves.
+        Accumulated cost array of discrete Fréchet distance between two series.
 
     Returns
     -------
     ndarray
-        Indices for the two curves to get the point pair.
+        Indices for the two series to get the point pair.
 
     See Also
     --------
@@ -102,13 +104,14 @@ def dfd_pair(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
     return np.array([[i[0], j[0]]], dtype=np.int32)
 
 
-def dtw(
+def sfd(
     P: npt.NDArray[np.float64],
     Q: npt.NDArray[np.float64],
 ) -> npt.NDArray[np.float64]:
     """
-    Compute dynamic time warping[1]_ with L2 norm.
+    Compute summed Fréchet distance between two series, using L2 norm.
 
+    The summed Fréchet distance is equivalent to the dynamic time warping[1]_.
     Implements the algorithm from [1]_, with modification from [2]_.
 
     Parameters
@@ -120,7 +123,7 @@ def dtw(
     Returns
     -------
     ndarray
-        Accumulated cost array for dynamic time warping.
+        Accumulated cost array for the summed Fréchet distance.
         The distance is the last element of the array i.e. `ca[-1, -1]`.
         If *P* or *Q* is empty, return value is an empty array.
 
@@ -134,14 +137,14 @@ def dtw(
 
     See Also
     --------
-    dtw_path
+    sfd_path
 
     """
-    return _dtw(cdist(P, Q))
+    return _sfd(cdist(P, Q))
 
 
 @njit(cache=True)
-def _dtw(freespace: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+def _sfd(freespace: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     p, q = freespace.shape
     ca = np.zeros((p, q), dtype=np.float64)
     if p == 0 or q == 0:
@@ -164,21 +167,21 @@ def _dtw(freespace: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     return ca
 
 
-def dtw_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
+def sfd_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
     """
-    Compute optimal path for dynamic time warping in the free space.
+    Compute optimal path for summed Fréchet distance in the free space.
 
     Implements the algorithm from [1]_, with modification from [2]_.
 
     Parameters
     ----------
     ca: ndarray
-        Accumulated cost array of dynamic time warping between two curves.
+        Accumulated cost array of summed Fréchet distance between two series.
 
     Returns
     -------
     ndarray
-        Indices for the two curves to get the path.
+        Indices for the two series to get the path.
 
     References
     ----------
@@ -190,7 +193,7 @@ def dtw_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
 
     See Also
     --------
-    dtw
+    sfd
 
     """
     path, path_len = _ca_path(ca)
@@ -231,13 +234,65 @@ def _ca_path(ca: npt.NDArray[np.float64]) -> Tuple[npt.NDArray[np.int32], np.int
     return path, path_len
 
 
-def sfd(
+def ssfd(
     P: npt.NDArray[np.float64],
     Q: npt.NDArray[np.float64],
 ) -> npt.NDArray[np.float64]:
     """
-    Compute summed Fréchet distance[1]_ using L2 norm for both curve space and
-    paramer space.
+    Compute summed square Fréchet distance between two series, using L2 norm.
+
+    Parameters
+    ----------
+    P, Q : ndarray
+        2D Numpy array with ``np.float64`` dtype. Rows are the points and
+        columns are the dimensions.
+
+    Returns
+    -------
+    ndarray
+        Accumulated cost array for the summed square Fréchet distance.
+        The distance is the last element of the array i.e. `ca[-1, -1]`.
+        If *P* or *Q* is empty, return value is an empty array.
+
+    See Also
+    --------
+    ssfd_path
+
+    """
+    return _sfd(cdist(P, Q) ** 2)
+
+
+def ssfd_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
+    """
+    Compute optimal path for summed square Fréchet distance in the free space.
+
+    Parameters
+    ----------
+    ca: ndarray
+        Accumulated cost array of summed square Fréchet distance between two
+        series.
+
+    Returns
+    -------
+    ndarray
+        Indices for the two series to get the path.
+
+    See Also
+    --------
+    ssfd
+
+    """
+    path, path_len = _ca_path(ca)
+    return path[-(len(path) - path_len + 1) :: -1]
+
+
+def ifd(
+    P: npt.NDArray[np.float64],
+    Q: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """
+    Approximate integral Fréchet distance[1]_ by Riemann sum, using L2 norm both
+    for the curve space and the parameter space.
 
     The points are parameterized by the arc length.
 
@@ -250,7 +305,7 @@ def sfd(
     Returns
     -------
     ndarray
-        Accumulated cost array for the summed Fréchet distance.
+        Accumulated cost array for the integral Fréchet distance.
         The distance is the last element of the array i.e. `ca[-1, -1]`.
         If *P* or *Q* is empty, return value is an empty array.
 
@@ -262,16 +317,16 @@ def sfd(
 
     See Also
     --------
-    sfd_path
+    ifd_path
 
     """
     P_dists = np.linalg.norm(np.diff(P, axis=0), axis=-1)
     Q_dists = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
-    return _sfd(cdist(P, Q), P_dists / np.sum(P_dists), Q_dists / np.sum(Q_dists))
+    return _ifd(cdist(P, Q), P_dists / np.sum(P_dists), Q_dists / np.sum(Q_dists))
 
 
 @njit(cache=True)
-def _sfd(
+def _ifd(
     freespace: npt.NDArray[np.float64],
     param1: npt.NDArray[np.float64],
     param2: npt.NDArray[np.float64],
@@ -302,46 +357,37 @@ def _sfd(
     return ca
 
 
-def sfd_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
+def ifd_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
     """
-    Compute optimal path for summed Fréchet distance in the free space.
-
-    Implements the algorithm from [1]_, with modification from [2]_.
+    Compute optimal path for approximated integral Fréchet distance in the free
+    space.
 
     Parameters
     ----------
     ca: ndarray
-        Accumulated cost array of summed Fréchet distance between two curves.
+        Accumulated cost array of integral Fréchet distance between two curves.
 
     Returns
     -------
     ndarray
         Indices for the two curves to get the path.
 
-    References
-    ----------
-    .. [1] Senin, Pavel. "Dynamic time warping algorithm review." Information and
-       Computer Science Department University of Hawaii at Manoa Honolulu,
-       USA 855.1-23 (2008): 40.
-
-    .. [2] https://pypi.org/project/similaritymeasures/
-
     See Also
     --------
-    sfd
+    ifd
 
     """
     path, path_len = _ca_path(ca)
     return path[-(len(path) - path_len + 1) :: -1]
 
 
-def ssfd(
+def isfd(
     P: npt.NDArray[np.float64],
     Q: npt.NDArray[np.float64],
 ) -> npt.NDArray[np.float64]:
     """
-    Compute summed square Fréchet distance using L2 norm for both curve space and
-    paramer space.
+    Approximate integral square Fréchet distance by Riemann sum, using L2 norm
+    both for the curve space and the parameter space.
 
     The points are parameterized by the arc length.
 
@@ -360,41 +406,33 @@ def ssfd(
 
     See Also
     --------
-    ssfd_path
+    isfd_path
 
     """
     P_dists = np.linalg.norm(np.diff(P, axis=0), axis=-1)
     Q_dists = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
-    return _sfd(cdist(P, Q) ** 2, P_dists / np.sum(P_dists), Q_dists / np.sum(Q_dists))
+    return _ifd(cdist(P, Q) ** 2, P_dists / np.sum(P_dists), Q_dists / np.sum(Q_dists))
 
 
-def ssfd_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
+def isfd_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
     """
-    Compute optimal path for summed square Fréchet distance in the free space.
-
-    Implements the algorithm from [1]_, with modification from [2]_.
+    Compute optimal path for approximated integral square Fréchet distance in the
+    free space.
 
     Parameters
     ----------
     ca: ndarray
-        Accumulated cost array of summed Fréchet distance between two curves.
+        Accumulated cost array of integral square Fréchet distance between two
+        curves.
 
     Returns
     -------
     ndarray
         Indices for the two curves to get the path.
 
-    References
-    ----------
-    .. [1] Senin, Pavel. "Dynamic time warping algorithm review." Information and
-       Computer Science Department University of Hawaii at Manoa Honolulu,
-       USA 855.1-23 (2008): 40.
-
-    .. [2] https://pypi.org/project/similaritymeasures/
-
     See Also
     --------
-    ssfd
+    isfd
 
     """
     path, path_len = _ca_path(ca)
