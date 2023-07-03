@@ -228,9 +228,10 @@ def sfd(
     Q: npt.NDArray[np.float64],
 ) -> npt.NDArray[np.float64]:
     """
-    Compute summed Fréchet distance with Euclidean metric.
+    Compute summed Fréchet distance[1]_ using L2 norm for both curve space and
+    paramer space.
 
-    Implements the algorithm from [1]_, with modification from [2]_.
+    The points are parameterized by the arc length.
 
     Parameters
     ----------
@@ -247,18 +248,22 @@ def sfd(
 
     References
     ----------
-    .. [1] Senin, Pavel. "Dynamic time warping algorithm review." Information and
-       Computer Science Department University of Hawaii at Manoa Honolulu,
-       USA 855.1-23 (2008): 40.
-
-    .. [2] https://pypi.org/project/similaritymeasures/
+    .. [1] Brakatsoulas, Sotiris, et al. "On map-matching vehicle tracking data."
+       Proceedings of the 31st international conference on Very large data bases.
+       2005.
 
     """
-    return _sfd(cdist(P, Q))
+    P_dists = np.linalg.norm(np.diff(P, axis=0), axis=-1)
+    Q_dists = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
+    return _sfd(cdist(P, Q), P_dists / np.sum(P_dists), Q_dists / np.sum(Q_dists))
 
 
 @njit(cache=True)
-def _sfd(freespace: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+def _sfd(
+    freespace: npt.NDArray[np.float64],
+    param1: npt.NDArray[np.float64],
+    param2: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
     p, q = freespace.shape
     ca = np.zeros((p, q), dtype=np.float64)
     if p == 0 or q == 0:
@@ -267,15 +272,19 @@ def _sfd(freespace: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     ca[0, 0] = freespace[0, 0]
 
     for i in range(1, p):
-        ca[i, 0] = ca[i - 1, 0] + freespace[i, 0]
+        ca[i, 0] = ca[i - 1, 0] + freespace[i, 0] * param1[i - 1]
 
     for j in range(1, q):
-        ca[0, j] = ca[0, j - 1] + freespace[0, j]
+        ca[0, j] = ca[0, j - 1] + freespace[0, j] * param2[j - 1]
 
     for i in range(1, p):
         for j in range(1, q):
-            ca[i, j] = (
-                min(ca[i - 1, j], ca[i, j - 1], ca[i - 1, j - 1]) + freespace[i, j]
+            dx = param1[i - 1]
+            dy = param2[j - 1]
+            ca[i, j] = min(
+                ca[i - 1, j] + freespace[i, j] * dx,
+                ca[i, j - 1] + freespace[i, j] * dy,
+                ca[i - 1, j - 1] + freespace[i, j] * np.sqrt(dx**2 + dy**2),
             )
 
     return ca
