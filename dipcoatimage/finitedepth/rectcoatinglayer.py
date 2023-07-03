@@ -46,14 +46,16 @@ from .util import (
     images_XOR,
     DataclassProtocol,
     FeatureDrawingOptions,
+    Color,
+    colorize,
+)
+from .util.frechet import (
     dfd,
     dfd_pair,
     sfd,
     sfd_path,
     ssfd,
     ssfd_path,
-    Color,
-    colorize,
 )
 from .util.geometry import (
     split_polyline,
