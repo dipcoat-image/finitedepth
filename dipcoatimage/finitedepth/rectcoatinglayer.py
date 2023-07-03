@@ -883,15 +883,15 @@ def roughness(
     if measure == DistanceMeasure.DFD:
         ca = dfd(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
         path = dfd_pair(ca)
-        roughness = ca[-1, -1] / len(path)
+        roughness = ca[-1, -1]
     elif measure == DistanceMeasure.SFD:
         ca = sfd(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
         path = sfd_path(ca)
-        roughness = ca[-1, -1] / len(path)
+        roughness = ca[-1, -1]
     elif measure == DistanceMeasure.SSFD:
         ca = ssfd(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
         path = ssfd_path(ca)
-        roughness = np.sqrt(ca[-1, -1] / len(path))
+        roughness = np.sqrt(ca[-1, -1])
     else:
         raise TypeError(f"Unknown measure: {measure}")
 
