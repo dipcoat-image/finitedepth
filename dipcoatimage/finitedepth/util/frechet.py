@@ -8,6 +8,8 @@ from typing import Tuple
 __all__ = [
     "dfd",
     "dfd_pair",
+    "dtw",
+    "dtw_path",
     "sfd",
     "sfd_path",
     "ssfd",
@@ -43,6 +45,10 @@ def dfd(
        distance." (1994).
 
     .. [2] https://pypi.org/project/similaritymeasures/
+
+    See Also
+    --------
+    dfd_pair
 
     """
     # TODO: use subquadratic algorithm (Agarwal et al, 2014)
@@ -96,13 +102,12 @@ def dfd_pair(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
     return np.array([[i[0], j[0]]], dtype=np.int32)
 
 
-def sfd(
+def dtw(
     P: npt.NDArray[np.float64],
     Q: npt.NDArray[np.float64],
 ) -> npt.NDArray[np.float64]:
     """
-    Compute summed Fréchet distance (equivalent to dynamic time warping) with
-    Euclidean metric.
+    Compute dynamic time warping[1]_ with L2 norm.
 
     Implements the algorithm from [1]_, with modification from [2]_.
 
@@ -115,7 +120,7 @@ def sfd(
     Returns
     -------
     ndarray
-        Accumulated cost array for the summed Fréchet distance.
+        Accumulated cost array for dynamic time warping.
         The distance is the last element of the array i.e. `ca[-1, -1]`.
         If *P* or *Q* is empty, return value is an empty array.
 
@@ -127,45 +132,48 @@ def sfd(
 
     .. [2] https://pypi.org/project/similaritymeasures/
 
+    See Also
+    --------
+    dtw_path
+
     """
-    return _sfd(cdist(P, Q), 1)
+    return _dtw(cdist(P, Q))
 
 
 @njit(cache=True)
-def _sfd(freespace: npt.NDArray[np.float64], order: int) -> npt.NDArray[np.float64]:
+def _dtw(freespace: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     p, q = freespace.shape
     ca = np.zeros((p, q), dtype=np.float64)
     if p == 0 or q == 0:
         return ca
 
-    ca[0, 0] = freespace[0, 0] ** order
+    ca[0, 0] = freespace[0, 0]
 
     for i in range(1, p):
-        ca[i, 0] = ca[i - 1, 0] + freespace[i, 0] ** order
+        ca[i, 0] = ca[i - 1, 0] + freespace[i, 0]
 
     for j in range(1, q):
-        ca[0, j] = ca[0, j - 1] + freespace[0, j] ** order
+        ca[0, j] = ca[0, j - 1] + freespace[0, j]
 
     for i in range(1, p):
         for j in range(1, q):
             ca[i, j] = (
-                min(ca[i - 1, j], ca[i, j - 1], ca[i - 1, j - 1])
-                + freespace[i, j] ** order
+                min(ca[i - 1, j], ca[i, j - 1], ca[i - 1, j - 1]) + freespace[i, j]
             )
 
     return ca
 
 
-def sfd_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
+def dtw_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
     """
-    Compute optimal path for summed Fréchet distance variants in the free space.
+    Compute optimal path for dynamic time warping in the free space.
 
     Implements the algorithm from [1]_, with modification from [2]_.
 
     Parameters
     ----------
     ca: ndarray
-        Accumulated cost array of summed Fréchet distance between two curves.
+        Accumulated cost array of dynamic time warping between two curves.
 
     Returns
     -------
@@ -182,15 +190,15 @@ def sfd_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
 
     See Also
     --------
-    sfd
+    dtw
 
     """
-    path, path_len = _sfd_path(ca)
+    path, path_len = _ca_path(ca)
     return path[-(len(path) - path_len + 1) :: -1]
 
 
 @njit(cache=True)
-def _sfd_path(ca: npt.NDArray[np.float64]) -> Tuple[npt.NDArray[np.int32], np.int32]:
+def _ca_path(ca: npt.NDArray[np.float64]) -> Tuple[npt.NDArray[np.int32], np.int32]:
     p, q = ca.shape
     if p == 0 or q == 0:
         return np.empty((0, 2), dtype=np.int32), np.int32(0)
@@ -223,12 +231,119 @@ def _sfd_path(ca: npt.NDArray[np.float64]) -> Tuple[npt.NDArray[np.int32], np.in
     return path, path_len
 
 
+def sfd(
+    P: npt.NDArray[np.float64],
+    Q: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """
+    Compute summed Fréchet distance[1]_ using L2 norm for both curve space and
+    paramer space.
+
+    The points are parameterized by the arc length.
+
+    Parameters
+    ----------
+    P, Q : ndarray
+        2D Numpy array with ``np.float64`` dtype. Rows are the points and
+        columns are the dimensions.
+
+    Returns
+    -------
+    ndarray
+        Accumulated cost array for the summed Fréchet distance.
+        The distance is the last element of the array i.e. `ca[-1, -1]`.
+        If *P* or *Q* is empty, return value is an empty array.
+
+    References
+    ----------
+    .. [1] Brakatsoulas, Sotiris, et al. "On map-matching vehicle tracking data."
+       Proceedings of the 31st international conference on Very large data bases.
+       2005.
+
+    See Also
+    --------
+    sfd_path
+
+    """
+    P_dists = np.linalg.norm(np.diff(P, axis=0), axis=-1)
+    Q_dists = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
+    return _sfd(cdist(P, Q), P_dists / np.sum(P_dists), Q_dists / np.sum(Q_dists))
+
+
+@njit(cache=True)
+def _sfd(
+    freespace: npt.NDArray[np.float64],
+    param1: npt.NDArray[np.float64],
+    param2: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    p, q = freespace.shape
+    ca = np.zeros((p, q), dtype=np.float64)
+    if p == 0 or q == 0:
+        return ca
+
+    ca[0, 0] = freespace[0, 0]
+
+    for i in range(1, p):
+        ca[i, 0] = ca[i - 1, 0] + freespace[i, 0] * param1[i - 1]
+
+    for j in range(1, q):
+        ca[0, j] = ca[0, j - 1] + freespace[0, j] * param2[j - 1]
+
+    for i in range(1, p):
+        for j in range(1, q):
+            dx = param1[i - 1]
+            dy = param2[j - 1]
+            ca[i, j] = min(
+                ca[i - 1, j] + freespace[i, j] * dx,
+                ca[i, j - 1] + freespace[i, j] * dy,
+                ca[i - 1, j - 1] + freespace[i, j] * np.sqrt(dx**2 + dy**2),
+            )
+
+    return ca
+
+
+def sfd_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
+    """
+    Compute optimal path for summed Fréchet distance in the free space.
+
+    Implements the algorithm from [1]_, with modification from [2]_.
+
+    Parameters
+    ----------
+    ca: ndarray
+        Accumulated cost array of summed Fréchet distance between two curves.
+
+    Returns
+    -------
+    ndarray
+        Indices for the two curves to get the path.
+
+    References
+    ----------
+    .. [1] Senin, Pavel. "Dynamic time warping algorithm review." Information and
+       Computer Science Department University of Hawaii at Manoa Honolulu,
+       USA 855.1-23 (2008): 40.
+
+    .. [2] https://pypi.org/project/similaritymeasures/
+
+    See Also
+    --------
+    sfd
+
+    """
+    path, path_len = _ca_path(ca)
+    return path[-(len(path) - path_len + 1) :: -1]
+
+
 def ssfd(
     P: npt.NDArray[np.float64],
     Q: npt.NDArray[np.float64],
 ) -> npt.NDArray[np.float64]:
     """
-    Compute summed square Fréchet distance with Euclidean metric.
+    Compute summed square Fréchet distance using L2 norm for both curve space and
+    paramer space.
+
+    The points are parameterized by the arc length.
 
     Parameters
     ----------
@@ -243,10 +358,44 @@ def ssfd(
         The distance is the last element of the array i.e. `ca[-1, -1]`.
         If *P* or *Q* is empty, return value is an empty array.
 
+    See Also
+    --------
+    ssfd_path
+
     """
-    return _sfd(cdist(P, Q), 2)
+    P_dists = np.linalg.norm(np.diff(P, axis=0), axis=-1)
+    Q_dists = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
+    return _sfd(cdist(P, Q) ** 2, P_dists / np.sum(P_dists), Q_dists / np.sum(Q_dists))
 
 
-# SSFD path can be acquired using algorithm identical to SFD path.
-# We still provide easy aliasing.
-ssfd_path = sfd_path
+def ssfd_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
+    """
+    Compute optimal path for summed square Fréchet distance in the free space.
+
+    Implements the algorithm from [1]_, with modification from [2]_.
+
+    Parameters
+    ----------
+    ca: ndarray
+        Accumulated cost array of summed Fréchet distance between two curves.
+
+    Returns
+    -------
+    ndarray
+        Indices for the two curves to get the path.
+
+    References
+    ----------
+    .. [1] Senin, Pavel. "Dynamic time warping algorithm review." Information and
+       Computer Science Department University of Hawaii at Manoa Honolulu,
+       USA 855.1-23 (2008): 40.
+
+    .. [2] https://pypi.org/project/similaritymeasures/
+
+    See Also
+    --------
+    ssfd
+
+    """
+    path, path_len = _ca_path(ca)
+    return path[-(len(path) - path_len + 1) :: -1]

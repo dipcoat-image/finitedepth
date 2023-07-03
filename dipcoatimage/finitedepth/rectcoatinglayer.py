@@ -46,14 +46,18 @@ from .util import (
     images_XOR,
     DataclassProtocol,
     FeatureDrawingOptions,
+    Color,
+    colorize,
+)
+from .util.frechet import (
     dfd,
     dfd_pair,
+    dtw,
+    dtw_path,
     sfd,
     sfd_path,
     ssfd,
     ssfd_path,
-    Color,
-    colorize,
 )
 from .util.geometry import (
     split_polyline,
@@ -316,11 +320,13 @@ class DistanceMeasure(enum.Enum):
     Distance measure used to define the curve similarity.
 
     - DFD : Discrete Fréchet Distance
+    - DTW: Dynamic Time Warping
     - SFD : Summed Fréchet Distance
     - SSFD : Summed Square Fréchet Distance
     """
 
     DFD = "DFD"
+    DTW = "DTW"
     SFD = "SFD"
     SSFD = "SSFD"
 
@@ -881,15 +887,19 @@ def roughness(
     if measure == DistanceMeasure.DFD:
         ca = dfd(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
         path = dfd_pair(ca)
-        roughness = ca[-1, -1] / len(path)
+        roughness = ca[-1, -1]
+    elif measure == DistanceMeasure.DTW:
+        ca = dtw(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
+        path = dtw_path(ca)
+        roughness = ca[-1, -1]
     elif measure == DistanceMeasure.SFD:
         ca = sfd(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
         path = sfd_path(ca)
-        roughness = ca[-1, -1] / len(path)
+        roughness = ca[-1, -1]
     elif measure == DistanceMeasure.SSFD:
         ca = ssfd(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
         path = ssfd_path(ca)
-        roughness = np.sqrt(ca[-1, -1] / len(path))
+        roughness = np.sqrt(ca[-1, -1])
     else:
         raise TypeError(f"Unknown measure: {measure}")
 
