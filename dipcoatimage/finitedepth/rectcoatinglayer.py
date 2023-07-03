@@ -52,8 +52,6 @@ from .util import (
 from .util.frechet import (
     dfd,
     dfd_pair,
-    dtw,
-    dtw_path,
     sfd,
     sfd_path,
     ssfd,
@@ -320,13 +318,11 @@ class DistanceMeasure(enum.Enum):
     Distance measure used to define the curve similarity.
 
     - DFD : Discrete Fréchet Distance
-    - DTW: Dynamic Time Warping
     - SFD : Summed Fréchet Distance
     - SSFD : Summed Square Fréchet Distance
     """
 
     DFD = "DFD"
-    DTW = "DTW"
     SFD = "SFD"
     SSFD = "SSFD"
 
@@ -887,10 +883,6 @@ def roughness(
     if measure == DistanceMeasure.DFD:
         ca = dfd(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
         path = dfd_pair(ca)
-        roughness = ca[-1, -1]
-    elif measure == DistanceMeasure.DTW:
-        ca = dtw(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
-        path = dtw_path(ca)
         roughness = ca[-1, -1]
     elif measure == DistanceMeasure.SFD:
         ca = sfd(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
