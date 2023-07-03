@@ -46,6 +46,10 @@ def dfd(
 
     .. [2] https://pypi.org/project/similaritymeasures/
 
+    See Also
+    --------
+    dfd_pair
+
     """
     # TODO: use subquadratic algorithm (Agarwal et al, 2014)
     return _dfd(cdist(P, Q))
@@ -128,6 +132,10 @@ def dtw(
 
     .. [2] https://pypi.org/project/similaritymeasures/
 
+    See Also
+    --------
+    dtw_path
+
     """
     return _dtw(cdist(P, Q))
 
@@ -185,12 +193,12 @@ def dtw_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
     dtw
 
     """
-    path, path_len = _dtw_path(ca)
+    path, path_len = _ca_path(ca)
     return path[-(len(path) - path_len + 1) :: -1]
 
 
 @njit(cache=True)
-def _dtw_path(ca: npt.NDArray[np.float64]) -> Tuple[npt.NDArray[np.int32], np.int32]:
+def _ca_path(ca: npt.NDArray[np.float64]) -> Tuple[npt.NDArray[np.int32], np.int32]:
     p, q = ca.shape
     if p == 0 or q == 0:
         return np.empty((0, 2), dtype=np.int32), np.int32(0)
@@ -252,6 +260,10 @@ def sfd(
        Proceedings of the 31st international conference on Very large data bases.
        2005.
 
+    See Also
+    --------
+    sfd_path
+
     """
     P_dists = np.linalg.norm(np.diff(P, axis=0), axis=-1)
     Q_dists = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
@@ -292,7 +304,7 @@ def _sfd(
 
 def sfd_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
     """
-    Compute optimal path for summed Fréchet distance variants in the free space.
+    Compute optimal path for summed Fréchet distance in the free space.
 
     Implements the algorithm from [1]_, with modification from [2]_.
 
@@ -319,42 +331,8 @@ def sfd_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
     sfd
 
     """
-    path, path_len = _sfd_path(ca)
+    path, path_len = _ca_path(ca)
     return path[-(len(path) - path_len + 1) :: -1]
-
-
-@njit(cache=True)
-def _sfd_path(ca: npt.NDArray[np.float64]) -> Tuple[npt.NDArray[np.int32], np.int32]:
-    p, q = ca.shape
-    if p == 0 or q == 0:
-        return np.empty((0, 2), dtype=np.int32), np.int32(0)
-
-    path = np.zeros((p + q - 1, 2), dtype=np.int32)
-    path_len = np.int32(0)
-
-    i, j = p - 1, q - 1
-    path[path_len] = [i, j]
-    path_len += 1
-
-    while i > 0 or j > 0:
-        if i == 0:
-            j -= 1
-        elif j == 0:
-            i -= 1
-        else:
-            d = min(ca[i - 1, j], ca[i, j - 1], ca[i - 1, j - 1])
-            if ca[i - 1, j] == d:
-                i -= 1
-            elif ca[i, j - 1] == d:
-                j -= 1
-            else:
-                i -= 1
-                j -= 1
-
-        path[path_len] = [i, j]
-        path_len += 1
-
-    return path, path_len
 
 
 def ssfd(
@@ -362,7 +340,10 @@ def ssfd(
     Q: npt.NDArray[np.float64],
 ) -> npt.NDArray[np.float64]:
     """
-    Compute summed square Fréchet distance with Euclidean metric.
+    Compute summed square Fréchet distance using L2 norm for both curve space and
+    paramer space.
+
+    The points are parameterized by the arc length.
 
     Parameters
     ----------
@@ -377,10 +358,44 @@ def ssfd(
         The distance is the last element of the array i.e. `ca[-1, -1]`.
         If *P* or *Q* is empty, return value is an empty array.
 
+    See Also
+    --------
+    ssfd_path
+
     """
-    return _sfd(cdist(P, Q), 2)
+    P_dists = np.linalg.norm(np.diff(P, axis=0), axis=-1)
+    Q_dists = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
+    return _sfd(cdist(P, Q) ** 2, P_dists / np.sum(P_dists), Q_dists / np.sum(Q_dists))
 
 
-# SSFD path can be acquired using algorithm identical to SFD path.
-# We still provide easy aliasing.
-ssfd_path = sfd_path
+def ssfd_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
+    """
+    Compute optimal path for summed square Fréchet distance in the free space.
+
+    Implements the algorithm from [1]_, with modification from [2]_.
+
+    Parameters
+    ----------
+    ca: ndarray
+        Accumulated cost array of summed Fréchet distance between two curves.
+
+    Returns
+    -------
+    ndarray
+        Indices for the two curves to get the path.
+
+    References
+    ----------
+    .. [1] Senin, Pavel. "Dynamic time warping algorithm review." Information and
+       Computer Science Department University of Hawaii at Manoa Honolulu,
+       USA 855.1-23 (2008): 40.
+
+    .. [2] https://pypi.org/project/similaritymeasures/
+
+    See Also
+    --------
+    ssfd
+
+    """
+    path, path_len = _ca_path(ca)
+    return path[-(len(path) - path_len + 1) :: -1]
