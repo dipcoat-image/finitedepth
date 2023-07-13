@@ -309,14 +309,14 @@ class MorphologyClosingParameters:
 
 class DistanceMeasure(enum.Enum):
     """
-    Distance measure used to define the curve similarity.
+    Distance measures to compute the curve similarity.
 
-    - SFD : Summed Fréchet Distance
-    - SSFD : Summed Square Fréchet Distance
+    - SDFD : Summed discrete Fréchet distance
+    - SSDFD : Summed square discrete Fréchet distance
     """
 
-    SFD = "SFD"
-    SSFD = "SSFD"
+    SDFD = "SDFD"
+    SSDFD = "SSDFD"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -459,7 +459,7 @@ class RectLayerShape(
        >>> param_val = dict(
        ...     MorphologyClosing=dict(kernelSize=(1, 1)),
        ...     ReconstructRadius=50,
-       ...     RoughnessMeasure="SSFD",
+       ...     RoughnessMeasure="SSDFD",
        ...     RoughnessSamples=100,
        ... )
        >>> param = data_converter.structure(param_val, RectLayerShape.Parameters)
@@ -837,12 +837,12 @@ def roughness(
     if surface.size == 0 or uniform_layer.size == 0:
         return np.nan, np.empty((2, 0, 1, surface.shape[-1]), dtype=np.float64)
 
-    if measure == DistanceMeasure.SFD:
+    if measure == DistanceMeasure.SDFD:
         dist = cdist(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
         mat = acm(dist)
         path = owp(mat)
         roughness = mat[-1, -1] / len(path)
-    elif measure == DistanceMeasure.SSFD:
+    elif measure == DistanceMeasure.SSDFD:
         dist = cdist(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
         mat = acm(dist**2)
         path = owp(mat)
