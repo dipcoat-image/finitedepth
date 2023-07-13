@@ -11,6 +11,7 @@ __all__ = [
     "polylines_internal_points",
     "polyline_parallel_area",
     "equidistant_interpolate",
+    "densify_polyline",
 ]
 
 
@@ -322,3 +323,38 @@ def equidistant_interpolate(points, n) -> npt.NDArray[np.float64]:
     t = np.linspace(0, u[-1], n)
     ret = np.column_stack([np.interp(t, u, a) for a in np.squeeze(points, axis=1).T])
     return ret.reshape((n,) + points.shape[1:])
+
+
+def densify_polyline(polyline: npt.NDArray, rate: float = 1.0):
+    """
+    Interpolate the polyline with mostly-equidistant points, retaining every
+    original vertex.
+
+    Parameters
+    ----------
+    polylines: ndarray
+        Coordinates of the polyline vertices.
+        The shape must be `(1, V, D)` where `V` is the number of vertices and
+        `D` is the dimension.
+    rate: float
+        Sampling rate.
+        This is the desired number of points per unit length.
+
+    Returns
+    -------
+    ndarray
+        Coordinates of the interpolated points.
+        The shape is `(V', 1, D)` where `V'` is the number of points.
+
+    Notes
+    -----
+    To retain the original vertices, the distance between the resulting points
+    are not uniform. For example, if a distance between two original vertices is
+    3.1 but *rate* is set as 1, three additional points are interpolated that
+    the interval lengths are 1, 1, 1 and 0.1.
+    """
+    _, N, _ = polyline.shape
+    t = np.cumsum(np.linalg.norm(np.diff(polyline, axis=1), axis=2)) * rate
+    t_full = np.unique(np.concatenate([t, np.arange(np.ceil(t[-1]))])) / t[-1] * (N - 1)
+    ret = polylines_internal_points(t_full[..., np.newaxis], polyline)
+    return ret
