@@ -50,8 +50,6 @@ from .util import (
     colorize,
 )
 from .util.frechet import (
-    dfd,
-    dfd_pair,
     sfd,
     sfd_path,
     ssfd,
@@ -317,12 +315,10 @@ class DistanceMeasure(enum.Enum):
     """
     Distance measure used to define the curve similarity.
 
-    - DFD : Discrete Fréchet Distance
     - SFD : Summed Fréchet Distance
     - SSFD : Summed Square Fréchet Distance
     """
 
-    DFD = "DFD"
     SFD = "SFD"
     SSFD = "SSFD"
 
@@ -880,11 +876,7 @@ def roughness(
     if surface.size == 0 or uniform_layer.size == 0:
         return np.nan, np.empty((2, 0, 1, surface.shape[-1]), dtype=np.float64)
 
-    if measure == DistanceMeasure.DFD:
-        ca = dfd(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
-        path = dfd_pair(ca)
-        roughness = ca[-1, -1]
-    elif measure == DistanceMeasure.SFD:
+    if measure == DistanceMeasure.SFD:
         ca = sfd(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
         path = sfd_path(ca)
         roughness = ca[-1, -1] / len(path)
