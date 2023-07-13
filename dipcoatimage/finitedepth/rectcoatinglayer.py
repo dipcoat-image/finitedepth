@@ -34,6 +34,7 @@ import enum
 import numpy as np
 import numpy.typing as npt
 from scipy.optimize import root  # type: ignore
+from scipy.spatial.distance import cdist  # type: ignore
 from typing import TypeVar, Type, Tuple, List, Optional
 from .rectsubstrate import RectSubstrate
 from .coatinglayer import (
@@ -49,12 +50,7 @@ from .util import (
     Color,
     colorize,
 )
-from .util.frechet import (
-    sfd,
-    sfd_path,
-    ssfd,
-    ssfd_path,
-)
+from .util.frechet import acm, owp
 from .util.geometry import (
     split_polyline,
     line_polyline_intersections,
@@ -877,13 +873,15 @@ def roughness(
         return np.nan, np.empty((2, 0, 1, surface.shape[-1]), dtype=np.float64)
 
     if measure == DistanceMeasure.SFD:
-        ca = sfd(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
-        path = sfd_path(ca)
-        roughness = ca[-1, -1] / len(path)
+        dist = cdist(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
+        mat = acm(dist)
+        path = owp(mat)
+        roughness = mat[-1, -1] / len(path)
     elif measure == DistanceMeasure.SSFD:
-        ca = ssfd(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
-        path = ssfd_path(ca)
-        roughness = np.sqrt(ca[-1, -1] / len(path))
+        dist = cdist(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
+        mat = acm(dist**2)
+        path = owp(mat)
+        roughness = np.sqrt(mat[-1, -1] / len(path))
     else:
         raise TypeError(f"Unknown measure: {measure}")
 
