@@ -743,35 +743,6 @@ class RectLayerShape(
         AVRGTHCK_G, _ = self.uniform_layer()
         ROUGH_G, _ = self.roughness()
 
-        (intf_L, intf_B, intf_R), (surf_L, surf_B, surf_R) = self.layer_regions()
-        AVRGTHCK_L, ul_L = uniform_layer(
-            intf_L.astype(np.float32),
-            surf_L.astype(np.float32),
-        )
-        ROUGH_L, _ = roughness(
-            equidistant_interpolate(surf_L, self.parameters.RoughnessSamples),
-            equidistant_interpolate(ul_L, self.parameters.RoughnessSamples),
-            self.parameters.RoughnessMeasure,
-        )
-        AVRGTHCK_B, ul_B = uniform_layer(
-            intf_B.astype(np.float32),
-            surf_B.astype(np.float32),
-        )
-        ROUGH_B, _ = roughness(
-            equidistant_interpolate(surf_B, self.parameters.RoughnessSamples),
-            equidistant_interpolate(ul_B, self.parameters.RoughnessSamples),
-            self.parameters.RoughnessMeasure,
-        )
-        AVRGTHCK_R, ul_R = uniform_layer(
-            intf_R.astype(np.float32),
-            surf_R.astype(np.float32),
-        )
-        ROUGH_R, _ = roughness(
-            equidistant_interpolate(surf_R, self.parameters.RoughnessSamples),
-            equidistant_interpolate(ul_R, self.parameters.RoughnessSamples),
-            self.parameters.RoughnessMeasure,
-        )
-
         max_dists = []
         for side in ["left", "bottom", "right"]:
             surf_proj = self.surface_projections(side)
@@ -790,12 +761,6 @@ class RectLayerShape(
             LEN_R,
             AVRGTHCK_G,
             ROUGH_G,
-            AVRGTHCK_L,
-            ROUGH_L,
-            AVRGTHCK_B,
-            ROUGH_B,
-            AVRGTHCK_R,
-            ROUGH_R,
             THCK_L,
             THCK_B,
             THCK_R,
