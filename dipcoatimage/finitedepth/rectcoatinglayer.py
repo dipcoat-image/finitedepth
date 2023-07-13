@@ -369,9 +369,8 @@ class RectLayerShapeData:
 
     - LayerLength_{Left, Right}: Distance between the bottom sideline of the
       substrate and the upper limit of the coating layer.
-    - AverageThickness_{Global, Left, Bottom, Right}: Average thickness of the
-      coating layer.
-    - Roughness_{Global, Left, Bottom, Right}: Roughness of the coating layer.
+    - AverageThickness_Global: Average thickness of the coating layer.
+    - Roughness_Global: Roughness of the coating layer.
     - MaxThickness_{Left, Bottom, Right}: Number of the pixels for the maximum
       thickness on each region.
 
@@ -387,12 +386,6 @@ class RectLayerShapeData:
 
     AverageThickness_Global: np.float64
     Roughness_Global: float
-    AverageThickness_Left: np.float64
-    Roughness_Left: float
-    AverageThickness_Bottom: np.float64
-    Roughness_Bottom: float
-    AverageThickness_Right: np.float64
-    Roughness_Right: float
 
     MaxThickness_Left: np.float64
     MaxThickness_Bottom: np.float64
