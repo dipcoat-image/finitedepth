@@ -615,6 +615,9 @@ class RectLayerShape(
                 self._conformality = (np.nan, np.empty((2, 0, 1, 2), dtype=np.float64))
                 return self._conformality
 
+            surf = densify_polyline(surf.transpose(1, 0, 2))
+            intf = densify_polyline(intf.transpose(1, 0, 2))
+
             dist = cdist(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))
             mat = acm(dist)
             path = owp(mat)
