@@ -78,7 +78,6 @@ __all__ = [
     "RectLayerShapeData",
     "RectLayerShape",
     "uniform_layer",
-    "roughness",
 ]
 
 
@@ -368,8 +367,9 @@ class RectLayerShapeData:
 
     - LayerLength_{Left, Right}: Distance between the bottom sideline of the
       substrate and the upper limit of the coating layer.
-    - AverageThickness_Global: Average thickness of the coating layer.
-    - Roughness_Global: Roughness of the coating layer.
+    - Conformality: Conformality of the coating layer.
+    - AverageThickness: Average thickness of the coating layer.
+    - Roughness: Roughness of the coating layer.
     - MaxThickness_{Left, Bottom, Right}: Number of the pixels for the maximum
       thickness on each region.
 
@@ -383,8 +383,9 @@ class RectLayerShapeData:
     LayerLength_Left: np.float64
     LayerLength_Right: np.float64
 
-    AverageThickness_Global: np.float64
-    Roughness_Global: float
+    Conformality: float
+    AverageThickness: np.float64
+    Roughness: float
 
     MaxThickness_Left: np.float64
     MaxThickness_Bottom: np.float64
@@ -461,6 +462,7 @@ class RectLayerShape(
 
     __slots__ = (
         "_uniform_layer",
+        "_conformality",
         "_roughness",
     )
 
@@ -590,8 +592,42 @@ class RectLayerShape(
         prj_pts = np.squeeze(polylines_external_points(prj, lines), axis=2)
         return np.concatenate([pts, prj_pts], axis=1)
 
+    def conformality(self) -> Tuple[float, npt.NDArray[np.float64]]:
+        """Conformality of the coating layer and its optimal path."""
+        if not hasattr(self, "_conformality"):
+            surf_idx = self.enclosing_surface()
+            if surf_idx.size == 0:
+                surf = np.empty((0, 1, 2), dtype=np.float64)
+            else:
+                layer_cnt = self.contour()
+                _, surf, _ = split_polyline(surf_idx, layer_cnt.transpose(1, 0, 2))
+                surf = surf.transpose(1, 0, 2)
+
+            intf_idx = self.enclosing_interface()
+            if intf_idx.size == 0:
+                intf = np.empty((0, 1, 2), dtype=np.float64)
+            else:
+                subst_cnt = self.substrate.contour() + self.substrate_point()
+                _, intf, _ = split_polyline(intf_idx, subst_cnt.transpose(1, 0, 2))
+                intf = intf.transpose(1, 0, 2)
+
+            if surf.size == 0 or intf.size == 0:
+                self._conformality = (np.nan, np.empty((2, 0, 1, 2), dtype=np.float64))
+                return self._conformality
+
+            dist = cdist(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))
+            mat = acm(dist)
+            path = owp(mat)
+            d = dist[path[:, 0], path[:, 1]]
+            d_avrg = mat[-1, -1] / len(path)
+            C = 1 - np.sum(np.abs(d - d_avrg)) / mat[-1, -1]
+            pairs = np.stack([surf[path[..., 0]], intf[path[..., 1]]])
+
+            self._conformality = (float(C), pairs)
+        return self._conformality
+
     def roughness(self) -> Tuple[float, npt.NDArray[np.float64]]:
-        """Dimensional roughness value of the coating layer surface."""
+        """Roughness of the coating layer and its optimal path."""
         if not hasattr(self, "_roughness"):
             surf_idx = self.enclosing_surface()
             if surf_idx.size == 0:
@@ -604,11 +640,28 @@ class RectLayerShape(
             _, ul = self.uniform_layer()
 
             if surf.size == 0 or ul.size == 0:
-                return (np.nan, np.empty((2, 0, 1, 2), dtype=np.float64))
+                self._roughness = (np.nan, np.empty((2, 0, 1, 2), dtype=np.float64))
+                return self._roughness
 
             surf = densify_polyline(surf.transpose(1, 0, 2))
             ul = densify_polyline(ul.transpose(1, 0, 2))
-            self._roughness = roughness(surf, ul, self.parameters.RoughnessMeasure)
+
+            measure = self.parameters.RoughnessMeasure
+            if measure == DistanceMeasure.SDFD:
+                dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
+                mat = acm(dist)
+                path = owp(mat)
+                roughness = mat[-1, -1] / len(path)
+            elif measure == DistanceMeasure.SSDFD:
+                dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
+                mat = acm(dist**2)
+                path = owp(mat)
+                roughness = np.sqrt(mat[-1, -1] / len(path))
+            else:
+                raise TypeError(f"Unknown measure: {measure}")
+            pairs = np.stack([surf[path[..., 0]], ul[path[..., 1]]])
+
+            self._roughness = (float(roughness), pairs)
 
         return self._roughness
 
@@ -731,8 +784,9 @@ class RectLayerShape(
         else:
             LEN_L = LEN_R = np.float64(0)
 
-        AVRGTHCK_G, _ = self.uniform_layer()
-        ROUGH_G, _ = self.roughness()
+        C, _ = self.conformality()
+        AVRGTHCK, _ = self.uniform_layer()
+        ROUGH, _ = self.roughness()
 
         max_dists = []
         for side in ["left", "bottom", "right"]:
@@ -750,8 +804,9 @@ class RectLayerShape(
         return (
             LEN_L,
             LEN_R,
-            AVRGTHCK_G,
-            ROUGH_G,
+            C,
+            AVRGTHCK,
+            ROUGH,
             THCK_L,
             THCK_B,
             THCK_R,
@@ -797,49 +852,3 @@ def uniform_layer(
     normal = np.dot(np.gradient(interface, axis=0), ROTATION_MATRIX)
     n = normal / np.linalg.norm(normal, axis=-1)[..., np.newaxis]
     return (L, interface + L * n)
-
-
-def roughness(
-    surface: npt.NDArray, uniform_layer: npt.NDArray, measure: DistanceMeasure
-) -> Tuple[float, npt.NDArray[np.float64]]:
-    """
-    Calculate the roughness of arbitrary curve.
-
-    Parameters
-    ----------
-    surface, uniform_layer: ndarray
-        Coordinates of the polyline vertices for the liquid-gas surface and the
-        uniform layer that the surface is compared to. The shape must be
-        `(N, 1, D)` where `N` is the number of vertices and `D` is the dimension.
-    measure: DistanceMeasure
-        Type of the measure of similarity between two curves.
-
-    Returns
-    -------
-    roughness: float
-        Roughness value of *surface*.
-    pairs: ndarray
-        Coordinates of Frechet pairs between *surface* and *uniform_layer*.
-        The shape is `(2, P, 1, D)` where `P` is the number of pairs.
-        The first axis represents the points on *surface* and *uniform_layer*,
-        respectively.
-
-    """
-    if surface.size == 0 or uniform_layer.size == 0:
-        return np.nan, np.empty((2, 0, 1, surface.shape[-1]), dtype=np.float64)
-
-    if measure == DistanceMeasure.SDFD:
-        dist = cdist(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
-        mat = acm(dist)
-        path = owp(mat)
-        roughness = mat[-1, -1] / len(path)
-    elif measure == DistanceMeasure.SSDFD:
-        dist = cdist(np.squeeze(surface, axis=1), np.squeeze(uniform_layer, axis=1))
-        mat = acm(dist**2)
-        path = owp(mat)
-        roughness = np.sqrt(mat[-1, -1] / len(path))
-    else:
-        raise TypeError(f"Unknown measure: {measure}")
-
-    pairs = np.stack([surface[path[..., 0]], uniform_layer[path[..., 1]]])
-    return (float(roughness), pairs)
