@@ -59,7 +59,7 @@ from .util.geometry import (
     closest_in_polylines,
     polylines_internal_points,
     polyline_parallel_area,
-    densify_polyline,
+    equidistant_interpolate,
 )
 
 try:
@@ -615,8 +615,12 @@ class RectLayerShape(
                 self._conformality = (np.nan, np.empty((2, 0, 1, 2), dtype=np.float64))
                 return self._conformality
 
-            surf = densify_polyline(surf.transpose(1, 0, 2))
-            intf = densify_polyline(intf.transpose(1, 0, 2))
+            surf = equidistant_interpolate(
+                surf, int(np.ceil(cv2.arcLength(surf.astype(np.float32), closed=False)))
+            )
+            intf = equidistant_interpolate(
+                intf, int(np.ceil(cv2.arcLength(intf.astype(np.float32), closed=False)))
+            )
 
             dist = cdist(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))
             mat = acm(dist)
@@ -646,8 +650,12 @@ class RectLayerShape(
                 self._roughness = (np.nan, np.empty((2, 0, 1, 2), dtype=np.float64))
                 return self._roughness
 
-            surf = densify_polyline(surf.transpose(1, 0, 2))
-            ul = densify_polyline(ul.transpose(1, 0, 2))
+            surf = equidistant_interpolate(
+                surf, int(np.ceil(cv2.arcLength(surf.astype(np.float32), closed=False)))
+            )
+            ul = equidistant_interpolate(
+                ul, int(np.ceil(cv2.arcLength(ul.astype(np.float32), closed=False)))
+            )
 
             measure = self.parameters.RoughnessMeasure
             if measure == DistanceMeasure.SDFD:
