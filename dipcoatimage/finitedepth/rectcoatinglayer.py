@@ -611,16 +611,16 @@ class RectLayerShape(
                 _, intf, _ = split_polyline(intf_idx, subst_cnt.transpose(1, 0, 2))
                 intf = intf.transpose(1, 0, 2)
 
-            if surf.size == 0 or intf.size == 0:
-                self._conformality = (np.nan, np.empty((2, 0, 1, 2), dtype=np.float64))
-                return self._conformality
-
             surf = equidistant_interpolate(
                 surf, int(np.ceil(cv2.arcLength(surf.astype(np.float32), closed=False)))
             )
             intf = equidistant_interpolate(
                 intf, int(np.ceil(cv2.arcLength(intf.astype(np.float32), closed=False)))
             )
+
+            if surf.size == 0 or intf.size == 0:
+                self._conformality = (np.nan, np.empty((2, 0, 1, 2), dtype=np.float64))
+                return self._conformality
 
             dist = cdist(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))
             mat = acm(dist)
@@ -646,16 +646,16 @@ class RectLayerShape(
 
             _, ul = self.uniform_layer()
 
-            if surf.size == 0 or ul.size == 0:
-                self._roughness = (np.nan, np.empty((2, 0, 1, 2), dtype=np.float64))
-                return self._roughness
-
             surf = equidistant_interpolate(
                 surf, int(np.ceil(cv2.arcLength(surf.astype(np.float32), closed=False)))
             )
             ul = equidistant_interpolate(
                 ul, int(np.ceil(cv2.arcLength(ul.astype(np.float32), closed=False)))
             )
+
+            if surf.size == 0 or ul.size == 0:
+                self._roughness = (np.nan, np.empty((2, 0, 1, 2), dtype=np.float64))
+                return self._roughness
 
             measure = self.parameters.RoughnessMeasure
             if measure == DistanceMeasure.SDFD:
