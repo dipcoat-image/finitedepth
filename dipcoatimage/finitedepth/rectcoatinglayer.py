@@ -58,8 +58,8 @@ from .util.geometry import (
     polylines_external_points,
     closest_in_polylines,
     polylines_internal_points,
-    equidistant_interpolate,
     polyline_parallel_area,
+    densify_polyline,
 )
 
 try:
@@ -326,7 +326,6 @@ class RectLayerShapeParameters:
     MorphologyClosing: MorphologyClosingParameters
     ReconstructRadius: int
     RoughnessMeasure: DistanceMeasure
-    RoughnessSamples: int
 
 
 @dataclasses.dataclass
@@ -453,7 +452,6 @@ class RectLayerShape(
        ...     MorphologyClosing=dict(kernelSize=(1, 1)),
        ...     ReconstructRadius=50,
        ...     RoughnessMeasure="SSDFD",
-       ...     RoughnessSamples=100,
        ... )
        >>> param = data_converter.structure(param_val, RectLayerShape.Parameters)
        >>> coat = RectLayerShape(coat_img, subst, param)
@@ -608,8 +606,8 @@ class RectLayerShape(
             if surf.size == 0 or ul.size == 0:
                 return (np.nan, np.empty((2, 0, 1, 2), dtype=np.float64))
 
-            surf = equidistant_interpolate(surf, self.parameters.RoughnessSamples)
-            ul = equidistant_interpolate(ul, self.parameters.RoughnessSamples)
+            surf = densify_polyline(surf.transpose(1, 0, 2))
+            ul = densify_polyline(ul.transpose(1, 0, 2))
             self._roughness = roughness(surf, ul, self.parameters.RoughnessMeasure)
 
         return self._roughness
