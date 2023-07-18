@@ -422,10 +422,10 @@ class CoatingLayerBase(
                 mask = dilated_cnt[y, x]
                 # Two reasons can be accounted for mask discontinuity:
                 # (A) Starting point of contour lies on the interface, therefore
-                # index jumps from the last to first.
+                # index jumps from the last to the first.
                 # (B) Discrete interface.
 
-                # First, roll the array to handle interface being over boundary.
+                # First, roll the array to handle (A).
                 noninterface_idx, _ = np.nonzero(~mask)
 
                 if noninterface_idx.size == len(layer_cnt):
@@ -445,7 +445,7 @@ class CoatingLayerBase(
                         np.arange(len(layer_cnt))[..., np.newaxis], SHIFT, axis=0
                     )[shifted_mask]
 
-                # Detect the discontinuity
+                # Now, detect the discontinuity to handle (B)
                 diff = np.diff(interface_idxs)
                 (jumps,) = np.nonzero((diff != 1) & (diff != -(len(layer_cnt) - 1)))
                 # Find projection from interface points (in layer contour)

@@ -1,130 +1,31 @@
 import numpy as np
 import numpy.typing as npt
 from numba import njit  # type: ignore
-from scipy.spatial.distance import cdist  # type: ignore
-from typing import Tuple
 
 
 __all__ = [
-    "dfd",
-    "dfd_pair",
-    "sfd",
-    "sfd_path",
-    "ssfd",
-    "ssfd_path",
-    "ifd",
-    "ifd_path",
-    "isfd",
-    "isfd_path",
+    "acm",
+    "owp",
 ]
 
 
-def dfd(
-    P: npt.NDArray[np.float64],
-    Q: npt.NDArray[np.float64],
-) -> npt.NDArray[np.float64]:
-    """
-    Compute discrete Fréchet distance between two series, using L2 norm.
-
-    Implements the algorithm from [1]_, with modification from [2]_.
-
-    Parameters
-    ----------
-    P, Q : ndarray
-        2D Numpy array with ``np.float64`` dtype. Rows are the points and
-        columns are the dimensions.
-
-    Returns
-    -------
-    ndarray
-        Accumulated cost array for the discrete Fréchet distance.
-        The distance is the last element of the array i.e. `ca[-1, -1]`.
-        If *P* or *Q* is empty, return value is an empty array.
-
-    References
-    ----------
-    .. [1] Eiter, Thomas, and Heikki Mannila. "Computing discrete Fréchet
-       distance." (1994).
-
-    .. [2] https://pypi.org/project/similaritymeasures/
-
-    See Also
-    --------
-    dfd_pair
-
-    """
-    # TODO: use subquadratic algorithm (Agarwal et al, 2014)
-    return _dfd(cdist(P, Q))
-
-
 @njit(cache=True)
-def _dfd(freespace: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-    p, q = freespace.shape
-    ca = np.zeros((p, q), dtype=np.float64)
-    if p == 0 or q == 0:
-        return ca
-    ca.fill(-1.0)
-
-    ca[0, 0] = freespace[0, 0]
-
-    for i in range(1, p):
-        ca[i, 0] = max(ca[i - 1, 0], freespace[i, 0])
-
-    for j in range(1, q):
-        ca[0, j] = max(ca[0, j - 1], freespace[0, j])
-
-    for i in range(1, p):
-        for j in range(1, q):
-            ca[i, j] = max(
-                min(ca[i - 1, j], ca[i, j - 1], ca[i - 1, j - 1]),
-                freespace[i, j],
-            )
-    return ca
-
-
-def dfd_pair(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
+def acm(cm: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     """
-    Find the point pair which determines the discrete Fréchet distance.
+    Compute accumulated cost matrix from local cost matrix.
 
-    Parameters
-    ----------
-    ca: ndarray
-        Accumulated cost array of discrete Fréchet distance between two series.
-
-    Returns
-    -------
-    ndarray
-        Indices for the two series to get the point pair.
-
-    See Also
-    --------
-    dfd
-    """
-    i, j = np.nonzero(ca == ca[-1, -1])
-    return np.array([[i[0], j[0]]], dtype=np.int32)
-
-
-def sfd(
-    P: npt.NDArray[np.float64],
-    Q: npt.NDArray[np.float64],
-) -> npt.NDArray[np.float64]:
-    """
-    Compute summed Fréchet distance between two series, using L2 norm.
-
-    The summed Fréchet distance is equivalent to the dynamic time warping[1]_.
     Implements the algorithm from [1]_, with modification from [2]_.
 
     Parameters
     ----------
-    P, Q : ndarray
-        2D Numpy array with ``np.float64`` dtype. Rows are the points and
-        columns are the dimensions.
+    cm: ndarray
+        Local cost matrix.
 
     Returns
     -------
     ndarray
-        Accumulated cost array for the summed Fréchet distance.
-        The distance is the last element of the array i.e. `ca[-1, -1]`.
+        Accumulated cost matrix.
+        The element at `[-1, -1]` is the total sum along the optimal path.
         If *P* or *Q* is empty, return value is an empty array.
 
     References
@@ -137,51 +38,45 @@ def sfd(
 
     See Also
     --------
-    sfd_path
+    owp : Compute optimal warping path from the accumulated cost matrix.
 
     """
-    return _sfd(cdist(P, Q))
-
-
-@njit(cache=True)
-def _sfd(freespace: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-    p, q = freespace.shape
-    ca = np.zeros((p, q), dtype=np.float64)
+    p, q = cm.shape
+    ret = np.zeros((p, q), dtype=np.float64)
     if p == 0 or q == 0:
-        return ca
+        return ret
 
-    ca[0, 0] = freespace[0, 0]
+    ret[0, 0] = cm[0, 0]
 
     for i in range(1, p):
-        ca[i, 0] = ca[i - 1, 0] + freespace[i, 0]
+        ret[i, 0] = ret[i - 1, 0] + cm[i, 0]
 
     for j in range(1, q):
-        ca[0, j] = ca[0, j - 1] + freespace[0, j]
+        ret[0, j] = ret[0, j - 1] + cm[0, j]
 
     for i in range(1, p):
         for j in range(1, q):
-            ca[i, j] = (
-                min(ca[i - 1, j], ca[i, j - 1], ca[i - 1, j - 1]) + freespace[i, j]
-            )
+            ret[i, j] = min(ret[i - 1, j], ret[i, j - 1], ret[i - 1, j - 1]) + cm[i, j]
 
-    return ca
+    return ret
 
 
-def sfd_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
+@njit(cache=True)
+def owp(acm: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
     """
-    Compute optimal path for summed Fréchet distance in the free space.
+    Compute optimal warping path from accumulated cost matrix
 
     Implements the algorithm from [1]_, with modification from [2]_.
 
     Parameters
     ----------
-    ca: ndarray
-        Accumulated cost array of summed Fréchet distance between two series.
+    acm: ndarray
+        Accumulated cost matrix.
 
     Returns
     -------
     ndarray
-        Indices for the two series to get the path.
+        Indices for the two series to get the optimal warping path.
 
     References
     ----------
@@ -193,18 +88,12 @@ def sfd_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
 
     See Also
     --------
-    sfd
+    acm : Compute accumulated cost matrix.
 
     """
-    path, path_len = _ca_path(ca)
-    return path[-(len(path) - path_len + 1) :: -1]
-
-
-@njit(cache=True)
-def _ca_path(ca: npt.NDArray[np.float64]) -> Tuple[npt.NDArray[np.int32], np.int32]:
-    p, q = ca.shape
+    p, q = acm.shape
     if p == 0 or q == 0:
-        return np.empty((0, 2), dtype=np.int32), np.int32(0)
+        return np.empty((0, 2), dtype=np.int32)
 
     path = np.zeros((p + q - 1, 2), dtype=np.int32)
     path_len = np.int32(0)
@@ -219,10 +108,10 @@ def _ca_path(ca: npt.NDArray[np.float64]) -> Tuple[npt.NDArray[np.int32], np.int
         elif j == 0:
             i -= 1
         else:
-            d = min(ca[i - 1, j], ca[i, j - 1], ca[i - 1, j - 1])
-            if ca[i - 1, j] == d:
+            d = min(acm[i - 1, j], acm[i, j - 1], acm[i - 1, j - 1])
+            if acm[i - 1, j] == d:
                 i -= 1
-            elif ca[i, j - 1] == d:
+            elif acm[i, j - 1] == d:
                 j -= 1
             else:
                 i -= 1
@@ -231,209 +120,4 @@ def _ca_path(ca: npt.NDArray[np.float64]) -> Tuple[npt.NDArray[np.int32], np.int
         path[path_len] = [i, j]
         path_len += 1
 
-    return path, path_len
-
-
-def ssfd(
-    P: npt.NDArray[np.float64],
-    Q: npt.NDArray[np.float64],
-) -> npt.NDArray[np.float64]:
-    """
-    Compute summed square Fréchet distance between two series, using L2 norm.
-
-    Parameters
-    ----------
-    P, Q : ndarray
-        2D Numpy array with ``np.float64`` dtype. Rows are the points and
-        columns are the dimensions.
-
-    Returns
-    -------
-    ndarray
-        Accumulated cost array for the summed square Fréchet distance.
-        The distance is the last element of the array i.e. `ca[-1, -1]`.
-        If *P* or *Q* is empty, return value is an empty array.
-
-    See Also
-    --------
-    ssfd_path
-
-    """
-    return _sfd(cdist(P, Q) ** 2)
-
-
-def ssfd_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
-    """
-    Compute optimal path for summed square Fréchet distance in the free space.
-
-    Parameters
-    ----------
-    ca: ndarray
-        Accumulated cost array of summed square Fréchet distance between two
-        series.
-
-    Returns
-    -------
-    ndarray
-        Indices for the two series to get the path.
-
-    See Also
-    --------
-    ssfd
-
-    """
-    path, path_len = _ca_path(ca)
-    return path[-(len(path) - path_len + 1) :: -1]
-
-
-def ifd(
-    P: npt.NDArray[np.float64],
-    Q: npt.NDArray[np.float64],
-) -> npt.NDArray[np.float64]:
-    """
-    Approximate integral Fréchet distance[1]_ by Riemann sum, using L2 norm both
-    for the curve space and the parameter space.
-
-    The points are parameterized by the arc length.
-
-    Parameters
-    ----------
-    P, Q : ndarray
-        2D Numpy array with ``np.float64`` dtype. Rows are the points and
-        columns are the dimensions.
-
-    Returns
-    -------
-    ndarray
-        Accumulated cost array for the integral Fréchet distance.
-        The distance is the last element of the array i.e. `ca[-1, -1]`.
-        If *P* or *Q* is empty, return value is an empty array.
-
-    References
-    ----------
-    .. [1] Brakatsoulas, Sotiris, et al. "On map-matching vehicle tracking data."
-       Proceedings of the 31st international conference on Very large data bases.
-       2005.
-
-    See Also
-    --------
-    ifd_path
-
-    """
-    P_dists = np.linalg.norm(np.diff(P, axis=0), axis=-1)
-    Q_dists = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
-    return _ifd(cdist(P, Q), P_dists / np.sum(P_dists), Q_dists / np.sum(Q_dists))
-
-
-@njit(cache=True)
-def _ifd(
-    freespace: npt.NDArray[np.float64],
-    param1: npt.NDArray[np.float64],
-    param2: npt.NDArray[np.float64],
-) -> npt.NDArray[np.float64]:
-    p, q = freespace.shape
-    ca = np.zeros((p, q), dtype=np.float64)
-    if p == 0 or q == 0:
-        return ca
-
-    ca[0, 0] = freespace[0, 0]
-
-    for i in range(1, p):
-        ca[i, 0] = ca[i - 1, 0] + freespace[i, 0] * param1[i - 1]
-
-    for j in range(1, q):
-        ca[0, j] = ca[0, j - 1] + freespace[0, j] * param2[j - 1]
-
-    for i in range(1, p):
-        for j in range(1, q):
-            dx = param1[i - 1]
-            dy = param2[j - 1]
-            ca[i, j] = min(
-                ca[i - 1, j] + freespace[i, j] * dx,
-                ca[i, j - 1] + freespace[i, j] * dy,
-                ca[i - 1, j - 1] + freespace[i, j] * np.sqrt(dx**2 + dy**2),
-            )
-
-    return ca
-
-
-def ifd_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
-    """
-    Compute optimal path for approximated integral Fréchet distance in the free
-    space.
-
-    Parameters
-    ----------
-    ca: ndarray
-        Accumulated cost array of integral Fréchet distance between two curves.
-
-    Returns
-    -------
-    ndarray
-        Indices for the two curves to get the path.
-
-    See Also
-    --------
-    ifd
-
-    """
-    path, path_len = _ca_path(ca)
-    return path[-(len(path) - path_len + 1) :: -1]
-
-
-def isfd(
-    P: npt.NDArray[np.float64],
-    Q: npt.NDArray[np.float64],
-) -> npt.NDArray[np.float64]:
-    """
-    Approximate integral square Fréchet distance by Riemann sum, using L2 norm
-    both for the curve space and the parameter space.
-
-    The points are parameterized by the arc length.
-
-    Parameters
-    ----------
-    P, Q : ndarray
-        2D Numpy array with ``np.float64`` dtype. Rows are the points and
-        columns are the dimensions.
-
-    Returns
-    -------
-    ndarray
-        Accumulated cost array for the summed square Fréchet distance.
-        The distance is the last element of the array i.e. `ca[-1, -1]`.
-        If *P* or *Q* is empty, return value is an empty array.
-
-    See Also
-    --------
-    isfd_path
-
-    """
-    P_dists = np.linalg.norm(np.diff(P, axis=0), axis=-1)
-    Q_dists = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
-    return _ifd(cdist(P, Q) ** 2, P_dists / np.sum(P_dists), Q_dists / np.sum(Q_dists))
-
-
-def isfd_path(ca: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
-    """
-    Compute optimal path for approximated integral square Fréchet distance in the
-    free space.
-
-    Parameters
-    ----------
-    ca: ndarray
-        Accumulated cost array of integral square Fréchet distance between two
-        curves.
-
-    Returns
-    -------
-    ndarray
-        Indices for the two curves to get the path.
-
-    See Also
-    --------
-    isfd
-
-    """
-    path, path_len = _ca_path(ca)
-    return path[-(len(path) - path_len + 1) :: -1]
+    return path[-(len(path) - path_len + 1) :: -1, :]

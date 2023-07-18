@@ -6,6 +6,7 @@ Polygonal Substrate
 substrate with polygonal cross section.
 
 """
+import cv2  # type: ignore
 import dataclasses
 import numpy as np
 import numpy.typing as npt
@@ -135,8 +136,9 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             # from raw contour first and then perform smoothing!
             cnt = self.contour()
             cnt_closed = np.concatenate([cnt, cnt[:1]])
-            C = np.sum(np.linalg.norm(np.diff(cnt_closed, axis=0), axis=-1), axis=0)
-            cnt_intrp = equidistant_interpolate(cnt_closed, int(C))
+            cnt_intrp = equidistant_interpolate(
+                cnt_closed, int(np.ceil(cv2.arcLength(cnt, closed=True)))
+            )
 
             dr = np.diff(cnt_intrp, axis=0)
             theta_smooth = gaussian_filter1d(

@@ -176,8 +176,7 @@ def closest_in_polylines(
     points: npt.NDArray, polylines: npt.NDArray
 ) -> npt.NDArray[np.float64]:
     """
-    Find the projections[1]_ of points with the smallest distance onto
-    polylines[2]_.
+    Find the projections[1]_ of points onto the closest segment of polylines[2]_.
 
     Parameters
     ----------
