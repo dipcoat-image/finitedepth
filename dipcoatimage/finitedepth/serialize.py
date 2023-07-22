@@ -451,6 +451,25 @@ class ExperimentData:
         )
         return expt
 
+    def experiment_kind(self) -> ExperimentKind:
+        return experiment_kind(self.coat_paths)
+
+    def image_count(self) -> int:
+        expt_kind = self.experiment_kind()
+        if (
+            expt_kind == ExperimentKind.SINGLE_IMAGE
+            or expt_kind == ExperimentKind.MULTI_IMAGE
+        ):
+            ret = len(self.coat_paths)
+        elif expt_kind == ExperimentKind.VIDEO:
+            (path,) = self.coat_paths
+            cap = cv2.VideoCapture(path)
+            ret = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            cap.release()
+        else:
+            ret = -1
+        return ret
+
     def construct_coatinglayer(
         self, image_index: int = 0, sequential: bool = True
     ) -> CoatingLayerBase:
@@ -486,14 +505,14 @@ class ExperimentData:
         layer_gen = self.construct_experiment().layer_generator()
         next(layer_gen)
 
-        expt_kind = experiment_kind(self.coat_paths)
+        if image_index > self.image_count() - 1:
+            raise ValueError("image_index exceeds image numbers.")
+
+        expt_kind = self.experiment_kind()
         if (
             expt_kind == ExperimentKind.SINGLE_IMAGE
             or expt_kind == ExperimentKind.MULTI_IMAGE
         ):
-            if image_index > len(self.coat_paths) - 1:
-                raise ValueError("image_index exceeds image numbers.")
-
             if sequential:
                 img_gen = (cv2.imread(path) for path in self.coat_paths)
                 for _ in range(image_index + 1):
@@ -506,8 +525,6 @@ class ExperimentData:
         elif expt_kind == ExperimentKind.VIDEO:
             (path,) = self.coat_paths
             cap = cv2.VideoCapture(path)
-            if image_index > cap.get(cv2.CAP_PROP_FRAME_COUNT) - 1:
-                raise ValueError("image_index exceeds video frames.")
 
             try:
                 if sequential:
