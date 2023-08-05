@@ -264,7 +264,7 @@ class CoatingLayerArgs:
        >>> params = dict(
        ...     MorphologyClosing=dict(kernelSize=(1, 1)),
        ...     ReconstructRadius=50,
-       ...     RoughnessMeasure="SSDFD",
+       ...     RoughnessMeasure="SDTW",
        ...     RoughnessSamples=100,
        ... )
        >>> arg = dict(type={"name": "RectLayerShape"}, parameters=params)

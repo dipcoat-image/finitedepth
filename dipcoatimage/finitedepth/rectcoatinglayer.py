@@ -50,7 +50,7 @@ from .util import (
     Color,
     colorize,
 )
-from .util.frechet import acm, owp
+from .util.dtw import acm, owp
 from .util.geometry import (
     split_polyline,
     line_polyline_intersections,
@@ -310,12 +310,12 @@ class DistanceMeasure(enum.Enum):
     """
     Distance measures to compute the curve similarity.
 
-    - SDFD : Summed discrete Fréchet distance
-    - SSDFD : Summed square discrete Fréchet distance
+    - DTW : Dynamic time warping
+    - SDTW : Squared dynamic time warping
     """
 
-    SDFD = "SDFD"
-    SSDFD = "SSDFD"
+    DTW = "DTW"
+    SDTW = "SDTW"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -452,7 +452,7 @@ class RectLayerShape(
        >>> param_val = dict(
        ...     MorphologyClosing=dict(kernelSize=(1, 1)),
        ...     ReconstructRadius=50,
-       ...     RoughnessMeasure="SSDFD",
+       ...     RoughnessMeasure="SDTW",
        ... )
        >>> param = data_converter.structure(param_val, RectLayerShape.Parameters)
        >>> coat = RectLayerShape(coat_img, subst, param)
@@ -658,12 +658,12 @@ class RectLayerShape(
                 return self._roughness
 
             measure = self.parameters.RoughnessMeasure
-            if measure == DistanceMeasure.SDFD:
+            if measure == DistanceMeasure.DTW:
                 dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
                 mat = acm(dist)
                 path = owp(mat)
                 roughness = mat[-1, -1] / len(path)
-            elif measure == DistanceMeasure.SSDFD:
+            elif measure == DistanceMeasure.SDTW:
                 dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
                 mat = acm(dist**2)
                 path = owp(mat)
