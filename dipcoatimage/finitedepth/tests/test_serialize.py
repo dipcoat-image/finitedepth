@@ -116,7 +116,7 @@ def test_CoatingLayerArgs():
         parameters=dict(
             MorphologyClosing=dict(kernelSize=(0, 0)),
             ReconstructRadius=50,
-            RoughnessMeasure="SSDFD",
+            RoughnessMeasure="SDTW",
         ),
         draw_options=dict(background="BINARY"),
         deco_options=dict(layer=dict(thickness=1)),
