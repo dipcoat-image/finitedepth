@@ -73,11 +73,6 @@ class RectSubstrateDrawOptions:
             color=Color(0, 0, 255), thickness=1
         )
     )
-    hull: FeatureDrawingOptions = dataclasses.field(
-        default_factory=lambda: FeatureDrawingOptions(
-            color=Color(255, 0, 0), thickness=1
-        )
-    )
 
 
 class RectSubstrate(
@@ -141,6 +136,11 @@ class RectSubstrate(
         # XXX: remove after implementing uniform layer for convex polyline
         return np.flip(cv2.convexHull(super().contour()), axis=0)
 
+    def contour2(self):
+        # Flip s.t. the hull has same direction with the contour.
+        # XXX: remove after implementing uniform layer for convex polyline
+        return np.flip(cv2.convexHull(super().contour2()), axis=0)
+
     def draw(self) -> npt.NDArray[np.uint8]:
         draw_mode = self.draw_options.draw_mode
         if draw_mode is self.DrawMode.ORIGINAL:
@@ -150,7 +150,7 @@ class RectSubstrate(
         elif draw_mode is self.DrawMode.EDGES:
             h, w = self.image().shape[:2]
             mask = np.zeros((h, w), bool)
-            ((x, y),) = self.contour().transpose(1, 2, 0)
+            ((x, y),) = self.contour2().transpose(1, 2, 0)
             mask[y, x] = True
             image = ~mask * np.uint8(255)
         else:
@@ -167,15 +167,5 @@ class RectSubstrate(
             cv2.line(ret, tr, br, color, thickness)
             cv2.line(ret, br, bl, color, thickness)
             cv2.line(ret, bl, tl, color, thickness)
-
-        hull_opts = self.draw_options.hull
-        if hull_opts.thickness > 0:
-            cv2.polylines(
-                ret,
-                [self.contour().astype(np.int32)],
-                isClosed=False,
-                color=dataclasses.astuple(hull_opts.color),
-                thickness=hull_opts.thickness,
-            )
 
         return ret

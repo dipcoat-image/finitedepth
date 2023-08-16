@@ -101,6 +101,11 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         (cnt,), _ = self.contours()[0]
         return cnt
 
+    def contour2(self) -> npt.NDArray[np.int32]:
+        """Return the polygon contour."""
+        (cnt,), _ = self.contours2()[0]
+        return cnt
+
     def vertices(self) -> npt.NDArray[np.float64]:
         """
         Find the polygon vertices.

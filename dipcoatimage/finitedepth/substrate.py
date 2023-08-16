@@ -267,6 +267,40 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
             self._contours = tuple(contours)
         return self._contours
 
+    def contours2(
+        self,
+    ) -> Tuple[
+        Tuple[Tuple[npt.NDArray[np.int32], ...], Tuple[npt.NDArray[np.int32], ...]], ...
+    ]:
+        """
+        Find the contour of every substrate region.
+
+        Returns
+        -------
+        tuple
+            Tuple of the results of :func:`cv2.findContours` on every region.
+
+        Notes
+        -----
+        Contours are dense, i.e., no approximation is made.
+
+        See Also
+        --------
+        regions
+        """
+        if not hasattr(self, "_contours2"):
+            reg_count, reg_labels = self.regions()
+            contours = []
+            for region in range(1, reg_count):
+                cnt = cv2.findContours(
+                    (reg_labels == region) * np.uint8(255),
+                    cv2.RETR_CCOMP,
+                    cv2.CHAIN_APPROX_NONE,
+                )
+                contours.append(cnt)
+            self._contours2 = tuple(contours)
+        return self._contours2
+
     @abc.abstractmethod
     def examine(self) -> Optional[SubstrateError]:
         """
