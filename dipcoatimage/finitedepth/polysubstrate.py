@@ -179,6 +179,62 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         return self._vertices
 
+    def vertices2(self) -> npt.NDArray[np.int32]:
+        """
+        Find the polygon vertices from dense contour.
+
+        Returns
+        -------
+        ndarray
+            Indices of the vertex points in :meth:`contour`.
+
+        Notes
+        -----
+        A vertex is a point where two or more sides of a polygon meet[1]_.
+        The sides can be curves, where the vertices can be defined as local
+        extrema of curvature[2]_. This method finds the vertices by locating a
+        certain number (defined by d:attr:`SidesNum`) of the extrema.
+
+        Symmetric derivative[3]_ was used to reduce noise from contour[4]_.
+
+        The order of the vertices is sorted along :meth:`contour`, with the
+        vertex closest to the starting point of the contour being the first.
+
+        References
+        ----------
+        .. [1] https://en.wikipedia.org/wiki/Vertex_(geometry)
+        .. [2] https://en.wikipedia.org/wiki/Vertex_(curve)
+        .. [3] https://en.wikipedia.org/wiki/Symmetric_derivative
+        .. [4] https://stackoverflow.com/q/32629806
+
+        """
+        cnt = self.contour2()
+
+        # 1. Calculate curvatures
+        h = 12  # TODO: let this determined by parameter
+        f_prev = np.roll(cnt, h, axis=0)
+        f_post = np.roll(cnt, -h, axis=0)
+        f_dt = (f_post - f_prev) / h
+        f_dt2 = (f_post - 2 * cnt + f_prev) / h**2
+        K = np.abs(np.cross(f_dt, f_dt2)) / np.linalg.norm(f_dt, axis=-1) ** 3
+
+        # 2. Repeat the array (periodic)
+        L = len(K)
+        (K_rpt,) = np.concatenate([K[-L // 2 :], K, K[: L // 2]], axis=0).T
+
+        # 3. Find peak
+        peaks = find_peaks(K_rpt)[0].astype(np.int32)
+        (idxs,) = np.where((L // 2 <= peaks) & (peaks < 3 * L // 2))
+        peaks = peaks[idxs]
+        prom, _, _ = peak_prominences(K_rpt, peaks)
+        prom_peaks = peaks[np.argsort(prom)[-self.SidesNum :]]
+
+        # Roll s.t. vertex nearest to starting point of contour comes first
+        vertex_idxs = np.sort((prom_peaks - (L // 2)) % L)
+        vertex_pts = cnt[vertex_idxs]
+        dist = np.linalg.norm(vertex_pts - cnt[0], axis=-1)
+        return np.roll(vertex_idxs, -np.argmin(dist), axis=0)
+
     def sides(self) -> Tuple[npt.NDArray[np.float64], ...]:
         """
         Return the points of each side of the polygon.
