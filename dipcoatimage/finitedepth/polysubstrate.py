@@ -16,7 +16,7 @@ from scipy.signal import find_peaks, peak_prominences  # type: ignore
 from typing import TypeVar, Optional, Type, Tuple
 from .substrate import SubstrateError, SubstrateBase
 from .util import DataclassProtocol
-from .util.geometry import split_polyline, equidistant_interpolate, closest_in_polylines
+from .util.geometry import equidistant_interpolate, closest_in_polylines
 
 
 __all__ = [
@@ -197,9 +197,6 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         Symmetric derivative[3]_ was used to reduce noise from contour[4]_.
 
-        The order of the vertices is sorted along :meth:`contour`, with the
-        vertex closest to the starting point of the contour being the first.
-
         References
         ----------
         .. [1] https://en.wikipedia.org/wiki/Vertex_(geometry)
@@ -228,14 +225,9 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         peaks = peaks[idxs]
         prom, _, _ = peak_prominences(K_rpt, peaks)
         prom_peaks = peaks[np.argsort(prom)[-self.SidesNum :]]
+        return np.sort((prom_peaks - (L // 2)) % L)
 
-        # Roll s.t. vertex nearest to starting point of contour comes first
-        vertex_idxs = np.sort((prom_peaks - (L // 2)) % L)
-        vertex_pts = cnt[vertex_idxs]
-        dist = np.linalg.norm(vertex_pts - cnt[0], axis=-1)
-        return np.roll(vertex_idxs, -np.argmin(dist), axis=0)
-
-    def sides(self) -> Tuple[npt.NDArray[np.float64], ...]:
+    def sides(self) -> Tuple[npt.NDArray[np.int32], ...]:
         """
         Return the points of each side of the polygon.
 
@@ -245,6 +237,9 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
         Notes
         -----
+        Sides are sorted so that the one containing the first point of the
+        contour comes first.
+
         Side can be curved and can have noises. Use :meth:`sidelines` to get the
         linear models for each side.
 
@@ -256,15 +251,13 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         sidelines
             Linear model of sides.
         """
-        vert = self.vertices()
-        cnt = self.contour().transpose(1, 0, 2)
-        split = [a.transpose(1, 0, 2) for a in split_polyline(vert, cnt)]
-        if vert[0] < 0:
-            sides = split[:-1]
-            sides[0] = np.concatenate([split[-1], split[0]], axis=0)
-        elif vert[0] >= 0:
-            sides = split[1:]
-            sides[-1] = np.concatenate([split[-1], split[0]], axis=0)
+        cnt = self.contour2()
+        vert = self.vertices2()
+        sides = np.split(cnt, vert)
+        dists = np.linalg.norm(cnt[vert] - cnt[0], axis=-1)
+        shift = vert[np.argmin(dists)]
+        L = len(cnt)
+        sides = np.split(np.roll(cnt, shift, axis=0), np.sort((vert - shift) % L))[1:]
         return tuple(sides)
 
     def sidelines(self) -> npt.NDArray[np.float32]:
