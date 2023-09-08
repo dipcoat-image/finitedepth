@@ -508,9 +508,7 @@ class RectLayerShape(
             # close to the lower vertices.
             vicinity_mask = np.zeros(img.shape, np.uint8)
             p0 = self.substrate_point()
-            _, bl, br, _ = polylines_internal_points(
-                self.substrate.vertices(), self.substrate.contour().transpose(1, 0, 2)
-            )
+            _, bl, br, _ = self.substrate.contour2()[self.substrate.vertices2()]
             (B,) = p0 + bl
             (C,) = p0 + br
             R = self.parameters.ReconstructRadius
