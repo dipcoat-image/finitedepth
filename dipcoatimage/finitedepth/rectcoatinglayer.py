@@ -110,17 +110,17 @@ class RectCoatingLayerBase(
     Data: Type[DataType]
 
     def capbridge_broken(self) -> bool:
-        vert = polylines_internal_points(
-            self.substrate.vertices(), self.substrate.contour().transpose(1, 0, 2)
-        )
-        _, (bl,), (br,), _ = (vert + self.substrate_point()).astype(np.int32)
-        top = np.max([bl[1], br[1]])
+        p0 = self.substrate_point()
+        _, bl, br, _ = self.substrate.contour2()[self.substrate.vertices2()]
+        (B,) = p0 + bl
+        (C,) = p0 + br
+        top = np.max([B[1], C[1]])
         bot = self.binary_image().shape[0]
         if top > bot:
             # substrate is located outside of the frame
             return False
-        left = bl[0]
-        right = br[0]
+        left = B[0]
+        right = C[0]
         roi_binimg = self.binary_image()[top:bot, left:right]
         return bool(np.any(np.all(roi_binimg, axis=1)))
 
