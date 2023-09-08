@@ -478,6 +478,94 @@ class CoatingLayerBase(
 
         return ret
 
+    def interfaces2(self, substrate_region: int) -> List[List[npt.NDArray[np.int64]]]:
+        r"""
+        Find indices of solid-liquid interfaces on substrate contour.
+
+        Parameters
+        ----------
+        substrate_region : int
+            Index of the substrate region.
+
+        Returns
+        -------
+        list
+            List of list of arrays.
+            - 1st-level list represents substrate contours.
+            - 2nd-level list represents layer contours.
+            - Array contains indices for the interface intervals.
+
+        Notes
+        -----
+        Substrate can consist of many regions, each possibly having multiple
+        contours. *substrate_region* decides which substrate region should the
+        interfaces be searched from. This is equal to the top-level index of
+        :meth:`SubstrateBase.contours2`.
+
+        Once the substrate region is determined, interfaces of `j`-th layer
+        contour on `i`-th substrate contour can be acquired by indexing the
+        result with `[i][j]`. It will return an array whose shape is `(k, 2)`,
+        where `k` is the number of interface intervals. If the layer does not
+        touch the substrate, `k` is zero. On the other hand, `k` can be larger
+        than 1 if the layer touches the substrate over several discontinuous
+        regions.
+
+        Each interval describes continuous patch on the substrate contour covered
+        by the layer. Two column values are the indices for the starting index
+        and ending index of the patch, respectively. To acquire the interface
+        points, slice :meth:`SubstrateBase.contours2` with the indices.
+
+        Examples
+        --------
+
+        .. plot::
+           :include-source:
+           :context: reset
+
+           >>> import cv2
+           >>> from dipcoatimage.finitedepth import (SubstrateReference,
+           ...     Substrate, LayerArea, get_samples_path)
+           >>> ref_path = get_samples_path("ref1.png")
+           >>> ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+           >>> tempROI = (200, 50, 1200, 200)
+           >>> substROI = (400, 175, 1000, 500)
+           >>> ref = SubstrateReference(ref_img, tempROI, substROI)
+           >>> subst = Substrate(ref)
+           >>> coat_path = get_samples_path("coat1.png")
+           >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
+           >>> coat = LayerArea(coat_img, subst)
+           >>> (R, S, L) = (0, 0, 0)
+           >>> layer_contour = coat.layer_contours()[L] - coat.substrate_point()
+           >>> import matplotlib.pyplot as plt  #doctest: +SKIP
+           >>> for (i0, i1) in coat.interfaces2(R)[S][L]:  #doctest: +SKIP
+           ...     subst_cnt = subst.contours2()[R][0][S]
+           ...     plt.plot(*subst_cnt[i0:i1].transpose(2, 0, 1), "x")
+           >>> plt.plot(*subst_cnt.transpose(2, 0, 1))  #doctest: +SKIP
+           >>> plt.plot(*layer_contour.transpose(2, 0, 1))  #doctest: +SKIP
+
+        """
+        ret = []
+        for subst_cnt in self.substrate.contours2()[substrate_region][0]:
+            subst_cnt = subst_cnt + self.substrate_point()  # DON'T USE += !!
+
+            interfaces = []
+            for layer_cnt in self.layer_contours():
+                lcnt_img = np.zeros(self.image.shape[:2], dtype=np.uint8)
+                lcnt_img[layer_cnt[..., 1], layer_cnt[..., 0]] = 255
+                dilated_lcnt = cv2.dilate(lcnt_img, np.ones((3, 3))).astype(bool)
+
+                x, y = subst_cnt.transpose(2, 0, 1)
+                mask = dilated_lcnt[y, x]
+
+                # Find indices of continuous True blocks
+                idxs = np.where(
+                    np.diff(np.concatenate(([False], mask[:, 0], [False]))) == 1
+                )[0].reshape(-1, 2)
+
+                interfaces.append(idxs)
+            ret.append(interfaces)
+        return ret
+
     @abc.abstractmethod
     def examine(self) -> Optional[CoatingLayerError]:
         """
