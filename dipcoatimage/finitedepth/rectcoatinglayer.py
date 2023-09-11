@@ -77,7 +77,6 @@ __all__ = [
     "RectLayerShapeDecoOptions",
     "RectLayerShapeData",
     "RectLayerShape",
-    "uniform_layer",
 ]
 
 
@@ -527,24 +526,23 @@ class RectLayerShape(
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """Return thickness and points for uniform layer."""
         if not hasattr(self, "_uniform_layer"):
-            intf_idx = self.enclosing_interface()
-            if intf_idx.size == 0:
-                intf = np.empty((0, 1, 2), dtype=np.float64)
-            else:
-                subst_cnt = self.substrate.contour() + self.substrate_point()
-                _, intf, _ = split_polyline(intf_idx, subst_cnt.transpose(1, 0, 2))
-                intf = intf.transpose(1, 0, 2)
+            ((i0, i1),) = self.interfaces2(0)[0][0]
+            subst_cnt = self.substrate.contours2()[0][0][0] + self.substrate_point()
+            covered_subst = subst_cnt[i0:i1]
+            # Acquiring parallel curve from contour is difficult because of noise.
+            # Noise induces small bumps which are greatly amplified in parallel curve.
+            # Smoothing is not an answer since it cannot 100% remove the bumps.
+            # Instead, points must be fitted to a model.
+            # Here, we simply use convex hull as a model.
+            covered_hull = np.flip(cv2.convexHull(covered_subst), axis=0)
 
-            surf_idx = self.enclosing_surface()
-            if surf_idx.size == 0:
-                surf = np.empty((0, 1, 2), dtype=np.float64)
-            else:
-                layer_cnt = self.contour()
-                _, surf, _ = split_polyline(surf_idx, layer_cnt.transpose(1, 0, 2))
-                surf = surf.transpose(1, 0, 2)
+            S = cv2.contourArea(self.layer_contours()[0])
+            (t,) = root(lambda x: polyline_parallel_area(covered_hull, x) - S, 0).x
+            t = np.float64(t)
 
-            L, ul = uniform_layer(intf.astype(np.float32), surf.astype(np.float32))
-            self._uniform_layer = (L, ul)
+            normal = np.dot(np.gradient(covered_hull, axis=0), ROTATION_MATRIX)
+            n = normal / np.linalg.norm(normal, axis=-1)[..., np.newaxis]
+            self._uniform_layer = (t, covered_hull + t * n)
         return self._uniform_layer
 
     def surface_projections(self, side: str) -> npt.NDArray[np.float64]:
@@ -822,42 +820,3 @@ class RectLayerShape(
             ERR,
             CHIPWIDTH,
         )
-
-
-def uniform_layer(
-    interface: npt.NDArray[np.float32], surface: npt.NDArray[np.float32]
-) -> Tuple[np.float64, npt.NDArray[np.float64]]:
-    """
-    Return the information of uniform layer from the interface and the surface.
-
-    Parameters
-    ----------
-    interface, surface: ndarray
-        Coordinates of the polyline vertices for the solid-liquid interface and
-        liquid-gas surface. The shape must be `(N, 1, D)`, where `N` is the
-        number of vertices and `D` is the dimension.
-
-    Returns
-    -------
-    L: float64
-        Thickness of the uniform layer.
-    uniform_layer: ndarray
-        Coordinates polyline vertices for the uniform layer.
-
-    Notes
-    -----
-    Uniform layer is defined as "what the layer would be if the liquid was
-    uniformly distributed". Mathematically, it is a parallel line of the
-    interface having same area to the layer.
-    """
-    if interface.size == 0 or surface.size == 0:
-        return (np.float64(0), np.empty((0, 1, 2), dtype=np.float64))
-
-    S = cv2.contourArea(np.concatenate([interface, np.flip(surface, axis=0)]))
-    (L,) = root(lambda t: polyline_parallel_area(interface, t) - S, 0).x
-    if L == 0:
-        return (np.float64(0), np.empty((0, 1, 2), dtype=np.float64))
-
-    normal = np.dot(np.gradient(interface, axis=0), ROTATION_MATRIX)
-    n = normal / np.linalg.norm(normal, axis=-1)[..., np.newaxis]
-    return (L, interface + L * n)

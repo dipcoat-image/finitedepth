@@ -288,6 +288,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         --------
         regions
         """
+        # TODO: make this method take arguments (still cache every contour)
         if not hasattr(self, "_contours2"):
             reg_count, reg_labels = self.regions()
             contours = []
