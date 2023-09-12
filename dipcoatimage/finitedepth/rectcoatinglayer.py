@@ -526,7 +526,7 @@ class RectLayerShape(
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """Return thickness and points for uniform layer."""
         if not hasattr(self, "_uniform_layer"):
-            ((i0, i1),) = self.interfaces2(0)[0][0]
+            ((i0, i1),) = self.interfaces2(0)[0][0].flatten()[[0, -1]]
             subst_cnt = self.substrate.contours2()[0][0][0] + self.substrate_point()
             covered_subst = subst_cnt[i0:i1]
             # Acquiring parallel curve from contour is difficult because of noise.
