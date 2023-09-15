@@ -202,7 +202,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
 
     def regions(self) -> Tuple[int, npt.NDArray[np.int32]]:
         """
-        Return the labelled image of substrate regions.
+        Return the bare substrate image labelled by region indices.
 
         Returns
         -------
@@ -213,9 +213,9 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
 
         Notes
         -----
-        This method is similar to ``cv2.connectedComponents`` except that the
-        non-substrate regions are excluded. Substrate regions are identified by
-        the location of :meth:`nestled_points`.
+        Regions that are not connected to the substrate are considered as
+        image artifacts, and are thus removed. The substrate regions are
+        identified using :meth:`nestled_points`.
 
         Substrate region marked by `i`-th point in :meth:`nestled_points` is
         labelled as `i + 1`. If multiple points mark the same substrate region,

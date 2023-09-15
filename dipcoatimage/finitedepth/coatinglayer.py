@@ -313,6 +313,45 @@ class CoatingLayerBase(
         temp2subst = self.substrate.reference.temp2subst()
         return temp_point + temp2subst
 
+    def regions(self) -> Tuple[int, npt.NDArray[np.int32]]:
+        """
+        Return the coated substrate image labelled by region indices.
+
+        Returns
+        -------
+        retval
+            Number of label values in *labels*.
+        labels
+            Labelled image.
+
+        Notes
+        -----
+        Regions that are not connected to the substrate are considered as
+        image artifacts, and are thus removed.
+        """
+        _, labels = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
+        pts = self.substrate_point() + self.substrate.nestled_points()
+        subst_lab = np.unique(labels[pts[..., 1], pts[..., 0]])
+        retval = len(subst_lab) + 1
+
+        substrate_map = subst_lab.reshape(-1, 1, 1) == labels[np.newaxis, ...]
+        labels[:] = 0
+        for i in range(1, retval):
+            labels[substrate_map[i - 1, ...]] = i
+
+        return (retval, labels)
+
+    def contour2(
+        self, region_index: int
+    ) -> Tuple[Tuple[npt.NDArray[np.int32]], npt.NDArray[np.int32]]:
+        _, lab = self.regions()
+        cnt = cv2.findContours(
+            (lab == region_index) * np.uint8(255),
+            cv2.RETR_CCOMP,
+            cv2.CHAIN_APPROX_NONE,
+        )
+        return cnt
+
     def capbridge_broken(self) -> bool:
         """
         Determines if the capillary bridge is broken in :attr:`self.image`.
