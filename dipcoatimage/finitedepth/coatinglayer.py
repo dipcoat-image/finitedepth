@@ -352,6 +352,19 @@ class CoatingLayerBase(
         )
         return cnt
 
+    def extract_layer(self) -> npt.NDArray[np.bool_]:
+        """Extract the coating layer as binary array from *self.image*."""
+        if not hasattr(self, "_extracted_layer"):
+            _, regions = self.regions()
+            coated_mask = regions.astype(bool)
+            # remove the substrate
+            subst_mask = self.substrate.regions()[1].astype(bool)
+            x0, y0 = self.substrate_point()
+            ret = images_ANDXOR(coated_mask, subst_mask, (x0, y0))
+            ret[:y0, :] = False
+            self._extracted_layer = ret
+        return self._extracted_layer
+
     def capbridge_broken(self) -> bool:
         """
         Determines if the capillary bridge is broken in :attr:`self.image`.
@@ -371,18 +384,6 @@ class CoatingLayerBase(
             labels = img[y, x]
             self._coated_substrate = np.isin(img, labels)
         return self._coated_substrate
-
-    def extract_layer(self) -> npt.NDArray[np.bool_]:
-        """Extract the coating layer as binary array from *self.image*."""
-        if not hasattr(self, "_extracted_layer"):
-            coated_mask = self.coated_substrate()
-            # remove the substrate
-            subst_mask = self.substrate.regions()[1].astype(bool)
-            x0, y0 = self.substrate_point()
-            ret = images_ANDXOR(coated_mask, subst_mask, (x0, y0))
-            ret[:y0, :] = False
-            self._extracted_layer = ret
-        return self._extracted_layer
 
     def layer_contours(self) -> List[npt.NDArray[np.int32]]:
         """
