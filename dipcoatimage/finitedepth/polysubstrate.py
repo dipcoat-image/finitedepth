@@ -91,8 +91,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
     DrawOptions: Type[DrawOptionsType]
     SidesNum: int
 
-    def nestled_points(self) -> npt.NDArray[np.int32]:
-        # XXX: Need better way to find center...
+    def region_points(self) -> npt.NDArray[np.int32]:
         w = self.image().shape[1]
         return np.array([[w / 2, 0]], dtype=np.int32)
 

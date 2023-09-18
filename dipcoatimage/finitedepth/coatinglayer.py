@@ -330,7 +330,7 @@ class CoatingLayerBase(
         image artifacts, and are thus removed.
         """
         _, labels = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
-        pts = self.substrate_point() + self.substrate.nestled_points()
+        pts = self.substrate_point() + self.substrate.region_points()
         subst_lab = np.unique(labels[pts[..., 1], pts[..., 0]])
         retval = len(subst_lab) + 1
 
@@ -380,7 +380,7 @@ class CoatingLayerBase(
         if not hasattr(self, "_coated_substrate"):
             # remove components that are not connected to the substrate
             _, img = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
-            x, y = (self.substrate_point() + self.substrate.nestled_points()).T
+            x, y = (self.substrate_point() + self.substrate.region_points()).T
             labels = img[y, x]
             self._coated_substrate = np.isin(img, labels)
         return self._coated_substrate

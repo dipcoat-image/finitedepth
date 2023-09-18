@@ -182,22 +182,27 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         return self.reference.binary_image()[y0:y1, x0:x1]
 
     @abc.abstractmethod
-    def nestled_points(self) -> npt.NDArray[np.int32]:
+    def region_points(self) -> npt.NDArray[np.int32]:
         """
-        Return the points which are guaranteed to be in each substrate region.
+        Points in `[x, y]` which are guaranteed to be in each substrate region.
+
+        Returns
+        -------
+        ndarray
+            `(N, 2)`-shaped array, where `N` is the number of discrete substrate
+            regions.
 
         Notes
         -----
-        This method is used to process both the bare substrate image and coated
-        substrate image by removing the blobs that are not connected to the
-        substrate. The blobs can be either speck noises or structural object
-        e.g. fluid bath surface.
+        These points are used to locate and distinguish each substrate region
+        from foreground pixels. Every image analysis implementation is based on
+        these points.
 
-        Subclass should implement this method using the substrate geometry model.
-        Return value must be an `(N, 2)`-shaped array, where `N` is the number of
-        discrete substrate regions in the bare substrate image. The columns are
-        the coordinates of each point in `[x, y]`.
-
+        Subclass should implement this method to return robust points. The
+        implementation must be simple and non-dynamic. Returning just the center
+        point of the image is a good example; selection of the substrate region
+        from the reference image must be done to obey this rule (e.g., select
+        s.t. the center point falls on the substrate region)
         """
 
     def regions(self) -> Tuple[int, npt.NDArray[np.int32]]:
@@ -215,14 +220,14 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         -----
         Regions that are not connected to the substrate are considered as
         image artifacts, and are thus removed. The substrate regions are
-        identified using :meth:`nestled_points`.
+        identified using :meth:`region_points`.
 
-        Substrate region marked by `i`-th point in :meth:`nestled_points` is
+        Substrate region marked by `i`-th point in :meth:`region_points` is
         labelled as `i + 1`. If multiple points mark the same substrate region,
         points after the first one are ignored. Background is labelled with `0`.
         """
         _, labels = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
-        pts = self.nestled_points()
+        pts = self.region_points()
         subst_lab = np.unique(labels[pts[..., 1], pts[..., 0]])
         retval = len(subst_lab) + 1
 
@@ -276,7 +281,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         Parameters
         ----------
         index : int
-            Index of the substrate region in :meth:`nestled_points`.
+            Index of the substrate region in :meth:`region_points`.
 
         Returns
         -------
@@ -294,7 +299,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         if not hasattr(self, "_contours2"):
             _, labels = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
             contours = []
-            for pt in self.nestled_points():
+            for pt in self.region_points():
                 reg = (labels == labels[pt[1], pt[0]]) * np.uint8(255)
                 cnt = cv2.findContours(reg, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
                 contours.append(cnt)
@@ -392,8 +397,7 @@ class Substrate(SubstrateBase[SubstrateParameters, SubstrateDrawOptions]):
 
     DrawMode: TypeAlias = BinaryImageDrawMode
 
-    def nestled_points(self) -> npt.NDArray[np.int32]:
-        # XXX: Need better way to find center...
+    def region_points(self) -> npt.NDArray[np.int32]:
         w = self.image().shape[1]
         return np.array([[w / 2, 0]], dtype=np.int32)
 
