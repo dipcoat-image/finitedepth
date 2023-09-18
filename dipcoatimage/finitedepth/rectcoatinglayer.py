@@ -527,7 +527,7 @@ class RectLayerShape(
         """Return thickness and points for uniform layer."""
         if not hasattr(self, "_uniform_layer"):
             ((i0, i1),) = self.interfaces2(0)[0][0].flatten()[[0, -1]]
-            subst_cnt = self.substrate.contours2()[0][0][0] + self.substrate_point()
+            subst_cnt = self.substrate.contour2() + self.substrate_point()
             covered_subst = subst_cnt[i0:i1]
             # Acquiring parallel curve from contour is difficult because of noise.
             # Noise induces small bumps which are greatly amplified in parallel curve.

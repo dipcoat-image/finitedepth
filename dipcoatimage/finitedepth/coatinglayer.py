@@ -578,14 +578,14 @@ class CoatingLayerBase(
            >>> layer_contour = coat.layer_contours()[L] - coat.substrate_point()
            >>> import matplotlib.pyplot as plt  #doctest: +SKIP
            >>> for (i0, i1) in coat.interfaces2(R)[S][L]:  #doctest: +SKIP
-           ...     subst_cnt = subst.contours2()[R][0][S]
+           ...     subst_cnt = subst.contours2(R)[0][S]
            ...     plt.plot(*subst_cnt[i0:i1].transpose(2, 0, 1), "x")
            >>> plt.plot(*subst_cnt.transpose(2, 0, 1))  #doctest: +SKIP
            >>> plt.plot(*layer_contour.transpose(2, 0, 1))  #doctest: +SKIP
 
         """
         ret = []
-        for subst_cnt in self.substrate.contours2()[substrate_region][0]:
+        for subst_cnt in self.substrate.contours2(substrate_region)[0]:
             subst_cnt = subst_cnt + self.substrate_point()  # DON'T USE += !!
 
             interfaces = []

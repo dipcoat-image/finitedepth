@@ -184,7 +184,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     @abc.abstractmethod
     def nestled_points(self) -> npt.NDArray[np.int32]:
         """
-        Return the points which are guaranteed to be in each substrate regions.
+        Return the points which are guaranteed to be in each substrate region.
 
         Notes
         -----
@@ -268,17 +268,20 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         return self._contours
 
     def contours2(
-        self,
-    ) -> Tuple[
-        Tuple[Tuple[npt.NDArray[np.int32], ...], Tuple[npt.NDArray[np.int32], ...]], ...
-    ]:
+        self, index: int
+    ) -> Tuple[Tuple[npt.NDArray[np.int32], ...], npt.NDArray[np.int32]]:
         """
-        Find the contour of every substrate region.
+        Find contours of a substrate region identified by *index*.
+
+        Parameters
+        ----------
+        index : int
+            Index of the substrate region in :meth:`nestled_points`.
 
         Returns
         -------
         tuple
-            Tuple of the results of :func:`cv2.findContours` on every region.
+            Tuple of the result of :func:`cv2.findContours`.
 
         Notes
         -----
@@ -288,19 +291,15 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         --------
         regions
         """
-        # TODO: make this method take arguments (still cache every contour)
         if not hasattr(self, "_contours2"):
-            reg_count, reg_labels = self.regions()
+            _, labels = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
             contours = []
-            for region in range(1, reg_count):
-                cnt = cv2.findContours(
-                    (reg_labels == region) * np.uint8(255),
-                    cv2.RETR_CCOMP,
-                    cv2.CHAIN_APPROX_NONE,
-                )
+            for pt in self.nestled_points():
+                reg = (labels == labels[pt[1], pt[0]]) * np.uint8(255)
+                cnt = cv2.findContours(reg, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
                 contours.append(cnt)
             self._contours2 = tuple(contours)
-        return self._contours2
+        return self._contours2[index]
 
     @abc.abstractmethod
     def examine(self) -> Optional[SubstrateError]:
