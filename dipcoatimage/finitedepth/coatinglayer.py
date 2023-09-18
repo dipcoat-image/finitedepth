@@ -181,8 +181,6 @@ class CoatingLayerBase(
         "_match_substrate",
         "_coated_substrate",
         "_extracted_layer",
-        "_layer_contours",
-        "_interfaces",
     )
 
     Parameters: Type[ParametersType]
@@ -313,298 +311,24 @@ class CoatingLayerBase(
         temp2subst = self.substrate.reference.temp2subst()
         return temp_point + temp2subst
 
-    def regions(self) -> Tuple[int, npt.NDArray[np.int32]]:
-        """
-        Return the coated substrate image labelled by region indices.
-
-        Returns
-        -------
-        retval
-            Number of label values in *labels*.
-        labels
-            Labelled image.
-
-        Notes
-        -----
-        Regions that are not connected to the substrate are considered as
-        image artifacts, and are thus removed.
-        """
-        _, labels = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
-        pts = self.substrate_point() + self.substrate.region_points()
-        subst_lab = np.unique(labels[pts[..., 1], pts[..., 0]])
-        retval = len(subst_lab) + 1
-
-        substrate_map = subst_lab.reshape(-1, 1, 1) == labels[np.newaxis, ...]
-        labels[:] = 0
-        for i in range(1, retval):
-            labels[substrate_map[i - 1, ...]] = i
-
-        return (retval, labels)
-
-    def contour2(
-        self, region_index: int
-    ) -> Tuple[Tuple[npt.NDArray[np.int32]], npt.NDArray[np.int32]]:
-        _, lab = self.regions()
-        cnt = cv2.findContours(
-            (lab == region_index) * np.uint8(255),
-            cv2.RETR_CCOMP,
-            cv2.CHAIN_APPROX_NONE,
-        )
-        return cnt
+    def coated_substrate(self) -> npt.NDArray[np.bool_]:
+        """Remove image artifacts, e.g., bath surface."""
+        if not hasattr(self, "_coated_substrate"):
+            _, img = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
+            x, y = (self.substrate_point() + self.substrate.region_points()).T
+            self._coated_substrate = np.isin(img, img[y, x])
+        return self._coated_substrate
 
     def extract_layer(self) -> npt.NDArray[np.bool_]:
         """Extract the coating layer as binary array from *self.image*."""
         if not hasattr(self, "_extracted_layer"):
-            _, regions = self.regions()
-            coated_mask = regions.astype(bool)
             # remove the substrate
-            subst_mask = self.substrate.regions()[1].astype(bool)
             x0, y0 = self.substrate_point()
-            ret = images_ANDXOR(coated_mask, subst_mask, (x0, y0))
+            subst_mask = (self.substrate.regions() >= 0)
+            ret = images_ANDXOR(self.coated_substrate(), subst_mask, (x0, y0))
             ret[:y0, :] = False
             self._extracted_layer = ret
         return self._extracted_layer
-
-    def capbridge_broken(self) -> bool:
-        """
-        Determines if the capillary bridge is broken in :attr:`self.image`.
-        """
-        _, y = self.substrate_point()
-        below_subst = self.binary_image()[y:]
-        # if any row is all-white, capillary bridge is broken
-        row_white = np.all(below_subst, axis=1)
-        return bool(np.any(row_white))
-
-    def coated_substrate(self) -> npt.NDArray[np.bool_]:
-        """Return the mask without undesired features, e.g. bath surface."""
-        if not hasattr(self, "_coated_substrate"):
-            # remove components that are not connected to the substrate
-            _, img = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
-            x, y = (self.substrate_point() + self.substrate.region_points()).T
-            labels = img[y, x]
-            self._coated_substrate = np.isin(img, labels)
-        return self._coated_substrate
-
-    def layer_contours(self) -> List[npt.NDArray[np.int32]]:
-        """
-        Return the contours of the coating layer regions.
-
-        The contours include both the gas-liquid interface and the
-        substrate-liquid interface of the coating layer. Each contour represents
-        discrete region of coating layer.
-        """
-        if not hasattr(self, "_layer_contours"):
-            contours, _ = cv2.findContours(
-                self.extract_layer().astype(np.uint8),
-                cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_NONE,
-            )
-            self._layer_contours = list(contours)
-        return self._layer_contours
-
-    def interfaces(self, substrate_region: int) -> List[List[npt.NDArray[np.float64]]]:
-        r"""
-        Find interfaces on each substrate contour with each layer contour.
-
-        Parameters
-        ----------
-        substrate_region : int
-            Index of the substrate region.
-
-        Returns
-        -------
-        list
-            List of list of arrays.
-            - 1st-level list represents substrate contours.
-            - 2nd-level list represents layer contours.
-            - Array represents the interval for the interfaces.
-
-        Notes
-        -----
-        Substrate can consist of many regions, each possibly having multiple
-        contours. *substrate_region* decides which substrate region should the
-        interfaces be searched from. This is same as the top-level index of
-        :meth:`SubstrateBase.contours`.
-
-        Once the substrate region is determined, interfaces of `j`-th layer
-        contour on `i`-th substrate contour can be acquired by indexing the
-        result with `[i][j]`. It will return an array whose shape is `(k, 2)`,
-        where `k` is the number of interface intervals.
-
-        Each interval describes continuous patch on the substrate contour covered
-        by the layer. Two column values are the parameters that represent the
-        starting point and ending point of the patch, respectively.
-        Each parameter is a non-negative real number. The integer part is the
-        index of polyline segment in substrate contour. The decimal part is the
-        position of the point on the segment.
-
-        For example, with parameter :math:`t` the point :math:`P(t)` is
-
-        .. math::
-
-            P(t) = P_{[t]} + (t - [t])(P_{[t] + 1} - P_{[t]})
-
-        where :math:`P_i` is i-th point of the substrate contour.
-
-        """
-        ret = []
-        for subst_cnt in self.substrate.contours(substrate_region)[0]:
-            subst_cnt = subst_cnt + self.substrate_point()  # DON'T USE += !!
-            subst_cnt = np.concatenate([subst_cnt, subst_cnt[:1]])  # closed line
-
-            cnt_img = np.zeros(self.image.shape[:2], dtype=np.uint8)
-            cv2.drawContours(cnt_img, [subst_cnt], -1, 255)
-            dilated_cnt = cv2.dilate(cnt_img, np.ones((3, 3))).astype(bool)
-
-            interfaces = []
-            for layer_cnt in self.layer_contours():
-                x, y = layer_cnt.transpose(2, 0, 1)
-                mask = dilated_cnt[y, x]
-                # Two reasons can be accounted for mask discontinuity:
-                # (A) Starting point of contour lies on the interface, therefore
-                # index jumps from the last to the first.
-                # (B) Discrete interface.
-
-                # First, roll the array to handle (A).
-                noninterface_idx, _ = np.nonzero(~mask)
-
-                if noninterface_idx.size == len(layer_cnt):
-                    # layer is not adjacent to the substrate
-                    interfaces.append(np.empty((0, 2), dtype=np.float64))
-                    continue
-
-                if noninterface_idx.size == 0:
-                    # every point of the layer is interface
-                    (interface_pts,) = layer_cnt.transpose(1, 0, 2)
-                    interface_idxs = np.arange(len(layer_cnt))
-                else:
-                    SHIFT = len(layer_cnt) - noninterface_idx[-1] - 1
-                    shifted_mask = np.roll(mask, SHIFT, axis=0)
-                    interface_pts = np.roll(layer_cnt, SHIFT, axis=0)[shifted_mask]
-                    interface_idxs = np.roll(
-                        np.arange(len(layer_cnt))[..., np.newaxis], SHIFT, axis=0
-                    )[shifted_mask]
-
-                # Now, detect the discontinuity to handle (B)
-                diff = np.diff(interface_idxs)
-                (jumps,) = np.nonzero((diff != 1) & (diff != -(len(layer_cnt) - 1)))
-                # Find projection from interface points (in layer contour)
-                # onto substrate, and split by discontinuities.
-                (prj,) = closest_in_polylines(
-                    interface_pts[:, np.newaxis],
-                    subst_cnt.transpose(1, 0, 2),
-                ).T
-
-                intervals = np.zeros((len(jumps) + 1, 2), dtype=np.float64)
-                for i, prj in enumerate(np.split(prj, jumps, axis=0)):
-                    # Store as interval. Points are reversed (-1 is the first)
-                    # because prj is sorted by the direction of interface, which
-                    # is opposite to the substrate contour.
-                    intervals[i] = prj[[-1, 0]]
-
-                # merge overlapping intervals
-                # https://www.geeksforgeeks.org/merging-intervals/
-                intervals = intervals[np.argsort(intervals[:, 0])]
-                idx = 0
-                for i in range(1, len(intervals)):
-                    if intervals[idx][1] >= intervals[i][0]:
-                        intervals[idx][1] = max(intervals[idx][1], intervals[i][1])
-                    else:
-                        idx += 1
-                        intervals[idx] = intervals[i]
-                interfaces.append(intervals[: idx + 1])
-
-            ret.append(interfaces)
-
-        return ret
-
-    def interfaces2(self, substrate_region: int) -> List[List[npt.NDArray[np.int64]]]:
-        r"""
-        Find indices of solid-liquid interfaces on substrate contour.
-
-        Parameters
-        ----------
-        substrate_region : int
-            Index of the substrate region.
-
-        Returns
-        -------
-        list
-            List of list of arrays.
-            - 1st-level list represents substrate contours.
-            - 2nd-level list represents layer contours.
-            - Array contains indices for the interface intervals.
-
-        Notes
-        -----
-        Substrate can consist of many regions, each possibly having multiple
-        contours. *substrate_region* decides which substrate region should the
-        interfaces be searched from. This is equal to the top-level index of
-        :meth:`SubstrateBase.contours2`.
-
-        Once the substrate region is determined, interfaces of `j`-th layer
-        contour on `i`-th substrate contour can be acquired by indexing the
-        result with `[i][j]`. It will return an array whose shape is `(k, 2)`,
-        where `k` is the number of interface intervals. If the layer does not
-        touch the substrate, `k` is zero. On the other hand, `k` can be larger
-        than 1 if the layer touches the substrate over several discontinuous
-        regions.
-
-        Each interval describes continuous patch on the substrate contour covered
-        by the layer. Two column values are the indices for the starting index
-        and ending index of the patch, respectively. To acquire the interface
-        points, slice :meth:`SubstrateBase.contours2` with the indices.
-
-        Examples
-        --------
-
-        .. plot::
-           :include-source:
-           :context: reset
-
-           >>> import cv2
-           >>> from dipcoatimage.finitedepth import (SubstrateReference,
-           ...     Substrate, LayerArea, get_samples_path)
-           >>> ref_path = get_samples_path("ref1.png")
-           >>> ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
-           >>> tempROI = (200, 50, 1200, 200)
-           >>> substROI = (400, 175, 1000, 500)
-           >>> ref = SubstrateReference(ref_img, tempROI, substROI)
-           >>> subst = Substrate(ref)
-           >>> coat_path = get_samples_path("coat1.png")
-           >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
-           >>> coat = LayerArea(coat_img, subst)
-           >>> (R, S, L) = (0, 0, 0)
-           >>> layer_contour = coat.layer_contours()[L] - coat.substrate_point()
-           >>> import matplotlib.pyplot as plt  #doctest: +SKIP
-           >>> for (i0, i1) in coat.interfaces2(R)[S][L]:  #doctest: +SKIP
-           ...     subst_cnt = subst.contours2(R)[0][S]
-           ...     plt.plot(*subst_cnt[i0:i1].transpose(2, 0, 1), "x")
-           >>> plt.plot(*subst_cnt.transpose(2, 0, 1))  #doctest: +SKIP
-           >>> plt.plot(*layer_contour.transpose(2, 0, 1))  #doctest: +SKIP
-
-        """
-        ret = []
-        for subst_cnt in self.substrate.contours(substrate_region)[0]:
-            subst_cnt = subst_cnt + self.substrate_point()  # DON'T USE += !!
-
-            interfaces = []
-            for layer_cnt in self.layer_contours():
-                lcnt_img = np.zeros(self.image.shape[:2], dtype=np.uint8)
-                lcnt_img[layer_cnt[..., 1], layer_cnt[..., 0]] = 255
-                dilated_lcnt = cv2.dilate(lcnt_img, np.ones((3, 3))).astype(bool)
-
-                x, y = subst_cnt.transpose(2, 0, 1)
-                mask = dilated_lcnt[y, x]
-
-                # Find indices of continuous True blocks
-                idxs = np.where(
-                    np.diff(np.concatenate(([False], mask[:, 0], [False]))) == 1
-                )[0].reshape(-1, 2)
-
-                interfaces.append(idxs)
-            ret.append(interfaces)
-        return ret
 
     @abc.abstractmethod
     def examine(self) -> Optional[CoatingLayerError]:
