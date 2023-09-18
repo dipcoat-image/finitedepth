@@ -110,7 +110,7 @@ class RectCoatingLayerBase(
 
     def capbridge_broken(self) -> bool:
         p0 = self.substrate_point()
-        _, bl, br, _ = self.substrate.contour2()[self.substrate.vertices2()]
+        _, bl, br, _ = self.substrate.contour()[self.substrate.vertices()]
         (B,) = p0 + bl
         (C,) = p0 + br
         top = np.max([B[1], C[1]])
@@ -150,7 +150,7 @@ class RectCoatingLayerBase(
             starts, ends = interface_patches[..., 0], interface_patches[..., 1]
             t0, t1 = np.sort(starts)[0], np.sort(ends)[-1]
 
-            (subst_cnt,), _ = self.substrate.contours()[0]
+            (subst_cnt,), _ = self.substrate.contour()
             subst_cnt = subst_cnt + self.substrate_point()  # DON'T USE += !!
             pts = polylines_internal_points(
                 np.stack([t0, t1]).reshape(-1, 1),
@@ -507,7 +507,7 @@ class RectLayerShape(
             # close to the lower vertices.
             vicinity_mask = np.zeros(img.shape, np.uint8)
             p0 = self.substrate_point()
-            _, bl, br, _ = self.substrate.contour2()[self.substrate.vertices2()]
+            _, bl, br, _ = self.substrate.contour()[self.substrate.vertices()]
             (B,) = p0 + bl
             (C,) = p0 + br
             R = self.parameters.ReconstructRadius
@@ -527,7 +527,7 @@ class RectLayerShape(
         """Return thickness and points for uniform layer."""
         if not hasattr(self, "_uniform_layer"):
             ((i0, i1),) = self.interfaces2(0)[0][0].flatten()[[0, -1]]
-            subst_cnt = self.substrate.contour2() + self.substrate_point()
+            subst_cnt = self.substrate.contour() + self.substrate_point()
             covered_subst = subst_cnt[i0:i1]
             # Acquiring parallel curve from contour is difficult because of noise.
             # Noise induces small bumps which are greatly amplified in parallel curve.

@@ -118,6 +118,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         "_ref",
         "_parameters",
         "_draw_options",
+        "_regions",
         "_contours",
     )
 
@@ -184,7 +185,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     @abc.abstractmethod
     def region_points(self) -> npt.NDArray[np.int32]:
         """
-        Points in `[x, y]` which are guaranteed to be in each substrate region.
+        Points in `[x, y]` in each discrete substrate region.
 
         Returns
         -------
@@ -205,83 +206,41 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         s.t. the center point falls on the substrate region)
         """
 
-    def regions(self) -> Tuple[int, npt.NDArray[np.int32]]:
+    def regions(self) -> npt.NDArray[np.int8]:
         """
-        Return the bare substrate image labelled by region indices.
+        Return image labelled by each discrete substrate regions.
 
         Returns
         -------
-        retval
-            Number of label values in *labels*.
-        labels
-            Labelled image.
+        ndarray
+            Labelled image. `i`-th region in :meth:`region_points` is labelled
+            with `i`. `-1` denotes background.
 
         Notes
         -----
-        Regions that are not connected to the substrate are considered as
-        image artifacts, and are thus removed. The substrate regions are
-        identified using :meth:`region_points`.
-
-        Substrate region marked by `i`-th point in :meth:`region_points` is
-        labelled as `i + 1`. If multiple points mark the same substrate region,
-        points after the first one are ignored. Background is labelled with `0`.
-        """
-        _, labels = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
-        pts = self.region_points()
-        subst_lab = np.unique(labels[pts[..., 1], pts[..., 0]])
-        retval = len(subst_lab) + 1
-
-        substrate_map = subst_lab.reshape(-1, 1, 1) == labels[np.newaxis, ...]
-        labels[:] = 0
-        for i in range(1, retval):
-            labels[substrate_map[i - 1, ...]] = i
-
-        return (retval, labels)
-
-    def contours(
-        self,
-    ) -> Tuple[
-        Tuple[Tuple[npt.NDArray[np.int32], ...], Tuple[npt.NDArray[np.int32], ...]], ...
-    ]:
-        """
-        Find the contour of every substrate region.
-
-        Returns
-        -------
-        tuple
-            Tuple of the results of :func:`cv2.findContours` on every region.
-
-        Notes
-        -----
-        Contours are sparse, i.e. only the polyline vertices are stored.
+        Maximum number of regions is 128.
 
         See Also
         --------
-        regions
+        region_points
         """
-        if not hasattr(self, "_contours"):
-            reg_count, reg_labels = self.regions()
-            contours = []
-            for region in range(1, reg_count):
-                cnt = cv2.findContours(
-                    (reg_labels == region) * np.uint8(255),
-                    cv2.RETR_CCOMP,
-                    cv2.CHAIN_APPROX_SIMPLE,
-                )
-                contours.append(cnt)
-            self._contours = tuple(contours)
-        return self._contours
+        if not hasattr(self, "_regions"):
+            self._regions = np.full(self.image().shape[:2], -1, dtype=np.int8)
+            _, labels = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
+            for i, pt in enumerate(self.region_points()):
+                self._regions[labels == labels[pt[1], pt[0]]] = i
+        return self._regions
 
-    def contours2(
-        self, index: int
+    def contours(
+        self, region: int
     ) -> Tuple[Tuple[npt.NDArray[np.int32], ...], npt.NDArray[np.int32]]:
         """
-        Find contours of a substrate region identified by *index*.
+        Find contours of a substrate region identified by *region*.
 
         Parameters
         ----------
-        index : int
-            Index of the substrate region in :meth:`region_points`.
+        region : int
+            Label in :meth:`regions`.
 
         Returns
         -------
@@ -296,15 +255,14 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         --------
         regions
         """
-        if not hasattr(self, "_contours2"):
-            _, labels = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
+        if not hasattr(self, "_contours"):
             contours = []
-            for pt in self.region_points():
-                reg = (labels == labels[pt[1], pt[0]]) * np.uint8(255)
+            for i in range(len(self.region_points())):
+                reg = (self.regions() == i) * np.uint8(255)
                 cnt = cv2.findContours(reg, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
                 contours.append(cnt)
-            self._contours2 = tuple(contours)
-        return self._contours2[index]
+            self._contours = tuple(contours)
+        return self._contours[region]
 
     @abc.abstractmethod
     def examine(self) -> Optional[SubstrateError]:

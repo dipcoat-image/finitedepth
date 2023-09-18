@@ -131,11 +131,6 @@ class RectSubstrate(
 
     DrawMode: TypeAlias = RectSubstrateDrawMode
 
-    def contour(self):
-        # Flip s.t. the hull has same direction with the contour.
-        # XXX: remove after implementing uniform layer for convex polyline
-        return np.flip(cv2.convexHull(super().contour()), axis=0)
-
     def draw(self) -> npt.NDArray[np.uint8]:
         draw_mode = self.draw_options.draw_mode
         if draw_mode is self.DrawMode.ORIGINAL:
@@ -145,7 +140,7 @@ class RectSubstrate(
         elif draw_mode is self.DrawMode.EDGES:
             h, w = self.image().shape[:2]
             mask = np.zeros((h, w), bool)
-            ((x, y),) = self.contour2().transpose(1, 2, 0)
+            ((x, y),) = self.contour().transpose(1, 2, 0)
             mask[y, x] = True
             image = ~mask * np.uint8(255)
         else:

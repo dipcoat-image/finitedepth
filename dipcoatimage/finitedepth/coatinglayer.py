@@ -448,7 +448,7 @@ class CoatingLayerBase(
 
         """
         ret = []
-        for subst_cnt in self.substrate.contours()[substrate_region][0]:
+        for subst_cnt in self.substrate.contours(substrate_region)[0]:
             subst_cnt = subst_cnt + self.substrate_point()  # DON'T USE += !!
             subst_cnt = np.concatenate([subst_cnt, subst_cnt[:1]])  # closed line
 
@@ -585,7 +585,7 @@ class CoatingLayerBase(
 
         """
         ret = []
-        for subst_cnt in self.substrate.contours2(substrate_region)[0]:
+        for subst_cnt in self.substrate.contours(substrate_region)[0]:
             subst_cnt = subst_cnt + self.substrate_point()  # DON'T USE += !!
 
             interfaces = []
