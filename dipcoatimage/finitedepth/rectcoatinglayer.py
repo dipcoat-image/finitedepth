@@ -97,6 +97,7 @@ class RectCoatingLayerBase(
     """Abstract base class for coating layer over rectangular substrate."""
 
     __slots__ = (
+        "_interfaces",
         "_contour",
         "_interfaces_boundaries",
         "_enclosing_surface",
@@ -107,6 +108,52 @@ class RectCoatingLayerBase(
     DrawOptions: Type[DrawOptionsType]
     DecoOptions: Type[DecoOptionsType]
     Data: Type[DataType]
+
+    def interfaces(self) -> Tuple[npt.NDArray[np.int64], ...]:
+        """
+        Find indices of solid-liquid interfaces on :meth:`SubstrateBase.contour`.
+
+        Returns
+        -------
+        tuple
+            Tuple of arrays.
+            - Each array represents layer contours.
+            - Array contains indices of the interface intervals of layer contour.
+
+        Notes
+        -----
+        A substrate can be covered by multiple blobs of coating layer, and a
+        single blob can make multiple contacts to a substrate. Each array in a
+        tuple represents each blob. The shape of the array is `(N, 2)`, where
+        `N` is the number of interface intervals.
+
+        Each interval describes continuous patch on the substrate contour covered
+        by the layer. To acquire the interface points, slice the substrate
+        contour with the indices.
+        """
+        if not hasattr(self, "_interfaces"):
+            subst_cnt = self.substrate.contour() + self.substrate_point()
+            layer_cnts, _ = cv2.findContours(
+                self.extract_layer().astype(np.uint8),
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_NONE,
+            )
+            ret = []
+            for layer_cnt in layer_cnts:
+                lcnt_img = np.zeros(self.image.shape[:2], dtype=np.uint8)
+                lcnt_img[layer_cnt[..., 1], layer_cnt[..., 0]] = 255
+                dilated_lcnt = cv2.dilate(lcnt_img, np.ones((3, 3))).astype(bool)
+
+                x, y = subst_cnt.transpose(2, 0, 1)
+                mask = dilated_lcnt[y, x]
+
+                # Find indices of continuous True blocks
+                idxs = np.where(
+                    np.diff(np.concatenate(([False], mask[:, 0], [False]))) == 1
+                )[0].reshape(-1, 2)
+                ret.append(idxs)
+            self._interfaces = tuple(ret)
+        return self._interfaces
 
     def capbridge_broken(self) -> bool:
         p0 = self.substrate_point()
