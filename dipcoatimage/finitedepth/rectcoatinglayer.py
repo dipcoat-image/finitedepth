@@ -465,49 +465,49 @@ class RectLayerShape(
 
     def conformality(self) -> Tuple[float, npt.NDArray[np.int32]]:
         """Conformality of the coating layer and its optimal path."""
+        if not self.interfaces():
+            return (np.nan, np.empty((0, 2), dtype=np.int32))
+
         if not hasattr(self, "_conformality"):
-            if not self.interfaces():
-                self._conformality = (np.nan, np.empty((0, 2), dtype=np.int32))
-            else:
-                (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
-                subst_cnt = self.substrate.contour() + self.substrate_point()
-                intf = subst_cnt[i0:i1]
+            (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
+            subst_cnt = self.substrate.contour() + self.substrate_point()
+            intf = subst_cnt[i0:i1]
 
-                surf = self.surface()
+            surf = self.surface()
 
-                dist = cdist(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))
-                mat = acm(dist)
-                path = owp(mat)
-                d = dist[path[:, 0], path[:, 1]]
-                d_avrg = mat[-1, -1] / len(path)
-                C = 1 - np.sum(np.abs(d - d_avrg)) / mat[-1, -1]
-                self._conformality = (float(C), path)
+            dist = cdist(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))
+            mat = acm(dist)
+            path = owp(mat)
+            d = dist[path[:, 0], path[:, 1]]
+            d_avrg = mat[-1, -1] / len(path)
+            C = 1 - np.sum(np.abs(d - d_avrg)) / mat[-1, -1]
+            self._conformality = (float(C), path)
 
         return self._conformality
 
     def roughness(self) -> Tuple[float, npt.NDArray[np.int32]]:
         """Roughness of the coating layer and its optimal path."""
-        if not hasattr(self, "_roughness"):
-            surf = self.surface()
-            _, ul = self.uniform_layer()
+        surf = self.surface()
+        _, ul = self.uniform_layer()
 
-            if surf.size == 0 or ul.size == 0:
-                self._roughness = (np.nan, np.empty((0, 2), dtype=np.int32))
+        if surf.size == 0 or ul.size == 0:
+            return (np.nan, np.empty((0, 2), dtype=np.int32))
+
+        if not hasattr(self, "_roughness"):
+            measure = self.parameters.RoughnessMeasure
+            if measure == DistanceMeasure.DTW:
+                dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
+                mat = acm(dist)
+                path = owp(mat)
+                roughness = mat[-1, -1] / len(path)
+            elif measure == DistanceMeasure.SDTW:
+                dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
+                mat = acm(dist**2)
+                path = owp(mat)
+                roughness = np.sqrt(mat[-1, -1] / len(path))
             else:
-                measure = self.parameters.RoughnessMeasure
-                if measure == DistanceMeasure.DTW:
-                    dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
-                    mat = acm(dist)
-                    path = owp(mat)
-                    roughness = mat[-1, -1] / len(path)
-                elif measure == DistanceMeasure.SDTW:
-                    dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
-                    mat = acm(dist**2)
-                    path = owp(mat)
-                    roughness = np.sqrt(mat[-1, -1] / len(path))
-                else:
-                    raise TypeError(f"Unknown measure: {measure}")
-                self._roughness = (float(roughness), path)
+                raise TypeError(f"Unknown measure: {measure}")
+            self._roughness = (float(roughness), path)
 
         return self._roughness
 
