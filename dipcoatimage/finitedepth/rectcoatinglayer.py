@@ -99,6 +99,7 @@ class RectCoatingLayerBase(
     __slots__ = (
         "_interfaces",
         "_contour",
+        "_surface_indices",
     )
 
     Parameters: Type[ParametersType]
@@ -164,6 +165,36 @@ class RectCoatingLayerBase(
             )
             self._contour = cnt
         return self._contour
+
+    def surface(self) -> npt.NDArray[np.int32]:
+        """
+        Return the surface of the entire coated region.
+
+        Returns
+        -------
+        ndarray
+            Points in :meth:`contour` which comprises the coating layer surface.
+            Surface is continuous, i.e., if multiple discrete blobs of layer
+            exist, the surface includes the points on the exposed substrate
+            between them.
+
+        See Also
+        --------
+        contour
+        """
+        if not self.interfaces():
+            return np.empty((0, 1, 2), np.int32)
+
+        if not hasattr(self, "_surface_indices"):
+            indices, = self.interfaces()
+            (i0, i1) = indices.flatten()[[0, -1]]
+            subst_cnt = self.substrate.contour() + self.substrate_point()
+            endpoints = subst_cnt[[i0, i1]]
+
+            vec = self.contour() - endpoints.transpose(1, 0, 2)
+            self._surface_indices = np.argmin(np.linalg.norm(vec, axis=-1), axis=0)
+        (I0, I1) = self._surface_indices
+        return self.contour()[I0: I1 + 1]
 
     def capbridge_broken(self) -> bool:
         p0 = self.substrate_point()
@@ -414,8 +445,12 @@ class RectLayerShape(
 
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """Return thickness and points for uniform layer."""
+        if not self.interfaces():
+            return (np.float64(0), np.empty((0, 1, 2), np.float64))
+
         if not hasattr(self, "_uniform_layer"):
-            ((i0, i1),), = self.interfaces()
+            indices, = self.interfaces()
+            (i0, i1) = indices.flatten()[[0, -1]]
             subst_cnt = self.substrate.contour() + self.substrate_point()
             covered_subst = subst_cnt[i0:i1]
             # Acquiring parallel curve from contour is difficult because of noise.
