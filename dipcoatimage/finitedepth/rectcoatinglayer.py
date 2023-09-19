@@ -175,8 +175,7 @@ class RectCoatingLayerBase(
             return np.empty((0, 1, 2), np.int32)
 
         if not hasattr(self, "_surface_indices"):
-            (indices,) = self.interfaces()
-            (i0, i1) = indices.flatten()[[0, -1]]
+            (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
             subst_cnt = self.substrate.contour() + self.substrate_point()
             endpoints = subst_cnt[[i0, i1]]
 
@@ -439,8 +438,7 @@ class RectLayerShape(
             return (np.float64(0), np.empty((0, 1, 2), np.float64))
 
         if not hasattr(self, "_uniform_layer"):
-            (indices,) = self.interfaces()
-            (i0, i1) = indices.flatten()[[0, -1]]
+            (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
             subst_cnt = self.substrate.contour() + self.substrate_point()
             covered_subst = subst_cnt[i0:i1]
             # Acquiring parallel curve from contour is difficult because of noise.
@@ -467,8 +465,7 @@ class RectLayerShape(
     def conformality(self) -> Tuple[float, npt.NDArray[np.int32]]:
         """Conformality of the coating layer and its optimal path."""
         if not hasattr(self, "_conformality"):
-            (indices,) = self.interfaces()
-            (i0, i1) = indices.flatten()[[0, -1]]
+            (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
             subst_cnt = self.substrate.contour() + self.substrate_point()
             intf = subst_cnt[i0:i1]
 
@@ -582,8 +579,7 @@ class RectLayerShape(
 
         contactline_opts = self.deco_options.contact_line
         if contactline_opts.thickness > 0 and len(self.interfaces()) > 0:
-            (indices,) = self.interfaces()
-            (i0, i1) = indices.flatten()[[0, -1]]
+            (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
             subst_cnt = self.substrate.contour() + self.substrate_point()
             (p0,), (p1,) = subst_cnt[[i0, i1]].astype(np.int32)
             cv2.line(
@@ -647,8 +643,7 @@ class RectLayerShape(
         if not self.interfaces():
             LEN_L = LEN_R = np.float64(0)
         else:
-            (indices,) = self.interfaces()
-            (i0, i1) = indices.flatten()[[0, -1]]
+            (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
             subst_cnt = self.substrate.contour() + self.substrate_point()
             pts = subst_cnt[[i0, i1]]
 
