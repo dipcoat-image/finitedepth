@@ -17,12 +17,6 @@ Base class
 Implementation
 --------------
 
-.. autoclass:: SubstrateReferenceParameters
-   :members:
-
-.. autoclass:: SubstrateReferenceDrawOptions
-   :members:
-
 .. autoclass:: SubstrateReference
    :members:
 
@@ -41,9 +35,11 @@ from .util import (
     OptionalROI,
     IntROI,
     sanitize_ROI,
-    BinaryImageDrawMode,
-    FeatureDrawingOptions,
-    Color,
+)
+from .reference_param import (
+    Parameters,
+    DrawOptions,
+    PaintMode,
 )
 from typing import TypeVar, Generic, Type, Optional
 
@@ -56,8 +52,6 @@ except ImportError:
 __all__ = [
     "SubstrateReferenceError",
     "SubstrateReferenceBase",
-    "SubstrateReferenceParameters",
-    "SubstrateReferenceDrawOptions",
     "SubstrateReference",
 ]
 
@@ -290,33 +284,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         """Decorate and return the reference image as RGB format."""
 
 
-@dataclasses.dataclass(frozen=True)
-class SubstrateReferenceParameters:
-    """Additional parameters for :class:`SubstrateReference` instance."""
-
-    pass
-
-
-@dataclasses.dataclass
-class SubstrateReferenceDrawOptions:
-    """Drawing options for :class:`SubstrateReference`."""
-
-    draw_mode: BinaryImageDrawMode = BinaryImageDrawMode.BINARY
-    templateROI: FeatureDrawingOptions = dataclasses.field(
-        default_factory=lambda: FeatureDrawingOptions(
-            color=Color(0, 255, 0), thickness=1
-        )
-    )
-    substrateROI: FeatureDrawingOptions = dataclasses.field(
-        default_factory=lambda: FeatureDrawingOptions(
-            color=Color(255, 0, 0), thickness=1
-        )
-    )
-
-
-class SubstrateReference(
-    SubstrateReferenceBase[SubstrateReferenceParameters, SubstrateReferenceDrawOptions]
-):
+class SubstrateReference(SubstrateReferenceBase[Parameters, DrawOptions]):
     """
     Substrate reference class with customizable binarization.
 
@@ -351,22 +319,22 @@ class SubstrateReference(
 
     """
 
-    Parameters = SubstrateReferenceParameters
-    DrawOptions = SubstrateReferenceDrawOptions
+    Parameters = Parameters
+    DrawOptions = DrawOptions
 
-    DrawMode: TypeAlias = BinaryImageDrawMode
+    PaintMode: TypeAlias = PaintMode
 
     def examine(self) -> None:
         return None
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        draw_mode = self.draw_options.draw_mode
-        if draw_mode == self.DrawMode.ORIGINAL:
+        paint = self.draw_options.paint
+        if paint == self.PaintMode.ORIGINAL:
             image = self.image
-        elif draw_mode == self.DrawMode.BINARY:
+        elif paint == self.PaintMode.BINARY:
             image = self.binary_image()
         else:
-            raise TypeError("Unrecognized draw mode: %s" % draw_mode)
+            raise TypeError("Unrecognized paint mode: %s" % paint)
         ret = colorize(image)
 
         substROI_opts = self.draw_options.substrateROI
