@@ -466,7 +466,12 @@ class RectLayerShape(
 
             normal = np.dot(np.gradient(covered_hull, axis=0), ROTATION_MATRIX)
             n = normal / np.linalg.norm(normal, axis=-1)[..., np.newaxis]
-            self._uniform_layer = (t, covered_hull + t * n)
+            ul_sparse = covered_hull + t * n
+
+            ul_len = np.ceil(cv2.arcLength(ul_sparse.astype(np.float32), closed=False))
+            ul = equidistant_interpolate(ul_sparse, int(ul_len))
+
+            self._uniform_layer = (t, ul)
         return self._uniform_layer
 
     def conformality(self) -> Tuple[np.float64, npt.NDArray[np.int32]]:
@@ -480,7 +485,7 @@ class RectLayerShape(
             surf = self.surface()
 
             if surf.size == 0 or intf.size == 0:
-                self._conformality = (np.nan, np.empty((2, 0, 1, 2), dtype=np.int32))
+                self._conformality = (np.nan, np.empty((0, 2), dtype=np.int32))
             else:
                 dist = cdist(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))
                 mat = acm(dist)
@@ -488,10 +493,37 @@ class RectLayerShape(
                 d = dist[path[:, 0], path[:, 1]]
                 d_avrg = mat[-1, -1] / len(path)
                 C = 1 - np.sum(np.abs(d - d_avrg)) / mat[-1, -1]
-                pairs = np.stack([surf[path[..., 0]], intf[path[..., 1]]])
-                self._conformality = (np.float64(C), pairs)
+                # pairs = np.stack([surf[path[..., 0]], intf[path[..., 1]]])
+                self._conformality = (np.float64(C), path)
     
         return self._conformality
+
+    def roughness(self) -> Tuple[np.float64, npt.NDArray[np.int32]]:
+        """Roughness of the coating layer and its optimal path."""
+        if not hasattr(self, "_roughness"):
+            surf = self.surface()
+            _, ul = self.uniform_layer()
+
+            if surf.size == 0 or ul.size == 0:
+                self._roughness = (np.nan, np.empty((0, 2), dtype=np.float64))
+            else:
+                measure = self.parameters.RoughnessMeasure
+                if measure == DistanceMeasure.DTW:
+                    dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
+                    mat = acm(dist)
+                    path = owp(mat)
+                    roughness = mat[-1, -1] / len(path)
+                elif measure == DistanceMeasure.SDTW:
+                    dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
+                    mat = acm(dist**2)
+                    path = owp(mat)
+                    roughness = np.sqrt(mat[-1, -1] / len(path))
+                else:
+                    raise TypeError(f"Unknown measure: {measure}")
+                # pairs = np.stack([surf[path[..., 0]], ul[path[..., 1]]])
+                self._roughness = (np.float64(roughness), path)
+
+        return self._roughness
 
     def surface_projections(self, side: str) -> npt.NDArray[np.float64]:
         """
@@ -535,49 +567,6 @@ class RectLayerShape(
         prj = project_on_polylines(pts, lines)
         prj_pts = np.squeeze(polylines_external_points(prj, lines), axis=2)
         return np.concatenate([pts, prj_pts], axis=1)
-
-    def roughness(self) -> Tuple[float, npt.NDArray[np.float64]]:
-        """Roughness of the coating layer and its optimal path."""
-        if not hasattr(self, "_roughness"):
-            surf_idx = self.enclosing_surface()
-            if surf_idx.size == 0:
-                surf = np.empty((0, 1, 2), dtype=np.float64)
-            else:
-                layer_cnt = self.contour()
-                _, surf, _ = split_polyline(surf_idx, layer_cnt.transpose(1, 0, 2))
-                surf = surf.transpose(1, 0, 2)
-
-            _, ul = self.uniform_layer()
-
-            surf = equidistant_interpolate(
-                surf, int(np.ceil(cv2.arcLength(surf.astype(np.float32), closed=False)))
-            )
-            ul = equidistant_interpolate(
-                ul, int(np.ceil(cv2.arcLength(ul.astype(np.float32), closed=False)))
-            )
-
-            if surf.size == 0 or ul.size == 0:
-                self._roughness = (np.nan, np.empty((2, 0, 1, 2), dtype=np.float64))
-                return self._roughness
-
-            measure = self.parameters.RoughnessMeasure
-            if measure == DistanceMeasure.DTW:
-                dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
-                mat = acm(dist)
-                path = owp(mat)
-                roughness = mat[-1, -1] / len(path)
-            elif measure == DistanceMeasure.SDTW:
-                dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
-                mat = acm(dist**2)
-                path = owp(mat)
-                roughness = np.sqrt(mat[-1, -1] / len(path))
-            else:
-                raise TypeError(f"Unknown measure: {measure}")
-            pairs = np.stack([surf[path[..., 0]], ul[path[..., 1]]])
-
-            self._roughness = (float(roughness), pairs)
-
-        return self._roughness
 
     def draw(self) -> npt.NDArray[np.uint8]:
         background = self.draw_options.background
@@ -663,8 +652,10 @@ class RectLayerShape(
 
         pair_opts = self.deco_options.roughness_pairs
         if pair_opts.thickness > 0:
-            _, pairs = self.roughness()
-            pairs = pairs.astype(np.int32)
+            surf = self.surface()
+            _, ul = self.uniform_layer()
+            _, path = self.roughness()
+            pairs = np.stack([surf[path[..., 0]], ul[path[..., 1]]]).astype(np.int32)
             for surf_pt, ul_pt in pairs.transpose(1, 0, 2, 3)[:: pair_opts.drawevery]:
                 cv2.line(
                     image,
