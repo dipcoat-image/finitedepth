@@ -118,6 +118,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         "_ref",
         "_parameters",
         "_draw_options",
+        "_regions",
         "_contours",
     )
 
@@ -182,90 +183,86 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         return self.reference.binary_image()[y0:y1, x0:x1]
 
     @abc.abstractmethod
-    def nestled_points(self) -> npt.NDArray[np.int32]:
+    def region_points(self) -> npt.NDArray[np.int32]:
         """
-        Return the points which are guaranteed to be in each substrate regions.
-
-        Notes
-        -----
-        This method is used to process both the bare substrate image and coated
-        substrate image by removing the blobs that are not connected to the
-        substrate. The blobs can be either speck noises or structural object
-        e.g. fluid bath surface.
-
-        Subclass should implement this method using the substrate geometry model.
-        Return value must be an `(N, 2)`-shaped array, where `N` is the number of
-        discrete substrate regions in the bare substrate image. The columns are
-        the coordinates of each point in `[x, y]`.
-
-        """
-
-    def regions(self) -> Tuple[int, npt.NDArray[np.int32]]:
-        """
-        Return the labelled image of substrate regions.
+        Points in `[x, y]` in each discrete substrate region.
 
         Returns
         -------
-        retval
-            Number of label values in *labels*.
-        labels
-            Labelled image.
+        ndarray
+            `(N, 2)`-shaped array, where `N` is the number of discrete substrate
+            regions.
 
         Notes
         -----
-        This method is similar to ``cv2.connectedComponents`` except that the
-        non-substrate regions are excluded. Substrate regions are identified by
-        the location of :meth:`nestled_points`.
+        These points are used to locate and distinguish each substrate region
+        from foreground pixels. Every image analysis implementation is based on
+        these points.
 
-        Substrate region marked by `i`-th point in :meth:`nestled_points` is
-        labelled as `i + 1`. If multiple points mark the same substrate region,
-        points after the first one are ignored. Background is labelled with `0`.
+        Subclass should implement this method to return robust points. The
+        implementation must be simple and non-dynamic. Returning just the center
+        point of the image is a good example; selection of the substrate region
+        from the reference image must be done to obey this rule (e.g., select
+        s.t. the center point falls on the substrate region)
         """
-        _, labels = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
-        pts = self.nestled_points()
-        subst_lab = np.unique(labels[pts[..., 1], pts[..., 0]])
-        retval = len(subst_lab) + 1
 
-        substrate_map = subst_lab.reshape(-1, 1, 1) == labels[np.newaxis, ...]
-        labels[:] = 0
-        for i in range(1, retval):
-            labels[substrate_map[i - 1, ...]] = i
+    def regions(self) -> npt.NDArray[np.int8]:
+        """
+        Return image labelled by each discrete substrate regions.
 
-        return (retval, labels)
+        Returns
+        -------
+        ndarray
+            Labelled image. `i`-th region in :meth:`region_points` is labelled
+            with `i`. `-1` denotes background.
+
+        Notes
+        -----
+        Maximum number of regions is 128.
+
+        See Also
+        --------
+        region_points
+        """
+        if not hasattr(self, "_regions"):
+            self._regions = np.full(self.image().shape[:2], -1, dtype=np.int8)
+            _, labels = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
+            for i, pt in enumerate(self.region_points()):
+                self._regions[labels == labels[pt[1], pt[0]]] = i
+        return self._regions
 
     def contours(
-        self,
-    ) -> Tuple[
-        Tuple[Tuple[npt.NDArray[np.int32], ...], Tuple[npt.NDArray[np.int32], ...]], ...
-    ]:
+        self, region: int
+    ) -> Tuple[Tuple[npt.NDArray[np.int32], ...], npt.NDArray[np.int32]]:
         """
-        Find the contour of every substrate region.
+        Find contours of a substrate region identified by *region*.
+
+        Parameters
+        ----------
+        region : int
+            Label in :meth:`regions`.
 
         Returns
         -------
         tuple
-            Tuple of the results of :func:`cv2.findContours` on every region.
+            Tuple of the result of :func:`cv2.findContours`.
 
         Notes
         -----
-        Contours are sparse, i.e. only the polyline vertices are stored.
+        Contours are dense, i.e., no approximation is made.
 
         See Also
         --------
         regions
         """
         if not hasattr(self, "_contours"):
-            reg_count, reg_labels = self.regions()
             contours = []
-            for region in range(1, reg_count):
-                cnt = cv2.findContours(
-                    (reg_labels == region) * np.uint8(255),
-                    cv2.RETR_CCOMP,
-                    cv2.CHAIN_APPROX_SIMPLE,
-                )
+            for i in range(len(self.region_points())):
+                reg = (self.regions() == i) * np.uint8(255)
+                cnt = cv2.findContours(reg, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
                 contours.append(cnt)
             self._contours = tuple(contours)
-        return self._contours
+        return self._contours[region]
 
     @abc.abstractmethod
     def examine(self) -> Optional[SubstrateError]:
@@ -358,8 +355,7 @@ class Substrate(SubstrateBase[SubstrateParameters, SubstrateDrawOptions]):
 
     DrawMode: TypeAlias = BinaryImageDrawMode
 
-    def nestled_points(self) -> npt.NDArray[np.int32]:
-        # XXX: Need better way to find center...
+    def region_points(self) -> npt.NDArray[np.int32]:
         w = self.image().shape[1]
         return np.array([[w / 2, 0]], dtype=np.int32)
 
