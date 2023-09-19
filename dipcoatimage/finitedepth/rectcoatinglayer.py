@@ -469,6 +469,30 @@ class RectLayerShape(
             self._uniform_layer = (t, covered_hull + t * n)
         return self._uniform_layer
 
+    def conformality(self) -> Tuple[np.float64, npt.NDArray[np.int32]]:
+        """Conformality of the coating layer and its optimal path."""
+        if not hasattr(self, "_conformality"):
+            indices, = self.interfaces()
+            (i0, i1) = indices.flatten()[[0, -1]]
+            subst_cnt = self.substrate.contour() + self.substrate_point()
+            intf = subst_cnt[i0:i1]
+
+            surf = self.surface()
+
+            if surf.size == 0 or intf.size == 0:
+                self._conformality = (np.nan, np.empty((2, 0, 1, 2), dtype=np.int32))
+            else:
+                dist = cdist(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))
+                mat = acm(dist)
+                path = owp(mat)
+                d = dist[path[:, 0], path[:, 1]]
+                d_avrg = mat[-1, -1] / len(path)
+                C = 1 - np.sum(np.abs(d - d_avrg)) / mat[-1, -1]
+                pairs = np.stack([surf[path[..., 0]], intf[path[..., 1]]])
+                self._conformality = (np.float64(C), pairs)
+    
+        return self._conformality
+
     def surface_projections(self, side: str) -> npt.NDArray[np.float64]:
         """
         For *side*, return the relevant surface points and its projections to
@@ -511,47 +535,6 @@ class RectLayerShape(
         prj = project_on_polylines(pts, lines)
         prj_pts = np.squeeze(polylines_external_points(prj, lines), axis=2)
         return np.concatenate([pts, prj_pts], axis=1)
-
-    def conformality(self) -> Tuple[float, npt.NDArray[np.float64]]:
-        """Conformality of the coating layer and its optimal path."""
-        if not hasattr(self, "_conformality"):
-            surf_idx = self.enclosing_surface()
-            if surf_idx.size == 0:
-                surf = np.empty((0, 1, 2), dtype=np.float64)
-            else:
-                layer_cnt = self.contour()
-                _, surf, _ = split_polyline(surf_idx, layer_cnt.transpose(1, 0, 2))
-                surf = surf.transpose(1, 0, 2)
-
-            intf_idx = self.enclosing_interface()
-            if intf_idx.size == 0:
-                intf = np.empty((0, 1, 2), dtype=np.float64)
-            else:
-                subst_cnt = self.substrate.contour() + self.substrate_point()
-                _, intf, _ = split_polyline(intf_idx, subst_cnt.transpose(1, 0, 2))
-                intf = intf.transpose(1, 0, 2)
-
-            surf = equidistant_interpolate(
-                surf, int(np.ceil(cv2.arcLength(surf.astype(np.float32), closed=False)))
-            )
-            intf = equidistant_interpolate(
-                intf, int(np.ceil(cv2.arcLength(intf.astype(np.float32), closed=False)))
-            )
-
-            if surf.size == 0 or intf.size == 0:
-                self._conformality = (np.nan, np.empty((2, 0, 1, 2), dtype=np.float64))
-                return self._conformality
-
-            dist = cdist(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))
-            mat = acm(dist)
-            path = owp(mat)
-            d = dist[path[:, 0], path[:, 1]]
-            d_avrg = mat[-1, -1] / len(path)
-            C = 1 - np.sum(np.abs(d - d_avrg)) / mat[-1, -1]
-            pairs = np.stack([surf[path[..., 0]], intf[path[..., 1]]])
-
-            self._conformality = (float(C), pairs)
-        return self._conformality
 
     def roughness(self) -> Tuple[float, npt.NDArray[np.float64]]:
         """Roughness of the coating layer and its optimal path."""
