@@ -97,6 +97,7 @@ class RectCoatingLayerBase(
     """Abstract base class for coating layer over rectangular substrate."""
 
     __slots__ = (
+        "_layer_contours",
         "_interfaces",
         "_contour",
         "_surface_indices",
@@ -106,6 +107,19 @@ class RectCoatingLayerBase(
     DrawOptions: Type[DrawOptionsType]
     DecoOptions: Type[DecoOptionsType]
     Data: Type[DataType]
+
+    def layer_contours(self) -> Tuple[npt.NDArray[np.int32], ...]:
+        """
+        Return contours of :meth:`extract_layer`.
+        """
+        if not hasattr(self, "_layer_contours"):
+            layer_cnts, _ = cv2.findContours(
+                self.extract_layer().astype(np.uint8),
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_NONE,
+            )
+            self._layer_contours = layer_cnts
+        return self._layer_contours
 
     def interfaces(self) -> Tuple[npt.NDArray[np.int64], ...]:
         """
@@ -131,13 +145,8 @@ class RectCoatingLayerBase(
         """
         if not hasattr(self, "_interfaces"):
             subst_cnt = self.substrate.contour() + self.substrate_point()
-            layer_cnts, _ = cv2.findContours(
-                self.extract_layer().astype(np.uint8),
-                cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_NONE,
-            )
             ret = []
-            for layer_cnt in layer_cnts:
+            for layer_cnt in self.layer_contours():
                 lcnt_img = np.zeros(self.image.shape[:2], dtype=np.uint8)
                 lcnt_img[layer_cnt[..., 1], layer_cnt[..., 0]] = 255
                 dilated_lcnt = cv2.dilate(lcnt_img, np.ones((3, 3))).astype(bool)
@@ -383,6 +392,7 @@ class RectLayerShape(
         "_uniform_layer",
         "_conformality",
         "_roughness",
+        "_max_thickness",
     )
 
     Parameters = RectLayerShapeParameters
@@ -525,48 +535,31 @@ class RectLayerShape(
 
         return self._roughness
 
-    def surface_projections(self, side: str) -> npt.NDArray[np.float64]:
+    def max_thickness(self) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
         """
-        For *side*, return the relevant surface points and its projections to
-        side line.
-
-        Parameters
-        ----------
-        side: {"left", "bottom", "right"}
-
-        Returns
-        -------
-        ndarray
-            Array of the points and projections coordinates. Shape of the array
-            is `(N, 2, D)`, where `N` is the number of points and `D` is the
-            dimension of the point. On the second axis, 0-th index is the surface
-            points and 1-th index is the projection points.
+        Return the maximum thickness on each side (left, bottom, right) and their
+        points.
         """
-        A, B, C, D = self.substrate.sideline_intersections() + self.substrate_point()
-        if side == "left":
-            P1, P2 = A, B
-        elif side == "bottom":
-            P1, P2 = B, C
-        elif side == "right":
-            P1, P2 = C, D
-        else:
-            return np.empty((0, 2, 2), dtype=np.float64)
-
-        surf_idx = self.enclosing_surface()
-        if surf_idx.size == 0:
-            surface = np.empty((0, 1, 2), dtype=np.float64)
-        else:
-            layer_cnt = self.contour()
-            _, surface, _ = split_polyline(surf_idx, layer_cnt.transpose(1, 0, 2))
-            surface = surface.transpose(1, 0, 2)
-
-        mask = np.cross(P2 - P1, surface - P1) >= 0
-        pts = surface[mask][:, np.newaxis]
-        lines = np.stack([P1, P2])[np.newaxis, ...]
-
-        prj = project_on_polylines(pts, lines)
-        prj_pts = np.squeeze(polylines_external_points(prj, lines), axis=2)
-        return np.concatenate([pts, prj_pts], axis=1)
+        if not hasattr(self, "_max_thickness"):
+            corners = self.substrate.sideline_intersections() + self.substrate_point()
+            surface = self.surface()
+            thicknesses, points = [], []
+            for A, B in zip(corners[:-1], corners[1:]):
+                v = B - A
+                mask = np.cross(v, surface - A) >= 0
+                pts = surface[mask]
+                if pts.size == 0:
+                    thicknesses.append(np.float64(0))
+                    points.append(np.array([[-1, -1], [-1, -1]], np.float64))
+                else:
+                    Ap = pts - A
+                    Proj = A + v * (np.dot(Ap, v) / np.dot(v, v))[..., np.newaxis]
+                    dist = np.linalg.norm(Proj - pts, axis=-1)
+                    max_idx = np.argmax(dist)
+                    thicknesses.append(dist[max_idx])
+                    points.append(np.stack([pts[max_idx], Proj[max_idx]]))
+            self._max_thickness = (np.array(thicknesses), np.array(points))
+        return self._max_thickness
 
     def draw(self) -> npt.NDArray[np.uint8]:
         background = self.draw_options.background
@@ -610,34 +603,28 @@ class RectLayerShape(
             )
 
         contactline_opts = self.deco_options.contact_line
-        if contactline_opts.thickness > 0:
-            contactline_points = self.interfaces_boundaries()
-            if len(contactline_points) != 0:
-                (p0,), (p1,) = contactline_points.astype(np.int32)
-                cv2.line(
-                    image,
-                    p0,
-                    p1,
-                    dataclasses.astuple(contactline_opts.color),
-                    contactline_opts.thickness,
-                )
+        if contactline_opts.thickness > 0 and len(self.interfaces()) > 0:
+            indices, = self.interfaces()
+            (i0, i1) = indices.flatten()[[0, -1]]
+            subst_cnt = self.substrate.contour() + self.substrate_point()
+            (p0,), (p1,) = subst_cnt[[i0, i1]].astype(np.int32)
+            cv2.line(
+                image,
+                p0,
+                p1,
+                dataclasses.astuple(contactline_opts.color),
+                contactline_opts.thickness,
+            )
 
         thicknesslines_opts = self.deco_options.thickness_lines
         if thicknesslines_opts.thickness > 0:
             color = dataclasses.astuple(thicknesslines_opts.color)
             t = thicknesslines_opts.thickness
-            for side in ["left", "bottom", "right"]:
-                surf_proj = self.surface_projections(side)
-                dists = np.linalg.norm(np.diff(surf_proj, axis=1), axis=-1)
-                if dists.size == 0:
+            for dist, pts in zip(*self.max_thickness()):
+                if dist == 0:
                     continue
-                max_idxs, _ = np.nonzero(dists == np.max(dists))
-                # split the max indices by continuous locations
-                idx_groups = np.split(max_idxs, np.where(np.diff(max_idxs) != 1)[0] + 1)
-                for idxs in idx_groups:
-                    surf = np.mean(surf_proj[:, 0][idxs], axis=0).astype(np.int32)
-                    proj = np.mean(surf_proj[:, 1][idxs], axis=0).astype(np.int32)
-                    cv2.line(image, surf, proj, color, t)
+                pts = pts.astype(np.int32)
+                cv2.line(image, pts[0], pts[1], color, t)
 
         uniformlayer_opts = self.deco_options.uniform_layer
         if uniformlayer_opts.thickness > 0:
