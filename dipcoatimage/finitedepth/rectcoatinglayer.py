@@ -466,15 +466,15 @@ class RectLayerShape(
     def conformality(self) -> Tuple[float, npt.NDArray[np.int32]]:
         """Conformality of the coating layer and its optimal path."""
         if not hasattr(self, "_conformality"):
-            (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
-            subst_cnt = self.substrate.contour() + self.substrate_point()
-            intf = subst_cnt[i0:i1]
-
-            surf = self.surface()
-
-            if surf.size == 0 or intf.size == 0:
+            if not self.interfaces():
                 self._conformality = (np.nan, np.empty((0, 2), dtype=np.int32))
             else:
+                (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
+                subst_cnt = self.substrate.contour() + self.substrate_point()
+                intf = subst_cnt[i0:i1]
+
+                surf = self.surface()
+
                 dist = cdist(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))
                 mat = acm(dist)
                 path = owp(mat)
