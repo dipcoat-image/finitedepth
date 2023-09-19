@@ -127,12 +127,13 @@ class RectCoatingLayerBase(
             subst_cnt = self.substrate.contour() + self.substrate_point()
             ret = []
             for layer_cnt in self.layer_contours():
-                lcnt_img = np.zeros(self.image.shape[:2], dtype=np.uint8)
+                H, W = self.image.shape[:2]
+                lcnt_img = np.zeros((H, W), dtype=np.uint8)
                 lcnt_img[layer_cnt[..., 1], layer_cnt[..., 0]] = 255
                 dilated_lcnt = cv2.dilate(lcnt_img, np.ones((3, 3))).astype(bool)
 
                 x, y = subst_cnt.transpose(2, 0, 1)
-                mask = dilated_lcnt[y, x]
+                mask = dilated_lcnt[np.clip(y, 0, H - 1), np.clip(x, 0, W - 1)]
 
                 # Find indices of continuous True blocks
                 idxs = np.where(
