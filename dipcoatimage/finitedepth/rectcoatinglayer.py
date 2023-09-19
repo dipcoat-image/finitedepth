@@ -99,9 +99,6 @@ class RectCoatingLayerBase(
     __slots__ = (
         "_interfaces",
         "_contour",
-        "_interfaces_boundaries",
-        "_enclosing_surface",
-        "_enclosing_interface",
     )
 
     Parameters: Type[ParametersType]
@@ -155,6 +152,19 @@ class RectCoatingLayerBase(
             self._interfaces = tuple(ret)
         return self._interfaces
 
+    def contour(self) -> npt.NDArray[np.int32]:
+        """
+        Contour of the entire coated substrate.
+        """
+        if not hasattr(self, "_contour"):
+            (cnt,), _ = cv2.findContours(
+                self.coated_substrate().astype(np.uint8),
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_NONE,
+            )
+            self._contour = cnt
+        return self._contour
+
     def capbridge_broken(self) -> bool:
         p0 = self.substrate_point()
         _, bl, br, _ = self.substrate.contour()[self.substrate.vertices()]
@@ -169,174 +179,6 @@ class RectCoatingLayerBase(
         right = C[0]
         roi_binimg = self.binary_image()[top:bot, left:right]
         return bool(np.any(np.all(roi_binimg, axis=1)))
-
-    def contour(self) -> npt.NDArray[np.int32]:
-        if not hasattr(self, "_contour"):
-            (cnt,), _ = cv2.findContours(
-                self.coated_substrate().astype(np.uint8),
-                cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_SIMPLE,
-            )
-            self._contour = cnt
-        return self._contour
-
-    def interfaces_boundaries(self) -> npt.NDArray[np.float64]:
-        """
-        Return two extremal points of the entire union of interface patches.
-        """
-        # XXX: after implementing uniform layer for convex polyline and removing
-        # contour() overriding of RectSubstrate, make this method return
-        # parameters for boundaries in contour().
-        if not hasattr(self, "_interfaces_boundaries"):
-            (cnt_interfaces,) = self.interfaces(0)
-            if not cnt_interfaces:
-                return np.empty((0, 1, 2), dtype=np.float64)
-            interface_patches = np.concatenate(cnt_interfaces)
-            if len(interface_patches) == 0:
-                return np.empty((0, 1, 2), dtype=np.float64)
-            starts, ends = interface_patches[..., 0], interface_patches[..., 1]
-            t0, t1 = np.sort(starts)[0], np.sort(ends)[-1]
-
-            (subst_cnt,), _ = self.substrate.contour()
-            subst_cnt = subst_cnt + self.substrate_point()  # DON'T USE += !!
-            pts = polylines_internal_points(
-                np.stack([t0, t1]).reshape(-1, 1),
-                subst_cnt.transpose(1, 0, 2),
-            )
-
-            self._interfaces_boundaries = pts
-        return self._interfaces_boundaries
-
-    def enclosing_interface(self) -> npt.NDArray[np.float64]:
-        """
-        Return parameters of substrate contour for open curve over solid-liquid
-        interfaces of every coating layer region.
-
-        Returns
-        -------
-        points: ndarray
-            Parameters for the interval in substrate contour.
-
-        See Also
-        --------
-        enclosing_surface : Open curve over liquid-gas surfaces.
-
-        Notes
-        -----
-        To get the coordinates of polyline vertices, pass this result with
-        substrate contour to :func:`split_polyline`.
-        """
-        if not hasattr(self, "_enclosing_interface"):
-            contactline_points = self.interfaces_boundaries()
-            if len(contactline_points) == 0:
-                return np.empty((0, 1), dtype=np.int32)
-            self._enclosing_interface = closest_in_polylines(
-                contactline_points - self.substrate_point(),
-                self.substrate.contour().transpose(1, 0, 2),
-            )
-        return self._enclosing_interface
-
-    def enclosing_surface(self) -> npt.NDArray[np.float64]:
-        """
-        Return parameters of substrate contour for open curve over liquid-gas
-        surfaces of every coating layer region.
-
-        Returns
-        -------
-        points: ndarray
-            Parameters for the interval in coated substrate contour.
-
-        See Also
-        --------
-        enclosing_interface : Open curve over solid-liquid interfaces.
-
-        Notes
-        -----
-        To get the coordinates of polyline vertices, pass this result with
-        :meth:`contour` to :func:`split_polyline`.
-        """
-        if not hasattr(self, "_enclosing_surface"):
-            contactline_points = self.interfaces_boundaries()
-            if len(contactline_points) == 0:
-                return np.empty((0, 1), dtype=np.int32)
-            self._enclosing_surface = closest_in_polylines(
-                contactline_points,
-                self.contour().transpose(1, 0, 2),
-            )
-        return self._enclosing_surface
-
-    def layer_regions(
-        self,
-    ) -> Tuple[List[npt.NDArray[np.float64]], List[npt.NDArray[np.float64]]]:
-        """
-        Return the interface points and the surface points for the layer on each
-        region of the substrate, i.e. left, bottom, and right.
-
-        Returns
-        -------
-        intf_reg, surf_reg: list of ndarray
-            Coordinates of points. Each array represents a portion of
-            :meth:`enclosing_interface` or :meth:`enclosing_surface`, split by
-            the substrate surface regions.
-
-        Notes
-        -----
-        The substrate region is split by the vertex points on the substrate
-        surface. For each of two boundaries of the substrate region, normal
-        vector is drawn and the closest intersection with the coaating layer
-        surface is found. The coating layer region is split by this intersection.
-        """
-        intf_idx = self.enclosing_interface()
-        surf_idx = self.enclosing_surface()
-        if intf_idx.size == 0 or surf_idx.size == 0:
-            intf_reg = [np.empty((0, 1, 2), dtype=np.float64) for _ in range(3)]
-            surf_reg = [np.empty((0, 1, 2), dtype=np.float64) for _ in range(3)]
-            return intf_reg, surf_reg
-        subst_vert_idx = np.clip(self.substrate.vertices(), *intf_idx)
-        subst_cnt = self.substrate.contour() + self.substrate_point()
-        intf_reg = split_polyline(subst_vert_idx, subst_cnt.transpose(1, 0, 2))[1:-1]
-        intf_reg = [reg.transpose(1, 0, 2) for reg in intf_reg]
-
-        _, surf, _ = split_polyline(surf_idx, self.contour().transpose(1, 0, 2))
-
-        surf_reg = []
-        for reg in intf_reg:
-            if not len(reg) > 1:
-                surf_reg.append(np.empty((0, 1, 2), dtype=np.float64))
-                continue
-            boundary_dr = reg[[1, -1]] - reg[[0, -2]]
-            if np.any(np.linalg.norm(boundary_dr, axis=-1) == 0):
-                surf_reg.append(np.empty((0, 1, 2), dtype=np.float64))
-                continue
-
-            pt = reg[[0, -1]]
-            n = np.dot(boundary_dr, ROTATION_MATRIX)
-            surf_reg_idx = []
-            for line in np.concatenate([pt, pt + n], axis=1):
-                intrsct_idx = line_polyline_intersections(line[np.newaxis, ...], surf)
-                intrsct_pts = polylines_internal_points(
-                    intrsct_idx[..., np.newaxis], surf
-                )
-                vec = intrsct_pts - line[0]
-                # Find intersection which is on external direction
-                valid = np.dot(vec, line[1] - line[0]) >= 0
-                if not np.any(valid):
-                    # Intersection not found due to pixel accuracy error!
-                    # Fallback to closest point.
-                    line_start = line[0].reshape(1, 1, -1)
-                    (idx,) = closest_in_polylines(line_start, surf).reshape(-1)
-                    surf_reg_idx.append(idx)
-                    continue
-                dist = np.linalg.norm(
-                    intrsct_pts[valid] - line[np.newaxis, :1, :], axis=-1
-                )
-                (idx,) = intrsct_idx.reshape(-1, 1, 1)[valid][np.argmin(dist)]
-                surf_reg_idx.append(idx)
-
-            _, sreg, _ = split_polyline(np.array(surf_reg_idx)[..., np.newaxis], surf)
-            surf_reg.append(sreg.transpose(1, 0, 2))
-
-        return intf_reg, surf_reg
 
 
 @dataclasses.dataclass(frozen=True)
@@ -573,7 +415,7 @@ class RectLayerShape(
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """Return thickness and points for uniform layer."""
         if not hasattr(self, "_uniform_layer"):
-            ((i0, i1),) = self.interfaces2(0)[0][0].flatten()[[0, -1]]
+            ((i0, i1),), = self.interfaces()
             subst_cnt = self.substrate.contour() + self.substrate_point()
             covered_subst = subst_cnt[i0:i1]
             # Acquiring parallel curve from contour is difficult because of noise.
@@ -583,7 +425,7 @@ class RectLayerShape(
             # Here, we simply use convex hull as a model.
             covered_hull = np.flip(cv2.convexHull(covered_subst), axis=0)
 
-            S = cv2.contourArea(self.layer_contours()[0])
+            S = np.count_nonzero(self.extract_layer())
             (t,) = root(lambda x: polyline_parallel_area(covered_hull, x) - S, 0).x
             t = np.float64(t)
 
