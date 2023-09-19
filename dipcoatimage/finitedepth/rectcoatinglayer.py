@@ -545,15 +545,15 @@ class RectLayerShape(
             surface = self.surface()
             thicknesses, points = [], []
             for A, B in zip(corners[:-1], corners[1:]):
-                v = B - A
-                mask = np.cross(v, surface - A) >= 0
+                AB = B - A
+                mask = np.cross(AB, surface - A) >= 0
                 pts = surface[mask]
                 if pts.size == 0:
                     thicknesses.append(np.float64(0))
                     points.append(np.array([[-1, -1], [-1, -1]], np.float64))
                 else:
                     Ap = pts - A
-                    Proj = A + v * (np.dot(Ap, v) / np.dot(v, v))[..., np.newaxis]
+                    Proj = A + AB * (np.dot(Ap, AB) / np.dot(AB, AB))[..., np.newaxis]
                     dist = np.linalg.norm(Proj - pts, axis=-1)
                     max_idx = np.argmax(dist)
                     thicknesses.append(dist[max_idx])
@@ -666,29 +666,24 @@ class RectLayerShape(
     def analyze_layer(self):
         _, B, C, _ = self.substrate.sideline_intersections() + self.substrate_point()
 
-        contactline_points = self.interfaces_boundaries()
-        if len(contactline_points) != 0:
-            Bp = contactline_points - B
-            BC = C - B
-            t = np.dot(Bp, BC) / np.dot(BC, BC)
-            dists = np.linalg.norm(Bp - np.tensordot(t, BC, axes=0), axis=-1)
-            (LEN_L,), (LEN_R,) = dists.astype(np.float64)
-        else:
+        if not self.interfaces():
             LEN_L = LEN_R = np.float64(0)
+        else:
+            indices, = self.interfaces()
+            (i0, i1) = indices.flatten()[[0, -1]]
+            subst_cnt = self.substrate.contour() + self.substrate_point()
+            pts = subst_cnt[[i0, i1]]
+
+            Bp = pts - B
+            BC = C - B
+            Proj = B + BC * (np.dot(Bp, BC) / np.dot(BC, BC))[..., np.newaxis]
+            dists = np.linalg.norm(Proj - pts, axis=-1)
+            (LEN_L,), (LEN_R,) = dists.astype(np.float64)
 
         C, _ = self.conformality()
         AVRGTHCK, _ = self.uniform_layer()
         ROUGH, _ = self.roughness()
-
-        max_dists = []
-        for side in ["left", "bottom", "right"]:
-            surf_proj = self.surface_projections(side)
-            dists = np.linalg.norm(np.diff(surf_proj, axis=1), axis=-1)
-            if dists.size == 0:
-                max_dists.append(np.float64(0))
-            else:
-                max_dists.append(dists.max())
-        THCK_L, THCK_B, THCK_R = max_dists
+        (THCK_L, THCK_B, THCK_R), _ = self.max_thickness()
 
         ERR, _ = self.match_substrate()
         CHIPWIDTH = np.linalg.norm(B - C)
