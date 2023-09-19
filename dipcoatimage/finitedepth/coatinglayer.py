@@ -68,8 +68,7 @@ from .util import (
     binarize,
     colorize,
 )
-from .util.geometry import closest_in_polylines
-from typing import TypeVar, Generic, Type, Optional, Tuple, List
+from typing import TypeVar, Generic, Type, Optional, Tuple
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -181,6 +180,7 @@ class CoatingLayerBase(
         "_match_substrate",
         "_coated_substrate",
         "_extracted_layer",
+        "_layer_contours",
     )
 
     Parameters: Type[ParametersType]
@@ -324,11 +324,24 @@ class CoatingLayerBase(
         if not hasattr(self, "_extracted_layer"):
             # remove the substrate
             x0, y0 = self.substrate_point()
-            subst_mask = (self.substrate.regions() >= 0)
+            subst_mask = self.substrate.regions() >= 0
             ret = images_ANDXOR(self.coated_substrate(), subst_mask, (x0, y0))
             ret[:y0, :] = False
             self._extracted_layer = ret
         return self._extracted_layer
+
+    def layer_contours(self) -> Tuple[npt.NDArray[np.int32], ...]:
+        """
+        Return contours of :meth:`extract_layer`.
+        """
+        if not hasattr(self, "_layer_contours"):
+            layer_cnts, _ = cv2.findContours(
+                self.extract_layer().astype(np.uint8),
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_NONE,
+            )
+            self._layer_contours = layer_cnts
+        return self._layer_contours
 
     @abc.abstractmethod
     def examine(self) -> Optional[CoatingLayerError]:

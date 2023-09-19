@@ -35,7 +35,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.optimize import root  # type: ignore
 from scipy.spatial.distance import cdist  # type: ignore
-from typing import TypeVar, Type, Tuple, List, Optional
+from typing import TypeVar, Type, Tuple, Optional
 from .rectsubstrate import RectSubstrate
 from .coatinglayer import (
     CoatingLayerError,
@@ -52,12 +52,6 @@ from .util import (
 )
 from .util.dtw import acm, owp
 from .util.geometry import (
-    split_polyline,
-    line_polyline_intersections,
-    project_on_polylines,
-    polylines_external_points,
-    closest_in_polylines,
-    polylines_internal_points,
     polyline_parallel_area,
     equidistant_interpolate,
 )
@@ -97,7 +91,6 @@ class RectCoatingLayerBase(
     """Abstract base class for coating layer over rectangular substrate."""
 
     __slots__ = (
-        "_layer_contours",
         "_interfaces",
         "_contour",
         "_surface_indices",
@@ -107,19 +100,6 @@ class RectCoatingLayerBase(
     DrawOptions: Type[DrawOptionsType]
     DecoOptions: Type[DecoOptionsType]
     Data: Type[DataType]
-
-    def layer_contours(self) -> Tuple[npt.NDArray[np.int32], ...]:
-        """
-        Return contours of :meth:`extract_layer`.
-        """
-        if not hasattr(self, "_layer_contours"):
-            layer_cnts, _ = cv2.findContours(
-                self.extract_layer().astype(np.uint8),
-                cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_NONE,
-            )
-            self._layer_contours = layer_cnts
-        return self._layer_contours
 
     def interfaces(self) -> Tuple[npt.NDArray[np.int64], ...]:
         """
@@ -195,7 +175,7 @@ class RectCoatingLayerBase(
             return np.empty((0, 1, 2), np.int32)
 
         if not hasattr(self, "_surface_indices"):
-            indices, = self.interfaces()
+            (indices,) = self.interfaces()
             (i0, i1) = indices.flatten()[[0, -1]]
             subst_cnt = self.substrate.contour() + self.substrate_point()
             endpoints = subst_cnt[[i0, i1]]
@@ -203,7 +183,7 @@ class RectCoatingLayerBase(
             vec = self.contour() - endpoints.transpose(1, 0, 2)
             self._surface_indices = np.argmin(np.linalg.norm(vec, axis=-1), axis=0)
         (I0, I1) = self._surface_indices
-        return self.contour()[I0: I1 + 1]
+        return self.contour()[I0 : I1 + 1]
 
     def capbridge_broken(self) -> bool:
         p0 = self.substrate_point()
@@ -459,7 +439,7 @@ class RectLayerShape(
             return (np.float64(0), np.empty((0, 1, 2), np.float64))
 
         if not hasattr(self, "_uniform_layer"):
-            indices, = self.interfaces()
+            (indices,) = self.interfaces()
             (i0, i1) = indices.flatten()[[0, -1]]
             subst_cnt = self.substrate.contour() + self.substrate_point()
             covered_subst = subst_cnt[i0:i1]
@@ -484,10 +464,10 @@ class RectLayerShape(
             self._uniform_layer = (t, ul)
         return self._uniform_layer
 
-    def conformality(self) -> Tuple[np.float64, npt.NDArray[np.int32]]:
+    def conformality(self) -> Tuple[float, npt.NDArray[np.int32]]:
         """Conformality of the coating layer and its optimal path."""
         if not hasattr(self, "_conformality"):
-            indices, = self.interfaces()
+            (indices,) = self.interfaces()
             (i0, i1) = indices.flatten()[[0, -1]]
             subst_cnt = self.substrate.contour() + self.substrate_point()
             intf = subst_cnt[i0:i1]
@@ -503,19 +483,18 @@ class RectLayerShape(
                 d = dist[path[:, 0], path[:, 1]]
                 d_avrg = mat[-1, -1] / len(path)
                 C = 1 - np.sum(np.abs(d - d_avrg)) / mat[-1, -1]
-                # pairs = np.stack([surf[path[..., 0]], intf[path[..., 1]]])
-                self._conformality = (np.float64(C), path)
-    
+                self._conformality = (float(C), path)
+
         return self._conformality
 
-    def roughness(self) -> Tuple[np.float64, npt.NDArray[np.int32]]:
+    def roughness(self) -> Tuple[float, npt.NDArray[np.int32]]:
         """Roughness of the coating layer and its optimal path."""
         if not hasattr(self, "_roughness"):
             surf = self.surface()
             _, ul = self.uniform_layer()
 
             if surf.size == 0 or ul.size == 0:
-                self._roughness = (np.nan, np.empty((0, 2), dtype=np.float64))
+                self._roughness = (np.nan, np.empty((0, 2), dtype=np.int32))
             else:
                 measure = self.parameters.RoughnessMeasure
                 if measure == DistanceMeasure.DTW:
@@ -530,8 +509,7 @@ class RectLayerShape(
                     roughness = np.sqrt(mat[-1, -1] / len(path))
                 else:
                     raise TypeError(f"Unknown measure: {measure}")
-                # pairs = np.stack([surf[path[..., 0]], ul[path[..., 1]]])
-                self._roughness = (np.float64(roughness), path)
+                self._roughness = (float(roughness), path)
 
         return self._roughness
 
@@ -604,7 +582,7 @@ class RectLayerShape(
 
         contactline_opts = self.deco_options.contact_line
         if contactline_opts.thickness > 0 and len(self.interfaces()) > 0:
-            indices, = self.interfaces()
+            (indices,) = self.interfaces()
             (i0, i1) = indices.flatten()[[0, -1]]
             subst_cnt = self.substrate.contour() + self.substrate_point()
             (p0,), (p1,) = subst_cnt[[i0, i1]].astype(np.int32)
@@ -669,7 +647,7 @@ class RectLayerShape(
         if not self.interfaces():
             LEN_L = LEN_R = np.float64(0)
         else:
-            indices, = self.interfaces()
+            (indices,) = self.interfaces()
             (i0, i1) = indices.flatten()[[0, -1]]
             subst_cnt = self.substrate.contour() + self.substrate_point()
             pts = subst_cnt[[i0, i1]]
