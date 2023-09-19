@@ -126,7 +126,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         cnt = self.contour()
 
         # 1. Calculate curvatures
-        h = 12  # TODO: let this determined by parameter
+        h = 64  # TODO: let this determined by parameter
         f_prev = np.roll(cnt, h, axis=0)
         f_post = np.roll(cnt, -h, axis=0)
         f_dt = (f_post - f_prev) / h
