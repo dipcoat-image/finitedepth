@@ -105,9 +105,9 @@ class LinesOptions:
 
     """
 
-    color: Color
-    linewidth: int
-    step: int
+    color: Color = dataclasses.field(default_factory=lambda: Color(0, 0, 0))
+    linewidth: int = 1
+    step: int = 1
 
 
 @dataclasses.dataclass
