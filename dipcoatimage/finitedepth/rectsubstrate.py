@@ -66,7 +66,7 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions]):
        :include-source:
        :context: close-figs
 
-       >>> subst.draw_options.sidelines.thickness = 3
+       >>> subst.draw_options.sidelines.linewidth = 3
        >>> subst.draw_options.sidelines.color.red = 255
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
@@ -95,14 +95,14 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions]):
         ret = colorize(image)
 
         side_opts = self.draw_options.sidelines
-        if side_opts.thickness > 0:
+        if side_opts.linewidth > 0:
             tl, bl, br, tr = self.sideline_intersections().astype(np.int32)
 
             color = dataclasses.astuple(side_opts.color)
-            thickness = side_opts.thickness
-            cv2.line(ret, tl, tr, color, thickness)
-            cv2.line(ret, tr, br, color, thickness)
-            cv2.line(ret, br, bl, color, thickness)
-            cv2.line(ret, bl, tl, color, thickness)
+            linewidth = side_opts.linewidth
+            cv2.line(ret, tl, tr, color, linewidth)
+            cv2.line(ret, tr, br, color, linewidth)
+            cv2.line(ret, br, bl, color, linewidth)
+            cv2.line(ret, bl, tl, color, linewidth)
 
         return ret

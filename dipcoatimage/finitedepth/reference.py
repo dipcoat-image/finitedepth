@@ -329,16 +329,16 @@ class SubstrateReference(SubstrateReferenceBase[Parameters, DrawOptions]):
         ret = colorize(image)
 
         substROI_opts = self.draw_options.substrateROI
-        if substROI_opts.thickness > 0:
+        if substROI_opts.linewidth > 0:
             x0, y0, x1, y1 = self.substrateROI
             color = dataclasses.astuple(substROI_opts.color)
-            thickness = substROI_opts.thickness
-            cv2.rectangle(ret, (x0, y0), (x1, y1), color, thickness)
+            linewidth = substROI_opts.linewidth
+            cv2.rectangle(ret, (x0, y0), (x1, y1), color, linewidth)
 
         tempROI_opts = self.draw_options.templateROI
-        if tempROI_opts.thickness > 0:
+        if tempROI_opts.linewidth > 0:
             x0, y0, x1, y1 = self.templateROI
             color = dataclasses.astuple(tempROI_opts.color)
-            thickness = tempROI_opts.thickness
-            cv2.rectangle(ret, (x0, y0), (x1, y1), color, thickness)
+            linewidth = tempROI_opts.linewidth
+            cv2.rectangle(ret, (x0, y0), (x1, y1), color, linewidth)
         return ret

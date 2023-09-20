@@ -1,5 +1,6 @@
 import dataclasses
 import enum
+from .util.parameters import Color, LineOptions, PatchOptions
 from typing import Tuple
 
 
@@ -9,6 +10,8 @@ __all__ = [
     "PaintMode",
     "SubtractionMode",
     "DrawOptions",
+    "LinesOptions",
+    "DecoOptions",
 ]
 
 
@@ -108,3 +111,66 @@ class DrawOptions:
 
     paint: PaintMode = PaintMode.BINARY
     subtraction: SubtractionMode = SubtractionMode.NONE
+
+
+@dataclasses.dataclass
+class LinesOptions:
+    """
+    Parameters to draw lines in the image.
+
+    Attributes
+    ----------
+    color : Color
+    linewidth : int
+        Width of the line.
+        Zero value is the flag to not draw the line.
+    step : int
+        Steps to jump the lines. `1` draws every line.
+
+    """
+
+    color: Color
+    linewidth: int
+    step: int
+
+
+@dataclasses.dataclass
+class DecoOptions:
+    """
+    Options to decorate the analysis result on :class:`RectLayerShape`.
+
+    Attributes
+    ----------
+    layer : PatchOptions
+    contact_line, thickness, uniform_layer : LineOptions
+    conformality, roughness : LinesOptions
+
+    """
+
+    layer: PatchOptions = dataclasses.field(
+        default_factory=lambda: PatchOptions(
+            fill=True,
+            edgecolor=Color(0, 0, 255),
+            facecolor=Color(255, 255, 255),
+            linewidth=1,
+        )
+    )
+    contact_line: LineOptions = dataclasses.field(
+        default_factory=lambda: LineOptions(color=Color(0, 0, 255), linewidth=1)
+    )
+    thickness: LineOptions = dataclasses.field(
+        default_factory=lambda: LineOptions(color=Color(0, 0, 255), linewidth=1)
+    )
+    uniform_layer: LineOptions = dataclasses.field(
+        default_factory=lambda: LineOptions(color=Color(255, 0, 0), linewidth=1)
+    )
+    conformality: LinesOptions = dataclasses.field(
+        default_factory=lambda: LinesOptions(
+            color=Color(0, 255, 0), linewidth=1, step=10
+        )
+    )
+    roughness: LinesOptions = dataclasses.field(
+        default_factory=lambda: LinesOptions(
+            color=Color(255, 0, 0), linewidth=1, step=10
+        )
+    )

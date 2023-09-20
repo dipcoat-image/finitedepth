@@ -48,8 +48,8 @@ class DrawOptions:
 
     paint: PaintMode = PaintMode.BINARY
     templateROI: LineOptions = dataclasses.field(
-        default_factory=lambda: LineOptions(color=Color(0, 255, 0), thickness=1)
+        default_factory=lambda: LineOptions(color=Color(0, 255, 0), linewidth=1)
     )
     substrateROI: LineOptions = dataclasses.field(
-        default_factory=lambda: LineOptions(color=Color(255, 0, 0), thickness=1)
+        default_factory=lambda: LineOptions(color=Color(255, 0, 0), linewidth=1)
     )

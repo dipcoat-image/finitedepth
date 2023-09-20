@@ -42,5 +42,5 @@ class DrawOptions:
 
     paint: PaintMode = PaintMode.BINARY
     sidelines: LineOptions = dataclasses.field(
-        default_factory=lambda: LineOptions(color=Color(0, 0, 255), thickness=1)
+        default_factory=lambda: LineOptions(color=Color(0, 0, 255), linewidth=1)
     )

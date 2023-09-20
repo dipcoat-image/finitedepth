@@ -13,15 +13,16 @@ import dataclasses
 __all__ = [
     "Color",
     "LineOptions",
+    "PatchOptions",
     "FeatureDrawingOptions",
 ]
 
 
 @dataclasses.dataclass
 class Color:
-    red: int = 0
-    green: int = 0
-    blue: int = 0
+    red: int
+    green: int
+    blue: int
 
 
 @dataclasses.dataclass
@@ -32,15 +33,36 @@ class LineOptions:
     Attributes
     ----------
     color : Color
-        Color of the line.
-    thickness : nonnegative int
-        Thickness of the line.
-        Zero value is the flag to not draw the feature.
+    linewidth : int
+        Width of the line.
+        Zero value is the flag to not draw the line.
 
     """
 
-    color: Color = dataclasses.field(default_factory=Color)
-    thickness: int = 1
+    color: Color = dataclasses.field(default_factory=lambda: Color(0, 0, 0))
+    linewidth: int = 1
+
+
+@dataclasses.dataclass
+class PatchOptions:
+    """
+    Parameters to draw a patch in the image.
+
+    Attributes
+    ----------
+    fill : bool
+        Whether to fill the patch with facecolor.
+    edgecolor, facecolor : Color
+    linewidth : int
+        Width of the edge.
+        Zero value is the flag to not draw the edge.
+
+    """
+
+    fill: bool = True
+    edgecolor: Color = dataclasses.field(default_factory=lambda: Color(0, 0, 0))
+    facecolor: Color = dataclasses.field(default_factory=lambda: Color(0, 0, 0))
+    linewidth: int = 1
 
 
 @dataclasses.dataclass
@@ -66,6 +88,6 @@ class FeatureDrawingOptions:
 
     """
 
-    color: Color = dataclasses.field(default_factory=Color)
+    color: Color = dataclasses.field(default_factory=lambda: Color(0, 0, 0))
     thickness: int = 1
     drawevery: int = 1
