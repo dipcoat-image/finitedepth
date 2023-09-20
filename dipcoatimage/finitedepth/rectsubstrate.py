@@ -20,7 +20,8 @@ import dataclasses
 import enum
 import numpy as np
 import numpy.typing as npt
-from .polysubstrate import PolySubstrateParameters, PolySubstrateBase
+from .polysubstrate import PolySubstrateBase
+from .polysubstrate_param import Parameters as PolySubstrateParameters
 from .util import (
     colorize,
     FeatureDrawingOptions,

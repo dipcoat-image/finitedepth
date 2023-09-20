@@ -6,19 +6,18 @@ Polygonal Substrate
 substrate with polygonal cross section.
 
 """
-import dataclasses
 import numpy as np
 import numpy.typing as npt
 from numba import njit  # type: ignore
 from scipy.signal import find_peaks, peak_prominences  # type: ignore
 from typing import TypeVar, Optional, Type, Tuple
 from .substrate import SubstrateError, SubstrateBase
+from .polysubstrate_param import Parameters
 from .util import DataclassProtocol
 
 
 __all__ = [
     "PolySubstrateError",
-    "PolySubstrateParameters",
     "PolySubstrateBase",
     "houghline_accum",
 ]
@@ -33,28 +32,7 @@ class PolySubstrateError(SubstrateError):
 ROTATION_MATRIX = np.array([[0, 1], [-1, 0]])
 
 
-@dataclasses.dataclass(frozen=True)
-class PolySubstrateParameters:
-    """
-    Parameters for :class:`PolySubstrate`.
-
-    Parameters
-    ----------
-    Sigma: positive float
-        Standard deviation of Gaussian kernel to smooth the noise.
-    Rho: positive float
-        Radian resolution for Hough transformation to detect the sidelines.
-    Theta: positive float
-        Angle resolution for Hough transformation to detect the sidelines.
-
-    """
-
-    Sigma: float
-    Rho: float
-    Theta: float
-
-
-ParametersType = TypeVar("ParametersType", bound=PolySubstrateParameters)
+ParametersType = TypeVar("ParametersType", bound=Parameters)
 DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
 
 
@@ -126,7 +104,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         cnt = self.contour()
 
         # 1. Calculate curvatures
-        h = 64  # TODO: let this determined by parameter
+        h = 64  # TODO: use gaussian blurring instead
         f_prev = np.roll(cnt, h, axis=0)
         f_post = np.roll(cnt, -h, axis=0)
         f_dt = (f_post - f_prev) / h
