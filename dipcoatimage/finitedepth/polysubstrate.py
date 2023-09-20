@@ -9,6 +9,7 @@ substrate with polygonal cross section.
 import numpy as np
 import numpy.typing as npt
 from numba import njit  # type: ignore
+from scipy.ndimage import gaussian_filter1d  # type: ignore
 from scipy.signal import find_peaks, peak_prominences  # type: ignore
 from typing import TypeVar, Optional, Type, Tuple
 from .substrate import SubstrateError, SubstrateBase
@@ -91,24 +92,23 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
         extrema of curvature[2]_. This method finds the vertices by locating a
         certain number (defined by d:attr:`SidesNum`) of the extrema.
 
-        Symmetric derivative[3]_ was used to reduce noise from contour[4]_.
+        Gaussian filter was used to reduce noise from contour[3]_. Sigma value
+        is determined from :meth:`parameters`.
 
         References
         ----------
         .. [1] https://en.wikipedia.org/wiki/Vertex_(geometry)
         .. [2] https://en.wikipedia.org/wiki/Vertex_(curve)
-        .. [3] https://en.wikipedia.org/wiki/Symmetric_derivative
-        .. [4] https://stackoverflow.com/q/32629806
+        .. [3] https://stackoverflow.com/q/32629806
 
         """
-        cnt = self.contour()
+        cnt = self.contour().astype(np.float64)
 
         # 1. Calculate curvatures
-        h = 64  # TODO: use gaussian blurring instead
-        f_prev = np.roll(cnt, h, axis=0)
-        f_post = np.roll(cnt, -h, axis=0)
-        f_dt = (f_post - f_prev) / h
-        f_dt2 = (f_post - 2 * cnt + f_prev) / h**2
+        s = self.parameters.Sigma
+        f = gaussian_filter1d(cnt, s, axis=0, order=0, mode="wrap")
+        f_dt = np.gradient(f, axis=0)
+        f_dt2 = np.gradient(f_dt, axis=0)
         K = np.abs(np.cross(f_dt, f_dt2)) / np.linalg.norm(f_dt, axis=-1) ** 3
 
         # 2. Repeat the array (periodic)
