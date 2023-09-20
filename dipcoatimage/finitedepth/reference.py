@@ -36,11 +36,7 @@ from .util import (
     IntROI,
     sanitize_ROI,
 )
-from .reference_param import (
-    Parameters,
-    DrawOptions,
-    PaintMode,
-)
+from .reference_param import Parameters, DrawOptions, PaintMode
 from typing import TypeVar, Generic, Type, Optional
 
 
