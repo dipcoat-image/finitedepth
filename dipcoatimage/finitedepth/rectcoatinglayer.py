@@ -11,18 +11,6 @@ Base class
 Implementation
 ==============
 
-.. autoclass:: RectLayerShapeParameters
-   :members:
-
-.. autoclass:: RectLayerShapeDrawOptions
-   :members:
-
-.. autoclass:: RectLayerShapeDecoOptions
-   :members:
-
-.. autoclass:: RectLayerShapeData
-   :members:
-
 .. autoclass:: RectLayerShape
    :members:
 
@@ -30,7 +18,6 @@ Implementation
 
 import cv2  # type: ignore
 import dataclasses
-import enum
 import numpy as np
 import numpy.typing as npt
 from scipy.optimize import root  # type: ignore
@@ -40,8 +27,13 @@ from .rectsubstrate import RectSubstrate
 from .coatinglayer import (
     CoatingLayerError,
     CoatingLayerBase,
-    BackgroundDrawMode,
-    SubtractionDrawMode,
+)
+from .rectcoatinglayer_param import (
+    DistanceMeasure,
+    Parameters,
+    DrawOptions,
+    PaintMode,
+    SubtractionMode,
 )
 from .util import (
     images_XOR,
@@ -56,20 +48,9 @@ from .util.geometry import (
     equidistant_interpolate,
 )
 
-try:
-    from typing import TypeAlias  # type: ignore[attr-defined]
-except ImportError:
-    from typing_extensions import TypeAlias
-
 
 __all__ = [
     "RectCoatingLayerBase",
-    "MorphologyClosingParameters",
-    "DistanceMeasure",
-    "RectLayerShapeParameters",
-    "RectLayerShapeDrawOptions",
-    "RectLayerShapeDecoOptions",
-    "RectLayerShapeData",
     "RectLayerShape",
 ]
 
@@ -201,48 +182,6 @@ class RectCoatingLayerBase(
         return bool(np.any(np.all(roi_binimg, axis=1)))
 
 
-@dataclasses.dataclass(frozen=True)
-class MorphologyClosingParameters:
-    """
-    Parameter to perform Morphological closing operation.
-
-    Kernel sizes MUST be odd lest the operation leaves residue pixels.
-    """
-
-    kernelSize: Tuple[int, int]
-    anchor: Tuple[int, int] = (-1, -1)
-    iterations: int = 1
-
-
-class DistanceMeasure(enum.Enum):
-    """
-    Distance measures to compute the curve similarity.
-
-    - DTW : Dynamic time warping
-    - SDTW : Squared dynamic time warping
-    """
-
-    DTW = "DTW"
-    SDTW = "SDTW"
-
-
-@dataclasses.dataclass(frozen=True)
-class RectLayerShapeParameters:
-    """Analysis parameters for :class:`RectLayerShape` instance."""
-
-    MorphologyClosing: MorphologyClosingParameters
-    ReconstructRadius: int
-    RoughnessMeasure: DistanceMeasure
-
-
-@dataclasses.dataclass
-class RectLayerShapeDrawOptions:
-    """Drawing options for :class:`RectLayerShape` instance."""
-
-    background: BackgroundDrawMode = BackgroundDrawMode.ORIGINAL
-    subtract_mode: SubtractionDrawMode = SubtractionDrawMode.NONE
-
-
 @dataclasses.dataclass
 class RectLayerShapeDecoOptions:
     """Decorating options for :class:`RectLayerShape` instance."""
@@ -305,8 +244,8 @@ class RectLayerShapeData:
 
 class RectLayerShape(
     RectCoatingLayerBase[
-        RectLayerShapeParameters,
-        RectLayerShapeDrawOptions,
+        Parameters,
+        DrawOptions,
         RectLayerShapeDecoOptions,
         RectLayerShapeData,
     ]
@@ -358,7 +297,7 @@ class RectLayerShape(
        >>> coat_path = get_samples_path("coat3.png")
        >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
        >>> param_val = dict(
-       ...     MorphologyClosing=dict(kernelSize=(1, 1)),
+       ...     KernelSize=(1, 1),
        ...     ReconstructRadius=50,
        ...     RoughnessMeasure="SDTW",
        ... )
@@ -375,16 +314,16 @@ class RectLayerShape(
         "_max_thickness",
     )
 
-    Parameters = RectLayerShapeParameters
-    DrawOptions = RectLayerShapeDrawOptions
+    Parameters = Parameters
+    DrawOptions = DrawOptions
     DecoOptions = RectLayerShapeDecoOptions
     Data = RectLayerShapeData
 
-    BackgroundDrawMode: TypeAlias = BackgroundDrawMode
-    SubtractionDrawMode: TypeAlias = SubtractionDrawMode
+    PaintMode = PaintMode
+    SubtractionMode = SubtractionMode
 
     def examine(self) -> Optional[CoatingLayerError]:
-        ksize = self.parameters.MorphologyClosing.kernelSize
+        ksize = self.parameters.KernelSize
         if not all(i == 0 or i % 2 == 1 for i in ksize):
             return CoatingLayerError("Kernel size must be odd.")
         if not self.capbridge_broken():
@@ -396,19 +335,15 @@ class RectLayerShape(
             # Perform opening to remove error pixels. We named the parameter as
             # "closing" because the coating layer is black in original image, but
             # in fact we do opening since the layer is True in extracted layer.
-            closingParams = self.parameters.MorphologyClosing
-            if any(i == 0 for i in closingParams.kernelSize):
+            ksize = self.parameters.KernelSize
+            if any(i == 0 for i in ksize):
                 img = super().extract_layer().astype(np.uint8) * 255
             else:
-                kernel = cv2.getStructuringElement(
-                    cv2.MORPH_RECT, closingParams.kernelSize
-                )
+                kernel = cv2.getStructuringElement(cv2.MORPH_RECT, ksize)
                 img = cv2.morphologyEx(
                     super().extract_layer().astype(np.uint8) * 255,
                     cv2.MORPH_OPEN,
                     kernel,
-                    anchor=closingParams.anchor,
-                    iterations=closingParams.iterations,
                 )
 
             # closed image may still have error pixels, and at least we have to
@@ -538,19 +473,19 @@ class RectLayerShape(
         return self._max_thickness
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        background = self.draw_options.background
-        if background == self.BackgroundDrawMode.ORIGINAL:
+        paint = self.draw_options.paint
+        if paint == self.PaintMode.ORIGINAL:
             image = self.image.copy()
-        elif background == self.BackgroundDrawMode.BINARY:
+        elif paint == self.PaintMode.BINARY:
             image = self.binary_image().copy()
-        elif background == self.BackgroundDrawMode.EMPTY:
+        elif paint == self.PaintMode.EMPTY:
             image = np.full(self.image.shape, 255, dtype=np.uint8)
         else:
-            raise TypeError("Unrecognized background mode: %s" % background)
+            raise TypeError("Unrecognized paint mode: %s" % paint)
         image = colorize(image)
 
-        subtract_mode = self.draw_options.subtract_mode
-        if subtract_mode & self.SubtractionDrawMode.TEMPLATE:
+        subtraction = self.draw_options.subtraction
+        if subtraction & self.SubtractionMode.TEMPLATE:
             x0, y0, x1, y1 = self.substrate.reference.templateROI
             tempImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
             h, w = tempImg.shape[:2]
@@ -558,7 +493,7 @@ class RectLayerShape(
             binImg = self.binary_image()[Y0 : Y0 + h, X0 : X0 + w]
             mask = images_XOR(~binImg.astype(bool), ~tempImg.astype(bool))
             image[Y0 : Y0 + h, X0 : X0 + w][~mask] = 255
-        if subtract_mode & self.SubtractionDrawMode.SUBSTRATE:
+        if subtraction & self.SubtractionMode.SUBSTRATE:
             x0, y0, x1, y1 = self.substrate.reference.substrateROI
             substImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
             h, w = substImg.shape[:2]

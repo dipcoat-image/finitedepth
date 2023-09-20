@@ -262,7 +262,7 @@ class CoatingLayerArgs:
 
        >>> from dipcoatimage.finitedepth import CoatingLayerArgs
        >>> params = dict(
-       ...     MorphologyClosing=dict(kernelSize=(1, 1)),
+       ...     KernelSize=(1, 1),
        ...     ReconstructRadius=50,
        ...     RoughnessMeasure="SDTW",
        ...     RoughnessSamples=100,

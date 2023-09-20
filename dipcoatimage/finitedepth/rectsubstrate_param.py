@@ -5,6 +5,7 @@ from .util.parameters import Color
 
 __all__ = [
     "PaintMode",
+    "SideLineOptions",
     "DrawOptions",
 ]
 
@@ -13,8 +14,8 @@ class PaintMode(enum.Enum):
     """
     Option to determine how the substrate image is painted.
 
-    Attributes
-    ----------
+    Members
+    -------
     ORIGINAL
         Show the original substrate image.
     BINARY
@@ -50,7 +51,14 @@ class SideLineOptions:
 
 @dataclasses.dataclass
 class DrawOptions:
-    """Drawing options for :class:`RectSubstrate`."""
+    """
+    Drawing options for :class:`RectSubstrate`.
+
+    Attributes
+    ----------
+    paint : PaintMode
+    sidelines : SideLineOptions
+    """
 
     paint: PaintMode = PaintMode.BINARY
     sidelines: SideLineOptions = dataclasses.field(

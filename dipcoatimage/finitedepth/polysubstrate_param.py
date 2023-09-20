@@ -11,7 +11,7 @@ class Parameters:
     """
     Parameters for :class:`PolySubstrate`.
 
-    Parameters
+    Attributes
     ----------
     Sigma: positive float
         Standard deviation of Gaussian kernel to smooth the noise.

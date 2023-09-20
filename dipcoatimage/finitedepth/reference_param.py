@@ -22,8 +22,8 @@ class PaintMode(enum.Enum):
     """
     Option to determine if the reference image is painted in original/binary.
 
-    Attributes
-    ----------
+    Members
+    -------
     ORIGINAL
         Show the original image.
     BINARY
@@ -42,9 +42,9 @@ class ROIOptions:
 
     Attributes
     ----------
-    color
+    color : Color
         Color of the line.
-    thickness
+    thickness : nonnegative int
         Thickness of the line.
         Zero value is the flag to not draw the feature.
 
@@ -56,7 +56,15 @@ class ROIOptions:
 
 @dataclasses.dataclass
 class DrawOptions:
-    """Drawing options for :class:`SubstrateReference`."""
+    """
+    Drawing options for :class:`SubstrateReference`.
+
+    Attributes
+    ----------
+    paint : PaintMode
+    templateROI, substrateROI : ROIOptions
+        Determines how the ROIs are drawn.
+    """
 
     paint: PaintMode = PaintMode.BINARY
     templateROI: ROIOptions = dataclasses.field(

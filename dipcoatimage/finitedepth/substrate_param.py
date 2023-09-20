@@ -20,8 +20,8 @@ class PaintMode(enum.Enum):
     """
     Option to determine if the substrate image is painted in original/binary.
 
-    Attributes
-    ----------
+    Members
+    -------
     ORIGINAL
         Show the original image.
     BINARY
@@ -35,6 +35,13 @@ class PaintMode(enum.Enum):
 
 @dataclasses.dataclass
 class DrawOptions:
-    """Drawing options for :class:`SubstrateReference`."""
+    """
+    Drawing options for :class:`SubstrateReference`.
+
+    Attributes
+    ----------
+    paint : PaintMode
+
+    """
 
     paint: PaintMode = PaintMode.BINARY

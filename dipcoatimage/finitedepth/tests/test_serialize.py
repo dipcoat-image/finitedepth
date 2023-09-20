@@ -114,11 +114,11 @@ def test_CoatingLayerArgs():
     layerargs = CoatingLayerArgs(
         type=ImportArgs(name="RectLayerShape"),
         parameters=dict(
-            MorphologyClosing=dict(kernelSize=(0, 0)),
+            KernelSize=(0, 0),
             ReconstructRadius=50,
             RoughnessMeasure="SDTW",
         ),
-        draw_options=dict(background="BINARY"),
+        draw_options=dict(paint="BINARY"),
         deco_options=dict(layer=dict(thickness=1)),
     )
     layer = layerargs.as_coatinglayer(COAT_IMG, subst)
