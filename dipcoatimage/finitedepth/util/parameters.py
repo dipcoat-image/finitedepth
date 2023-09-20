@@ -8,40 +8,61 @@ construct dataclasses for image analysis classes.
 """
 
 import dataclasses
-import enum
 
 
 __all__ = [
-    "BinaryImageDrawMode",
     "Color",
+    "LineOptions",
+    "PatchOptions",
     "FeatureDrawingOptions",
 ]
 
 
-class BinaryImageDrawMode(enum.Enum):
-    """
-    Option to determine if the image is drawn in original/binary.
-
-    Attributes
-    ==========
-
-    ORIGINAL
-        Show the original image.
-
-    BINARY
-        Show the binarized image.
-
-    """
-
-    ORIGINAL = "ORIGINAL"
-    BINARY = "BINARY"
+@dataclasses.dataclass
+class Color:
+    red: int
+    green: int
+    blue: int
 
 
 @dataclasses.dataclass
-class Color:
-    red: int = 0
-    green: int = 0
-    blue: int = 0
+class LineOptions:
+    """
+    Parameters to draw a line in the image.
+
+    Attributes
+    ----------
+    color : Color
+    linewidth : int
+        Width of the line.
+        Zero value is the flag to not draw the line.
+
+    """
+
+    color: Color = dataclasses.field(default_factory=lambda: Color(0, 0, 0))
+    linewidth: int = 1
+
+
+@dataclasses.dataclass
+class PatchOptions:
+    """
+    Parameters to draw a patch in the image.
+
+    Attributes
+    ----------
+    fill : bool
+        Whether to fill the patch with facecolor.
+    edgecolor, facecolor : Color
+    linewidth : int
+        Width of the edge.
+        Zero value is the flag to not draw the edge.
+
+    """
+
+    fill: bool = True
+    edgecolor: Color = dataclasses.field(default_factory=lambda: Color(0, 0, 0))
+    facecolor: Color = dataclasses.field(default_factory=lambda: Color(0, 0, 0))
+    linewidth: int = 1
 
 
 @dataclasses.dataclass
@@ -67,6 +88,6 @@ class FeatureDrawingOptions:
 
     """
 
-    color: Color = dataclasses.field(default_factory=Color)
+    color: Color = dataclasses.field(default_factory=lambda: Color(0, 0, 0))
     thickness: int = 1
     drawevery: int = 1

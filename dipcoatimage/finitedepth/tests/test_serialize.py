@@ -54,7 +54,7 @@ def test_ReferenceArgs():
     refargs = ReferenceArgs(
         templateROI=(200, 50, 1200, 200),
         substrateROI=(400, 175, 1000, 500),
-        draw_options=dict(substrateROI=dict(thickness=2)),
+        draw_options=dict(substrateROI=dict(linewidth=2)),
     )
     ref = refargs.as_reference(REF_IMG)
 
@@ -82,7 +82,7 @@ def test_SubstrateArgs():
             Rho=1.0,
             Theta=0.01,
         ),
-        draw_options=dict(sides=dict(thickness=0)),
+        draw_options=dict(sidelines=dict(linewidth=0)),
     )
     subst = substargs.as_substrate(ref)
 
@@ -114,12 +114,12 @@ def test_CoatingLayerArgs():
     layerargs = CoatingLayerArgs(
         type=ImportArgs(name="RectLayerShape"),
         parameters=dict(
-            MorphologyClosing=dict(kernelSize=(0, 0)),
+            KernelSize=(0, 0),
             ReconstructRadius=50,
             RoughnessMeasure="SDTW",
         ),
-        draw_options=dict(background="BINARY"),
-        deco_options=dict(layer=dict(thickness=1)),
+        draw_options=dict(paint="BINARY"),
+        deco_options=dict(layer=dict(linewidth=1)),
     )
     layer = layerargs.as_coatinglayer(COAT_IMG, subst)
 

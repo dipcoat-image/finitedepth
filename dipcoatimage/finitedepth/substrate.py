@@ -17,12 +17,6 @@ Base class
 Implementation
 --------------
 
-.. autoclass:: SubstrateParameters
-   :members:
-
-.. autoclass:: SubstrateDrawOptions
-   :members:
-
 .. autoclass:: Substrate
    :members:
 
@@ -37,20 +31,14 @@ import cv2  # type: ignore
 import numpy as np
 import numpy.typing as npt
 from .reference import SubstrateReferenceBase
-from .util import DataclassProtocol, BinaryImageDrawMode, colorize
+from .substrate_param import Parameters, DrawOptions
+from .util import DataclassProtocol
 from typing import TypeVar, Generic, Type, Optional, Tuple
-
-try:
-    from typing import TypeAlias  # type: ignore[attr-defined]
-except ImportError:
-    from typing_extensions import TypeAlias
 
 
 __all__ = [
     "SubstrateError",
     "SubstrateBase",
-    "SubstrateParameters",
-    "SubstrateDrawOptions",
     "Substrate",
 ]
 
@@ -300,21 +288,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         """Decorate and return the substrate image as RGB format."""
 
 
-@dataclasses.dataclass(frozen=True)
-class SubstrateParameters:
-    """Additional parameters for :class:`Substrate` instance."""
-
-    pass
-
-
-@dataclasses.dataclass
-class SubstrateDrawOptions:
-    """Drawing options for :class:`Substrate`."""
-
-    draw_mode: BinaryImageDrawMode = BinaryImageDrawMode.BINARY
-
-
-class Substrate(SubstrateBase[SubstrateParameters, SubstrateDrawOptions]):
+class Substrate(SubstrateBase[Parameters, DrawOptions]):
     """
     Simplest substrate class with no geometric information.
 
@@ -350,10 +324,8 @@ class Substrate(SubstrateBase[SubstrateParameters, SubstrateDrawOptions]):
 
     """
 
-    Parameters = SubstrateParameters
-    DrawOptions = SubstrateDrawOptions
-
-    DrawMode: TypeAlias = BinaryImageDrawMode
+    Parameters = Parameters
+    DrawOptions = DrawOptions
 
     def region_points(self) -> npt.NDArray[np.int32]:
         w = self.image().shape[1]
@@ -363,11 +335,4 @@ class Substrate(SubstrateBase[SubstrateParameters, SubstrateDrawOptions]):
         return None
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        draw_mode = self.draw_options.draw_mode
-        if draw_mode == self.DrawMode.ORIGINAL:
-            image = self.image()
-        elif draw_mode == self.DrawMode.BINARY:
-            image = self.binary_image()
-        else:
-            raise TypeError("Unrecognized draw mode: %s" % draw_mode)
-        return colorize(image)
+        return self.image().copy()

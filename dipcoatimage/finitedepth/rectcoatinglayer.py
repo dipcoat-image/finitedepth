@@ -11,18 +11,6 @@ Base class
 Implementation
 ==============
 
-.. autoclass:: RectLayerShapeParameters
-   :members:
-
-.. autoclass:: RectLayerShapeDrawOptions
-   :members:
-
-.. autoclass:: RectLayerShapeDecoOptions
-   :members:
-
-.. autoclass:: RectLayerShapeData
-   :members:
-
 .. autoclass:: RectLayerShape
    :members:
 
@@ -30,7 +18,6 @@ Implementation
 
 import cv2  # type: ignore
 import dataclasses
-import enum
 import numpy as np
 import numpy.typing as npt
 from scipy.optimize import root  # type: ignore
@@ -40,14 +27,19 @@ from .rectsubstrate import RectSubstrate
 from .coatinglayer import (
     CoatingLayerError,
     CoatingLayerBase,
-    BackgroundDrawMode,
-    SubtractionDrawMode,
+)
+from .rectcoatinglayer_param import (
+    DistanceMeasure,
+    Parameters,
+    DrawOptions,
+    PaintMode,
+    SubtractionMode,
+    DecoOptions,
+    Data,
 )
 from .util import (
     images_XOR,
     DataclassProtocol,
-    FeatureDrawingOptions,
-    Color,
     colorize,
 )
 from .util.dtw import acm, owp
@@ -56,20 +48,9 @@ from .util.geometry import (
     equidistant_interpolate,
 )
 
-try:
-    from typing import TypeAlias  # type: ignore[attr-defined]
-except ImportError:
-    from typing_extensions import TypeAlias
-
 
 __all__ = [
     "RectCoatingLayerBase",
-    "MorphologyClosingParameters",
-    "DistanceMeasure",
-    "RectLayerShapeParameters",
-    "RectLayerShapeDrawOptions",
-    "RectLayerShapeDecoOptions",
-    "RectLayerShapeData",
     "RectLayerShape",
 ]
 
@@ -100,6 +81,19 @@ class RectCoatingLayerBase(
     DrawOptions: Type[DrawOptionsType]
     DecoOptions: Type[DecoOptionsType]
     Data: Type[DataType]
+
+    def layer_contours(self) -> Tuple[npt.NDArray[np.int32], ...]:
+        """
+        Return contours of :meth:`extract_layer`.
+        """
+        if not hasattr(self, "_layer_contours"):
+            layer_cnts, _ = cv2.findContours(
+                self.extract_layer().astype(np.uint8),
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_NONE,
+            )
+            self._layer_contours = layer_cnts
+        return self._layer_contours
 
     def interfaces(self) -> Tuple[npt.NDArray[np.int64], ...]:
         """
@@ -201,114 +195,12 @@ class RectCoatingLayerBase(
         return bool(np.any(np.all(roi_binimg, axis=1)))
 
 
-@dataclasses.dataclass(frozen=True)
-class MorphologyClosingParameters:
-    """
-    Parameter to perform Morphological closing operation.
-
-    Kernel sizes MUST be odd lest the operation leaves residue pixels.
-    """
-
-    kernelSize: Tuple[int, int]
-    anchor: Tuple[int, int] = (-1, -1)
-    iterations: int = 1
-
-
-class DistanceMeasure(enum.Enum):
-    """
-    Distance measures to compute the curve similarity.
-
-    - DTW : Dynamic time warping
-    - SDTW : Squared dynamic time warping
-    """
-
-    DTW = "DTW"
-    SDTW = "SDTW"
-
-
-@dataclasses.dataclass(frozen=True)
-class RectLayerShapeParameters:
-    """Analysis parameters for :class:`RectLayerShape` instance."""
-
-    MorphologyClosing: MorphologyClosingParameters
-    ReconstructRadius: int
-    RoughnessMeasure: DistanceMeasure
-
-
-@dataclasses.dataclass
-class RectLayerShapeDrawOptions:
-    """Drawing options for :class:`RectLayerShape` instance."""
-
-    background: BackgroundDrawMode = BackgroundDrawMode.ORIGINAL
-    subtract_mode: SubtractionDrawMode = SubtractionDrawMode.NONE
-
-
-@dataclasses.dataclass
-class RectLayerShapeDecoOptions:
-    """Decorating options for :class:`RectLayerShape` instance."""
-
-    layer: FeatureDrawingOptions = dataclasses.field(
-        default_factory=FeatureDrawingOptions
-    )
-    contact_line: FeatureDrawingOptions = dataclasses.field(
-        default_factory=lambda: FeatureDrawingOptions(color=Color(0, 255, 0))
-    )
-    thickness_lines: FeatureDrawingOptions = dataclasses.field(
-        default_factory=lambda: FeatureDrawingOptions(color=Color(0, 0, 255))
-    )
-    uniform_layer: FeatureDrawingOptions = dataclasses.field(
-        default_factory=lambda: FeatureDrawingOptions(
-            color=Color(255, 0, 0), thickness=0
-        )
-    )
-    roughness_pairs: FeatureDrawingOptions = dataclasses.field(
-        default_factory=lambda: FeatureDrawingOptions(
-            color=Color(0, 255, 255), thickness=0, drawevery=1
-        )
-    )
-
-
-@dataclasses.dataclass
-class RectLayerShapeData:
-    """
-    Analysis data for :class:`RectLayerShape` instance.
-
-    - LayerLength_{Left, Right}: Distance between the bottom sideline of the
-      substrate and the upper limit of the coating layer.
-    - Conformality: Conformality of the coating layer.
-    - AverageThickness: Average thickness of the coating layer.
-    - Roughness: Roughness of the coating layer.
-    - MaxThickness_{Left, Bottom, Right}: Number of the pixels for the maximum
-      thickness on each region.
-
-    The following data are the metadata for the analysis.
-
-    - MatchError: Template matching error between 0 to 1. 0 means perfect match.
-    - ChipWidth: Number of the pixels between lower vertices of the substrate.
-
-    """
-
-    LayerLength_Left: np.float64
-    LayerLength_Right: np.float64
-
-    Conformality: float
-    AverageThickness: np.float64
-    Roughness: float
-
-    MaxThickness_Left: np.float64
-    MaxThickness_Bottom: np.float64
-    MaxThickness_Right: np.float64
-
-    MatchError: float
-    ChipWidth: np.float32
-
-
 class RectLayerShape(
     RectCoatingLayerBase[
-        RectLayerShapeParameters,
-        RectLayerShapeDrawOptions,
-        RectLayerShapeDecoOptions,
-        RectLayerShapeData,
+        Parameters,
+        DrawOptions,
+        DecoOptions,
+        Data,
     ]
 ):
     """
@@ -358,7 +250,7 @@ class RectLayerShape(
        >>> coat_path = get_samples_path("coat3.png")
        >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
        >>> param_val = dict(
-       ...     MorphologyClosing=dict(kernelSize=(1, 1)),
+       ...     KernelSize=(1, 1),
        ...     ReconstructRadius=50,
        ...     RoughnessMeasure="SDTW",
        ... )
@@ -375,16 +267,16 @@ class RectLayerShape(
         "_max_thickness",
     )
 
-    Parameters = RectLayerShapeParameters
-    DrawOptions = RectLayerShapeDrawOptions
-    DecoOptions = RectLayerShapeDecoOptions
-    Data = RectLayerShapeData
+    Parameters = Parameters
+    DrawOptions = DrawOptions
+    DecoOptions = DecoOptions
+    Data = Data
 
-    BackgroundDrawMode: TypeAlias = BackgroundDrawMode
-    SubtractionDrawMode: TypeAlias = SubtractionDrawMode
+    PaintMode = PaintMode
+    SubtractionMode = SubtractionMode
 
     def examine(self) -> Optional[CoatingLayerError]:
-        ksize = self.parameters.MorphologyClosing.kernelSize
+        ksize = self.parameters.KernelSize
         if not all(i == 0 or i % 2 == 1 for i in ksize):
             return CoatingLayerError("Kernel size must be odd.")
         if not self.capbridge_broken():
@@ -396,19 +288,15 @@ class RectLayerShape(
             # Perform opening to remove error pixels. We named the parameter as
             # "closing" because the coating layer is black in original image, but
             # in fact we do opening since the layer is True in extracted layer.
-            closingParams = self.parameters.MorphologyClosing
-            if any(i == 0 for i in closingParams.kernelSize):
+            ksize = self.parameters.KernelSize
+            if any(i == 0 for i in ksize):
                 img = super().extract_layer().astype(np.uint8) * 255
             else:
-                kernel = cv2.getStructuringElement(
-                    cv2.MORPH_RECT, closingParams.kernelSize
-                )
+                kernel = cv2.getStructuringElement(cv2.MORPH_RECT, ksize)
                 img = cv2.morphologyEx(
                     super().extract_layer().astype(np.uint8) * 255,
                     cv2.MORPH_OPEN,
                     kernel,
-                    anchor=closingParams.anchor,
-                    iterations=closingParams.iterations,
                 )
 
             # closed image may still have error pixels, and at least we have to
@@ -538,19 +426,19 @@ class RectLayerShape(
         return self._max_thickness
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        background = self.draw_options.background
-        if background == self.BackgroundDrawMode.ORIGINAL:
+        paint = self.draw_options.paint
+        if paint == self.PaintMode.ORIGINAL:
             image = self.image.copy()
-        elif background == self.BackgroundDrawMode.BINARY:
+        elif paint == self.PaintMode.BINARY:
             image = self.binary_image().copy()
-        elif background == self.BackgroundDrawMode.EMPTY:
+        elif paint == self.PaintMode.EMPTY:
             image = np.full(self.image.shape, 255, dtype=np.uint8)
         else:
-            raise TypeError("Unrecognized background mode: %s" % background)
+            raise TypeError("Unrecognized paint mode: %s" % paint)
         image = colorize(image)
 
-        subtract_mode = self.draw_options.subtract_mode
-        if subtract_mode & self.SubtractionDrawMode.TEMPLATE:
+        subtraction = self.draw_options.subtraction
+        if subtraction & self.SubtractionMode.TEMPLATE:
             x0, y0, x1, y1 = self.substrate.reference.templateROI
             tempImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
             h, w = tempImg.shape[:2]
@@ -558,7 +446,7 @@ class RectLayerShape(
             binImg = self.binary_image()[Y0 : Y0 + h, X0 : X0 + w]
             mask = images_XOR(~binImg.astype(bool), ~tempImg.astype(bool))
             image[Y0 : Y0 + h, X0 : X0 + w][~mask] = 255
-        if subtract_mode & self.SubtractionDrawMode.SUBSTRATE:
+        if subtraction & self.SubtractionMode.SUBSTRATE:
             x0, y0, x1, y1 = self.substrate.reference.substrateROI
             substImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
             h, w = substImg.shape[:2]
@@ -568,18 +456,19 @@ class RectLayerShape(
             image[Y0 : Y0 + h, X0 : X0 + w][~mask] = 255
 
         layer_opts = self.deco_options.layer
-        if layer_opts.thickness != 0:
-            image[self.extract_layer()] = 255
+        if layer_opts.fill:
+            image[self.extract_layer()] = dataclasses.astuple(layer_opts.facecolor)
+        if layer_opts.linewidth > 0:
             cv2.drawContours(
                 image,
                 self.layer_contours(),
                 -1,
-                dataclasses.astuple(layer_opts.color),
-                layer_opts.thickness,
+                dataclasses.astuple(layer_opts.edgecolor),
+                layer_opts.linewidth,
             )
 
         contactline_opts = self.deco_options.contact_line
-        if contactline_opts.thickness > 0 and len(self.interfaces()) > 0:
+        if len(self.interfaces()) > 0 and contactline_opts.linewidth > 0:
             (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
             subst_cnt = self.substrate.contour() + self.substrate_point()
             (p0,), (p1,) = subst_cnt[[i0, i1]].astype(np.int32)
@@ -588,53 +477,67 @@ class RectLayerShape(
                 p0,
                 p1,
                 dataclasses.astuple(contactline_opts.color),
-                contactline_opts.thickness,
+                contactline_opts.linewidth,
             )
 
-        thicknesslines_opts = self.deco_options.thickness_lines
-        if thicknesslines_opts.thickness > 0:
-            color = dataclasses.astuple(thicknesslines_opts.color)
-            t = thicknesslines_opts.thickness
+        thickness_opts = self.deco_options.thickness
+        if thickness_opts.linewidth > 0:
+            lines = []
             for dist, pts in zip(*self.max_thickness()):
                 if dist == 0:
                     continue
-                pts = pts.astype(np.int32)
-                cv2.line(image, pts[0], pts[1], color, t)
+                lines.append(pts.astype(np.int32))
+            cv2.polylines(
+                image,
+                lines,
+                isClosed=False,
+                color=dataclasses.astuple(thickness_opts.color),
+                thickness=thickness_opts.linewidth,
+            )
 
         uniformlayer_opts = self.deco_options.uniform_layer
-        if uniformlayer_opts.thickness > 0:
+        if uniformlayer_opts.linewidth > 0:
             _, points = self.uniform_layer()
             cv2.polylines(
                 image,
                 [points.astype(np.int32)],
                 isClosed=False,
                 color=dataclasses.astuple(uniformlayer_opts.color),
-                thickness=uniformlayer_opts.thickness,
+                thickness=uniformlayer_opts.linewidth,
             )
 
-        pair_opts = self.deco_options.roughness_pairs
-        if pair_opts.thickness > 0:
+        conformality_opts = self.deco_options.conformality
+        if len(self.interfaces()) > 0 and conformality_opts.linewidth > 0:
+            surf = self.surface()
+            (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
+            intf = (self.substrate.contour() + self.substrate_point())[i0:i1]
+            _, path = self.conformality()
+            path = path[:: conformality_opts.step]
+            lines = np.concatenate([surf[path[..., 0]], intf[path[..., 1]]], axis=1)
+            cv2.polylines(
+                image,
+                lines,
+                isClosed=False,
+                color=dataclasses.astuple(conformality_opts.color),
+                thickness=conformality_opts.linewidth,
+            )
+
+        roughness_opts = self.deco_options.roughness
+        if len(self.interfaces()) > 0 and roughness_opts.linewidth > 0:
             surf = self.surface()
             _, ul = self.uniform_layer()
             _, path = self.roughness()
-            pairs = np.stack([surf[path[..., 0]], ul[path[..., 1]]]).astype(np.int32)
-            for surf_pt, ul_pt in pairs.transpose(1, 0, 2, 3)[:: pair_opts.drawevery]:
-                cv2.line(
-                    image,
-                    *surf_pt,
-                    *ul_pt,
-                    color=dataclasses.astuple(pair_opts.color),
-                    thickness=pair_opts.thickness,
-                )
-            # always draw the last line
-            if pairs.size > 0:
-                cv2.line(
-                    image,
-                    *pairs[0, -1, ...],
-                    *pairs[1, -1, ...],
-                    color=dataclasses.astuple(pair_opts.color),
-                    thickness=pair_opts.thickness,
-                )
+            path = path[:: roughness_opts.step]
+            lines = np.concatenate(
+                [surf[path[..., 0]], ul[path[..., 1]]], axis=1
+            ).astype(np.int32)
+            cv2.polylines(
+                image,
+                lines,
+                isClosed=False,
+                color=dataclasses.astuple(roughness_opts.color),
+                thickness=roughness_opts.linewidth,
+            )
 
         return image
 

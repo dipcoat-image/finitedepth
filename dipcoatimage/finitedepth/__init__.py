@@ -39,7 +39,7 @@ from .rectsubstrate import (
 from .coatinglayer import (
     CoatingLayerError,
     CoatingLayerBase,
-    LayerArea,
+    CoatingLayer,
 )
 from .rectcoatinglayer import (
     RectCoatingLayerBase,
@@ -72,7 +72,7 @@ __all__ = [
     "RectSubstrate",
     "CoatingLayerError",
     "CoatingLayerBase",
-    "LayerArea",
+    "CoatingLayer",
     "RectCoatingLayerBase",
     "RectLayerShape",
     "ExperimentError",

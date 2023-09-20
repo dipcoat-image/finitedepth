@@ -17,12 +17,6 @@ Base class
 Implementation
 --------------
 
-.. autoclass:: SubstrateReferenceParameters
-   :members:
-
-.. autoclass:: SubstrateReferenceDrawOptions
-   :members:
-
 .. autoclass:: SubstrateReference
    :members:
 
@@ -36,28 +30,18 @@ import numpy as np
 import numpy.typing as npt
 from .util import (
     binarize,
-    colorize,
     DataclassProtocol,
     OptionalROI,
     IntROI,
     sanitize_ROI,
-    BinaryImageDrawMode,
-    FeatureDrawingOptions,
-    Color,
 )
+from .reference_param import Parameters, DrawOptions
 from typing import TypeVar, Generic, Type, Optional
-
-try:
-    from typing import TypeAlias  # type: ignore[attr-defined]
-except ImportError:
-    from typing_extensions import TypeAlias
 
 
 __all__ = [
     "SubstrateReferenceError",
     "SubstrateReferenceBase",
-    "SubstrateReferenceParameters",
-    "SubstrateReferenceDrawOptions",
     "SubstrateReference",
 ]
 
@@ -290,33 +274,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         """Decorate and return the reference image as RGB format."""
 
 
-@dataclasses.dataclass(frozen=True)
-class SubstrateReferenceParameters:
-    """Additional parameters for :class:`SubstrateReference` instance."""
-
-    pass
-
-
-@dataclasses.dataclass
-class SubstrateReferenceDrawOptions:
-    """Drawing options for :class:`SubstrateReference`."""
-
-    draw_mode: BinaryImageDrawMode = BinaryImageDrawMode.BINARY
-    templateROI: FeatureDrawingOptions = dataclasses.field(
-        default_factory=lambda: FeatureDrawingOptions(
-            color=Color(0, 255, 0), thickness=1
-        )
-    )
-    substrateROI: FeatureDrawingOptions = dataclasses.field(
-        default_factory=lambda: FeatureDrawingOptions(
-            color=Color(255, 0, 0), thickness=1
-        )
-    )
-
-
-class SubstrateReference(
-    SubstrateReferenceBase[SubstrateReferenceParameters, SubstrateReferenceDrawOptions]
-):
+class SubstrateReference(SubstrateReferenceBase[Parameters, DrawOptions]):
     """
     Substrate reference class with customizable binarization.
 
@@ -351,35 +309,26 @@ class SubstrateReference(
 
     """
 
-    Parameters = SubstrateReferenceParameters
-    DrawOptions = SubstrateReferenceDrawOptions
-
-    DrawMode: TypeAlias = BinaryImageDrawMode
+    Parameters = Parameters
+    DrawOptions = DrawOptions
 
     def examine(self) -> None:
         return None
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        draw_mode = self.draw_options.draw_mode
-        if draw_mode == self.DrawMode.ORIGINAL:
-            image = self.image
-        elif draw_mode == self.DrawMode.BINARY:
-            image = self.binary_image()
-        else:
-            raise TypeError("Unrecognized draw mode: %s" % draw_mode)
-        ret = colorize(image)
+        ret = self.image.copy()
 
         substROI_opts = self.draw_options.substrateROI
-        if substROI_opts.thickness > 0:
+        if substROI_opts.linewidth > 0:
             x0, y0, x1, y1 = self.substrateROI
             color = dataclasses.astuple(substROI_opts.color)
-            thickness = substROI_opts.thickness
-            cv2.rectangle(ret, (x0, y0), (x1, y1), color, thickness)
+            linewidth = substROI_opts.linewidth
+            cv2.rectangle(ret, (x0, y0), (x1, y1), color, linewidth)
 
         tempROI_opts = self.draw_options.templateROI
-        if tempROI_opts.thickness > 0:
+        if tempROI_opts.linewidth > 0:
             x0, y0, x1, y1 = self.templateROI
             color = dataclasses.astuple(tempROI_opts.color)
-            thickness = tempROI_opts.thickness
-            cv2.rectangle(ret, (x0, y0), (x1, y1), color, thickness)
+            linewidth = tempROI_opts.linewidth
+            cv2.rectangle(ret, (x0, y0), (x1, y1), color, linewidth)
         return ret
