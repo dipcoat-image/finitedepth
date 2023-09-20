@@ -30,13 +30,12 @@ import numpy as np
 import numpy.typing as npt
 from .util import (
     binarize,
-    colorize,
     DataclassProtocol,
     OptionalROI,
     IntROI,
     sanitize_ROI,
 )
-from .reference_param import Parameters, DrawOptions, PaintMode
+from .reference_param import Parameters, DrawOptions
 from typing import TypeVar, Generic, Type, Optional
 
 
@@ -313,20 +312,11 @@ class SubstrateReference(SubstrateReferenceBase[Parameters, DrawOptions]):
     Parameters = Parameters
     DrawOptions = DrawOptions
 
-    PaintMode = PaintMode
-
     def examine(self) -> None:
         return None
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        paint = self.draw_options.paint
-        if paint == self.PaintMode.ORIGINAL:
-            image = self.image
-        elif paint == self.PaintMode.BINARY:
-            image = self.binary_image()
-        else:
-            raise TypeError("Unrecognized paint mode: %s" % paint)
-        ret = colorize(image)
+        ret = self.image.copy()
 
         substROI_opts = self.draw_options.substrateROI
         if substROI_opts.linewidth > 0:

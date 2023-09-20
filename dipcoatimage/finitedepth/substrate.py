@@ -31,8 +31,8 @@ import cv2  # type: ignore
 import numpy as np
 import numpy.typing as npt
 from .reference import SubstrateReferenceBase
-from .substrate_param import Parameters, DrawOptions, PaintMode
-from .util import DataclassProtocol, colorize
+from .substrate_param import Parameters, DrawOptions
+from .util import DataclassProtocol
 from typing import TypeVar, Generic, Type, Optional, Tuple
 
 
@@ -327,8 +327,6 @@ class Substrate(SubstrateBase[Parameters, DrawOptions]):
     Parameters = Parameters
     DrawOptions = DrawOptions
 
-    PaintMode = PaintMode
-
     def region_points(self) -> npt.NDArray[np.int32]:
         w = self.image().shape[1]
         return np.array([[w / 2, 0]], dtype=np.int32)
@@ -337,11 +335,4 @@ class Substrate(SubstrateBase[Parameters, DrawOptions]):
         return None
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        paint = self.draw_options.paint
-        if paint == self.PaintMode.ORIGINAL:
-            image = self.image()
-        elif paint == self.PaintMode.BINARY:
-            image = self.binary_image()
-        else:
-            raise TypeError("Unrecognized draw mode: %s" % paint)
-        return colorize(image)
+        return self.image().copy()

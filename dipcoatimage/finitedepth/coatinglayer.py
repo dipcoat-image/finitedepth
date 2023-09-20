@@ -24,9 +24,6 @@ Implementation
 .. autoclass:: LayerAreaParameters
    :members:
 
-.. autoclass:: BackgroundDrawMode
-   :members:
-
 .. autoclass:: SubtractionDrawMode
    :members:
 
@@ -66,7 +63,6 @@ from .util import (
     FeatureDrawingOptions,
     Color,
     binarize,
-    colorize,
 )
 from typing import TypeVar, Generic, Type, Optional, Tuple
 
@@ -80,7 +76,6 @@ __all__ = [
     "CoatingLayerError",
     "CoatingLayerBase",
     "LayerAreaParameters",
-    "BackgroundDrawMode",
     "SubtractionDrawMode",
     "LayerAreaDrawOptions",
     "LayerAreaDecoOptions",
@@ -399,29 +394,6 @@ class LayerAreaParameters:
     pass
 
 
-class BackgroundDrawMode(enum.Enum):
-    """
-    Option to determine how the background of the coating layer image is drawn.
-
-    Attributes
-    ==========
-
-    ORIGINAL
-        Show the original background.
-
-    BINARY
-        Show the background as binarized image.
-
-    EMPTY
-        Do not show the background. Only the layer will be drawn.
-
-    """
-
-    ORIGINAL = "ORIGINAL"
-    BINARY = "BINARY"
-    EMPTY = "EMPTY"
-
-
 class SubtractionDrawMode(enum.Flag):
     """
     Option to determine how the template matching result will be displayed.
@@ -456,7 +428,6 @@ class SubtractionDrawMode(enum.Flag):
 class LayerAreaDrawOptions:
     """Basic drawing options for :class:`LayerArea` instance."""
 
-    background: BackgroundDrawMode = BackgroundDrawMode.ORIGINAL
     subtract_mode: SubtractionDrawMode = SubtractionDrawMode.NONE
 
 
@@ -573,23 +544,13 @@ class LayerArea(
     DecoOptions = LayerAreaDecoOptions
     Data = LayerAreaData
 
-    BackgroundDrawMode: TypeAlias = BackgroundDrawMode
     SubtractionDrawMode: TypeAlias = SubtractionDrawMode
 
     def examine(self) -> None:
         return None
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        background = self.draw_options.background
-        if background == self.BackgroundDrawMode.ORIGINAL:
-            image = self.image.copy()
-        elif background == self.BackgroundDrawMode.BINARY:
-            image = self.binary_image().copy()
-        elif background == self.BackgroundDrawMode.EMPTY:
-            image = np.full(self.image.shape, 255, dtype=np.uint8)
-        else:
-            raise TypeError("Unrecognized background mode: %s" % background)
-        image = colorize(image)
+        image = self.image.copy()
 
         subtract_mode = self.draw_options.subtract_mode
         if subtract_mode & self.SubtractionDrawMode.TEMPLATE:
