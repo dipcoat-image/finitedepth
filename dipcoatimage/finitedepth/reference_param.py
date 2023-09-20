@@ -1,12 +1,11 @@
 import dataclasses
 import enum
-from .util.parameters import Color
+from .util.parameters import Color, LineOptions
 
 
 __all__ = [
     "Parameters",
     "PaintMode",
-    "ROIOptions",
     "DrawOptions",
 ]
 
@@ -36,25 +35,6 @@ class PaintMode(enum.Enum):
 
 
 @dataclasses.dataclass
-class ROIOptions:
-    """
-    Parameters to draw the ROI box in the image.
-
-    Attributes
-    ----------
-    color : Color
-        Color of the line.
-    thickness : nonnegative int
-        Thickness of the line.
-        Zero value is the flag to not draw the feature.
-
-    """
-
-    color: Color = dataclasses.field(default_factory=Color)
-    thickness: int = 1
-
-
-@dataclasses.dataclass
 class DrawOptions:
     """
     Drawing options for :class:`SubstrateReference`.
@@ -62,14 +42,14 @@ class DrawOptions:
     Attributes
     ----------
     paint : PaintMode
-    templateROI, substrateROI : ROIOptions
+    templateROI, substrateROI : LineOptions
         Determines how the ROIs are drawn.
     """
 
     paint: PaintMode = PaintMode.BINARY
-    templateROI: ROIOptions = dataclasses.field(
-        default_factory=lambda: ROIOptions(color=Color(0, 255, 0), thickness=1)
+    templateROI: LineOptions = dataclasses.field(
+        default_factory=lambda: LineOptions(color=Color(0, 255, 0), thickness=1)
     )
-    substrateROI: ROIOptions = dataclasses.field(
-        default_factory=lambda: ROIOptions(color=Color(255, 0, 0), thickness=1)
+    substrateROI: LineOptions = dataclasses.field(
+        default_factory=lambda: LineOptions(color=Color(255, 0, 0), thickness=1)
     )

@@ -26,7 +26,6 @@ from .importing import import_variable, ImportStatus, Importer
 from .path import get_samples_path, cwd
 from .typing import DataclassProtocol, OptionalROI, IntROI, sanitize_ROI
 from .parameters import (
-    BinaryImageDrawMode,
     Color,
     FeatureDrawingOptions,
 )
@@ -46,7 +45,6 @@ __all__ = [
     "OptionalROI",
     "IntROI",
     "sanitize_ROI",
-    "BinaryImageDrawMode",
     "Color",
     "FeatureDrawingOptions",
 ]

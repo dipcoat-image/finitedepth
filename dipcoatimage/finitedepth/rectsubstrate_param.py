@@ -1,11 +1,10 @@
 import dataclasses
 import enum
-from .util.parameters import Color
+from .util.parameters import Color, LineOptions
 
 
 __all__ = [
     "PaintMode",
-    "SideLineOptions",
     "DrawOptions",
 ]
 
@@ -31,25 +30,6 @@ class PaintMode(enum.Enum):
 
 
 @dataclasses.dataclass
-class SideLineOptions:
-    """
-    Parameters to draw the sidelines.
-
-    Attributes
-    ----------
-    color
-        Color of the line.
-    thickness
-        Thickness of the line.
-        Zero value is the flag to not draw the feature.
-
-    """
-
-    color: Color = dataclasses.field(default_factory=Color)
-    thickness: int = 1
-
-
-@dataclasses.dataclass
 class DrawOptions:
     """
     Drawing options for :class:`RectSubstrate`.
@@ -57,10 +37,10 @@ class DrawOptions:
     Attributes
     ----------
     paint : PaintMode
-    sidelines : SideLineOptions
+    sidelines : LineOptions
     """
 
     paint: PaintMode = PaintMode.BINARY
-    sidelines: SideLineOptions = dataclasses.field(
-        default_factory=lambda: SideLineOptions(color=Color(0, 0, 255), thickness=1)
+    sidelines: LineOptions = dataclasses.field(
+        default_factory=lambda: LineOptions(color=Color(0, 0, 255), thickness=1)
     )
