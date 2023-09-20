@@ -21,22 +21,7 @@ Base class
 Implementation
 --------------
 
-.. autoclass:: LayerAreaParameters
-   :members:
-
-.. autoclass:: SubtractionDrawMode
-   :members:
-
-.. autoclass:: LayerAreaDrawOptions
-   :members:
-
-.. autoclass:: LayerAreaDecoOptions
-   :members:
-
-.. autoclass:: LayerAreaData
-   :members:
-
-.. autoclass:: LayerArea
+.. autoclass:: CoatingLayer
    :members:
 
 ----------------------------------------
@@ -51,36 +36,30 @@ Coating layer over rectangular substrate
 import abc
 import cv2  # type: ignore
 import dataclasses
-import enum
 import numpy as np
 import numpy.typing as npt
 from .substrate import SubstrateBase
+from .coatinglayer_param import (
+    Parameters,
+    DrawOptions,
+    DecoOptions,
+    Data,
+    SubtractionMode,
+)
 from .util import (
     match_template,
     images_XOR,
     images_ANDXOR,
     DataclassProtocol,
-    FeatureDrawingOptions,
-    Color,
     binarize,
 )
 from typing import TypeVar, Generic, Type, Optional, Tuple
-
-try:
-    from typing import TypeAlias  # type: ignore[attr-defined]
-except ImportError:
-    from typing_extensions import TypeAlias
 
 
 __all__ = [
     "CoatingLayerError",
     "CoatingLayerBase",
-    "LayerAreaParameters",
-    "SubtractionDrawMode",
-    "LayerAreaDrawOptions",
-    "LayerAreaDecoOptions",
-    "LayerAreaData",
-    "LayerArea",
+    "CoatingLayer",
 ]
 
 
@@ -325,19 +304,6 @@ class CoatingLayerBase(
             self._extracted_layer = ret
         return self._extracted_layer
 
-    def layer_contours(self) -> Tuple[npt.NDArray[np.int32], ...]:
-        """
-        Return contours of :meth:`extract_layer`.
-        """
-        if not hasattr(self, "_layer_contours"):
-            layer_cnts, _ = cv2.findContours(
-                self.extract_layer().astype(np.uint8),
-                cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_NONE,
-            )
-            self._layer_contours = layer_cnts
-        return self._layer_contours
-
     @abc.abstractmethod
     def examine(self) -> Optional[CoatingLayerError]:
         """
@@ -387,87 +353,13 @@ class CoatingLayerBase(
         return self.Data(*self.analyze_layer())
 
 
-@dataclasses.dataclass(frozen=True)
-class LayerAreaParameters:
-    """Additional parameters for :class:`LayerArea` instance."""
-
-    pass
-
-
-class SubtractionDrawMode(enum.Flag):
-    """
-    Option to determine how the template matching result will be displayed.
-
-    Template matching result is shown by subtracting the pixels from the
-    background.
-
-    Attributes
-    ==========
-
-    NONE
-        Do not show the template matching result.
-
-    TEMPLATE
-        Subtract the template ROI.
-
-    SUBSTRRATE
-        Subtract the substrate ROI.
-
-    FULL
-        Subtract both template and substrate ROIs.
-
-    """
-
-    NONE = 0
-    TEMPLATE = 1
-    SUBSTRATE = 2
-    FULL = TEMPLATE | SUBSTRATE
-
-
-@dataclasses.dataclass
-class LayerAreaDrawOptions:
-    """Basic drawing options for :class:`LayerArea` instance."""
-
-    subtract_mode: SubtractionDrawMode = SubtractionDrawMode.NONE
-
-
-@dataclasses.dataclass
-class LayerAreaDecoOptions:
-    """
-    Coating layer decorating options for :class:`LayerArea`.
-
-    """
-
-    layer: FeatureDrawingOptions = dataclasses.field(
-        default_factory=lambda: FeatureDrawingOptions(
-            color=Color(0, 0, 255), thickness=-1
-        )
-    )
-
-
-@dataclasses.dataclass
-class LayerAreaData:
-    """
-    Analysis data for :class:`LayerArea`.
-
-    Parameters
-    ==========
-
-    Area
-        Number of the pixels in cross section image of coating layer.
-
-    """
-
-    Area: int
-
-
-class LayerArea(
+class CoatingLayer(
     CoatingLayerBase[
         SubstrateBase,
-        LayerAreaParameters,
-        LayerAreaDrawOptions,
-        LayerAreaDecoOptions,
-        LayerAreaData,
+        Parameters,
+        DrawOptions,
+        DecoOptions,
+        Data,
     ]
 ):
     """
@@ -504,19 +396,17 @@ class LayerArea(
        >>> subst = Substrate(ref)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
-    Construct :class:`LayerArea` from substrate instance. :meth:`analyze` returns
+    Construct :class:`CoatingLayer` from substrate instance. :meth:`analyze` returns
     the number of pixels in coating area region.
 
     .. plot::
        :include-source:
        :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import LayerArea
+       >>> from dipcoatimage.finitedepth import CoatingLayer
        >>> coat_path = get_samples_path("coat1.png")
        >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
-       >>> coat = LayerArea(coat_img, subst)
-       >>> coat.analyze()
-       LayerAreaData(Area=44348)
+       >>> coat = CoatingLayer(coat_img, subst)
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
     :attr:`draw_options` controls the overall visualization.
@@ -525,7 +415,7 @@ class LayerArea(
        :include-source:
        :context: close-figs
 
-       >>> coat.draw_options.subtract_mode = coat.SubtractionDrawMode.FULL
+       >>> coat.draw_options.subtraction = coat.SubtractionMode.FULL
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
     :attr:`deco_options` controls the decoration of coating layer reigon.
@@ -534,17 +424,17 @@ class LayerArea(
        :include-source:
        :context: close-figs
 
-       >>> coat.deco_options.layer.color.red = 255
+       >>> coat.deco_options.layer.facecolor.red = 255
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
     """
 
-    Parameters = LayerAreaParameters
-    DrawOptions = LayerAreaDrawOptions
-    DecoOptions = LayerAreaDecoOptions
-    Data = LayerAreaData
+    Parameters = Parameters
+    DrawOptions = DrawOptions
+    DecoOptions = DecoOptions
+    Data = Data
 
-    SubtractionDrawMode: TypeAlias = SubtractionDrawMode
+    SubtractionMode = SubtractionMode
 
     def examine(self) -> None:
         return None
@@ -552,8 +442,8 @@ class LayerArea(
     def draw(self) -> npt.NDArray[np.uint8]:
         image = self.image.copy()
 
-        subtract_mode = self.draw_options.subtract_mode
-        if subtract_mode & self.SubtractionDrawMode.TEMPLATE:
+        subtraction = self.draw_options.subtraction
+        if subtraction & self.SubtractionMode.TEMPLATE:
             x0, y0, x1, y1 = self.substrate.reference.templateROI
             tempImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
             h, w = tempImg.shape[:2]
@@ -561,7 +451,7 @@ class LayerArea(
             binImg = self.binary_image()[Y0 : Y0 + h, X0 : X0 + w]
             mask = images_XOR(~binImg.astype(bool), ~tempImg.astype(bool))
             image[Y0 : Y0 + h, X0 : X0 + w][~mask] = 255
-        if subtract_mode & self.SubtractionDrawMode.SUBSTRATE:
+        if subtraction & self.SubtractionMode.SUBSTRATE:
             x0, y0, x1, y1 = self.substrate.reference.substrateROI
             substImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
             h, w = substImg.shape[:2]
@@ -571,18 +461,23 @@ class LayerArea(
             image[Y0 : Y0 + h, X0 : X0 + w][~mask] = 255
 
         layer_opts = self.deco_options.layer
-        if layer_opts.thickness != 0:
-            image[self.extract_layer()] = 255
+        if layer_opts.fill:
+            image[self.extract_layer()] = dataclasses.astuple(layer_opts.facecolor)
+        if layer_opts.linewidth > 0:
+            cnts, _ = cv2.findContours(
+                self.extract_layer().astype(np.uint8),
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_NONE,
+            )
             cv2.drawContours(
                 image,
-                self.layer_contours(),
+                cnts,
                 -1,
-                dataclasses.astuple(layer_opts.color),
-                layer_opts.thickness,
+                dataclasses.astuple(layer_opts.edgecolor),
+                layer_opts.linewidth,
             )
 
         return image
 
-    def analyze_layer(self) -> Tuple[int]:
-        area = np.count_nonzero(self.extract_layer())
-        return (area,)
+    def analyze_layer(self) -> Tuple[()]:
+        return ()

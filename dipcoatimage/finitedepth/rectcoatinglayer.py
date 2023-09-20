@@ -82,6 +82,19 @@ class RectCoatingLayerBase(
     DecoOptions: Type[DecoOptionsType]
     Data: Type[DataType]
 
+    def layer_contours(self) -> Tuple[npt.NDArray[np.int32], ...]:
+        """
+        Return contours of :meth:`extract_layer`.
+        """
+        if not hasattr(self, "_layer_contours"):
+            layer_cnts, _ = cv2.findContours(
+                self.extract_layer().astype(np.uint8),
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_NONE,
+            )
+            self._layer_contours = layer_cnts
+        return self._layer_contours
+
     def interfaces(self) -> Tuple[npt.NDArray[np.int64], ...]:
         """
         Find indices of solid-liquid interfaces on :meth:`SubstrateBase.contour`.
@@ -444,9 +457,7 @@ class RectLayerShape(
 
         layer_opts = self.deco_options.layer
         if layer_opts.fill:
-            cv2.fillPoly(
-                image, self.layer_contours(), dataclasses.astuple(layer_opts.facecolor)
-            )
+            image[self.extract_layer()] = dataclasses.astuple(layer_opts.facecolor)
         if layer_opts.linewidth > 0:
             cv2.drawContours(
                 image,

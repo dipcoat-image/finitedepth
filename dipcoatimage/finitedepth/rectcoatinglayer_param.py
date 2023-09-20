@@ -82,7 +82,7 @@ class DrawOptions:
     Attributes
     ----------
     paint : PaintMode
-    sidelines : SideLineOptions
+    subtraction : SubtractionMode
     """
 
     paint: PaintMode = PaintMode.BINARY
@@ -113,7 +113,7 @@ class LinesOptions:
 @dataclasses.dataclass
 class DecoOptions:
     """
-    Options to decorate the analysis result on :class:`RectLayerShape`.
+    Options to show the analysis result on :class:`RectLayerShape`.
 
     Attributes
     ----------

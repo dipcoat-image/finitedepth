@@ -57,13 +57,13 @@ Temporal evolution of the coating layer can be assessed by analyzing the series 
    :caption: Coating layer region image
    :align: center
 
-   from dipcoatimage.finitedepth import SubstrateReference, Substrate, LayerArea
+   from dipcoatimage.finitedepth import SubstrateReference, Substrate, CoatingLayer
 
    ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
    ref = SubstrateReference(ref_img, (13, 10, 1246, 200), (100, 100, 1200, 500))
    subst = Substrate(ref)
    coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
-   coat = LayerArea(coat_img, subst)
+   coat = CoatingLayer(coat_img, subst)
    coat.draw_options.remove_substrate = True
 
    plt.axis("off")
@@ -130,16 +130,14 @@ To analyze the coating layer shape, the coating layer instance uses the substrat
 .. plot::
    :context: close-figs
    :include-source:
-   :caption: Coating layer region (blue) extracted by :class:`.LayerArea`
+   :caption: Coating layer region (blue) extracted by :class:`.CoatingLayer`
    :align: center
 
-   >>> from dipcoatimage.finitedepth import LayerArea
+   >>> from dipcoatimage.finitedepth import CoatingLayer
    >>> coat_path = get_samples_path("coat3.png")
    >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
-   >>> coat = LayerArea(coat_img, subst)
-   >>> coat.analyze()
-   LayerAreaData(Area=52698)
-   >>> coat.draw_options.subtract_mode = coat.SubtractionDrawMode.FULL
+   >>> coat = CoatingLayer(coat_img, subst)
+   >>> coat.draw_options.subtraction = coat.SubtractionMode.FULL
    >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
 Analysis classes
@@ -160,11 +158,11 @@ It can refer to the previous coating layer instance when constructing the new on
 .. plot::
    :context: close-figs
    :include-source:
-   :caption: :class:`.LayerArea` instances constructed by :class:`.Experiment` with consecutive images
+   :caption: :class:`.CoatingLayer` instances constructed by :class:`.Experiment` with consecutive images
    :align: center
 
    >>> from dipcoatimage.finitedepth import Experiment
-   >>> expt = Experiment(subst, LayerArea)
+   >>> expt = Experiment(subst, CoatingLayer)
    >>> vid_path = get_samples_path("coat3.mp4")
    >>> cap = cv2.VideoCapture(vid_path); cap.set(cv2.CAP_PROP_POS_FRAMES, 11)
    True

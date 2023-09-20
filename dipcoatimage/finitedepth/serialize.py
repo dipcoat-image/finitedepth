@@ -229,7 +229,7 @@ class CoatingLayerArgs:
 
     type
         Information to import substrate class.
-        Class name defaults to ``LayerArea``.
+        Class name defaults to ``CoatingLayer``.
 
     parameters, draw_options, deco_options
         Data for arguments of coating layer class.
@@ -283,7 +283,7 @@ class CoatingLayerArgs:
 
     def __post_init__(self):
         if not self.type.name:
-            self.type.name = "LayerArea"
+            self.type.name = "CoatingLayer"
 
     def as_structured_args(
         self,
