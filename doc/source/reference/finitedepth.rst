@@ -8,7 +8,6 @@ DipCoatImage-FiniteDepth
 
    finitedepth.reference
    finitedepth.substrate
-   finitedepth.coatinglayer
    finitedepth.experiment
    finitedepth.analysis
    finitedepth.serialize
