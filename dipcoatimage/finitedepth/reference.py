@@ -43,11 +43,6 @@ from .reference_param import (
 )
 from typing import TypeVar, Generic, Type, Optional
 
-try:
-    from typing import TypeAlias  # type: ignore[attr-defined]
-except ImportError:
-    from typing_extensions import TypeAlias
-
 
 __all__ = [
     "SubstrateReferenceError",
@@ -322,7 +317,7 @@ class SubstrateReference(SubstrateReferenceBase[Parameters, DrawOptions]):
     Parameters = Parameters
     DrawOptions = DrawOptions
 
-    PaintMode: TypeAlias = PaintMode
+    PaintMode = PaintMode
 
     def examine(self) -> None:
         return None
