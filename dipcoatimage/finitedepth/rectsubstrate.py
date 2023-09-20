@@ -5,80 +5,26 @@ Rectangular Substrate
 :mod:`dipcoatimage.finitedepth.rectsubstrate` provides substrate image class to
 analyze the substrate with rectangular cross-section shape.
 
-.. autoclass:: RectSubstrateDrawMode
-   :members:
-
-.. autoclass:: RectSubstrateDrawOptions
-   :members:
-
 .. autoclass:: RectSubstrate
    :members:
 
 """
 import cv2  # type: ignore
 import dataclasses
-import enum
 import numpy as np
 import numpy.typing as npt
 from .polysubstrate import PolySubstrateBase
-from .polysubstrate_param import Parameters as PolySubstrateParameters
-from .util import (
-    colorize,
-    FeatureDrawingOptions,
-    Color,
-)
-
-try:
-    from typing import TypeAlias  # type: ignore[attr-defined]
-except ImportError:
-    from typing_extensions import TypeAlias
+from .polysubstrate_param import Parameters as Parameters
+from .rectsubstrate_param import DrawOptions, PaintMode
+from .util import colorize
 
 
 __all__ = [
-    "RectSubstrateDrawMode",
-    "RectSubstrateDrawOptions",
     "RectSubstrate",
 ]
 
 
-class RectSubstrateDrawMode(enum.Enum):
-    """
-    Option to determine how the :class:`RectSubstrate` is drawn.
-
-    Attributes
-    ==========
-
-    ORIGINAL
-        Show the original substrate image.
-
-    BINARY
-        Show the binarized substrate image.
-
-    EDGES
-        Show the edges of the substrate image.
-
-    """
-
-    ORIGINAL = "ORIGINAL"
-    BINARY = "BINARY"
-    EDGES = "EDGES"
-
-
-@dataclasses.dataclass
-class RectSubstrateDrawOptions:
-    """Drawing options for :class:`RectSubstrate`."""
-
-    draw_mode: RectSubstrateDrawMode = RectSubstrateDrawMode.BINARY
-    sides: FeatureDrawingOptions = dataclasses.field(
-        default_factory=lambda: FeatureDrawingOptions(
-            color=Color(0, 0, 255), thickness=1
-        )
-    )
-
-
-class RectSubstrate(
-    PolySubstrateBase[PolySubstrateParameters, RectSubstrateDrawOptions]
-):
+class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions]):
     """
     Simplest implementation of :class:`RectSubstrateBase`.
 
@@ -120,35 +66,35 @@ class RectSubstrate(
        :include-source:
        :context: close-figs
 
-       >>> subst.draw_options.sides.thickness = 3
-       >>> subst.draw_options.sides.color.red = 255
+       >>> subst.draw_options.sidelines.thickness = 3
+       >>> subst.draw_options.sidelines.color.red = 255
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
     """
 
-    Parameters = PolySubstrateParameters
-    DrawOptions = RectSubstrateDrawOptions
+    Parameters = Parameters
+    DrawOptions = DrawOptions
     SidesNum = 4
 
-    DrawMode: TypeAlias = RectSubstrateDrawMode
+    PaintMode = PaintMode
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        draw_mode = self.draw_options.draw_mode
-        if draw_mode is self.DrawMode.ORIGINAL:
+        paint = self.draw_options.paint
+        if paint is self.PaintMode.ORIGINAL:
             image = self.image()
-        elif draw_mode is self.DrawMode.BINARY:
+        elif paint is self.PaintMode.BINARY:
             image = self.binary_image()
-        elif draw_mode is self.DrawMode.EDGES:
+        elif paint is self.PaintMode.EDGES:
             h, w = self.image().shape[:2]
             mask = np.zeros((h, w), bool)
             ((x, y),) = self.contour().transpose(1, 2, 0)
             mask[y, x] = True
             image = ~mask * np.uint8(255)
         else:
-            raise TypeError("Unrecognized draw mode: %s" % draw_mode)
+            raise TypeError("Unrecognized draw mode: %s" % paint)
         ret = colorize(image)
 
-        side_opts = self.draw_options.sides
+        side_opts = self.draw_options.sidelines
         if side_opts.thickness > 0:
             tl, bl, br, tr = self.sideline_intersections().astype(np.int32)
 

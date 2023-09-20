@@ -82,7 +82,7 @@ def test_SubstrateArgs():
             Rho=1.0,
             Theta=0.01,
         ),
-        draw_options=dict(sides=dict(thickness=0)),
+        draw_options=dict(sidelines=dict(thickness=0)),
     )
     subst = substargs.as_substrate(ref)
 

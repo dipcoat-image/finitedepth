@@ -1,6 +1,6 @@
 import dataclasses
 import enum
-from .util import Color
+from .util.parameters import Color
 
 
 __all__ = [
