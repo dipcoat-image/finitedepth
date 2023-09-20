@@ -35,6 +35,7 @@ from .rectcoatinglayer_param import (
     PaintMode,
     SubtractionMode,
     DecoOptions,
+    Data,
 )
 from .util import (
     images_XOR,
@@ -181,47 +182,12 @@ class RectCoatingLayerBase(
         return bool(np.any(np.all(roi_binimg, axis=1)))
 
 
-@dataclasses.dataclass
-class RectLayerShapeData:
-    """
-    Analysis data for :class:`RectLayerShape` instance.
-
-    - LayerLength_{Left, Right}: Distance between the bottom sideline of the
-      substrate and the upper limit of the coating layer.
-    - Conformality: Conformality of the coating layer.
-    - AverageThickness: Average thickness of the coating layer.
-    - Roughness: Roughness of the coating layer.
-    - MaxThickness_{Left, Bottom, Right}: Number of the pixels for the maximum
-      thickness on each region.
-
-    The following data are the metadata for the analysis.
-
-    - MatchError: Template matching error between 0 to 1. 0 means perfect match.
-    - ChipWidth: Number of the pixels between lower vertices of the substrate.
-
-    """
-
-    LayerLength_Left: np.float64
-    LayerLength_Right: np.float64
-
-    Conformality: float
-    AverageThickness: np.float64
-    Roughness: float
-
-    MaxThickness_Left: np.float64
-    MaxThickness_Bottom: np.float64
-    MaxThickness_Right: np.float64
-
-    MatchError: float
-    ChipWidth: np.float32
-
-
 class RectLayerShape(
     RectCoatingLayerBase[
         Parameters,
         DrawOptions,
         DecoOptions,
-        RectLayerShapeData,
+        Data,
     ]
 ):
     """
@@ -291,7 +257,7 @@ class RectLayerShape(
     Parameters = Parameters
     DrawOptions = DrawOptions
     DecoOptions = DecoOptions
-    Data = RectLayerShapeData
+    Data = Data
 
     PaintMode = PaintMode
     SubtractionMode = SubtractionMode
