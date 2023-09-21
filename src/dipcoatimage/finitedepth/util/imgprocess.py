@@ -7,7 +7,7 @@ image.
 
 """
 
-import cv2  # type: ignore
+import cv2
 import numpy as np
 import numpy.typing as npt
 from typing import Tuple

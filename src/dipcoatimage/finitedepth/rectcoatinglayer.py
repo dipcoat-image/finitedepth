@@ -16,7 +16,7 @@ Implementation
 
 """
 
-import cv2  # type: ignore
+import cv2
 import dataclasses
 import numpy as np
 import numpy.typing as npt
@@ -91,7 +91,7 @@ class RectCoatingLayerBase(
                 cv2.RETR_EXTERNAL,
                 cv2.CHAIN_APPROX_NONE,
             )
-            self._layer_contours = layer_cnts
+            self._layer_contours = tuple(layer_cnts)
         return self._layer_contours
 
     def interfaces(self) -> Tuple[npt.NDArray[np.int64], ...]:

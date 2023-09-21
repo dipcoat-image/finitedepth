@@ -27,7 +27,7 @@ Implementation
 
 import abc
 import dataclasses
-import cv2  # type: ignore
+import cv2
 import numpy as np
 import numpy.typing as npt
 from .reference import SubstrateReferenceBase
@@ -252,7 +252,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
                 cnt = cv2.findContours(reg, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
                 contours.append(cnt)
             self._contours = tuple(contours)
-        return self._contours[region]
+        return self._contours[region]  # type: ignore[return-value]
 
     @abc.abstractmethod
     def examine(self) -> Optional[SubstrateError]:

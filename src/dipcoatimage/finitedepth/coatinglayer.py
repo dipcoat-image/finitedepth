@@ -34,7 +34,7 @@ Coating layer over rectangular substrate
 
 
 import abc
-import cv2  # type: ignore
+import cv2
 import dataclasses
 import numpy as np
 import numpy.typing as npt
