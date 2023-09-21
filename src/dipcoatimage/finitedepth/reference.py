@@ -28,14 +28,9 @@ import cv2
 import dataclasses
 import numpy as np
 import numpy.typing as npt
-from .util import (
-    binarize,
-    OptionalROI,
-    IntROI,
-    sanitize_ROI,
-)
+from .util import binarize
 from .reference_param import Parameters, DrawOptions
-from typing import TypeVar, Generic, Type, Optional, TYPE_CHECKING
+from typing import TypeVar, Tuple, Optional, Generic, Type, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
@@ -45,6 +40,9 @@ __all__ = [
     "SubstrateReferenceError",
     "SubstrateReferenceBase",
     "SubstrateReference",
+    "OptionalROI",
+    "IntROI",
+    "sanitize_ROI",
 ]
 
 
@@ -56,6 +54,8 @@ class SubstrateReferenceError(Exception):
 
 ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
 DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
+OptionalROI = Tuple[int, int, Optional[int], Optional[int]]
+IntROI = Tuple[int, int, int, int]
 
 
 class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
@@ -334,3 +334,16 @@ class SubstrateReference(SubstrateReferenceBase[Parameters, DrawOptions]):
             linewidth = tempROI_opts.linewidth
             cv2.rectangle(ret, (x0, y0), (x1, y1), color, linewidth)
         return ret
+
+
+def sanitize_ROI(roi: OptionalROI, h: int, w: int) -> IntROI:
+    full_roi = (0, 0, w, h)
+    max_vars = (w, h, w, h)
+
+    ret = list(roi)
+    for i, var in enumerate(roi):
+        if var is None:
+            ret[i] = full_roi[i]
+        elif var < 0:
+            ret[i] = max_vars[i] + var
+    return tuple(ret)  # type: ignore[return-value]

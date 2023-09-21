@@ -11,12 +11,12 @@ import dataclasses
 import numpy as np
 import numpy.typing as npt
 import os
-from .reference import SubstrateReferenceBase
+from .reference import SubstrateReferenceBase, OptionalROI
 from .substrate import SubstrateBase
 from .coatinglayer import CoatingLayerBase
 from .experiment import ExperimentBase
 from .analysis import ExperimentKind, experiment_kind, Analyzer
-from .util import import_variable, OptionalROI
+from .util import import_variable
 from typing import List, Type, Optional, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
