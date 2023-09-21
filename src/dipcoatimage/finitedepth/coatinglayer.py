@@ -377,8 +377,8 @@ class CoatingLayer(
 
        >>> import cv2
        >>> from dipcoatimage.finitedepth import (SubstrateReference,
-       ...     get_samples_path)
-       >>> ref_path = get_samples_path("ref1.png")
+       ...     get_data_path)
+       >>> ref_path = get_data_path("ref1.png")
        >>> ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
        >>> tempROI = (200, 50, 1200, 200)
        >>> substROI = (400, 175, 1000, 500)
@@ -404,7 +404,7 @@ class CoatingLayer(
        :context: close-figs
 
        >>> from dipcoatimage.finitedepth import CoatingLayer
-       >>> coat_path = get_samples_path("coat1.png")
+       >>> coat_path = get_data_path("coat1.png")
        >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
        >>> coat = CoatingLayer(coat_img, subst)
        >>> plt.imshow(coat.draw()) #doctest: +SKIP

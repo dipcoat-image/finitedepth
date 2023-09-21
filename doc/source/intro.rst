@@ -34,11 +34,11 @@ Below are the images of the bare substrate and the coated substrate from acutal 
    :align: center
 
    import cv2, matplotlib.pyplot as plt
-   from dipcoatimage.finitedepth import get_samples_path
+   from dipcoatimage.finitedepth import get_data_path
 
-   ref_path = get_samples_path("ref3.png")
+   ref_path = get_data_path("ref3.png")
    ref_img = cv2.imread(ref_path, cv2.IMREAD_GRAYSCALE)
-   coat_path = get_samples_path("coat3.png")
+   coat_path = get_data_path("coat3.png")
    coat_img = cv2.imread(coat_path, cv2.IMREAD_GRAYSCALE)
 
    _, axes = plt.subplots(1, 2, figsize=(8, 4))
@@ -92,9 +92,9 @@ The first ROI specifies the template region for the coating layer class, and the
    :align: center
 
    >>> import cv2
-   >>> from dipcoatimage.finitedepth import get_samples_path, SubstrateReference
+   >>> from dipcoatimage.finitedepth import get_data_path, SubstrateReference
    >>> import matplotlib.pyplot as plt #doctest: +SKIP
-   >>> ref_path = get_samples_path("ref3.png")
+   >>> ref_path = get_data_path("ref3.png")
    >>> ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
    >>> templateROI, substrateROI = (100, 50, 1200, 200), (300, 100, 950, 600)
    >>> ref = SubstrateReference(ref_img, templateROI, substrateROI)
@@ -134,7 +134,7 @@ To analyze the coating layer shape, the coating layer instance uses the substrat
    :align: center
 
    >>> from dipcoatimage.finitedepth import CoatingLayer
-   >>> coat_path = get_samples_path("coat3.png")
+   >>> coat_path = get_data_path("coat3.png")
    >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
    >>> coat = CoatingLayer(coat_img, subst)
    >>> coat.draw_options.subtraction = coat.SubtractionMode.FULL
@@ -163,7 +163,7 @@ It can refer to the previous coating layer instance when constructing the new on
 
    >>> from dipcoatimage.finitedepth import Experiment
    >>> expt = Experiment(subst, CoatingLayer)
-   >>> vid_path = get_samples_path("coat3.mp4")
+   >>> vid_path = get_data_path("coat3.mp4")
    >>> cap = cv2.VideoCapture(vid_path); cap.set(cv2.CAP_PROP_POS_FRAMES, 11)
    True
    >>> _, img1 = cap.read(); _, img2 = cap.read(); cap.release()
@@ -197,8 +197,8 @@ This allows configuration for the analysis to be saved to and loaded from file.
 >>> import os
 >>> import yaml
 >>> from dipcoatimage.finitedepth import data_converter, ExperimentData
->>> os.chdir(get_samples_path())
->>> with open(get_samples_path("config.yml")) as f:
+>>> os.chdir(get_data_path())
+>>> with open(get_data_path("config.yml")) as f:
 ...   parameters = yaml.load(f, Loader=yaml.FullLoader)
 >>> for name, data in parameters.items(): #doctest: +SKIP
 ...   exptData = data_converter.structure(data, ExperimentData)

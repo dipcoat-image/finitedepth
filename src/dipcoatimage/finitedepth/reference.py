@@ -63,9 +63,9 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     .. plot::
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import get_samples_path
+       >>> from dipcoatimage.finitedepth import get_data_path
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
-       >>> img = cv2.imread(get_samples_path("ref1.png"))
+       >>> img = cv2.imread(get_data_path("ref1.png"))
        >>> plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)) #doctest: +SKIP
 
     .. rubric:: Image and ROIs
@@ -289,8 +289,8 @@ class SubstrateReference(SubstrateReferenceBase[Parameters, DrawOptions]):
 
        >>> import cv2
        >>> from dipcoatimage.finitedepth import (SubstrateReference,
-       ...     get_samples_path)
-       >>> ref_path = get_samples_path("ref1.png")
+       ...     get_data_path)
+       >>> ref_path = get_data_path("ref1.png")
        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
        >>> tempROI = (200, 50, 1200, 200)
        >>> substROI = (400, 175, 1000, 500)

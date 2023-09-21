@@ -57,7 +57,7 @@ from .serialize import (
     AnalysisArgs,
     ExperimentData,
 )
-from .util import get_samples_path
+from .util import get_data_path
 
 
 __all__ = [
@@ -91,5 +91,5 @@ __all__ = [
     "ExperimentArgs",
     "AnalysisArgs",
     "ExperimentData",
-    "get_samples_path",
+    "get_data_path",
 ]

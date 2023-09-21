@@ -10,11 +10,11 @@ from importlib_resources import files
 
 
 __all__ = [
-    "get_samples_path",
+    "get_data_path",
 ]
 
 
-def get_samples_path(*paths: str) -> str:
+def get_data_path(*paths: str) -> str:
     """
     Get the absolute path to the directory where the sample data are stored.
 
@@ -33,10 +33,10 @@ def get_samples_path(*paths: str) -> str:
     Examples
     ========
 
-    >>> from dipcoatimage.finitedepth import get_samples_path
-    >>> get_samples_path() # doctest: +SKIP
+    >>> from dipcoatimage.finitedepth import get_data_path
+    >>> get_data_path() # doctest: +SKIP
     'path/dipcoatimage/finitedepth/samples'
-    >>> get_samples_path("coat1.png") # doctest: +SKIP
+    >>> get_data_path("coat1.png") # doctest: +SKIP
     'path/dipcoatimage/finitedepth/samples/coat1.png'
 
     """

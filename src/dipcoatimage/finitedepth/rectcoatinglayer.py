@@ -218,8 +218,8 @@ class RectLayerShape(
 
        >>> import cv2
        >>> from dipcoatimage.finitedepth import (SubstrateReference,
-       ...     get_samples_path)
-       >>> ref_path = get_samples_path("ref3.png")
+       ...     get_data_path)
+       >>> ref_path = get_data_path("ref3.png")
        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
        >>> tempROI = (13, 10, 1246, 200)
        >>> substROI = (100, 100, 1200, 500)
@@ -247,7 +247,7 @@ class RectLayerShape(
        :context: close-figs
 
        >>> from dipcoatimage.finitedepth import RectLayerShape
-       >>> coat_path = get_samples_path("coat3.png")
+       >>> coat_path = get_data_path("coat3.png")
        >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
        >>> param_val = dict(
        ...     KernelSize=(1, 1),

@@ -65,10 +65,10 @@ class ReferenceArgs:
        :include-source:
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import ReferenceArgs, get_samples_path
+       >>> from dipcoatimage.finitedepth import ReferenceArgs, get_data_path
        >>> refargs = ReferenceArgs(templateROI=(13, 10, 1246, 200),
        ...                         substrateROI=(100, 100, 1200, 500))
-       >>> ref = refargs.as_reference(cv2.imread(get_samples_path("ref3.png")))
+       >>> ref = refargs.as_reference(cv2.imread(get_data_path("ref3.png")))
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
@@ -152,10 +152,10 @@ class SubstrateArgs:
        :context: reset
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import ReferenceArgs, get_samples_path
+       >>> from dipcoatimage.finitedepth import ReferenceArgs, get_data_path
        >>> refargs = ReferenceArgs(templateROI=(13, 10, 1246, 200),
        ...                         substrateROI=(100, 100, 1200, 500))
-       >>> ref = refargs.as_reference(cv2.imread(get_samples_path("ref3.png")))
+       >>> ref = refargs.as_reference(cv2.imread(get_data_path("ref3.png")))
 
     Construct substrate instance from the data.
 
@@ -245,10 +245,10 @@ class CoatingLayerArgs:
 
        >>> import cv2
        >>> from dipcoatimage.finitedepth import (data_converter, ReferenceArgs,
-       ...     SubstrateArgs, get_samples_path)
+       ...     SubstrateArgs, get_data_path)
        >>> refargs = ReferenceArgs(templateROI=(13, 10, 1246, 200),
        ...                         substrateROI=(100, 100, 1200, 500))
-       >>> ref = refargs.as_reference(cv2.imread(get_samples_path("ref3.png")))
+       >>> ref = refargs.as_reference(cv2.imread(get_data_path("ref3.png")))
        >>> params = dict(Sigma=3.0, Rho=1.0, Theta=0.01)
        >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)
        >>> substargs = data_converter.structure(arg, SubstrateArgs)
@@ -269,7 +269,7 @@ class CoatingLayerArgs:
        ... )
        >>> arg = dict(type={"name": "RectLayerShape"}, parameters=params)
        >>> layerargs = data_converter.structure(arg, CoatingLayerArgs)
-       >>> img_path = get_samples_path("coat3.png")
+       >>> img_path = get_data_path("coat3.png")
        >>> layer = layerargs.as_coatinglayer(cv2.imread(img_path), subst)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(layer.draw()) #doctest: +SKIP
