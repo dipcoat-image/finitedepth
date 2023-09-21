@@ -1,9 +1,9 @@
 import os
-from dipcoatimage.finitedepth.util import get_samples_path
+from dipcoatimage.finitedepth.util import get_data_path
 
 
-def test_get_samples_path():
-    assert get_samples_path("coat1.png").split(os.path.sep)[-4:] == [
+def test_get_data_path():
+    assert get_data_path("coat1.png").split(os.path.sep)[-4:] == [
         "dipcoatimage",
         "finitedepth",
         "data",
