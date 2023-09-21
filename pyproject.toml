@@ -1,5 +1,6 @@
 [build-system]
 requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "dipcoatimage-finitedepth"
@@ -41,3 +42,6 @@ full = ["dipcoatimage-finitedepth[test,doc]"]
 
 [tool.setuptools.dynamic]
 version = {attr = "dipcoatimage.finitedepth.version.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
