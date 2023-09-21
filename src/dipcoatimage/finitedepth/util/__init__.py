@@ -18,17 +18,11 @@ Utilities
 
 """
 
-from .imgprocess import match_template, images_XOR, images_ANDXOR, binarize, colorize
 from .importing import import_variable, ImportStatus, Importer
 from .path import get_data_path
 from .parameters import Color
 
 __all__ = [
-    "match_template",
-    "images_XOR",
-    "images_ANDXOR",
-    "binarize",
-    "colorize",
     "import_variable",
     "ImportStatus",
     "Importer",

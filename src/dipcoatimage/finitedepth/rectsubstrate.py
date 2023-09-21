@@ -16,7 +16,7 @@ import numpy.typing as npt
 from .polysubstrate import PolySubstrateBase
 from .polysubstrate_param import Parameters as Parameters
 from .rectsubstrate_param import DrawOptions, PaintMode
-from .util import colorize
+from .util.imgprocess import colorize
 
 
 __all__ = [

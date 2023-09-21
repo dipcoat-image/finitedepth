@@ -28,8 +28,8 @@ import cv2
 import dataclasses
 import numpy as np
 import numpy.typing as npt
-from .util import binarize
 from .reference_param import Parameters, DrawOptions
+from .util.imgprocess import binarize
 from typing import TypeVar, Tuple, Optional, Generic, Type, TYPE_CHECKING
 
 if TYPE_CHECKING:
