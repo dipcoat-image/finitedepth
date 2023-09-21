@@ -18,7 +18,7 @@ jobs:
 
       - name: install dependencies
         run: |
-          pip install -r flake8 black
+          pip install flake8 black
 
       - name: lint with flake8
         run: |
