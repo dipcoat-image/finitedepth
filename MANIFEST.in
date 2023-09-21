@@ -1,0 +1,2 @@
+include dipcoatimage/finitedepth/py.typed
+include dipcoatimage/finitedepth/samples/*
