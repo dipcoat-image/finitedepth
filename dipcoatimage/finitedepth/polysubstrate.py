@@ -205,8 +205,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
                     theta_rng = np.array([tmin], dtype=np.float32)
 
                 # Interpolate & perform hough transformation.
-                STEP = 10  # Sample points for performance. TODO: use parameter
-                c = side[::STEP]
+                c = side[:: self.parameters.Step]
                 rho = c[..., 0] * np.cos(theta_rng) + c[..., 1] * np.sin(theta_rng)
                 rho_digit = (rho / RHO_RES).astype(np.int32)
 

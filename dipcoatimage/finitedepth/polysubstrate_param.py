@@ -19,9 +19,13 @@ class Parameters:
         Radian resolution for Hough transformation to detect the sidelines.
     Theta: positive float
         Angle resolution for Hough transformation to detect the sidelines.
+    Step: positive int
+        Sampling rate of points for Hough transformation. Larger step makes
+        evaluation faster.
 
     """
 
     Sigma: float
     Rho: float
     Theta: float
+    Step: int = 1
