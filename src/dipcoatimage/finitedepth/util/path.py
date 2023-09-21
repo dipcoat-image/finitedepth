@@ -6,14 +6,11 @@ Path functions
 paths in testing environment.
 
 """
-import contextlib
 from importlib_resources import files
-import os
 
 
 __all__ = [
     "get_samples_path",
-    "cwd",
 ]
 
 
@@ -47,27 +44,3 @@ def get_samples_path(*paths: str) -> str:
     if not paths:
         return str(data_path._paths[0])
     return str(data_path.joinpath(*paths))
-
-
-@contextlib.contextmanager
-def cwd(path: str):
-    """
-    Temporally change the current working directory.
-
-    Examples
-    ========
-
-    >>> import cv2
-    >>> from dipcoatimage.finitedepth.util import cwd, get_samples_path
-    >>> with cwd(get_samples_path()):
-    ...     print(cv2.imread('coat1.png') is None)
-    False
-
-    """
-    # https://stackoverflow.com/a/37996581/11501976
-    old_cwd = os.getcwd()
-    os.chdir(path)
-    try:
-        yield
-    finally:
-        os.chdir(old_cwd)

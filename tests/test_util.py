@@ -1,5 +1,4 @@
 import os
-
 from dipcoatimage.finitedepth.util import get_samples_path
 
 
