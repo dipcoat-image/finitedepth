@@ -23,10 +23,7 @@ import numpy.typing as npt
 from scipy.optimize import root  # type: ignore
 from scipy.spatial.distance import cdist  # type: ignore
 from .rectsubstrate import RectSubstrate
-from .coatinglayer import (
-    CoatingLayerError,
-    CoatingLayerBase,
-)
+from .coatinglayer import CoatingLayerError, CoatingLayerBase, images_XOR
 from .rectcoatinglayer_param import (
     DistanceMeasure,
     Parameters,
@@ -36,12 +33,9 @@ from .rectcoatinglayer_param import (
     DecoOptions,
     Data,
 )
-from .util import images_XOR, colorize
+from .util.imgprocess import colorize
 from .util.dtw import acm, owp
-from .util.geometry import (
-    polyline_parallel_area,
-    equidistant_interpolate,
-)
+from .util.geometry import polyline_parallel_area, equidistant_interpolate
 from typing import TypeVar, Type, Tuple, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:

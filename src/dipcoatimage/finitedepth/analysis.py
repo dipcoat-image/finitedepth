@@ -17,8 +17,8 @@ import numpy as np
 import numpy.typing as npt
 import os
 import tqdm  # type: ignore
-from typing import List, Type, Optional, Dict, Any, Generator
 from .experiment import ExperimentBase
+from typing import List, Type, Optional, Dict, Any, Generator
 
 
 __all__ = [
