@@ -7,6 +7,6 @@ def test_get_samples_path():
     assert get_samples_path("coat1.png").split(os.path.sep)[-4:] == [
         "dipcoatimage",
         "finitedepth",
-        "samples",
+        "data",
         "coat1.png",
     ]

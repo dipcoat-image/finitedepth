@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dipcoatimage-finitedepth"
+description = "Image analysis for finite depth dip coating process"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Jisoo Song", email = "jeesoo9595@snu.ac.kr"}
+]
+dependencies = [
+    "importlib_resources",
+    "cattrs",
+    "numpy >= 1.21",
+    "numba",
+    "scipy",
+    "opencv-python-headless",
+    "tqdm",
+]
+dynamic = [
+    "version",
+]
+
+[project.urls]
+repository = "https://github.com/dipcoat-image/finitedepth"
+
+[project.optional-dependencies]
+test = [
+    "PyYAML",
+    "pytest",
+]
+doc = [
+    "matplotlib",
+    "numpydoc",
+    "PyYAML",
+    "sphinx",
+    "sphinx_rtd_theme",
+]
+full = ["dipcoatimage-finitedepth[test,doc]"]
+
+[tool.setuptools.dynamic]
+version = {attr = "dipcoatimage.finitedepth.version.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
