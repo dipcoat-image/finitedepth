@@ -7,6 +7,7 @@ substrate with polygonal cross section.
 
 """
 import numpy as np
+from numpy.linalg import LinAlgError
 import numpy.typing as npt
 from numba import njit  # type: ignore
 from scipy.ndimage import gaussian_filter1d  # type: ignore
@@ -234,15 +235,14 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
             2, 0, 1
         )
         vec = np.array([[r1], [r2]]).transpose(2, 0, 1)
-
         (ret,) = (np.linalg.inv(mat) @ vec).transpose(2, 0, 1)
         return ret
 
     def examine(self) -> Optional[PolySubstrateError]:
         try:
-            self.vertices()
-        except PolySubstrateError as err:
-            return err
+            self.sideline_intersections()
+        except LinAlgError:
+            return PolySubstrateError("Cannot find sideline intersections.")
         return None
 
 

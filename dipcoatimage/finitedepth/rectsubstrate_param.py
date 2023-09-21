@@ -1,6 +1,6 @@
 import dataclasses
 import enum
-from .util.parameters import Color, LineOptions
+from .util.parameters import Color, MarkerOptions, LineOptions
 
 
 __all__ = [
@@ -19,14 +19,14 @@ class PaintMode(enum.Enum):
         Show the original substrate image.
     BINARY
         Show the binarized substrate image.
-    EDGES
-        Show the edges of the substrate image.
+    CONTOUR
+        Show the contour of the substrate.
 
     """
 
     ORIGINAL = "ORIGINAL"
     BINARY = "BINARY"
-    EDGES = "EDGES"
+    CONTOUR = "CONTOUR"
 
 
 @dataclasses.dataclass
@@ -37,10 +37,14 @@ class DrawOptions:
     Attributes
     ----------
     paint : PaintMode
+    vertices : MarkerOptions
     sidelines : LineOptions
     """
 
     paint: PaintMode = PaintMode.BINARY
+    vertices: MarkerOptions = dataclasses.field(
+        default_factory=lambda: MarkerOptions(color=Color(0, 255, 0))
+    )
     sidelines: LineOptions = dataclasses.field(
-        default_factory=lambda: LineOptions(color=Color(0, 0, 255), linewidth=1)
+        default_factory=lambda: LineOptions(color=Color(0, 0, 255))
     )
