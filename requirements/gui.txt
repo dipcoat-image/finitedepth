@@ -1,4 +1,0 @@
-araviq6 >= 2.0.0
-dawiq
-imagesize
-PySide6

@@ -30,27 +30,6 @@ You can download full source code of DipCoatImage-FiniteDepth project without in
 Note that you can download the source with ``pip`` command, but it will install the package at the same time.
 It will be explaned in the next section.
 
-Setting environment variable (Optional)
-=======================================
-
-DipCoatImage-FiniteDepth is dependent to PySide6 by default.
-This can cause trouble if you are running in non-GUI environment (i.e. in server), or with other packages dependent to Qt.
-For example, non-headless OpenCV-Python modifies Qt library, making PySide6 unavailable.
-
-To install non-GUI (headless) version, set the environment variable ``DIPCOATIMAGE_HEADLESS`` to ``1`` before installing the package.
-
-For example, in Linux:
-
-.. code-block:: bash
-
-   $ export DIPCOATIMAGE_HEADLESS=1
-
-In Windows CMD:
-
-.. code-block:: console
-
-   > set DIPCOATIMAGE_HEADLESS=1
-
 Installing
 ==========
 
@@ -66,10 +45,7 @@ If you just want quick installation for user without source, the following comma
 
    $ pip install git+ssh://git@github.com/dipcoat-image/finitedepth.git
 
-This will install ``dipcoatimage-finitedepth`` package which consists of :mod:`dipcoatimage.finitedepth` and :mod:`dipcoatimage.finitedepth_gui` in your environment.
-
-If you have set the environment variable to install the headless version, ``dipcoatimage-finitedepth-headless`` package will be installed instead.
-This package contains :mod:`dipcoatimage.finitedepth` only (no :mod:`dipcoatimage.finitedepth_gui`).
+This will install ``dipcoatimage-finitedepth`` package in your environment.
 
 .. rubric:: Install options
 
@@ -89,7 +65,6 @@ You may add them in brackets right after the package argument.
 Available specifications are:
 
 * ``test``: installs modules to run tests
-* ``test-ci``: installs modules to run tests in headless environment.
 * ``doc``: installs modules to build documentations
 * ``full``: installs every additional dependency
 

@@ -1,4 +1,4 @@
-name: dipcoatimage-finitedepth ci
+name: build
 
 on: [push, pull_request]
 
@@ -18,7 +18,7 @@ jobs:
 
       - name: install dependencies
         run: |
-          pip install -r requirements/test.txt
+          pip install -r flake8 black
 
       - name: lint with flake8
         run: |
@@ -44,7 +44,7 @@ jobs:
 
       - name: install package
         run: |
-          pip install .[test]
+          pip install mypy .[test]
 
       # - name: run mypy check  # Not reproducible in local. Disable for now.
       #   run: mypy .
@@ -57,11 +57,8 @@ jobs:
 
     strategy:
       matrix:
-        os : [ubuntu-latest]
+        os : [ubuntu-latest, windows-latest, macos-latest]
         python: ["3.9", "3.10", "3.11"]
-
-    env:
-      DISPLAY: ':99.0'
 
     steps:
 
@@ -73,22 +70,9 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
-      - name: set up environment
-        run: |
-          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-            sudo apt-get update -y
-            sudo apt-get install -y libunwind-dev
-            sudo apt-get install -y libgles2-mesa-dev
-            sudo apt install -y libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0 x11-utils
-            /sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -screen 0 1920x1200x24 -ac +extension GLX
-            sudo apt-get install freeglut3 freeglut3-dev
-            sudo apt-get install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav
-          fi
-        shell: bash
-
       - name: install package
         run: |
-          pip install .[test-ci]
+          pip install .[test]
 
       - run: pytest
 
@@ -108,7 +92,7 @@ jobs:
 
       - name: install package
         run: |
-          pip install .[gui,doc]
+          pip install .[doc]
 
       - name: build document
         run: |

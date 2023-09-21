@@ -6,4 +6,3 @@ Developer guide
 
    caching.rst
    testing.rst
-   ci.rst
