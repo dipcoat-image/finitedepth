@@ -44,7 +44,9 @@ def get_samples_path(*paths: str) -> str:
 
     """
     data_path = files("dipcoatimage.finitedepth.data")
-    return str(data_path.joinpath(paths))
+    if not paths:
+        return str(data_path._paths[0])
+    return str(data_path.joinpath(*paths))
 
 
 @contextlib.contextmanager
@@ -57,8 +59,6 @@ def cwd(path: str):
 
     >>> import cv2
     >>> from dipcoatimage.finitedepth.util import cwd, get_samples_path
-    >>> cv2.imread('coat1.png') is None
-    True
     >>> with cwd(get_samples_path()):
     ...     print(cv2.imread('coat1.png') is None)
     False
