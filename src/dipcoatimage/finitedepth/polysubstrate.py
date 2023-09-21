@@ -12,10 +12,12 @@ import numpy.typing as npt
 from numba import njit  # type: ignore
 from scipy.ndimage import gaussian_filter1d  # type: ignore
 from scipy.signal import find_peaks, peak_prominences  # type: ignore
-from typing import TypeVar, Optional, Type, Tuple
 from .substrate import SubstrateError, SubstrateBase
 from .polysubstrate_param import Parameters
-from .util import DataclassProtocol
+from typing import TypeVar, Optional, Type, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
 
 
 __all__ = [
@@ -35,7 +37,7 @@ ROTATION_MATRIX = np.array([[0, 1], [-1, 0]])
 
 
 ParametersType = TypeVar("ParametersType", bound=Parameters)
-DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
+DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
 
 
 class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):

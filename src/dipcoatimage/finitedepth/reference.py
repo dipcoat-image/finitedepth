@@ -30,13 +30,15 @@ import numpy as np
 import numpy.typing as npt
 from .util import (
     binarize,
-    DataclassProtocol,
     OptionalROI,
     IntROI,
     sanitize_ROI,
 )
 from .reference_param import Parameters, DrawOptions
-from typing import TypeVar, Generic, Type, Optional
+from typing import TypeVar, Generic, Type, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
 
 
 __all__ = [
@@ -52,8 +54,8 @@ class SubstrateReferenceError(Exception):
     pass
 
 
-ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
-DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
+ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
+DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
 
 
 class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):

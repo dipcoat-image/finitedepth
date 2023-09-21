@@ -24,7 +24,7 @@ Utilities
 from .imgprocess import match_template, images_XOR, images_ANDXOR, binarize, colorize
 from .importing import import_variable, ImportStatus, Importer
 from .path import get_data_path
-from .typing import DataclassProtocol, OptionalROI, IntROI, sanitize_ROI
+from .typing import OptionalROI, IntROI, sanitize_ROI
 from .parameters import Color
 
 __all__ = [
@@ -37,7 +37,6 @@ __all__ = [
     "ImportStatus",
     "Importer",
     "get_data_path",
-    "DataclassProtocol",
     "OptionalROI",
     "IntROI",
     "sanitize_ROI",
