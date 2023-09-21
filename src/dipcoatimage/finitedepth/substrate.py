@@ -303,8 +303,8 @@ class Substrate(SubstrateBase[Parameters, DrawOptions]):
 
        >>> import cv2
        >>> from dipcoatimage.finitedepth import (SubstrateReference,
-       ...     get_samples_path)
-       >>> ref_path = get_samples_path("ref1.png")
+       ...     get_data_path)
+       >>> ref_path = get_data_path("ref1.png")
        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
        >>> tempROI = (200, 50, 1200, 200)
        >>> substROI = (400, 175, 1000, 500)

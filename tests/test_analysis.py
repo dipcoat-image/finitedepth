@@ -4,25 +4,25 @@ import pytest
 from dipcoatimage.finitedepth import (
     ExperimentKind,
     experiment_kind,
-    get_samples_path,
+    get_data_path,
 )
 from dipcoatimage.finitedepth.analysis import CSVWriter
 
 
 def test_experiment_kind():
     img_path = [
-        get_samples_path("coat1.png"),
+        get_data_path("coat1.png"),
     ]
     assert experiment_kind(img_path) == ExperimentKind.SINGLE_IMAGE
 
     imgs_path = [
-        get_samples_path("coat1.png"),
-        get_samples_path("coat2.png"),
+        get_data_path("coat1.png"),
+        get_data_path("coat2.png"),
     ]
     assert experiment_kind(imgs_path) == ExperimentKind.MULTI_IMAGE
 
     vid_path = [
-        get_samples_path("coat3.mp4"),
+        get_data_path("coat3.mp4"),
     ]
     assert experiment_kind(vid_path) == ExperimentKind.VIDEO
 
@@ -31,13 +31,13 @@ def test_experiment_kind():
     invalid_path = ["invalid.pdf"]
     assert experiment_kind(invalid_path) == ExperimentKind.NULL
     vids_path = [
-        get_samples_path("coat3.mp4"),
-        get_samples_path("coat3.mp4"),
+        get_data_path("coat3.mp4"),
+        get_data_path("coat3.mp4"),
     ]
     assert experiment_kind(vids_path) == ExperimentKind.NULL
     vidimg_path = [
-        get_samples_path("coat3.mp4"),
-        get_samples_path("coat1.png"),
+        get_data_path("coat3.mp4"),
+        get_data_path("coat1.png"),
     ]
     assert experiment_kind(vidimg_path) == ExperimentKind.NULL
 

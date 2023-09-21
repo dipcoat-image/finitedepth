@@ -11,8 +11,8 @@ Defining reference class
 
    import cv2
    import matplotlib.pyplot as plt
-   from dipcoatimage.finitedepth import get_samples_path
-   gray = cv2.imread(get_samples_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
+   from dipcoatimage.finitedepth import get_data_path
+   gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
    _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
    _, axs = plt.subplots(1, 2, figsize=(6, 3))
    axs[0].imshow(gray, cmap="gray")
@@ -183,8 +183,8 @@ We construct a reference with Otsu's binarization, and draw with original image.
    :include-source:
    :context: close-figs
 
-   >>> from dipcoatimage.finitedepth import get_samples_path
-   >>> ref_img = cv2.imread(get_samples_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
+   >>> from dipcoatimage.finitedepth import get_data_path
+   >>> ref_img = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
    >>> tempROI = (13, 10, 1246, 200)
    >>> substROI = (100, 100, 1200, 500)
    >>> params = ThresholdParameters(0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)

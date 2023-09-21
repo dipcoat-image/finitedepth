@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 import cv2  # type: ignore
 from dipcoatimage.finitedepth import (
-    get_samples_path,
+    get_data_path,
     data_converter,
     ImportArgs,
     ReferenceArgs,
@@ -37,13 +37,13 @@ SUBSTARGS = SubstrateArgs()
 LAYERARGS = CoatingLayerArgs()
 EXPTARGS = ExperimentArgs()
 
-REF_PATH = get_samples_path("ref1.png")
+REF_PATH = get_data_path("ref1.png")
 REF_IMG = cv2.imread(REF_PATH)
 if REF_IMG is None:
     raise TypeError("Invalid reference image sample.")
 REF_IMG = cv2.cvtColor(REF_IMG, cv2.COLOR_BGR2RGB)
 
-COAT_PATH = get_samples_path("coat1.png")
+COAT_PATH = get_data_path("coat1.png")
 COAT_IMG = cv2.imread(COAT_PATH)
 if COAT_IMG is None:
     raise TypeError("Invalid coating layer image sample.")
@@ -167,8 +167,8 @@ def test_ExperimentData_analyze_singleimage(tmp_path):
         fps=1,
     )
     data = ExperimentData(
-        ref_path=get_samples_path("ref1.png"),
-        coat_paths=[get_samples_path("coat1.png")],
+        ref_path=get_data_path("ref1.png"),
+        coat_paths=[get_data_path("coat1.png")],
         reference=REFARGS,
         substrate=SUBSTARGS,
         coatinglayer=LAYERARGS,
@@ -193,8 +193,8 @@ def test_ExperimentData_analyze_multiimage(tmp_path):
         fps=1,
     )
     data = ExperimentData(
-        ref_path=get_samples_path("ref1.png"),
-        coat_paths=[get_samples_path("coat1.png"), get_samples_path("coat1.png")],
+        ref_path=get_data_path("ref1.png"),
+        coat_paths=[get_data_path("coat1.png"), get_data_path("coat1.png")],
         reference=REFARGS,
         substrate=SUBSTARGS,
         coatinglayer=LAYERARGS,
@@ -219,8 +219,8 @@ def test_ExperimentData_analyze_video(tmp_path):
         fps=1,
     )
     data = ExperimentData(
-        ref_path=get_samples_path("ref3.png"),
-        coat_paths=[get_samples_path("coat3.mp4")],
+        ref_path=get_data_path("ref3.png"),
+        coat_paths=[get_data_path("coat3.mp4")],
         reference=REFARGS,
         substrate=SUBSTARGS,
         coatinglayer=LAYERARGS,
@@ -238,7 +238,7 @@ def test_ExperimentData_from_file():
     cwd = os.getcwd()
 
     try:
-        os.chdir(get_samples_path())
+        os.chdir(get_data_path())
         with open("config.yml") as f:
             config = yaml.load(f, Loader=yaml.FullLoader)
         for k, v in config.items():

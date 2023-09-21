@@ -39,8 +39,8 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions]):
 
        >>> import cv2
        >>> from dipcoatimage.finitedepth import (SubstrateReference,
-       ...     get_samples_path)
-       >>> ref_path = get_samples_path("ref3.png")
+       ...     get_data_path)
+       >>> ref_path = get_data_path("ref3.png")
        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
        >>> tempROI = (13, 10, 1246, 200)
        >>> substROI = (100, 100, 1200, 500)

@@ -6,18 +6,15 @@ Path functions
 paths in testing environment.
 
 """
-import contextlib
 from importlib_resources import files
-import os
 
 
 __all__ = [
-    "get_samples_path",
-    "cwd",
+    "get_data_path",
 ]
 
 
-def get_samples_path(*paths: str) -> str:
+def get_data_path(*paths: str) -> str:
     """
     Get the absolute path to the directory where the sample data are stored.
 
@@ -36,10 +33,10 @@ def get_samples_path(*paths: str) -> str:
     Examples
     ========
 
-    >>> from dipcoatimage.finitedepth import get_samples_path
-    >>> get_samples_path() # doctest: +SKIP
+    >>> from dipcoatimage.finitedepth import get_data_path
+    >>> get_data_path() # doctest: +SKIP
     'path/dipcoatimage/finitedepth/samples'
-    >>> get_samples_path("coat1.png") # doctest: +SKIP
+    >>> get_data_path("coat1.png") # doctest: +SKIP
     'path/dipcoatimage/finitedepth/samples/coat1.png'
 
     """
@@ -47,27 +44,3 @@ def get_samples_path(*paths: str) -> str:
     if not paths:
         return str(data_path._paths[0])
     return str(data_path.joinpath(*paths))
-
-
-@contextlib.contextmanager
-def cwd(path: str):
-    """
-    Temporally change the current working directory.
-
-    Examples
-    ========
-
-    >>> import cv2
-    >>> from dipcoatimage.finitedepth.util import cwd, get_samples_path
-    >>> with cwd(get_samples_path()):
-    ...     print(cv2.imread('coat1.png') is None)
-    False
-
-    """
-    # https://stackoverflow.com/a/37996581/11501976
-    old_cwd = os.getcwd()
-    os.chdir(path)
-    try:
-        yield
-    finally:
-        os.chdir(old_cwd)

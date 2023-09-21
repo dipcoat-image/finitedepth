@@ -23,12 +23,9 @@ Utilities
 
 from .imgprocess import match_template, images_XOR, images_ANDXOR, binarize, colorize
 from .importing import import_variable, ImportStatus, Importer
-from .path import get_samples_path, cwd
+from .path import get_data_path
 from .typing import DataclassProtocol, OptionalROI, IntROI, sanitize_ROI
-from .parameters import (
-    Color,
-    FeatureDrawingOptions,
-)
+from .parameters import Color
 
 __all__ = [
     "match_template",
@@ -39,12 +36,10 @@ __all__ = [
     "import_variable",
     "ImportStatus",
     "Importer",
-    "get_samples_path",
-    "cwd",
+    "get_data_path",
     "DataclassProtocol",
     "OptionalROI",
     "IntROI",
     "sanitize_ROI",
     "Color",
-    "FeatureDrawingOptions",
 ]
