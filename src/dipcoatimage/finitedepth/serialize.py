@@ -6,19 +6,21 @@ Classes to serialize the analysis parameters into configuration files.
 """
 
 import cattrs
-import cv2  # type: ignore
+import cv2
 import dataclasses
 import numpy as np
 import numpy.typing as npt
 import os
-from typing import List, Type, Optional, Tuple
 from .reference import SubstrateReferenceBase
 from .substrate import SubstrateBase
 from .coatinglayer import CoatingLayerBase
 from .experiment import ExperimentBase
 from .analysis import ExperimentKind, experiment_kind, Analyzer
-from .util import import_variable, OptionalROI, DataclassProtocol
+from .util import import_variable, OptionalROI
+from typing import List, Type, Optional, Tuple, TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
 
 __all__ = [
     "data_converter",
@@ -86,7 +88,7 @@ class ReferenceArgs:
 
     def as_structured_args(
         self,
-    ) -> Tuple[Type[SubstrateReferenceBase], DataclassProtocol, DataclassProtocol]:
+    ) -> Tuple[Type[SubstrateReferenceBase], "DataclassInstance", "DataclassInstance"]:
         """
         Structure the primitive data.
 
@@ -183,7 +185,7 @@ class SubstrateArgs:
 
     def as_structured_args(
         self,
-    ) -> Tuple[Type[SubstrateBase], DataclassProtocol, DataclassProtocol]:
+    ) -> Tuple[Type[SubstrateBase], "DataclassInstance", "DataclassInstance"]:
         """
         Structure the primitive data.
 
@@ -288,7 +290,10 @@ class CoatingLayerArgs:
     def as_structured_args(
         self,
     ) -> Tuple[
-        Type[CoatingLayerBase], DataclassProtocol, DataclassProtocol, DataclassProtocol
+        Type[CoatingLayerBase],
+        "DataclassInstance",
+        "DataclassInstance",
+        "DataclassInstance",
     ]:
         """
         Structure the primitive data.
@@ -351,7 +356,7 @@ class ExperimentArgs:
         if not self.type.name:
             self.type.name = "Experiment"
 
-    def as_structured_args(self) -> Tuple[Type[ExperimentBase], DataclassProtocol]:
+    def as_structured_args(self) -> Tuple[Type[ExperimentBase], "DataclassInstance"]:
         """
         Structure the primitive data.
 
@@ -377,9 +382,9 @@ class ExperimentArgs:
         self,
         subst: SubstrateBase,
         layer_type: Type[CoatingLayerBase],
-        layer_parameters: Optional[DataclassProtocol] = None,
-        layer_drawoptions: Optional[DataclassProtocol] = None,
-        layer_decooptions: Optional[DataclassProtocol] = None,
+        layer_parameters: Optional["DataclassInstance"] = None,
+        layer_drawoptions: Optional["DataclassInstance"] = None,
+        layer_decooptions: Optional["DataclassInstance"] = None,
     ) -> ExperimentBase:
         """Construct the experiment instance."""
         exptcls, params = self.as_structured_args()

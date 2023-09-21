@@ -34,7 +34,7 @@ Coating layer over rectangular substrate
 
 
 import abc
-import cv2  # type: ignore
+import cv2
 import dataclasses
 import numpy as np
 import numpy.typing as npt
@@ -50,10 +50,12 @@ from .util import (
     match_template,
     images_XOR,
     images_ANDXOR,
-    DataclassProtocol,
     binarize,
 )
-from typing import TypeVar, Generic, Type, Optional, Tuple
+from typing import TypeVar, Generic, Type, Optional, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
 
 
 __all__ = [
@@ -64,10 +66,10 @@ __all__ = [
 
 
 SubstrateType = TypeVar("SubstrateType", bound=SubstrateBase)
-ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
-DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
-DecoOptionsType = TypeVar("DecoOptionsType", bound=DataclassProtocol)
-DataType = TypeVar("DataType", bound=DataclassProtocol)
+ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
+DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
+DecoOptionsType = TypeVar("DecoOptionsType", bound="DataclassInstance")
+DataType = TypeVar("DataType", bound="DataclassInstance")
 
 
 class CoatingLayerError(Exception):

@@ -16,13 +16,12 @@ Implementation
 
 """
 
-import cv2  # type: ignore
+import cv2
 import dataclasses
 import numpy as np
 import numpy.typing as npt
 from scipy.optimize import root  # type: ignore
 from scipy.spatial.distance import cdist  # type: ignore
-from typing import TypeVar, Type, Tuple, Optional
 from .rectsubstrate import RectSubstrate
 from .coatinglayer import (
     CoatingLayerError,
@@ -37,16 +36,16 @@ from .rectcoatinglayer_param import (
     DecoOptions,
     Data,
 )
-from .util import (
-    images_XOR,
-    DataclassProtocol,
-    colorize,
-)
+from .util import images_XOR, colorize
 from .util.dtw import acm, owp
 from .util.geometry import (
     polyline_parallel_area,
     equidistant_interpolate,
 )
+from typing import TypeVar, Type, Tuple, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
 
 
 __all__ = [
@@ -55,10 +54,10 @@ __all__ = [
 ]
 
 
-ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
-DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
-DecoOptionsType = TypeVar("DecoOptionsType", bound=DataclassProtocol)
-DataType = TypeVar("DataType", bound=DataclassProtocol)
+ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
+DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
+DecoOptionsType = TypeVar("DecoOptionsType", bound="DataclassInstance")
+DataType = TypeVar("DataType", bound="DataclassInstance")
 
 
 ROTATION_MATRIX = np.array([[0, 1], [-1, 0]])
@@ -92,7 +91,7 @@ class RectCoatingLayerBase(
                 cv2.RETR_EXTERNAL,
                 cv2.CHAIN_APPROX_NONE,
             )
-            self._layer_contours = layer_cnts
+            self._layer_contours = tuple(layer_cnts)
         return self._layer_contours
 
     def interfaces(self) -> Tuple[npt.NDArray[np.int64], ...]:

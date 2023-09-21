@@ -9,7 +9,7 @@ analyze the substrate with rectangular cross-section shape.
    :members:
 
 """
-import cv2  # type: ignore
+import cv2
 import dataclasses
 import numpy as np
 import numpy.typing as npt
@@ -87,7 +87,7 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions]):
         elif paint is self.PaintMode.CONTOUR:
             h, w = self.image().shape[:2]
             image = np.full((h, w), 255, np.uint8)
-            cv2.drawContours(image, self.contour(), -1, 0, 1)
+            cv2.drawContours(image, self.contour(), -1, 0, 1)  # type: ignore
         else:
             raise TypeError("Unrecognized draw mode: %s" % paint)
         ret = colorize(image)

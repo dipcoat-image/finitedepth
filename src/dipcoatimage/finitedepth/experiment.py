@@ -37,11 +37,12 @@ import abc
 import dataclasses
 import numpy as np
 import numpy.typing as npt
-from typing import TypeVar, Generic, Type, Optional, Generator
-
 from .substrate import SubstrateBase
 from .coatinglayer import CoatingLayerBase
-from .util import DataclassProtocol
+from typing import TypeVar, Generic, Type, Optional, Generator, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
 
 
 __all__ = [
@@ -53,7 +54,7 @@ __all__ = [
 
 
 CoatingLayerType = TypeVar("CoatingLayerType", bound=CoatingLayerBase)
-ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
+ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
 
 
 class ExperimentError(Exception):
@@ -123,9 +124,9 @@ class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
         self,
         substrate: SubstrateBase,
         layer_type: Type[CoatingLayerType],
-        layer_parameters: Optional[DataclassProtocol] = None,
-        layer_drawoptions: Optional[DataclassProtocol] = None,
-        layer_decooptions: Optional[DataclassProtocol] = None,
+        layer_parameters: Optional["DataclassInstance"] = None,
+        layer_drawoptions: Optional["DataclassInstance"] = None,
+        layer_decooptions: Optional["DataclassInstance"] = None,
         *,
         parameters: Optional[ParametersType] = None,
     ):

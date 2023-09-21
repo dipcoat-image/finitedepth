@@ -9,7 +9,7 @@ result from experiment.
 
 import abc
 import csv
-import cv2  # type: ignore
+import cv2
 import dataclasses
 import enum
 import mimetypes
@@ -184,7 +184,9 @@ class Analyzer:
     """
 
     data_writers: Dict[str, Type[DataWriter]] = dict(csv=CSVWriter)
-    video_codecs: Dict[str, int] = dict(mp4=cv2.VideoWriter_fourcc(*"mp4v"))
+    video_codecs: Dict[str, int] = dict(
+        mp4=cv2.VideoWriter_fourcc(*"mp4v")  # type: ignore
+    )
 
     def __init__(self, paths: List[str], experiment: ExperimentBase):
         self.paths = paths
@@ -382,7 +384,7 @@ class Analyzer:
                         if i == 0:
                             h, w = img.shape[:2]
                             videowriter = cv2.VideoWriter(
-                                video_path, fourcc, fps, (w, h)
+                                video_path, fourcc, fps, (w, h)  # type: ignore
                             )
                         videowriter.write(visualized)
                 i += 1

@@ -27,13 +27,15 @@ Implementation
 
 import abc
 import dataclasses
-import cv2  # type: ignore
+import cv2
 import numpy as np
 import numpy.typing as npt
 from .reference import SubstrateReferenceBase
 from .substrate_param import Parameters, DrawOptions
-from .util import DataclassProtocol
-from typing import TypeVar, Generic, Type, Optional, Tuple
+from typing import TypeVar, Generic, Type, Optional, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
 
 
 __all__ = [
@@ -49,8 +51,8 @@ class SubstrateError(Exception):
     pass
 
 
-ParametersType = TypeVar("ParametersType", bound=DataclassProtocol)
-DrawOptionsType = TypeVar("DrawOptionsType", bound=DataclassProtocol)
+ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
+DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
 
 
 class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
@@ -250,7 +252,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
                 cnt = cv2.findContours(reg, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
                 contours.append(cnt)
             self._contours = tuple(contours)
-        return self._contours[region]
+        return self._contours[region]  # type: ignore[return-value]
 
     @abc.abstractmethod
     def examine(self) -> Optional[SubstrateError]:

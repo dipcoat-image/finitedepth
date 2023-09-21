@@ -41,13 +41,17 @@ jobs:
 
       - name: set up Python
         uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
 
+      # Mypy version is fixed to avert dataclass related issue.
+      # See issue #197.
       - name: install package
         run: |
-          pip install mypy .[test]
+          pip install mypy==1.4.1 .[test]
 
-      # - name: run mypy check  # Not reproducible in local. Disable for now.
-      #   run: mypy .
+      - name: run mypy check
+        run: mypy .
 
   unit-test:
 
