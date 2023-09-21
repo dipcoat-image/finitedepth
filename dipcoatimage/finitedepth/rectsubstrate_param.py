@@ -19,14 +19,14 @@ class PaintMode(enum.Enum):
         Show the original substrate image.
     BINARY
         Show the binarized substrate image.
-    EDGES
-        Show the edges of the substrate image.
+    CONTOUR
+        Show the contour of the substrate.
 
     """
 
     ORIGINAL = "ORIGINAL"
     BINARY = "BINARY"
-    EDGES = "EDGES"
+    CONTOUR = "CONTOUR"
 
 
 @dataclasses.dataclass

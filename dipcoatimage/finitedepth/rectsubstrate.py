@@ -84,12 +84,10 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions]):
             image = self.image()
         elif paint is self.PaintMode.BINARY:
             image = self.binary_image()
-        elif paint is self.PaintMode.EDGES:
+        elif paint is self.PaintMode.CONTOUR:
             h, w = self.image().shape[:2]
-            mask = np.zeros((h, w), bool)
-            ((x, y),) = self.contour().transpose(1, 2, 0)
-            mask[y, x] = True
-            image = ~mask * np.uint8(255)
+            image = np.full((h, w), 255, np.uint8)
+            cv2.drawContours(image, self.contour(), -1, 0, 1)
         else:
             raise TypeError("Unrecognized draw mode: %s" % paint)
         ret = colorize(image)
