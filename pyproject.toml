@@ -12,6 +12,7 @@ authors = [
     {name = "Jisoo Song", email = "jeesoo9595@snu.ac.kr"}
 ]
 dependencies = [
+    "importlib_resources",
     "cattrs",
     "numpy >= 1.21",
     "numba",
