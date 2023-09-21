@@ -18,14 +18,8 @@ Utilities
 
 """
 
-from .importing import import_variable, ImportStatus, Importer
 from .path import get_data_path
-from .parameters import Color
 
 __all__ = [
-    "import_variable",
-    "ImportStatus",
-    "Importer",
     "get_data_path",
-    "Color",
 ]
