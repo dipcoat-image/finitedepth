@@ -94,6 +94,20 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions]):
             raise TypeError("Unrecognized draw mode: %s" % paint)
         ret = colorize(image)
 
+        vert_opts = self.draw_options.vertices
+        if vert_opts.linewidth > 0:
+            color = dataclasses.astuple(vert_opts.color)
+            marker = getattr(cv2, "MARKER_" + vert_opts.marker.value)
+            for (pt,) in self.contour()[self.vertices()]:
+                cv2.drawMarker(
+                    ret,
+                    pt,
+                    color=color,
+                    markerType=marker,
+                    markerSize=vert_opts.markersize,
+                    thickness=vert_opts.linewidth,
+                )
+
         side_opts = self.draw_options.sidelines
         if side_opts.linewidth > 0:
             tl, bl, br, tr = self.sideline_intersections().astype(np.int32)

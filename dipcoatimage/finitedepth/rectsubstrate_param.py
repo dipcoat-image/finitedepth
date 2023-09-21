@@ -1,6 +1,6 @@
 import dataclasses
 import enum
-from .util.parameters import Color, LineOptions
+from .util.parameters import Color, MarkerOptions, LineOptions
 
 
 __all__ = [
@@ -37,10 +37,14 @@ class DrawOptions:
     Attributes
     ----------
     paint : PaintMode
+    vertices : MarkerOptions
     sidelines : LineOptions
     """
 
     paint: PaintMode = PaintMode.BINARY
+    vertices: MarkerOptions = dataclasses.field(
+        default_factory=lambda: MarkerOptions(color=Color(0, 255, 0))
+    )
     sidelines: LineOptions = dataclasses.field(
         default_factory=lambda: LineOptions(color=Color(0, 0, 255), linewidth=1)
     )

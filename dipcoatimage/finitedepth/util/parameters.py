@@ -8,12 +8,15 @@ construct dataclasses for image analysis classes.
 """
 
 import dataclasses
+import enum
 
 
 __all__ = [
     "Color",
     "LineOptions",
     "PatchOptions",
+    "MarkerTypes",
+    "MarkerOptions",
     "FeatureDrawingOptions",
 ]
 
@@ -63,6 +66,36 @@ class PatchOptions:
     edgecolor: Color = dataclasses.field(default_factory=lambda: Color(0, 0, 0))
     facecolor: Color = dataclasses.field(default_factory=lambda: Color(0, 0, 0))
     linewidth: int = 1
+
+
+class MarkerTypes(enum.Enum):
+    CROSS = "CROSS"
+    TILTED_CROSS = "TILTED_CROSS"
+    STAR = "STAR"
+    DIAMOND = "DIAMOND"
+    SQUARE = "SQUARE"
+    TRIANGLE_UP = "TRIANGLE_UP"
+    TRIANGLE_DOWN = "TRIANGLE_DOWN"
+
+
+@dataclasses.dataclass
+class MarkerOptions:
+    """
+    Parameters to draw a marker in the image.
+
+    Attributes
+    ----------
+    color : Color
+    marker : MarkerTypes
+    linewidth : int
+    markersize : int
+
+    """
+
+    color: Color = dataclasses.field(default_factory=lambda: Color(0, 0, 0))
+    marker: MarkerTypes = MarkerTypes.CROSS
+    linewidth: int = 1
+    markersize: int = 20
 
 
 @dataclasses.dataclass
