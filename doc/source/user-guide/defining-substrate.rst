@@ -11,8 +11,8 @@ Defining substrate class
 
    import cv2
    import matplotlib.pyplot as plt #doctest: +SKIP
-   from dipcoatimage.finitedepth import get_samples_path
-   path = get_samples_path("ref2.png")
+   from dipcoatimage.finitedepth import get_data_path
+   path = get_data_path("ref2.png")
    img = cv2.imread(path)
    plt.imshow(img) #doctest: +SKIP
 
@@ -191,8 +191,8 @@ We first construct a reference with grayscale image.
    :include-source:
    :context: close-figs
 
-   >>> from dipcoatimage.finitedepth import get_samples_path, SubstrateReference
-   >>> ref_img = cv2.imread(get_samples_path("ref2.png"), cv2.IMREAD_GRAYSCALE)
+   >>> from dipcoatimage.finitedepth import get_data_path, SubstrateReference
+   >>> ref_img = cv2.imread(get_data_path("ref2.png"), cv2.IMREAD_GRAYSCALE)
    >>> ref = SubstrateReference(ref_img, substrateROI=(400, 100, 1000, 600))
    >>> import matplotlib.pyplot as plt #doctest: +SKIP
    >>> plt.imshow(ref.draw()) #doctest: +SKIP
