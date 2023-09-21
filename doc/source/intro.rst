@@ -205,37 +205,3 @@ This allows configuration for the analysis to be saved to and loaded from file.
 ...   exptData.analyze(name)
 coat1: 100%|█████████████████████████████████████| 1/1 [00:00<00:00,  7.55it/s]
 coat3: 100%|█████████████████████████████████████| 15/15 [00:01<00:00, 14.37it/s]
-
-GUI
-===
-
-:mod:`dipcoatimage.finitedepth_gui` provides the GUI to perform visualization and analysis.
-
-.. figure:: ./_images/finitedepth-gui.jpg
-   :align: center
-
-   Finite depth analysis GUI
-
-Its main features are:
-
-1. Construct the classes from :mod:`dipcoatimage.finitedepth` by specifying the parameters and visualize them.
-2. Save and load the serialized parameters.
-3. Real-time visualization of the image stream from the camera.
-4. Capturing the image and recording the video from the camera.
-5. Analyzing the experiment using constructed classes and saving to file.
-
-The following code runs the GUI.
-Note that style sheet is set to highlight the mandatory field widgets.
-
-.. code-block:: python
-
-   from PySide6.QtWidgets import QApplication
-   import sys
-   from dipcoatimage.finitedepth_gui import MainWindow
-
-   app = QApplication(sys.argv)
-   app.setStyleSheet("*[requiresFieldValue=true]{border: 1px solid red}")
-   window = MainWindow()
-   window.show()
-   app.exec()
-   app.quit()

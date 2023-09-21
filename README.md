@@ -26,15 +26,6 @@ $ pip install git+ssh://git@github.com/dipcoat-image/finitedepth.git
 
 To install with additional options, refer to [Installation](https://github.com/dipcoat-image/finitedepth/blob/master/doc/source/user-guide/installation.rst) document.
 
-## Installing headless version
-
-By default, ``dipcoatimage-finitedepth`` installs GUI features which are dependent to [PySide6](https://pypi.org/project/PySide6/).
-This may cause problem when you are running the package in server environments, or with other packages dependent to Qt (for example, non-headless [OpenCV-Python](https://pypi.org/project/opencv-python/)).  
-
-To install non-GUI(headless) version, set the environment variable `DIPCOATIMAGE_HEADLESS` to `1` and run the install command.
-This installs ``dipcoatimage-finitedepth-headless`` package which is a headless version, instead of ordinary ``dipcoatimage-finitedepth``.
-Refer to Installation document for more details.
-
 # Documentation
 
 Documentation of this project is done by [Sphinx](https://www.sphinx-doc.org/en/master/).

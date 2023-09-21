@@ -5,5 +5,9 @@ API reference
 .. toctree::
    :maxdepth: 2
 
-   finitedepth
-   finitedepth-gui
+   reference
+   substrate
+   experiment
+   analysis
+   serialize
+   util

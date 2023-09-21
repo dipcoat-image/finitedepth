@@ -12,8 +12,6 @@ Installing
 Running test requires additional packages to be installed.
 As mentioned in :ref:`Installation <install-options>` document, you can install DipCoatImage-FiniteDepth with ``test`` option to install these packages altogether.
 
-If you wish to run tests in headless environment, install with ``test-ci`` option instead.
-
 Linting
 =======
 
