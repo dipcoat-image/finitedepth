@@ -46,5 +46,5 @@ class DrawOptions:
         default_factory=lambda: MarkerOptions(color=Color(0, 255, 0))
     )
     sidelines: LineOptions = dataclasses.field(
-        default_factory=lambda: LineOptions(color=Color(0, 0, 255), linewidth=1)
+        default_factory=lambda: LineOptions(color=Color(0, 0, 255))
     )
