@@ -1,5 +1,9 @@
 # DipCoatImage-FiniteDepth
 
+[![Build Status](https://github.com/JSS95/dawiq/actions/workflows/ci.yml/badge.svg)](https://github.com/dipcoat-image/finitedepth/actions/workflows/ci.yml)
+[![Documentation Status](https://readthedocs.org/projects/dipcoatimage-finitedepth/badge/?version=latest)](https://dipcoatimage-finitedepth.readthedocs.io/en/latest/?badge=latest)
+[![License](https://img.shields.io/github/license/dipcoat-image/finitedepth)](https://github.com/dipcoat-image/finitedepth/blob/master/LICENSE)
+
 Python package for image analysis on finite depth dip coating process.
 
 ## Introduction
