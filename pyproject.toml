@@ -39,7 +39,12 @@ doc = [
     "sphinx",
     "sphinx_rtd_theme",
 ]
-full = ["dipcoatimage-finitedepth[test,doc]"]
+dev = [
+    "flake8",
+    "black",
+    "mypy==1.4.1",
+    "dipcoatimage-finitedepth[test,doc]",
+]
 
 [tool.setuptools.dynamic]
 version = {attr = "dipcoatimage.finitedepth.version.__version__"}

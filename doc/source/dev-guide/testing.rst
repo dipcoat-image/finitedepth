@@ -4,13 +4,11 @@ Testing
 
 This document explains how to run tests while developing.
 
-Although CI workflow runs all the tests mentioned here, it is good to run them in your environment before pushing the commits.
-
 Installing
 ==========
 
 Running test requires additional packages to be installed.
-As mentioned in :ref:`Installation <install-options>` document, you can install DipCoatImage-FiniteDepth with ``test`` option to install these packages altogether.
+As mentioned in :ref:`Installation <install-options>` document, you can install DipCoatImage-FiniteDepth with ``dev`` option to install these packages altogether.
 
 Linting
 =======
@@ -56,11 +54,7 @@ Run the following command to check your code.
 
 .. code-block:: bash
 
-   $ mypy .
-
-.. note::
-
-   `mypy == 9.6.0` has issue for checking `TypeVar[Protocol]`. Use other version.
+   $ mypy src
 
 Unit testing
 ============
