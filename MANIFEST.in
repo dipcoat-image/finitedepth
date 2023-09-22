@@ -1,2 +1,1 @@
-include src/dipcoatimage/finitedepth/py.typed
 include src/dipcoatimage/finitedepth/data/*
