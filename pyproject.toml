@@ -11,17 +11,9 @@ license = {file = "LICENSE"}
 authors = [
     {name = "Jisoo Song", email = "jeesoo9595@snu.ac.kr"}
 ]
-dependencies = [
-    "importlib_resources",
-    "cattrs",
-    "numpy >= 1.21",
-    "numba",
-    "scipy",
-    "opencv-python-headless",
-    "tqdm",
-]
 dynamic = [
     "version",
+    "dependencies",
 ]
 
 [project.urls]
@@ -39,10 +31,16 @@ doc = [
     "sphinx",
     "sphinx_rtd_theme",
 ]
-full = ["dipcoatimage-finitedepth[test,doc]"]
+dev = [
+    "flake8",
+    "black",
+    "mypy==1.4.1",
+    "dipcoatimage-finitedepth[test,doc]",
+]
 
 [tool.setuptools.dynamic]
 version = {attr = "dipcoatimage.finitedepth.version.__version__"}
+dependencies = {file = ["requirements.txt"]}
 
 [tool.setuptools.packages.find]
 where = ["src"]
