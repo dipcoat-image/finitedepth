@@ -48,6 +48,7 @@ jobs:
       # See issue #197.
       - name: install package
         run: |
+          pip install -r requirements.txt
           pip install mypy==1.4.1
 
       - name: run mypy check
