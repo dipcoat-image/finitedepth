@@ -2,16 +2,8 @@
 Experiment
 ==========
 
-:mod:`dipcoatimage.finitedepth.experiment` provides factory to construct coating
-layer objects.
-
-A finite-depth dip coating experiment consists of:
-
-* Bare substrate image
-* Coated substrate images
-
-With each coated substrate image, experiment class constructs coating layer
-instance using common bare substrate instance.
+:mod:`dipcoatimage.finitedepth.experiment` provides factory to construct
+coating layer objects.
 
 Base class
 ----------
@@ -39,7 +31,7 @@ import numpy as np
 import numpy.typing as npt
 from .substrate import SubstrateBase
 from .coatinglayer import CoatingLayerBase
-from typing import TypeVar, Generic, Type, Optional, Generator, TYPE_CHECKING
+from typing import TypeVar, Generic, Type, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
@@ -63,13 +55,14 @@ class ExperimentError(Exception):
     pass
 
 
-class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
+class ExperimentBase(abc.ABC, Generic[ParametersType]):
     """
-    Abstract base class for finite-depth dip coating experiment.
+    Abstract base class for coating layer factory.
 
-    Experiment consists of a bare substrate image and coated substrate images.
-    Experiment class is a factory which constructs :class:`CoatingLayerBase`
-    instances from the data.
+    Experiment is an act of transforming incoming coated substrate images to
+    coating layer data by processing them agains the bare substrate.
+    :class:`ExperimentBase` provides structured way to define transformation of
+    a series of images.
 
     .. rubric:: Constructor
 
@@ -90,68 +83,24 @@ class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
 
     .. rubric:: Coating layer construction
 
-    Coating layer is constructed by :meth:`construct_coatinglayer`. When
-    analyzing consecutive images, coating layer parameters may need to be
-    different for each instance. To support this, image number and previous
-    instance can be passed. Subclass may override this method to apply different
-    parameters.
-
-    :meth:`layer_generator` returns a generator which receives coated substrate
-    image and automatically calls :meth:`construct_coatinglayer` with image
-    number and previous instance.
-
-    Parameters
-    ==========
-
-    substrate
-        Substrate instance.
-
-    layer_type
-        Concrete subclass of :class:`CoatingLayerBase`.
-
-    layer_parameters, layer_drawoptions, layer_decooptions
-        *parameters*, *draw_options*, and *deco_options* arguments for
-        *layer_type*.
-
-    parameters
-        Additional parameters.
+    :meth:`coatinglayer` method is responsible for transforming each coated
+    substrate image into a coating layer instance.
 
     """
 
+    __slots__ = ("_parameters",)
+
     Parameters: Type[ParametersType]
 
-    def __init__(
-        self,
-        substrate: SubstrateBase,
-        layer_type: Type[CoatingLayerType],
-        layer_parameters: Optional["DataclassInstance"] = None,
-        layer_drawoptions: Optional["DataclassInstance"] = None,
-        layer_decooptions: Optional["DataclassInstance"] = None,
-        *,
-        parameters: Optional[ParametersType] = None,
-    ):
-        self.substrate = substrate
-        self.layer_type = layer_type
-
-        if layer_parameters is None:
-            self.layer_parameters = self.layer_type.Parameters()
-        else:
-            self.layer_parameters = dataclasses.replace(layer_parameters)
-
-        if layer_drawoptions is None:
-            self.layer_drawoptions = self.layer_type.DrawOptions()
-        else:
-            self.layer_drawoptions = dataclasses.replace(layer_drawoptions)
-
-        if layer_decooptions is None:
-            self.layer_decooptions = self.layer_type.DecoOptions()
-        else:
-            self.layer_decooptions = dataclasses.replace(layer_decooptions)
-
+    def __init__(self, *, parameters: Optional[ParametersType] = None):
         if parameters is None:
-            self.parameters = self.Parameters()
+            self._parameters = self.Parameters()
         else:
-            self.parameters = dataclasses.replace(parameters)
+            self._parameters = dataclasses.replace(parameters)
+
+    @property
+    def parameters(self) -> ParametersType:
+        return self._parameters
 
     @abc.abstractmethod
     def examine(self) -> Optional[ExperimentError]:
@@ -180,60 +129,25 @@ class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
         """
         return self.examine() is None
 
-    def construct_coatinglayer(
+    @abc.abstractmethod
+    def coatinglayer(
         self,
         image: npt.NDArray[np.uint8],
-        prev: Optional[CoatingLayerBase] = None,
+        substrate: SubstrateBase,
+        *,
+        layer_type: Type[CoatingLayerType],
+        layer_parameters: Optional["DataclassInstance"] = None,
+        layer_drawoptions: Optional["DataclassInstance"] = None,
+        layer_decooptions: Optional["DataclassInstance"] = None,
     ) -> CoatingLayerBase:
         """
-        Construct instance of :attr:`layer_type` with *image*.
+        Factory method to create coating layer.
 
-        *prev* can be passed to let different parameters applied for each coating
-        layer instance. Passing this argument does nothing by default but
-        subclass can redefine this method to define the behavior.
-
-        Parameters
-        ==========
-
-        image
-            *image* argument for coating layer class.
-
-        prev
-            Previous coating layer instance.
-
+        Implementation may define custom way to create new instance. For example,
+        substrate location in previous image can be stored to boost template
+        matching of incoming images. If required, :meth:`parameters` can be
+        used to controll consecutive creation.
         """
-        ret = self.layer_type(
-            image,
-            self.substrate,
-            parameters=self.layer_parameters,
-            draw_options=self.layer_drawoptions,
-            deco_options=self.layer_decooptions,
-        )
-        return ret
-
-    def layer_generator(
-        self, prev: Optional[CoatingLayerBase] = None
-    ) -> Generator[CoatingLayerBase, npt.NDArray[np.uint8], None]:
-        """
-        Generator which receives coated substrate image to yield coating layer.
-
-        As new image is sent, coating layer instance is created using
-        :meth:`construct_coatinglayer` with the previous coating layer instance.
-        *prev* parameter is used as the previous instance for the initial value.
-
-        Parameters
-        ==========
-
-        prev : CoatingLayerBase, optional
-            Coating layer instance treated to be previous one to construct the
-            first coating layer instance.
-
-        """
-        while True:
-            img = yield  # type: ignore
-            layer = self.construct_coatinglayer(img, prev)
-            yield layer
-            prev = layer
 
 
 @dataclasses.dataclass(frozen=True)
@@ -243,13 +157,29 @@ class ExperimentParameters:
     pass
 
 
-class Experiment(ExperimentBase[CoatingLayerBase, ExperimentParameters]):
-    """
-    Simplest experiment class with no parameter.
-
-    """
+class Experiment(ExperimentBase[ExperimentParameters]):
+    """Simplest experiment class with no parameter."""
 
     Parameters = ExperimentParameters
 
     def examine(self) -> None:
         return None
+
+    def coatinglayer(
+        self,
+        image: npt.NDArray[np.uint8],
+        substrate: SubstrateBase,
+        *,
+        layer_type: Type[CoatingLayerType],
+        layer_parameters: Optional["DataclassInstance"] = None,
+        layer_drawoptions: Optional["DataclassInstance"] = None,
+        layer_decooptions: Optional["DataclassInstance"] = None,
+    ) -> CoatingLayerBase:
+        ret = layer_type(
+            image,
+            substrate,
+            parameters=layer_parameters,
+            draw_options=layer_drawoptions,
+            deco_options=layer_decooptions,
+        )
+        return ret

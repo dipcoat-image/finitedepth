@@ -147,7 +147,7 @@ def test_ExperimentArgs():
 
     layerargs = CoatingLayerArgs()
     exptargs = ExperimentArgs()
-    expt = exptargs.as_experiment(subst, *layerargs.as_structured_args())
+    expt = exptargs.as_experiment()
 
     assert type(expt).__name__ == exptargs.type.name
     assert dict_includes(
