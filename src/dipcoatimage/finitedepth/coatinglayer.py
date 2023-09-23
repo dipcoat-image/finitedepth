@@ -329,11 +329,7 @@ class CoatingLayerBase(
 
         To implement sanity check for concrete class, define :meth:`examine`.
         """
-        err = self.examine()
-        ret = True
-        if err is not None:
-            ret = False
-        return ret
+        return self.examine() is None
 
     @abc.abstractmethod
     def draw(self) -> npt.NDArray[np.uint8]:

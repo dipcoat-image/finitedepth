@@ -178,11 +178,7 @@ class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
 
         To implement sanity check for concrete class, define :meth:`examine`.
         """
-        err = self.examine()
-        ret = True
-        if err is not None:
-            ret = False
-        return ret
+        return self.examine() is None
 
     def construct_coatinglayer(
         self,
