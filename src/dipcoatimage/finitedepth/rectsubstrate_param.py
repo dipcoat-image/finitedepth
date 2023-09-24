@@ -6,6 +6,7 @@ from .util.parameters import Color, MarkerOptions, LineOptions
 __all__ = [
     "PaintMode",
     "DrawOptions",
+    "Data",
 ]
 
 
@@ -48,3 +49,10 @@ class DrawOptions:
     sidelines: LineOptions = dataclasses.field(
         default_factory=lambda: LineOptions(color=Color(0, 0, 255))
     )
+
+
+@dataclasses.dataclass
+class Data:
+    """Analysis data for :class:`RectSubstrate`."""
+
+    pass

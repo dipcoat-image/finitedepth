@@ -373,7 +373,8 @@ class Analysis(AnalysisBase[Parameters]):
                 headers = []
                 sd_writer = sd_cls(self.parameters.subst_data, headers)
                 sd_writer.prepare()
-                ...  # TODO: implement data for substrate
+                data = list(dataclasses.astuple(layer.substrate.analyze()))
+                sd_writer.write_data(data)
                 sd_writer.terminate()
 
             if self.parameters.subst_visual:

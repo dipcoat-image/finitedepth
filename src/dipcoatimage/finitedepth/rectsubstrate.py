@@ -15,8 +15,9 @@ import numpy as np
 import numpy.typing as npt
 from .polysubstrate import PolySubstrateBase
 from .polysubstrate_param import Parameters as Parameters
-from .rectsubstrate_param import DrawOptions, PaintMode
+from .rectsubstrate_param import DrawOptions, PaintMode, Data
 from .util.imgprocess import colorize
+from typing import Tuple
 
 
 __all__ = [
@@ -24,7 +25,7 @@ __all__ = [
 ]
 
 
-class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions]):
+class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):
     """
     Simplest implementation of :class:`RectSubstrateBase`.
 
@@ -74,6 +75,7 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions]):
 
     Parameters = Parameters
     DrawOptions = DrawOptions
+    Data = Data
     SidesNum = 4
 
     PaintMode = PaintMode
@@ -118,3 +120,6 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions]):
             cv2.line(ret, bl, tl, color, linewidth)
 
         return ret
+
+    def analyze_substrate(self) -> Tuple[()]:
+        return ()

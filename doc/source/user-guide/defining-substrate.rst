@@ -77,6 +77,17 @@ We define a dataclass to control its color.
    ... class CircleDrawOptions:
    ...     color: tuple = (0, 0, 255)
 
+Defining data
+=============
+
+.. plot::
+   :include-source:
+   :context: close-figs
+
+   >>> @dataclasses.dataclass
+   ... class Data:
+   ...     ...
+
 Defining substrate class
 ========================
 
@@ -93,6 +104,7 @@ Full code will be shown first, and each line will be explained in subsections.
    ...     __slots__ = ("_circles",)
    ...     Parameters = HoughCirclesParameters
    ...     DrawOptions = CircleDrawOptions
+   ...     Data = Data
    ...     def region_points(self):
    ...         w = self.image().shape[1]
    ...         return np.array([[w / 2, 0]], dtype=np.int32)
@@ -116,6 +128,8 @@ Full code will be shown first, and each line will be explained in subsections.
    ...         for ((x, y, r),) in self.circles()[:1]:
    ...             cv2.circle(ret, (x, y), r, color, thickness)
    ...         return ret
+   ...     def analyze_substrate(self):
+   ...         return ()
 
 Slots
 -----
