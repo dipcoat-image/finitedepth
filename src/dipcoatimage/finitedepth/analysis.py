@@ -16,6 +16,7 @@ import enum
 import mimetypes
 import os
 from .coatinglayer import CoatingLayerBase
+from .analysis_param import Parameters
 from typing import List, Type, Optional, Dict, Any, TypeVar, Generic, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -214,6 +215,10 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
 
     def close(self):
         self._iterator.close()
+
+
+class Analysis(AnalysisBase[Parameters]):
+    ...
 
 
 class Analyzer(Coroutine):
