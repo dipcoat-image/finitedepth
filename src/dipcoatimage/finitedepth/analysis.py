@@ -10,7 +10,6 @@ result from experiment.
 import abc
 from collections.abc import Coroutine
 import csv
-import cv2
 import dataclasses
 import enum
 import imageio.v2 as iio  # TODO: use PyAV
@@ -364,10 +363,7 @@ class Analysis(AnalysisBase[Parameters]):
 
             if self.parameters.ref_visual:
                 img = layer.substrate.reference.draw()
-                iio.imwrite(
-                    self.parameters.ref_visual,
-                    cv2.cvtColor(img, cv2.COLOR_BGR2RGB),
-                )
+                iio.imwrite(self.parameters.ref_visual, img)
 
             if self.parameters.subst_data:
                 headers = []
@@ -379,10 +375,7 @@ class Analysis(AnalysisBase[Parameters]):
 
             if self.parameters.subst_visual:
                 img = layer.substrate.draw()
-                iio.imwrite(
-                    self.parameters.subst_visual,
-                    cv2.cvtColor(img, cv2.COLOR_BGR2RGB),
-                )
+                iio.imwrite(self.parameters.subst_visual, img)
 
             if self.parameters.layer_data:
                 headers = [f.name for f in dataclasses.fields(layer.Data)]
@@ -401,15 +394,14 @@ class Analysis(AnalysisBase[Parameters]):
                     ld_writer.write_data(data)
 
                 if self.parameters.layer_visual:
-                    img = cv2.cvtColor(layer.draw(), cv2.COLOR_BGR2RGB)
                     if lv_type == "video":
-                        lv_writer.append_data(img)
+                        lv_writer.append_data(layer.draw())
                     elif lv_type == "image":
                         if lv_formattable:
                             path = self.parameters.layer_visual % i
                         else:
                             path = self.parameters.layer_visual
-                        iio.imwrite(path, img)
+                        iio.imwrite(path, layer.draw())
 
                 layer = yield
                 i += 1

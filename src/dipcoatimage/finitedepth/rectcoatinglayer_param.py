@@ -2,7 +2,7 @@ import dataclasses
 import enum
 import numpy as np
 from .coatinglayer_param import SubtractionMode
-from .util.parameters import Color, LineOptions, PatchOptions
+from .util.parameters import LineOptions, PatchOptions
 from typing import Tuple
 
 
@@ -96,7 +96,8 @@ class LinesOptions:
 
     Attributes
     ----------
-    color : Color
+    color : tuple
+        Color of the lines in RGB
     linewidth : int
         Width of the line.
         Zero value is the flag to not draw the line.
@@ -105,7 +106,7 @@ class LinesOptions:
 
     """
 
-    color: Color = dataclasses.field(default_factory=lambda: Color(0, 0, 0))
+    color: Tuple[int, int, int] = (0, 0, 0)
     linewidth: int = 1
     step: int = 1
 
@@ -126,29 +127,25 @@ class DecoOptions:
     layer: PatchOptions = dataclasses.field(
         default_factory=lambda: PatchOptions(
             fill=True,
-            edgecolor=Color(0, 0, 255),
-            facecolor=Color(255, 255, 255),
+            edgecolor=(0, 0, 255),
+            facecolor=(255, 255, 255),
             linewidth=1,
         )
     )
     contact_line: LineOptions = dataclasses.field(
-        default_factory=lambda: LineOptions(color=Color(0, 0, 255), linewidth=1)
+        default_factory=lambda: LineOptions(color=(0, 0, 255), linewidth=1)
     )
     thickness: LineOptions = dataclasses.field(
-        default_factory=lambda: LineOptions(color=Color(0, 0, 255), linewidth=1)
+        default_factory=lambda: LineOptions(color=(0, 0, 255), linewidth=1)
     )
     uniform_layer: LineOptions = dataclasses.field(
-        default_factory=lambda: LineOptions(color=Color(255, 0, 0), linewidth=1)
+        default_factory=lambda: LineOptions(color=(255, 0, 0), linewidth=1)
     )
     conformality: LinesOptions = dataclasses.field(
-        default_factory=lambda: LinesOptions(
-            color=Color(0, 255, 0), linewidth=1, step=10
-        )
+        default_factory=lambda: LinesOptions(color=(0, 255, 0), linewidth=1, step=10)
     )
     roughness: LinesOptions = dataclasses.field(
-        default_factory=lambda: LinesOptions(
-            color=Color(255, 0, 0), linewidth=1, step=10
-        )
+        default_factory=lambda: LinesOptions(color=(255, 0, 0), linewidth=1, step=10)
     )
 
 

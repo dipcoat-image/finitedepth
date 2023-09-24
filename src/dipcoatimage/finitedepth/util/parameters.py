@@ -9,22 +9,15 @@ construct dataclasses for image analysis classes.
 
 import dataclasses
 import enum
+from typing import Tuple
 
 
 __all__ = [
-    "Color",
     "LineOptions",
     "PatchOptions",
     "MarkerTypes",
     "MarkerOptions",
 ]
-
-
-@dataclasses.dataclass
-class Color:
-    red: int
-    green: int
-    blue: int
 
 
 @dataclasses.dataclass
@@ -34,14 +27,15 @@ class LineOptions:
 
     Attributes
     ----------
-    color : Color
+    color : tuple
+        Color of the line in RGB.
     linewidth : int
         Width of the line.
         Zero value is the flag to not draw the line.
 
     """
 
-    color: Color = dataclasses.field(default_factory=lambda: Color(0, 0, 0))
+    color: Tuple[int, int, int] = (0, 0, 0)
     linewidth: int = 1
 
 
@@ -54,7 +48,8 @@ class PatchOptions:
     ----------
     fill : bool
         Whether to fill the patch with facecolor.
-    edgecolor, facecolor : Color
+    edgecolor, facecolor : tuple
+        Color in RGB.
     linewidth : int
         Width of the edge.
         Zero value is the flag to not draw the edge.
@@ -62,8 +57,8 @@ class PatchOptions:
     """
 
     fill: bool = True
-    edgecolor: Color = dataclasses.field(default_factory=lambda: Color(0, 0, 0))
-    facecolor: Color = dataclasses.field(default_factory=lambda: Color(0, 0, 0))
+    edgecolor: Tuple[int, int, int] = (0, 0, 0)
+    facecolor: Tuple[int, int, int] = (0, 0, 0)
     linewidth: int = 1
 
 
@@ -84,14 +79,15 @@ class MarkerOptions:
 
     Attributes
     ----------
-    color : Color
+    color : tuple
+        Color of the marker in RGB
     marker : MarkerTypes
     linewidth : int
     markersize : int
 
     """
 
-    color: Color = dataclasses.field(default_factory=lambda: Color(0, 0, 0))
+    color: Tuple[int, int, int] = (0, 0, 0)
     marker: MarkerTypes = MarkerTypes.CROSS
     linewidth: int = 1
     markersize: int = 20

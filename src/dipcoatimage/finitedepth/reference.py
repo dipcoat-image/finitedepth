@@ -82,6 +82,8 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
     common in both bare substrate image and coated substrate image. Substrate ROI
     encloses the bare substrate region, narrowing down the target.
 
+    Input image should be grayscale or RGB.
+
     .. rubric:: Binary image
 
     Binarization is important for reference image. :meth:`binary_image` is the
@@ -183,7 +185,7 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
     @property
     def image(self) -> npt.NDArray[np.uint8]:
         """
-        Reference image passed to constructor.
+        Reference image. Grayscale or RGB.
 
         This array is not writable to be immutable for caching.
         """
@@ -321,7 +323,7 @@ class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
        :include-source:
        :context: close-figs
 
-       >>> ref.draw_options.substrateROI.color.blue = 255
+       >>> ref.draw_options.substrateROI.color = (0, 255, 255)
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
     """
@@ -339,14 +341,14 @@ class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
         substROI_opts = self.draw_options.substrateROI
         if substROI_opts.linewidth > 0:
             x0, y0, x1, y1 = self.substrateROI
-            color = dataclasses.astuple(substROI_opts.color)
+            color = substROI_opts.color
             linewidth = substROI_opts.linewidth
             cv2.rectangle(ret, (x0, y0), (x1, y1), color, linewidth)
 
         tempROI_opts = self.draw_options.templateROI
         if tempROI_opts.linewidth > 0:
             x0, y0, x1, y1 = self.templateROI
-            color = dataclasses.astuple(tempROI_opts.color)
+            color = tempROI_opts.color
             linewidth = tempROI_opts.linewidth
             cv2.rectangle(ret, (x0, y0), (x1, y1), color, linewidth)
         return ret

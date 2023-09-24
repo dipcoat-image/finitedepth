@@ -10,7 +10,6 @@ analyze the substrate with rectangular cross-section shape.
 
 """
 import cv2
-import dataclasses
 import numpy as np
 import numpy.typing as npt
 from .polysubstrate import PolySubstrateBase
@@ -68,7 +67,7 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):
        :context: close-figs
 
        >>> subst.draw_options.sidelines.linewidth = 3
-       >>> subst.draw_options.sidelines.color.red = 255
+       >>> subst.draw_options.sidelines.color = (255, 0, 255)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
     """
@@ -96,7 +95,7 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):
 
         vert_opts = self.draw_options.vertices
         if vert_opts.linewidth > 0:
-            color = dataclasses.astuple(vert_opts.color)
+            color = vert_opts.color
             marker = getattr(cv2, "MARKER_" + vert_opts.marker.value)
             for (pt,) in self.contour()[self.vertices()]:
                 cv2.drawMarker(
@@ -112,7 +111,7 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):
         if side_opts.linewidth > 0:
             tl, bl, br, tr = self.sideline_intersections().astype(np.int32)
 
-            color = dataclasses.astuple(side_opts.color)
+            color = side_opts.color
             linewidth = side_opts.linewidth
             cv2.line(ret, tl, tr, color, linewidth)
             cv2.line(ret, tr, br, color, linewidth)

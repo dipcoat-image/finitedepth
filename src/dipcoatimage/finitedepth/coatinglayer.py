@@ -84,7 +84,7 @@ class CoatingLayerBase(
     Abstract base class for coating layer.
 
     Coating layer class extracts the coating layer region from coated substrate
-    image and analyze it.
+    image and analyze it. Image should be grayscale or RGB.
 
     .. rubric:: Constructor
 
@@ -195,7 +195,7 @@ class CoatingLayerBase(
     @property
     def image(self) -> npt.NDArray[np.uint8]:
         """
-        Coated substrate image passed to the constructor.
+        Coated substrate image. Grayscale or RGB.
 
         This array is not writable to enable caching which requires immutability.
         """
@@ -420,7 +420,7 @@ class CoatingLayer(
        :include-source:
        :context: close-figs
 
-       >>> coat.deco_options.layer.facecolor.red = 255
+       >>> coat.deco_options.layer.facecolor = (255, 0, 255)
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
     """
@@ -458,7 +458,7 @@ class CoatingLayer(
 
         layer_opts = self.deco_options.layer
         if layer_opts.fill:
-            image[self.extract_layer()] = dataclasses.astuple(layer_opts.facecolor)
+            image[self.extract_layer()] = layer_opts.facecolor
         if layer_opts.linewidth > 0:
             cnts, _ = cv2.findContours(
                 self.extract_layer().astype(np.uint8),
@@ -469,7 +469,7 @@ class CoatingLayer(
                 image,
                 cnts,
                 -1,
-                dataclasses.astuple(layer_opts.edgecolor),
+                layer_opts.edgecolor,
                 layer_opts.linewidth,
             )
 
