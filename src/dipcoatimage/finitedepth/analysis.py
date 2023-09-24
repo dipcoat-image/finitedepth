@@ -16,7 +16,10 @@ import enum
 import mimetypes
 import os
 from .coatinglayer import CoatingLayerBase
-from typing import List, Type, Optional, Dict, Any
+from typing import List, Type, Optional, Dict, Any, TypeVar, Generic, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
 
 
 __all__ = [
@@ -24,6 +27,7 @@ __all__ = [
     "experiment_kind",
     "DataWriter",
     "CSVWriter",
+    "AnalysisBase",
     "Analyzer",
 ]
 
@@ -155,6 +159,61 @@ class CSVWriter(DataWriter):
 
     def terminate(self):
         self.datafile.close()
+
+
+ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
+
+
+class AnalysisBase(Coroutine, Generic[ParametersType]):
+    """
+    Class to save the analysis result.
+
+    Subclass must implement :meth:`__await__` which saves the analysis result.
+    See :class:`Analyzer` for example.
+
+    .. rubric:: Constructor
+
+    Constructor signature must not be modified because high-level API use factory
+    to generate experiment instances. Additional parameters can be introduced
+    by definig class attribute :attr:`Parameters``.
+
+    .. rubric:: Parameters
+
+    Concrete class must have :attr:`Parameters` which returns dataclass type.
+    Its instance is passed to the constructor at instance initialization, and can
+    be accessed by :attr:`parameters`.
+
+    """
+
+    __slots__ = (
+        "_parameters",
+        "_iterator",
+    )
+
+    Parameters: Type[ParametersType]
+
+    def __init__(self, *, parameters: Optional[ParametersType] = None):
+        if parameters is None:
+            self._parameters = self.Parameters()
+        else:
+            self._parameters = dataclasses.replace(parameters)
+        self._iterator = self.__await__()
+
+    @property
+    def parameters(self) -> ParametersType:
+        return self._parameters
+
+    def send(self, value: Optional[CoatingLayerBase]):
+        if value is None:
+            next(self._iterator)
+        else:
+            self._iterator.send(value)  # type: ignore[arg-type]
+
+    def throw(self, type, value, traceback):
+        self._iterator.throw(type, value, traceback)
+
+    def close(self):
+        self._iterator.close()
 
 
 class Analyzer(Coroutine):

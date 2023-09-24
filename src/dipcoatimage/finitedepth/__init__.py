@@ -46,7 +46,14 @@ from .rectcoatinglayer import (
     RectLayerShape,
 )
 from .experiment import ExperimentError, ExperimentBase, Experiment
-from .analysis import ExperimentKind, experiment_kind, DataWriter, CSVWriter, Analyzer
+from .analysis import (
+    ExperimentKind,
+    experiment_kind,
+    DataWriter,
+    CSVWriter,
+    AnalysisBase,
+    Analyzer,
+)
 from .serialize import (
     data_converter,
     ImportArgs,
@@ -82,6 +89,7 @@ __all__ = [
     "experiment_kind",
     "DataWriter",
     "CSVWriter",
+    "AnalysisBase",
     "Analyzer",
     "data_converter",
     "ImportArgs",
