@@ -1,5 +1,5 @@
 import dataclasses
-from .util.parameters import Color, LineOptions
+from .util.parameters import LineOptions
 
 
 __all__ = [
@@ -28,10 +28,10 @@ class DrawOptions:
     """
 
     templateROI: LineOptions = dataclasses.field(
-        default_factory=lambda: LineOptions(color=Color(0, 255, 0), linewidth=1)
+        default_factory=lambda: LineOptions(color=(0, 255, 0), linewidth=1)
     )
     substrateROI: LineOptions = dataclasses.field(
-        default_factory=lambda: LineOptions(color=Color(255, 0, 0), linewidth=1)
+        default_factory=lambda: LineOptions(color=(255, 0, 0), linewidth=1)
     )
 
 

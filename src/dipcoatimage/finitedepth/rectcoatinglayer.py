@@ -17,7 +17,6 @@ Implementation
 """
 
 import cv2
-import dataclasses
 import numpy as np
 import numpy.typing as npt
 from scipy.optimize import root  # type: ignore
@@ -448,13 +447,13 @@ class RectLayerShape(
 
         layer_opts = self.deco_options.layer
         if layer_opts.fill:
-            image[self.extract_layer()] = dataclasses.astuple(layer_opts.facecolor)
+            image[self.extract_layer()] = layer_opts.facecolor
         if layer_opts.linewidth > 0:
             cv2.drawContours(
                 image,
                 self.layer_contours(),
                 -1,
-                dataclasses.astuple(layer_opts.edgecolor),
+                layer_opts.edgecolor,
                 layer_opts.linewidth,
             )
 
@@ -467,7 +466,7 @@ class RectLayerShape(
                 image,
                 p0,
                 p1,
-                dataclasses.astuple(contactline_opts.color),
+                contactline_opts.color,
                 contactline_opts.linewidth,
             )
 
@@ -482,7 +481,7 @@ class RectLayerShape(
                 image,
                 lines,
                 isClosed=False,
-                color=dataclasses.astuple(thickness_opts.color),
+                color=thickness_opts.color,
                 thickness=thickness_opts.linewidth,
             )
 
@@ -493,7 +492,7 @@ class RectLayerShape(
                 image,
                 [points.astype(np.int32)],
                 isClosed=False,
-                color=dataclasses.astuple(uniformlayer_opts.color),
+                color=uniformlayer_opts.color,
                 thickness=uniformlayer_opts.linewidth,
             )
 
@@ -509,7 +508,7 @@ class RectLayerShape(
                 image,
                 lines,
                 isClosed=False,
-                color=dataclasses.astuple(conformality_opts.color),
+                color=conformality_opts.color,
                 thickness=conformality_opts.linewidth,
             )
 
@@ -526,7 +525,7 @@ class RectLayerShape(
                 image,
                 lines,
                 isClosed=False,
-                color=dataclasses.astuple(roughness_opts.color),
+                color=roughness_opts.color,
                 thickness=roughness_opts.linewidth,
             )
 

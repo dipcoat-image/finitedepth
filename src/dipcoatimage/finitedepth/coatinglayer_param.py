@@ -1,6 +1,6 @@
 import dataclasses
 import enum
-from .util.parameters import Color, PatchOptions
+from .util.parameters import PatchOptions
 
 __all__ = [
     "Parameters",
@@ -71,8 +71,8 @@ class DecoOptions:
     layer: PatchOptions = dataclasses.field(
         default_factory=lambda: PatchOptions(
             fill=True,
-            edgecolor=Color(0, 0, 255),
-            facecolor=Color(255, 255, 255),
+            edgecolor=(0, 0, 255),
+            facecolor=(255, 255, 255),
             linewidth=1,
         )
     )
