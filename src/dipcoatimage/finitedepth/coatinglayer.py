@@ -372,13 +372,13 @@ class CoatingLayer(
        :context: reset
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import (SubstrateReference,
+       >>> from dipcoatimage.finitedepth import (Reference,
        ...     get_data_path)
        >>> ref_path = get_data_path("ref1.png")
        >>> ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
        >>> tempROI = (200, 50, 1200, 200)
        >>> substROI = (400, 175, 1000, 500)
-       >>> ref = SubstrateReference(ref_img, tempROI, substROI)
+       >>> ref = Reference(ref_img, tempROI, substROI)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 

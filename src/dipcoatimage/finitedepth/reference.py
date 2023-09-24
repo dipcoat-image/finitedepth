@@ -8,16 +8,16 @@ finite-depth dip coating process.
 Base class
 ----------
 
-.. autoclass:: SubstrateReferenceError
+.. autoclass:: ReferenceError
    :members:
 
-.. autoclass:: SubstrateReferenceBase
+.. autoclass:: ReferenceBase
    :members:
 
 Implementation
 --------------
 
-.. autoclass:: SubstrateReference
+.. autoclass:: Reference
    :members:
 
 """
@@ -37,17 +37,17 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "SubstrateReferenceError",
-    "SubstrateReferenceBase",
-    "SubstrateReference",
+    "ReferenceError",
+    "ReferenceBase",
+    "Reference",
     "OptionalROI",
     "IntROI",
     "sanitize_ROI",
 ]
 
 
-class SubstrateReferenceError(Exception):
-    """Base class for error from :class:`SubstrateReferenceBase`."""
+class ReferenceError(Exception):
+    """Base class for error from :class:`ReferenceBase`."""
 
     pass
 
@@ -58,7 +58,7 @@ OptionalROI = Tuple[int, int, Optional[int], Optional[int]]
 IntROI = Tuple[int, int, int, int]
 
 
-class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
+class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     """
     Abstract base class for substrate reference.
 
@@ -241,7 +241,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         return np.array([x1 - x0, y1 - y0], dtype=np.int32)
 
     @abc.abstractmethod
-    def examine(self) -> Optional[SubstrateReferenceError]:
+    def examine(self) -> Optional[ReferenceError]:
         """
         Check the sanity of parameters.
 
@@ -272,7 +272,7 @@ class SubstrateReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
         """Decorate and return the reference image as RGB format."""
 
 
-class SubstrateReference(SubstrateReferenceBase[Parameters, DrawOptions]):
+class Reference(ReferenceBase[Parameters, DrawOptions]):
     """
     Substrate reference class with customizable binarization.
 
@@ -286,13 +286,13 @@ class SubstrateReference(SubstrateReferenceBase[Parameters, DrawOptions]):
        :context: reset
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import (SubstrateReference,
+       >>> from dipcoatimage.finitedepth import (Reference,
        ...     get_data_path)
        >>> ref_path = get_data_path("ref1.png")
        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
        >>> tempROI = (200, 50, 1200, 200)
        >>> substROI = (400, 175, 1000, 500)
-       >>> ref = SubstrateReference(img, tempROI, substROI)
+       >>> ref = Reference(img, tempROI, substROI)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 

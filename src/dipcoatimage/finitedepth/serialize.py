@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 import os
 import tqdm  # type: ignore
-from .reference import SubstrateReferenceBase, OptionalROI
+from .reference import ReferenceBase, OptionalROI
 from .substrate import SubstrateBase
 from .coatinglayer import CoatingLayerBase
 from .experiment import ExperimentBase
@@ -49,14 +49,14 @@ class ImportArgs:
 @dataclasses.dataclass
 class ReferenceArgs:
     """
-    Data for the concrete instance of :class:`SubstrateReferenceBase`.
+    Data for the concrete instance of :class:`ReferenceBase`.
 
     Parameters
     ==========
 
     type
         Information to import reference class.
-        Class name defaults to ``SubstrateReference``.
+        Class name defaults to ``Reference``.
 
     templateROI, substrateROI, parameters, draw_options
         Data for arguments of reference class.
@@ -85,11 +85,11 @@ class ReferenceArgs:
 
     def __post_init__(self):
         if not self.type.name:
-            self.type.name = "SubstrateReference"
+            self.type.name = "Reference"
 
     def as_structured_args(
         self,
-    ) -> Tuple[Type[SubstrateReferenceBase], "DataclassInstance", "DataclassInstance"]:
+    ) -> Tuple[Type[ReferenceBase], "DataclassInstance", "DataclassInstance"]:
         """
         Structure the primitive data.
 
@@ -104,7 +104,7 @@ class ReferenceArgs:
         module = self.type.module
         refcls = import_variable(name, module)
         if not (
-            isinstance(refcls, type) and issubclass(refcls, SubstrateReferenceBase)
+            isinstance(refcls, type) and issubclass(refcls, ReferenceBase)
         ):
             raise TypeError(f"{refcls} is not substrate reference class.")
 
@@ -116,7 +116,7 @@ class ReferenceArgs:
         )
         return (refcls, params, drawopts)
 
-    def as_reference(self, img: npt.NDArray[np.uint8]) -> SubstrateReferenceBase:
+    def as_reference(self, img: npt.NDArray[np.uint8]) -> ReferenceBase:
         """Construct the substrate reference instance."""
         refcls, params, drawopts = self.as_structured_args()
 
@@ -211,7 +211,7 @@ class SubstrateArgs:
         )
         return (substcls, params, drawopts)
 
-    def as_substrate(self, ref: SubstrateReferenceBase) -> SubstrateBase:
+    def as_substrate(self, ref: ReferenceBase) -> SubstrateBase:
         """Construct the substrate instance."""
         substcls, params, drawopts = self.as_structured_args()
         subst = substcls(  # type: ignore
@@ -514,9 +514,9 @@ class ExperimentData:
         else:
             yield np.empty((0, 0, 3), np.uint8)
 
-    def construct_reference(self) -> SubstrateReferenceBase:
+    def construct_reference(self) -> ReferenceBase:
         """
-        Construct and return :class:`SubstrateReferenceBase` from the data.
+        Construct and return :class:`ReferenceBase` from the data.
         """
         refimg = cv2.cvtColor(cv2.imread(self.ref_path), cv2.COLOR_BGR2RGB)
         return self.reference.as_reference(refimg)

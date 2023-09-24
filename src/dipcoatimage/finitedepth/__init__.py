@@ -20,9 +20,9 @@ This package provides
 from .version import __version__  # noqa
 
 from .reference import (
-    SubstrateReferenceError,
-    SubstrateReferenceBase,
-    SubstrateReference,
+    ReferenceError,
+    ReferenceBase,
+    Reference,
 )
 from .substrate import (
     SubstrateError,
@@ -69,9 +69,9 @@ from .util import get_data_path
 
 
 __all__ = [
-    "SubstrateReferenceError",
-    "SubstrateReferenceBase",
-    "SubstrateReference",
+    "ReferenceError",
+    "ReferenceBase",
+    "Reference",
     "SubstrateError",
     "SubstrateBase",
     "Substrate",

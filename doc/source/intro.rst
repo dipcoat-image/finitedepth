@@ -57,10 +57,10 @@ Temporal evolution of the coating layer can be assessed by analyzing the series 
    :caption: Coating layer region image
    :align: center
 
-   from dipcoatimage.finitedepth import SubstrateReference, Substrate, CoatingLayer
+   from dipcoatimage.finitedepth import Reference, Substrate, CoatingLayer
 
    ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
-   ref = SubstrateReference(ref_img, (13, 10, 1246, 200), (100, 100, 1200, 500))
+   ref = Reference(ref_img, (13, 10, 1246, 200), (100, 100, 1200, 500))
    subst = Substrate(ref)
    coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
    coat = CoatingLayer(coat_img, subst)
@@ -88,16 +88,16 @@ The first ROI specifies the template region for the coating layer class, and the
 .. plot::
    :context: reset
    :include-source:
-   :caption: Template ROI (green) and substrate ROI (red) visuaized by :class:`.SubstrateReference`
+   :caption: Template ROI (green) and substrate ROI (red) visuaized by :class:`.Reference`
    :align: center
 
    >>> import cv2
-   >>> from dipcoatimage.finitedepth import get_data_path, SubstrateReference
+   >>> from dipcoatimage.finitedepth import get_data_path, Reference
    >>> import matplotlib.pyplot as plt #doctest: +SKIP
    >>> ref_path = get_data_path("ref3.png")
    >>> ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
    >>> templateROI, substrateROI = (100, 50, 1200, 200), (300, 100, 950, 600)
-   >>> ref = SubstrateReference(ref_img, templateROI, substrateROI)
+   >>> ref = Reference(ref_img, templateROI, substrateROI)
    >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
 Substrate class

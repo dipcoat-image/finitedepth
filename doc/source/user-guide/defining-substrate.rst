@@ -191,9 +191,9 @@ We first construct a reference with grayscale image.
    :include-source:
    :context: close-figs
 
-   >>> from dipcoatimage.finitedepth import get_data_path, SubstrateReference
+   >>> from dipcoatimage.finitedepth import get_data_path, Reference
    >>> ref_img = cv2.imread(get_data_path("ref2.png"), cv2.IMREAD_GRAYSCALE)
-   >>> ref = SubstrateReference(ref_img, substrateROI=(400, 100, 1000, 600))
+   >>> ref = Reference(ref_img, substrateROI=(400, 100, 1000, 600))
    >>> import matplotlib.pyplot as plt #doctest: +SKIP
    >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
