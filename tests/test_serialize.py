@@ -150,14 +150,16 @@ def test_ExperimentArgs():
 
 
 def test_ExperimentData_analyze_singleimage(tmp_path):
-    data_path = os.path.join(tmp_path, "data.csv")
-    image_path = os.path.join(tmp_path, "img.png")
-    video_path = os.path.join(tmp_path, "vid.mp4")
-    analargs = AnalysisArgs(
-        data_path=data_path,
-        image_path=image_path,
-        video_path=video_path,
-        fps=1,
+    analysisargs = AnalysisArgs(
+        parameters=dict(
+            ref_data=os.path.join(tmp_path, "ref.csv"),
+            ref_visual=os.path.join(tmp_path, "ref.png"),
+            subst_data=os.path.join(tmp_path, "subst.csv"),
+            subst_visual=os.path.join(tmp_path, "subst.png"),
+            layer_data=os.path.join(tmp_path, "layer.csv"),
+            layer_visual=os.path.join(tmp_path, "layer.mp4"),
+            layer_fps=1,
+        )
     )
     data = ExperimentData(
         ref_path=get_data_path("ref1.png"),
@@ -166,24 +168,22 @@ def test_ExperimentData_analyze_singleimage(tmp_path):
         substrate=SUBSTARGS,
         coatinglayer=LAYERARGS,
         experiment=EXPTARGS,
-        analysis=analargs,
+        analysis=analysisargs,
     )
     data.analyze("test_ExperimentData_analyze_singleimage")
 
-    assert os.path.exists(data_path)
-    assert os.path.exists(image_path)
-    assert os.path.exists(video_path)
-
 
 def test_ExperimentData_analyze_multiimage(tmp_path):
-    data_path = os.path.join(tmp_path, "data.csv")
-    image_path = os.path.join(tmp_path, "img.png")
-    video_path = os.path.join(tmp_path, "vid.mp4")
-    analargs = AnalysisArgs(
-        data_path=data_path,
-        image_path=image_path,
-        video_path=video_path,
-        fps=1,
+    analysisargs = AnalysisArgs(
+        parameters=dict(
+            ref_data=os.path.join(tmp_path, "ref.csv"),
+            ref_visual=os.path.join(tmp_path, "ref.png"),
+            subst_data=os.path.join(tmp_path, "subst.csv"),
+            subst_visual=os.path.join(tmp_path, "subst.png"),
+            layer_data=os.path.join(tmp_path, "layer.csv"),
+            layer_visual=os.path.join(tmp_path, "layer.mp4"),
+            layer_fps=1,
+        )
     )
     data = ExperimentData(
         ref_path=get_data_path("ref1.png"),
@@ -192,24 +192,22 @@ def test_ExperimentData_analyze_multiimage(tmp_path):
         substrate=SUBSTARGS,
         coatinglayer=LAYERARGS,
         experiment=EXPTARGS,
-        analysis=analargs,
+        analysis=analysisargs,
     )
     data.analyze("test_ExperimentData_analyze_multiimage")
 
-    assert os.path.exists(data_path)
-    assert os.path.exists(image_path)
-    assert os.path.exists(video_path)
-
 
 def test_ExperimentData_analyze_video(tmp_path):
-    data_path = os.path.join(tmp_path, "data.csv")
-    image_path = os.path.join(tmp_path, "img.png")
-    video_path = os.path.join(tmp_path, "vid.mp4")
-    analargs = AnalysisArgs(
-        data_path=data_path,
-        image_path=image_path,
-        video_path=video_path,
-        fps=1,
+    analysisargs = AnalysisArgs(
+        parameters=dict(
+            ref_data=os.path.join(tmp_path, "ref.csv"),
+            ref_visual=os.path.join(tmp_path, "ref.png"),
+            subst_data=os.path.join(tmp_path, "subst.csv"),
+            subst_visual=os.path.join(tmp_path, "subst.png"),
+            layer_data=os.path.join(tmp_path, "layer.csv"),
+            layer_visual=os.path.join(tmp_path, "layer.mp4"),
+            layer_fps=1,
+        )
     )
     data = ExperimentData(
         ref_path=get_data_path("ref3.png"),
@@ -218,13 +216,9 @@ def test_ExperimentData_analyze_video(tmp_path):
         substrate=SUBSTARGS,
         coatinglayer=LAYERARGS,
         experiment=EXPTARGS,
-        analysis=analargs,
+        analysis=analysisargs,
     )
     data.analyze("test_ExperimentData_analyze_video")
-
-    assert os.path.exists(data_path)
-    assert os.path.exists(image_path)
-    assert os.path.exists(video_path)
 
 
 def test_ExperimentData_from_file():

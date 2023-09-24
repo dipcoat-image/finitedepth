@@ -53,7 +53,7 @@ from .analysis import (
     CSVWriter,
     AnalysisError,
     AnalysisBase,
-    Analyzer,
+    Analysis,
 )
 from .serialize import (
     data_converter,
@@ -92,7 +92,7 @@ __all__ = [
     "CSVWriter",
     "AnalysisError",
     "AnalysisBase",
-    "Analyzer",
+    "Analysis",
     "data_converter",
     "ImportArgs",
     "ReferenceArgs",

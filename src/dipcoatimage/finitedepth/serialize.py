@@ -16,9 +16,9 @@ from .reference import SubstrateReferenceBase, OptionalROI
 from .substrate import SubstrateBase
 from .coatinglayer import CoatingLayerBase
 from .experiment import ExperimentBase
-from .analysis import ExperimentKind, experiment_kind, Analyzer
+from .analysis import ExperimentKind, experiment_kind, AnalysisBase
 from .util.importing import import_variable
-from typing import List, Type, Optional, Tuple, Generator, TYPE_CHECKING
+from typing import List, Type, Tuple, Generator, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
@@ -365,14 +365,14 @@ class ExperimentArgs:
         =======
 
         (exptcls, params)
-            Type and arguments for substrate class, structured from the data.
+            Type and arguments for experiment class, structured from the data.
 
         """
         name = self.type.name
         module = self.type.module
         exptcls = import_variable(name, module)
         if not (isinstance(exptcls, type) and issubclass(exptcls, ExperimentBase)):
-            raise TypeError(f"{exptcls} is not coating layer class.")
+            raise TypeError(f"{exptcls} is not experiment class.")
 
         params = data_converter.structure(
             self.parameters, exptcls.Parameters  # type: ignore
@@ -389,22 +389,52 @@ class ExperimentArgs:
 @dataclasses.dataclass
 class AnalysisArgs:
     """
-    Arguments to save the analyis result.
+    Data for the concrete instance of :class:`AnalysisBase`.
+
+    Parameters
+    ==========
+
+    type
+        Information to import substrate class.
+        Class name defaults to ``Analysis``.
+
+    parameters
+        Data for arguments of analysis class.
     """
 
-    data_path: str = ""
-    image_path: str = ""
-    video_path: str = ""
-    fps: Optional[float] = None
+    type: ImportArgs = dataclasses.field(default_factory=ImportArgs)
+    parameters: dict = dataclasses.field(default_factory=dict)
 
-    def as_analyzer(self) -> Analyzer:
-        ret = Analyzer(
-            self.data_path,
-            self.image_path,
-            self.video_path,
-            self.fps,
+    def __post_init__(self):
+        if not self.type.name:
+            self.type.name = "Analysis"
+
+    def as_structured_args(self) -> Tuple[Type[AnalysisBase], "DataclassInstance"]:
+        """
+        Structure the primitive data.
+
+        Returns
+        =======
+
+        (cls, params)
+            Type and arguments for analysis class, structured from the data.
+
+        """
+        name = self.type.name
+        module = self.type.module
+        cls = import_variable(name, module)
+        if not (isinstance(cls, type) and issubclass(cls, AnalysisBase)):
+            raise TypeError(f"{cls} is not coating layer class.")
+
+        params = data_converter.structure(
+            self.parameters, cls.Parameters  # type: ignore
         )
-        return ret
+        return (cls, params)
+
+    def as_analysis(self) -> AnalysisBase:
+        cls, params = self.as_structured_args()
+        analysis = cls(parameters=params)
+        return analysis
 
 
 @dataclasses.dataclass
@@ -558,8 +588,8 @@ class ExperimentData:
         """
         return self.experiment.as_experiment()
 
-    def construct_analyzer(self) -> Analyzer:
-        return self.analysis.as_analyzer()
+    def construct_analysis(self) -> AnalysisBase:
+        return self.analysis.as_analysis()
 
     def analyze(self, name: str = ""):
         """
@@ -571,11 +601,14 @@ class ExperimentData:
             Description for progress bar.
         """
         subst = self.construct_substrate()
+        subst.verify()
         layercls, params, drawopts, decoopts = self.coatinglayer.as_structured_args()
         expt = self.construct_experiment()
-        analyzer = self.construct_analyzer()
+        expt.verify()
+        analysis = self.construct_analysis()
+        analysis.verify()
         try:
-            analyzer.send(None)
+            analysis.send(None)
             for img in tqdm.tqdm(
                 self.image_generator(), total=self.image_count(), desc=name
             ):
@@ -587,6 +620,7 @@ class ExperimentData:
                     layer_drawoptions=drawopts,
                     layer_decooptions=decoopts,
                 )
-                analyzer.send(layer)
+                layer.verify()
+                analysis.send(layer)
         finally:
-            analyzer.close()
+            analysis.close()
