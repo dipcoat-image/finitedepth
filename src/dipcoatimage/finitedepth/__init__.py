@@ -20,9 +20,9 @@ This package provides
 from .version import __version__  # noqa
 
 from .reference import (
-    SubstrateReferenceError,
-    SubstrateReferenceBase,
-    SubstrateReference,
+    ReferenceError,
+    ReferenceBase,
+    Reference,
 )
 from .substrate import (
     SubstrateError,
@@ -63,15 +63,15 @@ from .serialize import (
     CoatingLayerArgs,
     ExperimentArgs,
     AnalysisArgs,
-    ExperimentData,
+    Config,
 )
 from .util import get_data_path
 
 
 __all__ = [
-    "SubstrateReferenceError",
-    "SubstrateReferenceBase",
-    "SubstrateReference",
+    "ReferenceError",
+    "ReferenceBase",
+    "Reference",
     "SubstrateError",
     "SubstrateBase",
     "Substrate",
@@ -100,6 +100,6 @@ __all__ = [
     "CoatingLayerArgs",
     "ExperimentArgs",
     "AnalysisArgs",
-    "ExperimentData",
+    "Config",
     "get_data_path",
 ]

@@ -30,7 +30,7 @@ import dataclasses
 import cv2
 import numpy as np
 import numpy.typing as npt
-from .reference import SubstrateReferenceBase
+from .reference import ReferenceBase
 from .substrate_param import Parameters, DrawOptions
 from typing import TypeVar, Generic, Type, Optional, Tuple, TYPE_CHECKING
 
@@ -60,7 +60,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     Abstract base class for substrate.
 
     Substrate class recognizes the geometry of substrate image from
-    :class:`.SubstrateReferenceBase`.
+    :class:`.ReferenceBase`.
 
     .. rubric:: Constructor
 
@@ -117,7 +117,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
 
     def __init__(
         self,
-        reference: SubstrateReferenceBase,
+        reference: ReferenceBase,
         parameters: Optional[ParametersType] = None,
         *,
         draw_options: Optional[DrawOptionsType] = None,
@@ -136,7 +136,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
             self._draw_options = dataclasses.replace(draw_options)
 
     @property
-    def reference(self) -> SubstrateReferenceBase:
+    def reference(self) -> ReferenceBase:
         """Substrate reference instance passed to constructor."""
         return self._ref
 
@@ -300,13 +300,13 @@ class Substrate(SubstrateBase[Parameters, DrawOptions]):
        :context: reset
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import (SubstrateReference,
+       >>> from dipcoatimage.finitedepth import (Reference,
        ...     get_data_path)
        >>> ref_path = get_data_path("ref1.png")
        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
        >>> tempROI = (200, 50, 1200, 200)
        >>> substROI = (400, 175, 1000, 500)
-       >>> ref = SubstrateReference(img, tempROI, substROI)
+       >>> ref = Reference(img, tempROI, substROI)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 

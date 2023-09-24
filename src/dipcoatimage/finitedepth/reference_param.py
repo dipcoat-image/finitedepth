@@ -10,7 +10,7 @@ __all__ = [
 
 @dataclasses.dataclass(frozen=True)
 class Parameters:
-    """Additional parameters for :class:`SubstrateReference` instance."""
+    """Additional parameters for :class:`Reference` instance."""
 
     pass
 
@@ -18,7 +18,7 @@ class Parameters:
 @dataclasses.dataclass
 class DrawOptions:
     """
-    Drawing options for :class:`SubstrateReference`.
+    Drawing options for :class:`Reference`.
 
     Attributes
     ----------

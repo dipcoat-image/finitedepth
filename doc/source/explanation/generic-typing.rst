@@ -15,7 +15,7 @@ This means that base classes have type variables which you should fill in, and a
 Abstract class
 --------------
 
-:class:`.SubstrateReferenceBase` and :class:`.SubstrateBase` has two type variables; ``ParametersType`` and ``DrawOptionsType``.
+:class:`.ReferenceBase` and :class:`.SubstrateBase` has two type variables; ``ParametersType`` and ``DrawOptionsType``.
 We say that their generic patterns are ``Generic[ParametersType, DrawOptionsType]``.
 
 :class:`.CoatingLayerBase` has five type variables; the additional three are ``SubstrateType``, ``DecoOptionsType`` and ``DataType``.

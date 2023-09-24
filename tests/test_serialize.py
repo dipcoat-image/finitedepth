@@ -9,7 +9,7 @@ from dipcoatimage.finitedepth import (
     CoatingLayerArgs,
     ExperimentArgs,
     AnalysisArgs,
-    ExperimentData,
+    Config,
 )
 import os
 import yaml  # type: ignore
@@ -149,7 +149,7 @@ def test_ExperimentArgs():
     )
 
 
-def test_ExperimentData_analyze_singleimage(tmp_path):
+def test_Config_analyze_singleimage(tmp_path):
     analysisargs = AnalysisArgs(
         parameters=dict(
             ref_data=os.path.join(tmp_path, "ref.csv"),
@@ -161,7 +161,7 @@ def test_ExperimentData_analyze_singleimage(tmp_path):
             layer_fps=1,
         )
     )
-    data = ExperimentData(
+    data = Config(
         ref_path=get_data_path("ref1.png"),
         coat_paths=[get_data_path("coat1.png")],
         reference=REFARGS,
@@ -170,10 +170,10 @@ def test_ExperimentData_analyze_singleimage(tmp_path):
         experiment=EXPTARGS,
         analysis=analysisargs,
     )
-    data.analyze("test_ExperimentData_analyze_singleimage")
+    data.analyze("test_Config_analyze_singleimage")
 
 
-def test_ExperimentData_analyze_multiimage(tmp_path):
+def test_Config_analyze_multiimage(tmp_path):
     analysisargs = AnalysisArgs(
         parameters=dict(
             ref_data=os.path.join(tmp_path, "ref.csv"),
@@ -185,7 +185,7 @@ def test_ExperimentData_analyze_multiimage(tmp_path):
             layer_fps=1,
         )
     )
-    data = ExperimentData(
+    data = Config(
         ref_path=get_data_path("ref1.png"),
         coat_paths=[get_data_path("coat1.png"), get_data_path("coat1.png")],
         reference=REFARGS,
@@ -194,10 +194,10 @@ def test_ExperimentData_analyze_multiimage(tmp_path):
         experiment=EXPTARGS,
         analysis=analysisargs,
     )
-    data.analyze("test_ExperimentData_analyze_multiimage")
+    data.analyze("test_Config_analyze_multiimage")
 
 
-def test_ExperimentData_analyze_video(tmp_path):
+def test_Config_analyze_video(tmp_path):
     analysisargs = AnalysisArgs(
         parameters=dict(
             ref_data=os.path.join(tmp_path, "ref.csv"),
@@ -209,7 +209,7 @@ def test_ExperimentData_analyze_video(tmp_path):
             layer_fps=1,
         )
     )
-    data = ExperimentData(
+    data = Config(
         ref_path=get_data_path("ref3.png"),
         coat_paths=[get_data_path("coat3.mp4")],
         reference=REFARGS,
@@ -218,10 +218,10 @@ def test_ExperimentData_analyze_video(tmp_path):
         experiment=EXPTARGS,
         analysis=analysisargs,
     )
-    data.analyze("test_ExperimentData_analyze_video")
+    data.analyze("test_Config_analyze_video")
 
 
-def test_ExperimentData_from_file():
+def test_Config_from_file():
     cwd = os.getcwd()
 
     try:
@@ -229,6 +229,6 @@ def test_ExperimentData_from_file():
         with open("config.yml") as f:
             config = yaml.load(f, Loader=yaml.FullLoader)
         for k, v in config.items():
-            data_converter.structure(v, ExperimentData).analyze()
+            data_converter.structure(v, Config).analyze()
     finally:
         os.chdir(cwd)
