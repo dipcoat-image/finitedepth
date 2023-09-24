@@ -31,7 +31,7 @@ __all__ = [
     "CoatingLayerArgs",
     "ExperimentArgs",
     "AnalysisArgs",
-    "ExperimentData",
+    "Config",
 ]
 
 
@@ -436,7 +436,7 @@ class AnalysisArgs:
 
 
 @dataclasses.dataclass
-class ExperimentData:
+class Config:
     """
     Class which wraps every information to construct and analyze the experiment.
 

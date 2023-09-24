@@ -157,10 +157,10 @@ Analyzer class
 
 :class:`.Analyzer` collects the data and the visualized images from multiple coating layer instance, and saves them as files.
 
-Experiment data class
----------------------
+Experiment configuration
+------------------------
 
-:class:`.ExperimentData` is a dataclass which describes a whole finite depth dip coating experiment.
+:class:`.Config` is a dataclass which describes a whole configuration of finite depth dip coating experiment.
 It can also automatically construct a :class:`.Analyzer` instance from the data and perform the analysis.
 
 Serializing and deserializing the experiment data can be done by :obj:`.data_converter`, which is a :class:`cattrs.Converter`.

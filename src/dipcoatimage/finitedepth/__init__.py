@@ -63,7 +63,7 @@ from .serialize import (
     CoatingLayerArgs,
     ExperimentArgs,
     AnalysisArgs,
-    ExperimentData,
+    Config,
 )
 from .util import get_data_path
 
@@ -100,6 +100,6 @@ __all__ = [
     "CoatingLayerArgs",
     "ExperimentArgs",
     "AnalysisArgs",
-    "ExperimentData",
+    "Config",
     "get_data_path",
 ]
