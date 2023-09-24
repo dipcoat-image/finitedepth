@@ -231,6 +231,10 @@ class Analyzer(Coroutine):
         If *fps* is explicitly passed, it is used for data timestamps and
         visualization video FPS.
         """
+        write_data = bool(self.data_path)
+        write_image = bool(self.image_path)
+        write_video = bool(self.video_path)
+
         i = 0
         try:
             while True:
@@ -238,9 +242,7 @@ class Analyzer(Coroutine):
 
                 if i == 0:
                     # prepare for data writing
-                    if self.data_path:
-                        write_data = True
-
+                    if write_data:
                         dirname, _ = os.path.split(self.data_path)
                         if dirname:
                             os.makedirs(dirname, exist_ok=True)
@@ -255,13 +257,9 @@ class Analyzer(Coroutine):
                             headers = ["time (s)"] + headers
                         datawriter = writercls(self.data_path, headers)
                         datawriter.prepare()
-                    else:
-                        write_data = False
 
                     # prepare for image writing
-                    if self.image_path:
-                        write_image = True
-
+                    if write_image:
                         dirname, _ = os.path.split(self.image_path)
                         if dirname:
                             os.makedirs(dirname, exist_ok=True)
@@ -270,13 +268,9 @@ class Analyzer(Coroutine):
                             image_path_formattable = True
                         except (TypeError, ValueError):
                             image_path_formattable = False
-                    else:
-                        write_image = False
 
                     # prepare for video writing
-                    if self.video_path:
-                        write_video = True
-
+                    if write_video:
                         _, video_ext = os.path.splitext(self.video_path)
                         video_ext = video_ext.lstrip(os.path.extsep).lower()
                         fourcc = self.video_codecs.get(video_ext, None)
@@ -286,8 +280,6 @@ class Analyzer(Coroutine):
                         dirname, _ = os.path.split(self.video_path)
                         if dirname:
                             os.makedirs(dirname, exist_ok=True)
-                    else:
-                        write_video = False
 
                 valid = layer.valid()
                 if write_data:
