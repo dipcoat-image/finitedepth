@@ -210,8 +210,7 @@ class RectLayerShape(
        :context: reset
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import (SubstrateReference,
-       ...     get_data_path)
+       >>> from dipcoatimage.finitedepth import SubstrateReference, get_data_path
        >>> ref_path = get_data_path("ref3.png")
        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
        >>> tempROI = (13, 10, 1246, 200)

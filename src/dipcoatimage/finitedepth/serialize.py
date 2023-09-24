@@ -575,6 +575,7 @@ class ExperimentData:
         expt = self.construct_experiment()
         analyzer = self.construct_analyzer()
         try:
+            analyzer.send(None)
             for img in tqdm.tqdm(
                 self.image_generator(), total=self.image_count(), desc=name
             ):

@@ -8,7 +8,7 @@ result from experiment.
 """
 
 import abc
-from collections.abc import Awaitable
+from collections.abc import Coroutine
 import csv
 import cv2
 import dataclasses
@@ -157,7 +157,7 @@ class CSVWriter(DataWriter):
         self.datafile.close()
 
 
-class Analyzer(Awaitable):
+class Analyzer(Coroutine):
     """
     Class to save the analysis result.
 
@@ -185,7 +185,7 @@ class Analyzer(Awaitable):
 
     If *fps* is explicitly passed, it is used for data timestamps and
     visualization video FPS.
-    
+
     Attributes
     ----------
     data_writers
@@ -211,6 +211,8 @@ class Analyzer(Awaitable):
         self.image_path = image_path
         self.video_path = video_path
         self.fps = fps
+
+        self._iterator = self.__await__()
 
     def __await__(self):
         write_data = bool(self.data_path)
@@ -300,3 +302,15 @@ class Analyzer(Awaitable):
                 datawriter.terminate()
             if write_video:
                 videowriter.release()
+
+    def send(self, value: Optional[CoatingLayerBase]):
+        if value is None:
+            next(self._iterator)
+        else:
+            self._iterator.send(value)
+
+    def throw(self, type, value, traceback):
+        self._iterator.throw(type, value, traceback)
+
+    def close(self):
+        self._iterator.close()
