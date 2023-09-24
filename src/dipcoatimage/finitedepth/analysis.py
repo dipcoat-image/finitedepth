@@ -8,7 +8,7 @@ result from experiment.
 """
 
 import abc
-from collections.abc import Coroutine
+from collections.abc import Awaitable
 import csv
 import cv2
 import dataclasses
@@ -16,7 +16,7 @@ import enum
 import mimetypes
 import os
 from .coatinglayer import CoatingLayerBase
-from typing import List, Type, Optional, Dict, Any, Generator
+from typing import List, Type, Optional, Dict, Any
 
 
 __all__ = [
@@ -157,10 +157,35 @@ class CSVWriter(DataWriter):
         self.datafile.close()
 
 
-class Analyzer(Coroutine):
+class Analyzer(Awaitable):
     """
     Class to save the analysis result.
 
+    .. rubric:: Analysis data
+
+    If *data_path* is passed, analysis result is saved as data file.
+    Data writer is searched from :attr:`data_writers` using file extension.
+
+    If FPS value is nonzero, time value for each coating layer is
+    automatically prepended to the row.
+
+    .. rubric:: Visualization image
+
+    If *image_path* is passed, visualization results are saved as image
+    files. Using formattable string (e.g. ``img_%02d.jpg``) to save multiple
+    images.
+
+    .. rubric:: Visualization video
+
+    If *video_path* is passed, visualization results are saved as video file.
+    FourCC codec value is searched from :attr:`video_codecs` using file
+    extension.
+
+    .. rubric:: FPS
+
+    If *fps* is explicitly passed, it is used for data timestamps and
+    visualization video FPS.
+    
     Attributes
     ----------
     data_writers
@@ -187,100 +212,61 @@ class Analyzer(Coroutine):
         self.video_path = video_path
         self.fps = fps
 
-        self._coroutine = self._analysis_coroutine()
-        next(self._coroutine)
-
     def __await__(self):
-        return self._coroutine
-
-    def send(self, layer: CoatingLayerBase):
-        self._coroutine.send(layer)
-
-    def close(self):
-        self._coroutine.close()
-
-    def throw(self, type, value, traceback):
-        self._coroutine.throw(type, value, traceback)
-
-    def _analysis_coroutine(self) -> Generator[None, CoatingLayerBase, None]:
-        """
-        Send the coating layer instance for analysis.
-
-        .. rubric:: Analysis data
-
-        If *data_path* is passed, analysis result is saved as data file.
-        Data writer is searched from :attr:`data_writers` using file extension.
-
-        If FPS value is nonzero, time value for each coating layer is
-        automatically prepended to the row.
-
-        .. rubric:: Visualization image
-
-        If *image_path* is passed, visualization results are saved as image
-        files. Using formattable string (e.g. ``img_%02d.jpg``) to save multiple
-        images.
-
-        .. rubric:: Visualization video
-
-        If *video_path* is passed, visualization results are saved as video file.
-        FourCC codec value is searched from :attr:`video_codecs` using file
-        extension.
-
-        .. rubric:: FPS
-
-        If *fps* is explicitly passed, it is used for data timestamps and
-        visualization video FPS.
-        """
         write_data = bool(self.data_path)
         write_image = bool(self.image_path)
         write_video = bool(self.video_path)
 
-        i = 0
+        # prepare for data writing
+        if write_data:
+            dirname, _ = os.path.split(self.data_path)
+            if dirname:
+                os.makedirs(dirname, exist_ok=True)
+            _, data_ext = os.path.splitext(self.data_path)
+            data_ext = data_ext.lstrip(os.path.extsep).lower()
+            writercls = self.data_writers.get(data_ext, None)
+            if writercls is None:
+                raise TypeError(f"Unsupported extension: {data_ext}")
+        if write_image:
+            dirname, _ = os.path.split(self.image_path)
+            if dirname:
+                os.makedirs(dirname, exist_ok=True)
+            try:
+                self.image_path % 0
+                image_path_formattable = True
+            except (TypeError, ValueError):
+                image_path_formattable = False
+        if write_video:
+            _, video_ext = os.path.splitext(self.video_path)
+            video_ext = video_ext.lstrip(os.path.extsep).lower()
+            fourcc = self.video_codecs.get(video_ext, None)
+            if fourcc is None:
+                raise TypeError(f"Unsupported extension: {video_ext}")
+
+            dirname, _ = os.path.split(self.video_path)
+            if dirname:
+                os.makedirs(dirname, exist_ok=True)
+
         try:
+            # User first sent value for additional preparation
+            layer = yield
+            if write_data:
+                headers = [f.name for f in dataclasses.fields(layer.Data)]
+                if self.fps:
+                    headers = ["time (s)"] + headers
+                datawriter = writercls(self.data_path, headers)
+                datawriter.prepare()
+            if write_video:
+                h, w = layer.image.shape[:2]
+                videowriter = cv2.VideoWriter(
+                    self.video_path,
+                    fourcc,  # type: ignore
+                    self.fps,  # type: ignore
+                    (w, h),
+                )
+
+            i = 0
             while True:
-                layer = yield
-
-                if i == 0:
-                    # prepare for data writing
-                    if write_data:
-                        dirname, _ = os.path.split(self.data_path)
-                        if dirname:
-                            os.makedirs(dirname, exist_ok=True)
-
-                        _, data_ext = os.path.splitext(self.data_path)
-                        data_ext = data_ext.lstrip(os.path.extsep).lower()
-                        writercls = self.data_writers.get(data_ext, None)
-                        if writercls is None:
-                            raise TypeError(f"Unsupported extension: {data_ext}")
-                        headers = [f.name for f in dataclasses.fields(layer.Data)]
-                        if self.fps:
-                            headers = ["time (s)"] + headers
-                        datawriter = writercls(self.data_path, headers)
-                        datawriter.prepare()
-
-                    # prepare for image writing
-                    if write_image:
-                        dirname, _ = os.path.split(self.image_path)
-                        if dirname:
-                            os.makedirs(dirname, exist_ok=True)
-                        try:
-                            self.image_path % 0
-                            image_path_formattable = True
-                        except (TypeError, ValueError):
-                            image_path_formattable = False
-
-                    # prepare for video writing
-                    if write_video:
-                        _, video_ext = os.path.splitext(self.video_path)
-                        video_ext = video_ext.lstrip(os.path.extsep).lower()
-                        fourcc = self.video_codecs.get(video_ext, None)
-                        if fourcc is None:
-                            raise TypeError(f"Unsupported extension: {video_ext}")
-
-                        dirname, _ = os.path.split(self.video_path)
-                        if dirname:
-                            os.makedirs(dirname, exist_ok=True)
-
                 valid = layer.valid()
                 if write_data:
                     if valid:
@@ -306,20 +292,11 @@ class Analyzer(Coroutine):
                         cv2.imwrite(imgpath, visualized)
 
                     if write_video:
-                        if i == 0:
-                            h, w = layer.image.shape[:2]
-                            videowriter = cv2.VideoWriter(
-                                self.video_path,
-                                fourcc,  # type: ignore
-                                self.fps,  # type: ignore
-                                (w, h),
-                            )
                         videowriter.write(visualized)
+                layer = yield
                 i += 1
         finally:
             if write_data:
                 datawriter.terminate()
             if write_video:
                 videowriter.release()
-
-    analysis_generator = _analysis_coroutine
