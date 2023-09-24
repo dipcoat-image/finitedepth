@@ -573,8 +573,7 @@ class ExperimentData:
         subst = self.construct_substrate()
         layercls, params, drawopts, decoopts = self.coatinglayer.as_structured_args()
         expt = self.construct_experiment()
-        analyzer = self.construct_analyzer().analysis_generator()
-        next(analyzer)
+        analyzer = self.construct_analyzer()
         try:
             for img in tqdm.tqdm(
                 self.image_generator(), total=self.image_count(), desc=name

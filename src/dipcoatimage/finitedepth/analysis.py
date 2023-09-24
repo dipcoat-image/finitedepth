@@ -8,6 +8,7 @@ result from experiment.
 """
 
 import abc
+from collections.abc import Coroutine
 import csv
 import cv2
 import dataclasses
@@ -156,7 +157,7 @@ class CSVWriter(DataWriter):
         self.datafile.close()
 
 
-class Analyzer:
+class Analyzer(Coroutine):
     """
     Class to save the analysis result.
 
@@ -186,7 +187,22 @@ class Analyzer:
         self.video_path = video_path
         self.fps = fps
 
-    def analysis_generator(self) -> Generator[None, CoatingLayerBase, None]:
+        self._coroutine = self._analysis_coroutine()
+        next(self._coroutine)
+
+    def __await__(self):
+        return self._coroutine
+
+    def send(self, layer: CoatingLayerBase):
+        self._coroutine.send(layer)
+
+    def close(self):
+        self._coroutine.close()
+
+    def throw(self, type, value, traceback):
+        self._coroutine.throw(type, value, traceback)
+
+    def _analysis_coroutine(self) -> Generator[None, CoatingLayerBase, None]:
         """
         Send the coating layer instance for analysis.
 
@@ -313,3 +329,5 @@ class Analyzer:
                 datawriter.terminate()
             if write_video:
                 videowriter.release()
+
+    analysis_generator = _analysis_coroutine
