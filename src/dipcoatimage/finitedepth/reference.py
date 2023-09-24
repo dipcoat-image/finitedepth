@@ -28,7 +28,7 @@ import cv2
 import dataclasses
 import numpy as np
 import numpy.typing as npt
-from .reference_param import Parameters, DrawOptions
+from .reference_param import Parameters, DrawOptions, Data
 from .util.imgprocess import binarize
 from typing import TypeVar, Tuple, Optional, Generic, Type, TYPE_CHECKING
 
@@ -53,12 +53,13 @@ class ReferenceError(Exception):
 
 
 ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
-DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
 OptionalROI = Tuple[int, int, Optional[int], Optional[int]]
 IntROI = Tuple[int, int, int, int]
+DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
+DataType = TypeVar("DataType", bound="DataclassInstance")
 
 
-class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
+class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType]):
     """
     Abstract base class for substrate reference.
 
@@ -115,6 +116,13 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     :meth:`draw` defines the visualization logic for concrete class.
     Modifying :attr:`draw_options` changes the visualization result.
 
+    .. rubric:: Analysis
+
+    Concrete class must have :attr:`Data` which returns dataclass type and
+    implement :meth:`analyze_reference` which returns data tuple compatible with
+    :attr:`Data`.
+    :meth:`analyze` is the API for analysis result.
+
     Parameters
     ==========
 
@@ -143,6 +151,7 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
 
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
+    Data: Type[DataType]
 
     def __init__(
         self,
@@ -271,8 +280,18 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     def draw(self) -> npt.NDArray[np.uint8]:
         """Decorate and return the reference image as RGB format."""
 
+    @abc.abstractmethod
+    def analyze_reference(self) -> Tuple:
+        """Analyze the reference image and return the data in tuple."""
 
-class Reference(ReferenceBase[Parameters, DrawOptions]):
+    def analyze(self) -> DataType:
+        """
+        Return the result of :meth:`analyze_reference` as dataclass instance.
+        """
+        return self.Data(*self.analyze_reference())
+
+
+class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
     """
     Substrate reference class with customizable binarization.
 
@@ -309,6 +328,7 @@ class Reference(ReferenceBase[Parameters, DrawOptions]):
 
     Parameters = Parameters
     DrawOptions = DrawOptions
+    Data = Data
 
     def examine(self) -> None:
         return None
@@ -330,6 +350,9 @@ class Reference(ReferenceBase[Parameters, DrawOptions]):
             linewidth = tempROI_opts.linewidth
             cv2.rectangle(ret, (x0, y0), (x1, y1), color, linewidth)
         return ret
+
+    def analyze_reference(self) -> Tuple[()]:
+        return ()
 
 
 def sanitize_ROI(roi: OptionalROI, h: int, w: int) -> IntROI:

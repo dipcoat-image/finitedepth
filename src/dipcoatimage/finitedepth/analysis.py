@@ -358,7 +358,8 @@ class Analysis(AnalysisBase[Parameters]):
                 headers = []
                 rd_writer = rd_cls(self.parameters.ref_data, headers)
                 rd_writer.prepare()
-                ...  # TODO: implement data for reference
+                data = list(dataclasses.astuple(layer.substrate.reference.analyze()))
+                rd_writer.write_data(data)
                 rd_writer.terminate()
 
             if self.parameters.ref_visual:
