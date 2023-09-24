@@ -20,6 +20,7 @@ class Parameters:
         Paths for data file and visualized file of substrate image.
     layer_data, layer_visual : str
         Paths for data file and visualized file of coating layer image(s).
+        Pass formattable string (e.g. `img_%02d.jpg`) to save multiple images.
     layer_fps : float or None
         FPS to determine timestamps of coating layer data.
     """

@@ -51,6 +51,7 @@ from .analysis import (
     experiment_kind,
     DataWriter,
     CSVWriter,
+    AnalysisError,
     AnalysisBase,
     Analyzer,
 )
@@ -89,6 +90,7 @@ __all__ = [
     "experiment_kind",
     "DataWriter",
     "CSVWriter",
+    "AnalysisError",
     "AnalysisBase",
     "Analyzer",
     "data_converter",

@@ -5,3 +5,4 @@ numba
 scipy
 opencv-python-headless
 tqdm
+imageio[ffmpeg]
