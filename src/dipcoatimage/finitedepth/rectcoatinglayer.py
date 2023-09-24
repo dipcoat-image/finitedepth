@@ -554,7 +554,6 @@ class RectLayerShape(
         (THCK_L, THCK_B, THCK_R), _ = self.max_thickness()
 
         ERR, _ = self.match_substrate()
-        CHIPWIDTH = np.linalg.norm(B - C)
 
         return (
             LEN_L,
@@ -566,5 +565,4 @@ class RectLayerShape(
             THCK_B,
             THCK_R,
             ERR,
-            CHIPWIDTH,
         )

@@ -1,5 +1,6 @@
 import dataclasses
 import enum
+import numpy as np
 from .util.parameters import Color, MarkerOptions, LineOptions
 
 
@@ -53,6 +54,11 @@ class DrawOptions:
 
 @dataclasses.dataclass
 class Data:
-    """Analysis data for :class:`RectSubstrate`."""
+    """
+    Analysis data for :class:`RectSubstrate`.
 
-    pass
+    - ChipWidth: Number of the pixels between lower vertices of the substrate.
+
+    """
+
+    ChipWidth: np.float32

@@ -121,5 +121,6 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):
 
         return ret
 
-    def analyze_substrate(self) -> Tuple[()]:
-        return ()
+    def analyze_substrate(self) -> Tuple[np.float64]:
+        _, B, C, _ = self.sideline_intersections()
+        return (np.linalg.norm(B - C),)
