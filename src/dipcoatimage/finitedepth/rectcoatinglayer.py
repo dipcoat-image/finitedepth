@@ -210,8 +210,7 @@ class RectLayerShape(
        :context: reset
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import (SubstrateReference,
-       ...     get_data_path)
+       >>> from dipcoatimage.finitedepth import SubstrateReference, get_data_path
        >>> ref_path = get_data_path("ref3.png")
        >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
        >>> tempROI = (13, 10, 1246, 200)
@@ -226,9 +225,8 @@ class RectLayerShape(
        :include-source:
        :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import RectSubstrate, data_converter
-       >>> param_val = dict(Sigma=3.0, Rho=1.0, Theta=0.01)
-       >>> param = data_converter.structure(param_val, RectSubstrate.Parameters)
+       >>> from dipcoatimage.finitedepth import RectSubstrate
+       >>> param = RectSubstrate.Parameters(Sigma=3.0, Rho=1.0, Theta=0.01)
        >>> subst = RectSubstrate(ref, param)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
@@ -242,12 +240,11 @@ class RectLayerShape(
        >>> from dipcoatimage.finitedepth import RectLayerShape
        >>> coat_path = get_data_path("coat3.png")
        >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
-       >>> param_val = dict(
+       >>> param = RectLayerShape.Parameters(
        ...     KernelSize=(1, 1),
        ...     ReconstructRadius=50,
-       ...     RoughnessMeasure="SDTW",
+       ...     RoughnessMeasure=RectLayerShape.DistanceMeasure.SDTW,
        ... )
-       >>> param = data_converter.structure(param_val, RectLayerShape.Parameters)
        >>> coat = RectLayerShape(coat_img, subst, param)
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
@@ -265,6 +262,7 @@ class RectLayerShape(
     DecoOptions = DecoOptions
     Data = Data
 
+    DistanceMeasure = DistanceMeasure
     PaintMode = PaintMode
     SubtractionMode = SubtractionMode
 

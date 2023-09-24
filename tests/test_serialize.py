@@ -139,15 +139,8 @@ def test_CoatingLayerArgs():
 
 
 def test_ExperimentArgs():
-    refargs = ReferenceArgs()
-    ref = refargs.as_reference(REF_IMG)
-
-    substargs = SubstrateArgs()
-    subst = substargs.as_substrate(ref)
-
-    layerargs = CoatingLayerArgs()
     exptargs = ExperimentArgs()
-    expt = exptargs.as_experiment(subst, *layerargs.as_structured_args())
+    expt = exptargs.as_experiment()
 
     assert type(expt).__name__ == exptargs.type.name
     assert dict_includes(

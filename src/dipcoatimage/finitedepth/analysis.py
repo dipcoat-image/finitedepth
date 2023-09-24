@@ -8,17 +8,15 @@ result from experiment.
 """
 
 import abc
+from collections.abc import Coroutine
 import csv
 import cv2
 import dataclasses
 import enum
 import mimetypes
-import numpy as np
-import numpy.typing as npt
 import os
-import tqdm  # type: ignore
-from .experiment import ExperimentBase
-from typing import List, Type, Optional, Dict, Any, Generator
+from .coatinglayer import CoatingLayerBase
+from typing import List, Type, Optional, Dict, Any
 
 
 __all__ = [
@@ -159,25 +157,39 @@ class CSVWriter(DataWriter):
         self.datafile.close()
 
 
-class Analyzer:
+class Analyzer(Coroutine):
     """
     Class to save the analysis result.
 
-    Parameters
-    ==========
+    .. rubric:: Analysis data
 
-    paths
-        Paths to the coated substrate image/video files.
+    If *data_path* is passed, analysis result is saved as data file.
+    Data writer is searched from :attr:`data_writers` using file extension.
 
-    experiment
-        Experiment instance to analyze the coated substrate images.
+    If FPS value is nonzero, time value for each coating layer is
+    automatically prepended to the row.
+
+    .. rubric:: Visualization image
+
+    If *image_path* is passed, visualization results are saved as image
+    files. Using formattable string (e.g. ``img_%02d.jpg``) to save multiple
+    images.
+
+    .. rubric:: Visualization video
+
+    If *video_path* is passed, visualization results are saved as video file.
+    FourCC codec value is searched from :attr:`video_codecs` using file
+    extension.
+
+    .. rubric:: FPS
+
+    If *fps* is explicitly passed, it is used for data timestamps and
+    visualization video FPS.
 
     Attributes
-    ==========
-
+    ----------
     data_writers
         Dictionary of file extensions and their data writers.
-
     video_codecs
         Dictionary of video extensions and their FourCC values.
 
@@ -188,180 +200,81 @@ class Analyzer:
         mp4=cv2.VideoWriter_fourcc(*"mp4v")  # type: ignore
     )
 
-    def __init__(self, paths: List[str], experiment: ExperimentBase):
-        self.paths = paths
-        self.experiment = experiment
-
-    def analyze(
+    def __init__(
         self,
         data_path: str = "",
         image_path: str = "",
         video_path: str = "",
-        *,
         fps: Optional[float] = None,
-        name: str = "",
     ):
-        """
-        Analyze :attr:`paths` with :attr:`experiment` and save the result.
+        self.data_path = data_path
+        self.image_path = image_path
+        self.video_path = video_path
+        self.fps = fps
 
-        .. rubric:: Analysis data
+        self._iterator = self.__await__()
 
-        If *data_path* is passed, analysis result is saved as data file.
-        Data writer is searched from :attr:`data_writers` using file extension.
-
-        If FPS value is nonzero, time value for each coating layer is
-        automatically prepended to the row.
-
-        .. rubric:: Visualization image
-
-        If *image_path* is passed, visualization results are saved as image
-        files. Using formattable string (e.g. ``img_%02d.jpg``) to save multiple
-        images.
-
-        .. rubric:: Visualization video
-
-        If *video_path* is passed, visualization results are saved as video file.
-        FourCC codec value is searched from :attr:`video_codecs` using file
-        extension.
-
-        .. rubric:: FPS
-
-        If *fps* is explicitly passed, it is used for data timestamps and
-        visualization video FPS.
-
-        .. rubric:: Progress bar
-
-        Progress bar is printed. Pass *name* for the progress bar name.
-
-        """
-        expt_kind = experiment_kind(self.paths)
-        if (
-            expt_kind == ExperimentKind.SINGLE_IMAGE
-            or expt_kind == ExperimentKind.MULTI_IMAGE
-        ):
-            if fps is None:
-                fps = 0.0
-            analysis_gen = self.analysis_generator(
-                data_path, image_path, video_path, fps=fps
-            )
-            next(analysis_gen)
-
-            img_gen = (cv2.imread(path) for path in self.paths)
-            for img in tqdm.tqdm(img_gen, total=len(self.paths), desc=name):
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                analysis_gen.send(img)
-            analysis_gen.send(None)
-
-        elif expt_kind == ExperimentKind.VIDEO:
-            (path,) = self.paths
-            cap = cv2.VideoCapture(path)
-
-            if fps is None:
-                fps = cap.get(cv2.CAP_PROP_FPS)
-            analysis_gen = self.analysis_generator(
-                data_path, image_path, video_path, fps=fps
-            )
-            next(analysis_gen)
-
-            try:
-                fnum = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                img_gen = (cap.read()[1] for _ in range(fnum))
-                for img in tqdm.tqdm(img_gen, total=fnum, desc=name):
-                    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                    analysis_gen.send(img)
-            finally:
-                analysis_gen.send(None)
-                cap.release()
-
-        else:
-            raise TypeError(f"Unsupported experiment kind: {expt_kind}")
-
-    def analysis_generator(
-        self,
-        data_path: str = "",
-        image_path: str = "",
-        video_path: str = "",
-        *,
-        fps: float = 0.0,
-    ) -> Generator[None, Optional[npt.NDArray[np.uint8]], None]:
-        """
-        Send the coating layer image to this generator to analyze it.
-        Sending ``None`` terminates the analysis.
-        """
-        self.experiment.substrate.reference.verify()
-        self.experiment.substrate.verify()
-        self.experiment.verify()
+    def __await__(self):
+        write_data = bool(self.data_path)
+        write_image = bool(self.image_path)
+        write_video = bool(self.video_path)
 
         # prepare for data writing
-        if data_path:
-            write_data = True
-
-            dirname, _ = os.path.split(data_path)
+        if write_data:
+            dirname, _ = os.path.split(self.data_path)
             if dirname:
                 os.makedirs(dirname, exist_ok=True)
-
-            _, data_ext = os.path.splitext(data_path)
+            _, data_ext = os.path.splitext(self.data_path)
             data_ext = data_ext.lstrip(os.path.extsep).lower()
             writercls = self.data_writers.get(data_ext, None)
             if writercls is None:
                 raise TypeError(f"Unsupported extension: {data_ext}")
-            headers = [
-                f.name for f in dataclasses.fields(self.experiment.layer_type.Data)
-            ]
-            if fps:
-                headers = ["time (s)"] + headers
-            datawriter = writercls(data_path, headers)
-            datawriter.prepare()
-        else:
-            write_data = False
-
-        # prepare for image writing
-        if image_path:
-            write_image = True
-
-            dirname, _ = os.path.split(image_path)
+        if write_image:
+            dirname, _ = os.path.split(self.image_path)
             if dirname:
                 os.makedirs(dirname, exist_ok=True)
             try:
-                image_path % 0
+                self.image_path % 0
                 image_path_formattable = True
             except (TypeError, ValueError):
                 image_path_formattable = False
-        else:
-            write_image = False
-
-        # prepare for video writing
-        if video_path:
-            write_video = True
-
-            _, video_ext = os.path.splitext(video_path)
+        if write_video:
+            _, video_ext = os.path.splitext(self.video_path)
             video_ext = video_ext.lstrip(os.path.extsep).lower()
             fourcc = self.video_codecs.get(video_ext, None)
             if fourcc is None:
                 raise TypeError(f"Unsupported extension: {video_ext}")
 
-            dirname, _ = os.path.split(video_path)
+            dirname, _ = os.path.split(self.video_path)
             if dirname:
                 os.makedirs(dirname, exist_ok=True)
-        else:
-            write_video = False
 
-        layer_gen = self.experiment.layer_generator()
-        i = 0
         try:
-            while True:
-                img = yield  # type: ignore
-                if img is None:
-                    break
-                next(layer_gen)
-                layer = layer_gen.send(img)
-                valid = layer.valid()
+            # User first sent value for additional preparation
+            layer = yield
+            if write_data:
+                headers = [f.name for f in dataclasses.fields(layer.Data)]
+                if self.fps:
+                    headers = ["time (s)"] + headers
+                datawriter = writercls(self.data_path, headers)
+                datawriter.prepare()
+            if write_video:
+                h, w = layer.image.shape[:2]
+                videowriter = cv2.VideoWriter(
+                    self.video_path,
+                    fourcc,  # type: ignore
+                    self.fps,  # type: ignore
+                    (w, h),
+                )
 
+            i = 0
+            while True:
+                valid = layer.valid()
                 if write_data:
                     if valid:
                         data = list(dataclasses.astuple(layer.analyze()))
-                        if fps:
-                            data = [i / fps] + data
+                        if self.fps:
+                            data = [i / self.fps] + data
                     else:
                         data = []
                     datawriter.write_data(data)
@@ -370,27 +283,34 @@ class Analyzer:
                     if valid:
                         visualized = layer.draw()
                     else:
-                        visualized = img
+                        visualized = layer.image
                     visualized = cv2.cvtColor(visualized, cv2.COLOR_RGB2BGR)
 
                     if write_image:
                         if image_path_formattable:
-                            imgpath = image_path % i
+                            imgpath = self.image_path % i
                         else:
-                            imgpath = image_path
+                            imgpath = self.image_path
                         cv2.imwrite(imgpath, visualized)
 
                     if write_video:
-                        if i == 0:
-                            h, w = img.shape[:2]
-                            videowriter = cv2.VideoWriter(
-                                video_path, fourcc, fps, (w, h)  # type: ignore
-                            )
                         videowriter.write(visualized)
+                layer = yield
                 i += 1
         finally:
             if write_data:
                 datawriter.terminate()
             if write_video:
                 videowriter.release()
-            yield
+
+    def send(self, value: Optional[CoatingLayerBase]):
+        if value is None:
+            next(self._iterator)
+        else:
+            self._iterator.send(value)
+
+    def throw(self, type, value, traceback):
+        self._iterator.throw(type, value, traceback)
+
+    def close(self):
+        self._iterator.close()

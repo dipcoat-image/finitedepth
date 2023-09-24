@@ -11,13 +11,14 @@ import dataclasses
 import numpy as np
 import numpy.typing as npt
 import os
+import tqdm  # type: ignore
 from .reference import SubstrateReferenceBase, OptionalROI
 from .substrate import SubstrateBase
 from .coatinglayer import CoatingLayerBase
 from .experiment import ExperimentBase
 from .analysis import ExperimentKind, experiment_kind, Analyzer
 from .util.importing import import_variable
-from typing import List, Type, Optional, Tuple, TYPE_CHECKING
+from typing import List, Type, Optional, Tuple, Generator, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
@@ -378,24 +379,10 @@ class ExperimentArgs:
         )
         return (exptcls, params)
 
-    def as_experiment(
-        self,
-        subst: SubstrateBase,
-        layer_type: Type[CoatingLayerBase],
-        layer_parameters: Optional["DataclassInstance"] = None,
-        layer_drawoptions: Optional["DataclassInstance"] = None,
-        layer_decooptions: Optional["DataclassInstance"] = None,
-    ) -> ExperimentBase:
+    def as_experiment(self) -> ExperimentBase:
         """Construct the experiment instance."""
         exptcls, params = self.as_structured_args()
-        expt = exptcls(  # type: ignore
-            subst,
-            layer_type,
-            layer_parameters,
-            layer_drawoptions,
-            layer_decooptions,
-            parameters=params,
-        )
+        expt = exptcls(parameters=params)
         return expt
 
 
@@ -409,6 +396,15 @@ class AnalysisArgs:
     image_path: str = ""
     video_path: str = ""
     fps: Optional[float] = None
+
+    def as_analyzer(self) -> Analyzer:
+        ret = Analyzer(
+            self.data_path,
+            self.image_path,
+            self.video_path,
+            self.fps,
+        )
+        return ret
 
 
 @dataclasses.dataclass
@@ -431,31 +427,6 @@ class ExperimentData:
         self.ref_path = os.path.expandvars(self.ref_path)
         self.coat_paths = [os.path.expandvars(p) for p in self.coat_paths]
 
-    def construct_reference(self) -> SubstrateReferenceBase:
-        """
-        Construct and return :class:`SubstrateReferenceBase` from the data.
-        """
-        refimg = cv2.cvtColor(cv2.imread(self.ref_path), cv2.COLOR_BGR2RGB)
-        return self.reference.as_reference(refimg)
-
-    def construct_substrate(self) -> SubstrateBase:
-        """
-        Construct and return :class:`SubstrateBase` from the data.
-        """
-        ref = self.construct_reference()
-        return self.substrate.as_substrate(ref)
-
-    def construct_experiment(self) -> ExperimentBase:
-        """
-        Construct and return :class:`ExperimentBase` from the data.
-        """
-        subst = self.construct_substrate()
-        layercls, params, drawopts, decoopts = self.coatinglayer.as_structured_args()
-        expt = self.experiment.as_experiment(
-            subst, layercls, params, drawopts, decoopts
-        )
-        return expt
-
     def experiment_kind(self) -> ExperimentKind:
         return experiment_kind(self.coat_paths)
 
@@ -475,6 +446,58 @@ class ExperimentData:
             ret = -1
         return ret
 
+    def image(self, index: int = 0) -> npt.NDArray[np.uint8]:
+        expt_kind = self.experiment_kind()
+        if (
+            expt_kind == ExperimentKind.SINGLE_IMAGE
+            or expt_kind == ExperimentKind.MULTI_IMAGE
+        ):
+            img = cv2.imread(self.coat_paths[index])
+        elif expt_kind == ExperimentKind.VIDEO:
+            cap = cv2.VideoCapture(self.coat_paths[0])
+            cap.set(cv2.CAP_PROP_POS_FRAMES, index)
+            _, img = cap.read()
+        else:
+            img = None
+        if img is None:
+            img = np.empty((0, 0, 3), np.uint8)
+        return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+    def image_generator(self) -> Generator[npt.NDArray[np.uint8], None, None]:
+        expt_kind = self.experiment_kind()
+        if (
+            expt_kind == ExperimentKind.SINGLE_IMAGE
+            or expt_kind == ExperimentKind.MULTI_IMAGE
+        ):
+            for path in self.coat_paths:
+                img = cv2.imread(path)
+                if img is None:
+                    img = np.empty((0, 0, 3), np.uint8)
+                yield cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        elif expt_kind == ExperimentKind.VIDEO:
+            cap = cv2.VideoCapture(self.coat_paths[0])
+            for _ in range(self.image_count()):
+                _, img = cap.read()
+                if img is None:
+                    img = np.empty((0, 0, 3), np.uint8)
+                yield cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        else:
+            yield np.empty((0, 0, 3), np.uint8)
+
+    def construct_reference(self) -> SubstrateReferenceBase:
+        """
+        Construct and return :class:`SubstrateReferenceBase` from the data.
+        """
+        refimg = cv2.cvtColor(cv2.imread(self.ref_path), cv2.COLOR_BGR2RGB)
+        return self.reference.as_reference(refimg)
+
+    def construct_substrate(self) -> SubstrateBase:
+        """
+        Construct and return :class:`SubstrateBase` from the data.
+        """
+        ref = self.construct_reference()
+        return self.substrate.as_substrate(ref)
+
     def construct_coatinglayer(
         self, image_index: int = 0, sequential: bool = True
     ) -> CoatingLayerBase:
@@ -488,9 +511,7 @@ class ExperimentData:
             multiframe experiment.
 
         sequential: bool
-            If True, construction of instance is done by passing `n`-th image and
-            `(n-1)`-th instance to :meth:`ExperimentBase.layer_generator`,
-            recursively.
+            If True, construction of instance is recursively done.
 
         Notes
         -----
@@ -498,69 +519,74 @@ class ExperimentData:
         index of image can be specified by *image_index*.
 
         For speed, you may want to explicitly pass `sequential=False`. This
-        method first constructs :class:`ExperimentBase` to use it as a coating
-        layer instance factory, and by default recursively generates the instance
-        from the first frame to `image-index`-th frame. This approach honors the
-        modification by :class:`ExperimentBase` implementation but can be
-        extremely slow. `sequential=False` ignores the recursive generation and
-        directly constructs the instance as if it were the first frame of the
-        experiment.
+        ignores the designated :class:`Experiment` and directly constructs the
+        coating layer instance.
 
         """
-        layer_gen = self.construct_experiment().layer_generator()
-        next(layer_gen)
-
         if image_index > self.image_count() - 1:
             raise ValueError("image_index exceeds image numbers.")
 
-        expt_kind = self.experiment_kind()
-        if (
-            expt_kind == ExperimentKind.SINGLE_IMAGE
-            or expt_kind == ExperimentKind.MULTI_IMAGE
-        ):
-            if sequential:
-                img_gen = (cv2.imread(path) for path in self.coat_paths)
-                for _ in range(image_index + 1):
-                    img = next(img_gen)
-                    layer = layer_gen.send(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-            else:
-                img = cv2.imread(self.coat_paths[image_index])
-                layer = layer_gen.send(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-
-        elif expt_kind == ExperimentKind.VIDEO:
-            (path,) = self.coat_paths
-            cap = cv2.VideoCapture(path)
-
-            try:
-                if sequential:
-                    for _ in range(image_index + 1):
-                        ok, img = cap.read()
-                        if not ok:
-                            raise ValueError("Failed to read frame.")
-                        layer = layer_gen.send(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-                else:
-                    cap.set(cv2.CAP_PROP_POS_FRAMES, image_index)
-                    ok, img = cap.read()
-                    if not ok:
-                        raise ValueError("Failed to read frame.")
-                    layer = layer_gen.send(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-
-            finally:
-                cap.release()
+        subst = self.construct_substrate()
+        layercls, params, drawopts, decoopts = self.coatinglayer.as_structured_args()
+        if sequential:
+            expt = self.construct_experiment()
+            img_gen = self.image_generator()
+            for _ in range(image_index + 1):
+                img = next(img_gen)
+                layer = expt.coatinglayer(
+                    img,
+                    subst,
+                    layer_type=layercls,
+                    layer_parameters=params,
+                    layer_drawoptions=drawopts,
+                    layer_decooptions=decoopts,
+                )
         else:
-            raise TypeError("Invalid coating layer paths.")
-
+            img = self.image(image_index)
+            layer = layercls(
+                img,
+                subst,
+                parameters=params,
+                draw_options=drawopts,
+                deco_options=decoopts,
+            )
         return layer
 
-    def analyze(self, name: str = ""):
-        """Analyze and save the data."""
-        expt = self.construct_experiment()
-        analyzer = Analyzer(self.coat_paths, expt)
+    def construct_experiment(self) -> ExperimentBase:
+        """
+        Construct and return :class:`ExperimentBase` from the data.
+        """
+        return self.experiment.as_experiment()
 
-        analyzer.analyze(
-            self.analysis.data_path,
-            self.analysis.image_path,
-            self.analysis.video_path,
-            fps=self.analysis.fps,
-            name=name,
-        )
+    def construct_analyzer(self) -> Analyzer:
+        return self.analysis.as_analyzer()
+
+    def analyze(self, name: str = ""):
+        """
+        Analyze and save the data. Progress bar is shown.
+
+        Parameters
+        ----------
+        name : str
+            Description for progress bar.
+        """
+        subst = self.construct_substrate()
+        layercls, params, drawopts, decoopts = self.coatinglayer.as_structured_args()
+        expt = self.construct_experiment()
+        analyzer = self.construct_analyzer()
+        try:
+            analyzer.send(None)
+            for img in tqdm.tqdm(
+                self.image_generator(), total=self.image_count(), desc=name
+            ):
+                layer = expt.coatinglayer(
+                    img,
+                    subst,
+                    layer_type=layercls,
+                    layer_parameters=params,
+                    layer_drawoptions=drawopts,
+                    layer_decooptions=decoopts,
+                )
+                analyzer.send(layer)
+        finally:
+            analyzer.close()
