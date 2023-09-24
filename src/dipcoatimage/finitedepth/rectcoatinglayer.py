@@ -265,6 +265,7 @@ class RectLayerShape(
     DecoOptions = DecoOptions
     Data = Data
 
+    DistanceMeasure = DistanceMeasure
     PaintMode = PaintMode
     SubtractionMode = SubtractionMode
 
