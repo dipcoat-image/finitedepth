@@ -103,9 +103,7 @@ class ReferenceArgs:
         name = self.type.name
         module = self.type.module
         refcls = import_variable(name, module)
-        if not (
-            isinstance(refcls, type) and issubclass(refcls, ReferenceBase)
-        ):
+        if not (isinstance(refcls, type) and issubclass(refcls, ReferenceBase)):
             raise TypeError(f"{refcls} is not substrate reference class.")
 
         params = data_converter.structure(
