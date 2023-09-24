@@ -105,14 +105,15 @@ class CoatingLayerBase(
     visualization does not affect the identity of instance. Therefore methods
     affected by draw options and deco options must not be cached.
 
-    .. rubric:: Template location
+    .. rubric:: Template matching
 
-    Location of the template can be explicitly passed by *template_loc* argument
-    in the constructor signal. If not passed, or if invalid value is passed,
+    Template matching is used to locate the substrate in the image. Location of
+    matched template and its objective function value can be explicitly passed by
+    *tempmatch* keyword-only argument in the constructor signal. If not passed,
     brute-force template matching is evoked as a fallback.
 
-    This argument can be used by :class:`ExperimentBase` implementation to speed
-    up the analysis.
+    *tempmatch* argument is intended to be used by :class:`ExperimentBase`
+    implementation to speed up the analysis.
 
     .. rubric:: Sanity check
 
@@ -179,7 +180,7 @@ class CoatingLayerBase(
         *,
         draw_options: Optional[DrawOptionsType] = None,
         deco_options: Optional[DecoOptionsType] = None,
-        template_loc: Optional[Tuple[int, int]] = None,
+        tempmatch: Optional[Tuple[Tuple[int, int], float]] = None,
     ):
         super().__init__()
         self._image = image
