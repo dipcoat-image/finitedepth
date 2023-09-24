@@ -18,7 +18,7 @@ class Parameters:
     pass
 
 
-class SubtractionMode(enum.Flag):
+class SubtractionMode(enum.Enum):
     """
     Option to determine how the template matching result will be displayed.
 
@@ -38,10 +38,10 @@ class SubtractionMode(enum.Flag):
 
     """
 
-    NONE = 0
-    TEMPLATE = 1
-    SUBSTRATE = 2
-    FULL = TEMPLATE | SUBSTRATE
+    NONE = "NONE"
+    TEMPLATE = "TEMPLATE"
+    SUBSTRATE = "SUBSTRATE"
+    FULL = "FULL"
 
 
 @dataclasses.dataclass

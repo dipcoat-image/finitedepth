@@ -428,7 +428,10 @@ class RectLayerShape(
         image = colorize(image)
 
         subtraction = self.draw_options.subtraction
-        if subtraction & self.SubtractionMode.TEMPLATE:
+        if subtraction in [
+            self.SubtractionMode.TEMPLATE,
+            self.SubtractionMode.FULL,
+        ]:
             x0, y0, x1, y1 = self.substrate.reference.templateROI
             tempImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
             h, w = tempImg.shape[:2]
@@ -436,7 +439,10 @@ class RectLayerShape(
             binImg = self.binary_image()[Y0 : Y0 + h, X0 : X0 + w]
             mask = images_XOR(~binImg.astype(bool), ~tempImg.astype(bool))
             image[Y0 : Y0 + h, X0 : X0 + w][~mask] = 255
-        if subtraction & self.SubtractionMode.SUBSTRATE:
+        if subtraction in [
+            self.SubtractionMode.SUBSTRATE,
+            self.SubtractionMode.FULL,
+        ]:
             x0, y0, x1, y1 = self.substrate.reference.substrateROI
             substImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
             h, w = substImg.shape[:2]
