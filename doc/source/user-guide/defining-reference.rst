@@ -80,6 +80,17 @@ For this, we define :class:`DrawMode` enum and :class:`BinaryDrawOptions` datacl
    ... class BinaryDrawOptions:
    ...     mode: DrawMode = DrawMode.ORIGINAL
 
+Defining data
+=============
+
+.. plot::
+   :include-source:
+   :context: close-figs
+
+   >>> @dataclasses.dataclass
+   ... class Data:
+   ...     ...
+
 Defining reference class
 ========================
 
@@ -95,6 +106,7 @@ Full code will be shown first, and each line will be explained in subsections.
    ...     __slots__ = ("_binary",)
    ...     Parameters = ThresholdParameters
    ...     DrawOptions = BinaryDrawOptions
+   ...     Data = Data
    ...     def binary_image(self):
    ...         if not hasattr(self, "_binary"):
    ...             args = dataclasses.asdict(self.parameters)
@@ -109,6 +121,8 @@ Full code will be shown first, and each line will be explained in subsections.
    ...         else:
    ...             img = self.binary_image()
    ...         return cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+   ...     def analyze_reference(self):
+   ...         return ()
 
 Slots
 -----

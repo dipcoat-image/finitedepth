@@ -38,9 +38,10 @@ ROTATION_MATRIX = np.array([[0, 1], [-1, 0]])
 
 ParametersType = TypeVar("ParametersType", bound=Parameters)
 DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
+DataType = TypeVar("DataType", bound="DataclassInstance")
 
 
-class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
+class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]):
     """
     Abstract base class for substrates whose cross section is a simple
     polygon[1]_.
@@ -68,6 +69,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType]):
 
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
+    Data: Type[DataType]
     SidesNum: int
 
     def region_points(self) -> npt.NDArray[np.int32]:

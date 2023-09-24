@@ -5,6 +5,7 @@ from .util.parameters import Color, LineOptions
 __all__ = [
     "Parameters",
     "DrawOptions",
+    "Data",
 ]
 
 
@@ -32,3 +33,10 @@ class DrawOptions:
     substrateROI: LineOptions = dataclasses.field(
         default_factory=lambda: LineOptions(color=Color(255, 0, 0), linewidth=1)
     )
+
+
+@dataclasses.dataclass
+class Data:
+    """Analysis data for :class:`Reference`."""
+
+    pass

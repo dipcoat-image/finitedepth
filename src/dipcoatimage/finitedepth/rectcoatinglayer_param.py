@@ -168,7 +168,6 @@ class Data:
     The following data are the metadata for the analysis.
 
     - MatchError: Template matching error between 0 to 1. 0 means perfect match.
-    - ChipWidth: Number of the pixels between lower vertices of the substrate.
 
     """
 
@@ -184,4 +183,3 @@ class Data:
     MaxThickness_Right: np.float64
 
     MatchError: float
-    ChipWidth: np.float32

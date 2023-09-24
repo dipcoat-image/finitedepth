@@ -4,6 +4,7 @@ import dataclasses
 __all__ = [
     "Parameters",
     "DrawOptions",
+    "Data",
 ]
 
 
@@ -16,6 +17,13 @@ class Parameters:
 
 @dataclasses.dataclass
 class DrawOptions:
-    """Drawing options for :class:`SubstrateReference`."""
+    """Drawing options for :class:`Substrate`."""
+
+    pass
+
+
+@dataclasses.dataclass
+class Data:
+    """Analysis data for :class:`Substrate`."""
 
     pass

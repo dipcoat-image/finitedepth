@@ -31,7 +31,7 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 from .reference import ReferenceBase
-from .substrate_param import Parameters, DrawOptions
+from .substrate_param import Parameters, DrawOptions, Data
 from typing import TypeVar, Generic, Type, Optional, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -53,9 +53,10 @@ class SubstrateError(Exception):
 
 ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
 DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
+DataType = TypeVar("DataType", bound="DataclassInstance")
 
 
-class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
+class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType]):
     """
     Abstract base class for substrate.
 
@@ -90,6 +91,13 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     :meth:`draw` defines the visualization logic for concrete class.
     Modifying :attr:`draw_options` changes the visualization result.
 
+    .. rubric:: Analysis
+
+    Concrete class must have :attr:`Data` which returns dataclass type and
+    implement :meth:`analyze_substrate` which returns data tuple compatible with
+    :attr:`Data`.
+    :meth:`analyze` is the API for analysis result.
+
     Parameters
     ==========
 
@@ -114,6 +122,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
 
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
+    Data: Type[DataType]
 
     def __init__(
         self,
@@ -285,8 +294,18 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType]):
     def draw(self) -> npt.NDArray[np.uint8]:
         """Decorate and return the substrate image as RGB format."""
 
+    @abc.abstractmethod
+    def analyze_substrate(self) -> Tuple:
+        """Analyze the substrate image and return the data in tuple."""
 
-class Substrate(SubstrateBase[Parameters, DrawOptions]):
+    def analyze(self) -> DataType:
+        """
+        Return the result of :meth:`analyze_substrate` as dataclass instance.
+        """
+        return self.Data(*self.analyze_substrate())
+
+
+class Substrate(SubstrateBase[Parameters, DrawOptions, Data]):
     """
     Simplest substrate class with no geometric information.
 
@@ -324,6 +343,7 @@ class Substrate(SubstrateBase[Parameters, DrawOptions]):
 
     Parameters = Parameters
     DrawOptions = DrawOptions
+    Data = Data
 
     def region_points(self) -> npt.NDArray[np.int32]:
         w = self.image().shape[1]
@@ -334,3 +354,6 @@ class Substrate(SubstrateBase[Parameters, DrawOptions]):
 
     def draw(self) -> npt.NDArray[np.uint8]:
         return self.image().copy()
+
+    def analyze_substrate(self) -> Tuple[()]:
+        return ()
