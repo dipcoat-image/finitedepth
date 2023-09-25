@@ -16,7 +16,7 @@ class Parameters:
     ----------
     window : tuple
         Restricts the possible location of template to boost speed.
-        Negative value turns off the restriction.
+        Negative value means no restriction in corresponding axis.
     """
 
     window: Tuple[int, int] = (-1, -1)
