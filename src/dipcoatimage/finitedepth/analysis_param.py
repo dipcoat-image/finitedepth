@@ -1,10 +1,15 @@
 import dataclasses
-from typing import Optional
+from typing import Optional, List
 
 
 __all__ = [
+    "CSVWriter",
     "Parameters",
 ]
+
+
+async def CSVWriter(filename: str, header: List[str]):
+    ...
 
 
 @dataclasses.dataclass(frozen=True)
