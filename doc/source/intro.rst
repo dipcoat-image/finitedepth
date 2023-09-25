@@ -37,12 +37,12 @@ Below are the images of the bare substrate and the coated substrate from acutal 
    from dipcoatimage.finitedepth import get_data_path
 
    ref_path = get_data_path("ref3.png")
-   ref_img = cv2.imread(ref_path, cv2.IMREAD_GRAYSCALE)
+   ref_gray = cv2.imread(ref_path, cv2.IMREAD_GRAYSCALE)
    coat_path = get_data_path("coat3.png")
    coat_img = cv2.imread(coat_path, cv2.IMREAD_GRAYSCALE)
 
    _, axes = plt.subplots(1, 2, figsize=(8, 4))
-   axes[0].imshow(ref_img, cmap="gray")
+   axes[0].imshow(ref_gray, cmap="gray")
    axes[0].axis("off")
    axes[1].imshow(coat_img, cmap="gray")
    axes[1].axis("off")
@@ -59,7 +59,7 @@ Temporal evolution of the coating layer can be assessed by analyzing the series 
 
    from dipcoatimage.finitedepth import Reference, Substrate, CoatingLayer
 
-   ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+   _, ref_img = cv2.threshold(ref_gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
    ref = Reference(ref_img, (13, 10, 1246, 200), (100, 100, 1200, 500))
    subst = Substrate(ref)
    coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
@@ -94,8 +94,8 @@ The first ROI specifies the template region for the coating layer class, and the
    >>> import cv2
    >>> from dipcoatimage.finitedepth import get_data_path, Reference
    >>> import matplotlib.pyplot as plt #doctest: +SKIP
-   >>> ref_path = get_data_path("ref3.png")
-   >>> ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+   >>> ref_gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
+   >>> _, ref_img = cv2.threshold(ref_gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
    >>> templateROI, substrateROI = (100, 50, 1200, 200), (300, 100, 950, 600)
    >>> ref = Reference(ref_img, templateROI, substrateROI)
    >>> plt.imshow(ref.draw()) #doctest: +SKIP
