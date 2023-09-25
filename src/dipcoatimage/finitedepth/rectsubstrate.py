@@ -82,8 +82,6 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):
         paint = self.draw_options.paint
         if paint is self.PaintMode.ORIGINAL:
             image = self.image()
-        elif paint is self.PaintMode.BINARY:
-            image = self.binary_image()
         elif paint is self.PaintMode.CONTOUR:
             h, w = self.image().shape[:2]
             image = np.full((h, w), 255, np.uint8)

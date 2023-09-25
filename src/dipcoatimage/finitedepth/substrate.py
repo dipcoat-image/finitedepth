@@ -176,11 +176,6 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         # not property since it's not directly from the argument
         return self.reference.substrate_image()
 
-    def binary_image(self) -> npt.NDArray[np.uint8]:
-        """Binarized substrate image from :meth:`reference`."""
-        x0, y0, x1, y1 = self.reference.substrateROI
-        return self.reference.image[y0:y1, x0:x1]
-
     @abc.abstractmethod
     def region_points(self) -> npt.NDArray[np.int32]:
         """
@@ -225,7 +220,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         """
         if not hasattr(self, "_regions"):
             self._regions = np.full(self.image().shape[:2], -1, dtype=np.int8)
-            _, labels = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
+            _, labels = cv2.connectedComponents(cv2.bitwise_not(self.image()))
             for i, pt in enumerate(self.region_points()):
                 self._regions[labels == labels[pt[1], pt[0]]] = i
         return self._regions

@@ -19,15 +19,12 @@ class PaintMode(enum.Enum):
     -------
     ORIGINAL
         Show the original substrate image.
-    BINARY
-        Show the binarized substrate image.
     CONTOUR
         Show the contour of the substrate.
 
     """
 
     ORIGINAL = "ORIGINAL"
-    BINARY = "BINARY"
     CONTOUR = "CONTOUR"
 
 
@@ -43,7 +40,7 @@ class DrawOptions:
     sidelines : LineOptions
     """
 
-    paint: PaintMode = PaintMode.BINARY
+    paint: PaintMode = PaintMode.ORIGINAL
     vertices: MarkerOptions = dataclasses.field(
         default_factory=lambda: MarkerOptions(color=(0, 255, 0))
     )
