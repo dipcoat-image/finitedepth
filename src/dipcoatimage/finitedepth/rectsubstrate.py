@@ -38,10 +38,9 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):
        :context: reset
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import (Reference,
-       ...     get_data_path)
-       >>> ref_path = get_data_path("ref3.png")
-       >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+       >>> from dipcoatimage.finitedepth import Reference, get_data_path
+       >>> gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
+       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
        >>> tempROI = (13, 10, 1246, 200)
        >>> substROI = (100, 100, 1200, 500)
        >>> ref = Reference(img, tempROI, substROI)

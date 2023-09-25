@@ -69,9 +69,13 @@ class ReferenceArgs:
 
        >>> import cv2
        >>> from dipcoatimage.finitedepth import ReferenceArgs, get_data_path
-       >>> refargs = ReferenceArgs(templateROI=(13, 10, 1246, 200),
-       ...                         substrateROI=(100, 100, 1200, 500))
-       >>> ref = refargs.as_reference(cv2.imread(get_data_path("ref3.png")))
+       >>> gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
+       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+       >>> refargs = ReferenceArgs(
+       ...     templateROI=(13, 10, 1246, 200),
+       ...     substrateROI=(100, 100, 1200, 500)
+       ... )
+       >>> ref = refargs.as_reference(img)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
@@ -154,9 +158,13 @@ class SubstrateArgs:
 
        >>> import cv2
        >>> from dipcoatimage.finitedepth import ReferenceArgs, get_data_path
-       >>> refargs = ReferenceArgs(templateROI=(13, 10, 1246, 200),
-       ...                         substrateROI=(100, 100, 1200, 500))
-       >>> ref = refargs.as_reference(cv2.imread(get_data_path("ref3.png")))
+       >>> gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
+       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+       >>> refargs = ReferenceArgs(
+       ...     templateROI=(13, 10, 1246, 200),
+       ...     substrateROI=(100, 100, 1200, 500)
+       ... )
+       >>> ref = refargs.as_reference(img)
 
     Construct substrate instance from the data.
 
@@ -245,11 +253,19 @@ class CoatingLayerArgs:
        :context: reset
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import (data_converter, ReferenceArgs,
-       ...     SubstrateArgs, get_data_path)
-       >>> refargs = ReferenceArgs(templateROI=(13, 10, 1246, 200),
-       ...                         substrateROI=(100, 100, 1200, 500))
-       >>> ref = refargs.as_reference(cv2.imread(get_data_path("ref3.png")))
+       >>> from dipcoatimage.finitedepth import ReferenceArgs, get_data_path
+       >>> gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
+       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+       >>> refargs = ReferenceArgs(
+       ...     templateROI=(13, 10, 1246, 200),
+       ...     substrateROI=(100, 100, 1200, 500)
+       ... )
+       >>> ref = refargs.as_reference(img)
+
+    .. plot::
+       :include-source:
+       :context: close-figs
+       >>> from dipcoatimage.finitedepth import SubstrateArgs, data_converter
        >>> params = dict(Sigma=3.0, Rho=1.0, Theta=0.01)
        >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)
        >>> substargs = data_converter.structure(arg, SubstrateArgs)
@@ -516,8 +532,9 @@ class Config:
         """
         Construct and return :class:`ReferenceBase` from the data.
         """
-        refimg = cv2.cvtColor(cv2.imread(self.ref_path), cv2.COLOR_BGR2RGB)
-        return self.reference.as_reference(refimg)
+        gray = cv2.imread(self.ref_path, cv2.IMREAD_GRAYSCALE)
+        _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+        return self.reference.as_reference(img)
 
     def construct_substrate(self) -> SubstrateBase:
         """

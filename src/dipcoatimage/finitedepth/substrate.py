@@ -179,7 +179,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
     def binary_image(self) -> npt.NDArray[np.uint8]:
         """Binarized substrate image from :meth:`reference`."""
         x0, y0, x1, y1 = self.reference.substrateROI
-        return self.reference.binary_image()[y0:y1, x0:x1]
+        return self.reference.image[y0:y1, x0:x1]
 
     @abc.abstractmethod
     def region_points(self) -> npt.NDArray[np.int32]:
@@ -319,10 +319,9 @@ class Substrate(SubstrateBase[Parameters, DrawOptions, Data]):
        :context: reset
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import (Reference,
-       ...     get_data_path)
-       >>> ref_path = get_data_path("ref1.png")
-       >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+       >>> from dipcoatimage.finitedepth import Reference, get_data_path
+       >>> gray = cv2.imread(get_data_path("ref1.png"), cv2.IMREAD_GRAYSCALE)
+       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
        >>> tempROI = (200, 50, 1200, 200)
        >>> substROI = (400, 175, 1000, 500)
        >>> ref = Reference(img, tempROI, substROI)

@@ -210,8 +210,8 @@ class RectLayerShape(
 
        >>> import cv2
        >>> from dipcoatimage.finitedepth import Reference, get_data_path
-       >>> ref_path = get_data_path("ref3.png")
-       >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+       >>> gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
+       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
        >>> tempROI = (13, 10, 1246, 200)
        >>> substROI = (100, 100, 1200, 500)
        >>> ref = Reference(img, tempROI, substROI)
@@ -433,7 +433,7 @@ class RectLayerShape(
             self.SubtractionMode.FULL,
         ]:
             x0, y0, x1, y1 = self.substrate.reference.templateROI
-            tempImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
+            tempImg = self.substrate.reference.image[y0:y1, x0:x1]
             h, w = tempImg.shape[:2]
             _, (X0, Y0) = self.match_substrate()
             binImg = self.binary_image()[Y0 : Y0 + h, X0 : X0 + w]
@@ -444,7 +444,7 @@ class RectLayerShape(
             self.SubtractionMode.FULL,
         ]:
             x0, y0, x1, y1 = self.substrate.reference.substrateROI
-            substImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
+            substImg = self.substrate.reference.image[y0:y1, x0:x1]
             h, w = substImg.shape[:2]
             X0, Y0 = self.substrate_point()
             binImg = self.binary_image()[Y0 : Y0 + h, X0 : X0 + w]

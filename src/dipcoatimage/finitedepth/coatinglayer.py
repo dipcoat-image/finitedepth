@@ -271,7 +271,7 @@ class CoatingLayerBase(
         if not hasattr(self, "_match_substrate"):
             image = self.binary_image()
             x0, y0, x1, y1 = self.substrate.reference.templateROI
-            template = self.substrate.reference.binary_image()[y0:y1, x0:x1]
+            template = self.substrate.reference.image[y0:y1, x0:x1]
             score, point = match_template(image, template)
             self._match_substrate = score, np.array(point, dtype=np.int32)
         return self._match_substrate
@@ -372,13 +372,12 @@ class CoatingLayer(
        :context: reset
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import (Reference,
-       ...     get_data_path)
-       >>> ref_path = get_data_path("ref1.png")
-       >>> ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+       >>> from dipcoatimage.finitedepth import Reference, get_data_path
+       >>> gray = cv2.imread(get_data_path("ref1.png"), cv2.IMREAD_GRAYSCALE)
+       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
        >>> tempROI = (200, 50, 1200, 200)
        >>> substROI = (400, 175, 1000, 500)
-       >>> ref = Reference(ref_img, tempROI, substROI)
+       >>> ref = Reference(img, tempROI, substROI)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
@@ -444,7 +443,7 @@ class CoatingLayer(
             self.SubtractionMode.FULL,
         ]:
             x0, y0, x1, y1 = self.substrate.reference.templateROI
-            tempImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
+            tempImg = self.substrate.reference.image[y0:y1, x0:x1]
             h, w = tempImg.shape[:2]
             _, (X0, Y0) = self.match_substrate()
             binImg = self.binary_image()[Y0 : Y0 + h, X0 : X0 + w]
@@ -455,7 +454,7 @@ class CoatingLayer(
             self.SubtractionMode.FULL,
         ]:
             x0, y0, x1, y1 = self.substrate.reference.substrateROI
-            substImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
+            substImg = self.substrate.reference.image[y0:y1, x0:x1]
             h, w = substImg.shape[:2]
             X0, Y0 = self.substrate_point()
             binImg = self.binary_image()[Y0 : Y0 + h, X0 : X0 + w]
