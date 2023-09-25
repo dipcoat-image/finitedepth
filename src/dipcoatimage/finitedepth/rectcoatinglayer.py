@@ -177,13 +177,13 @@ class RectCoatingLayerBase(
         (B,) = p0 + bl
         (C,) = p0 + br
         top = np.max([B[1], C[1]])
-        bot = self.binary_image().shape[0]
+        bot = self.image.shape[0]
         if top > bot:
             # substrate is located outside of the frame
             return False
         left = B[0]
         right = C[0]
-        roi_binimg = self.binary_image()[top:bot, left:right]
+        roi_binimg = self.image[top:bot, left:right]
         return bool(np.any(np.all(roi_binimg, axis=1)))
 
 
@@ -237,14 +237,14 @@ class RectLayerShape(
        :context: close-figs
 
        >>> from dipcoatimage.finitedepth import RectLayerShape
-       >>> coat_path = get_data_path("coat3.png")
-       >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
+       >>> gray = cv2.imread(get_data_path("coat3.png"), cv2.IMREAD_GRAYSCALE)
+       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
        >>> param = RectLayerShape.Parameters(
        ...     KernelSize=(1, 1),
        ...     ReconstructRadius=50,
        ...     RoughnessMeasure=RectLayerShape.DistanceMeasure.SDTW,
        ... )
-       >>> coat = RectLayerShape(coat_img, subst, param)
+       >>> coat = RectLayerShape(img, subst, param)
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
     """
@@ -418,9 +418,7 @@ class RectLayerShape(
     def draw(self) -> npt.NDArray[np.uint8]:
         paint = self.draw_options.paint
         if paint == self.PaintMode.ORIGINAL:
-            image = self.image.copy()
-        elif paint == self.PaintMode.BINARY:
-            image = self.binary_image().copy()
+            image = self.image
         elif paint == self.PaintMode.EMPTY:
             image = np.full(self.image.shape, 255, dtype=np.uint8)
         else:
@@ -436,7 +434,7 @@ class RectLayerShape(
             tempImg = self.substrate.reference.image[y0:y1, x0:x1]
             h, w = tempImg.shape[:2]
             _, (X0, Y0) = self.match_substrate()
-            binImg = self.binary_image()[Y0 : Y0 + h, X0 : X0 + w]
+            binImg = self.image[Y0 : Y0 + h, X0 : X0 + w]
             mask = images_XOR(~binImg.astype(bool), ~tempImg.astype(bool))
             image[Y0 : Y0 + h, X0 : X0 + w][~mask] = 255
         if subtraction in [
@@ -447,7 +445,7 @@ class RectLayerShape(
             substImg = self.substrate.reference.image[y0:y1, x0:x1]
             h, w = substImg.shape[:2]
             X0, Y0 = self.substrate_point()
-            binImg = self.binary_image()[Y0 : Y0 + h, X0 : X0 + w]
+            binImg = self.image[Y0 : Y0 + h, X0 : X0 + w]
             mask = images_XOR(~binImg.astype(bool), ~substImg.astype(bool))
             image[Y0 : Y0 + h, X0 : X0 + w][~mask] = 255
 
