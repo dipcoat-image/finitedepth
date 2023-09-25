@@ -160,10 +160,10 @@ class Experiment(ExperimentBase[Parameters]):
         return None
 
     def object_function(
-        self, T: npt.NDArray[np.uint8], I: npt.NDArray[np.uint8], x: int, y: int
+        self, T: npt.NDArray[np.uint8], Img: npt.NDArray[np.uint8], x: int, y: int
     ) -> float:
         h, w = T.shape[:2]
-        I_crop = I[y : y + h, x : x + w]
+        I_crop = Img[y : y + h, x : x + w]
         num = int(np.sum((T - I_crop) ** 2))
         denom = np.sqrt(int(np.sum(T**2)) * int(np.sum(I_crop**2)))
         return num / denom
