@@ -159,6 +159,15 @@ class Experiment(ExperimentBase[Parameters]):
     def examine(self) -> None:
         return None
 
+    def object_function(
+        self, T: npt.NDArray[np.uint8], I: npt.NDArray[np.uint8], x: int, y: int
+    ) -> float:
+        h, w = T.shape[:2]
+        I_crop = I[y: y + h, x: x + w]
+        num = int(np.sum((T - I_crop)**2))
+        denom = np.sqrt(int(np.sum(T**2)) * int(np.sum(I_crop**2)))
+        return num / denom
+
     def coatinglayer(
         self,
         image: npt.NDArray[np.uint8],
