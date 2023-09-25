@@ -435,7 +435,7 @@ class RectLayerShape(
             x0, y0, x1, y1 = self.substrate.reference.templateROI
             tempImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
             h, w = tempImg.shape[:2]
-            _, (X0, Y0) = self.match_substrate()
+            (X0, Y0), _ = self.tempmatch
             binImg = self.binary_image()[Y0 : Y0 + h, X0 : X0 + w]
             mask = images_XOR(~binImg.astype(bool), ~tempImg.astype(bool))
             image[Y0 : Y0 + h, X0 : X0 + w][~mask] = 255
@@ -558,7 +558,7 @@ class RectLayerShape(
         ROUGH, _ = self.roughness()
         (THCK_L, THCK_B, THCK_R), _ = self.max_thickness()
 
-        ERR, _ = self.match_substrate()
+        _, ERR = self.tempmatch
 
         return (
             LEN_L,
