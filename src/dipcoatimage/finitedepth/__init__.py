@@ -46,6 +46,7 @@ from .rectcoatinglayer import (
     RectLayerShape,
 )
 from .experiment import ExperimentError, ExperimentBase, Experiment
+from .fastexperiment import FastExperiment
 from .analysis import (
     ExperimentKind,
     experiment_kind,
@@ -86,6 +87,7 @@ __all__ = [
     "ExperimentError",
     "ExperimentBase",
     "Experiment",
+    "FastExperiment",
     "ExperimentKind",
     "experiment_kind",
     "DataWriter",

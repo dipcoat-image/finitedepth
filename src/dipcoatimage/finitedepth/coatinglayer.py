@@ -56,7 +56,6 @@ __all__ = [
     "CoatingLayerError",
     "CoatingLayerBase",
     "CoatingLayer",
-    "match_template",
     "images_XOR",
     "images_ANDXOR",
 ]
@@ -104,6 +103,16 @@ class CoatingLayerBase(
     visualization does not affect the identity of instance. Therefore methods
     affected by draw options and deco options must not be cached.
 
+    .. rubric:: Template matching
+
+    Template matching is used to locate the substrate in the image. Location of
+    matched template and its objective function value can be explicitly passed by
+    *tempmatch* keyword-only argument in the constructor signal. If not passed,
+    brute-force template matching is evoked as a fallback.
+
+    *tempmatch* argument is intended to be used by :class:`ExperimentBase`
+    implementation to speed up the analysis.
+
     .. rubric:: Sanity check
 
     Validity of the parameters can be checked by :meth:`verify` or :meth:`valid`.
@@ -149,7 +158,7 @@ class CoatingLayerBase(
         "_parameters",
         "_draw_options",
         "_deco_options",
-        "_match_substrate",
+        "_tempmatch",
         "_coated_substrate",
         "_extracted_layer",
         "_layer_contours",
@@ -168,6 +177,7 @@ class CoatingLayerBase(
         *,
         draw_options: Optional[DrawOptionsType] = None,
         deco_options: Optional[DecoOptionsType] = None,
+        tempmatch: Optional[Tuple[Tuple[int, int], float]] = None,
     ):
         super().__init__()
         self._image = image
@@ -189,6 +199,16 @@ class CoatingLayerBase(
             self._deco_options = self.DecoOptions()
         else:
             self._deco_options = dataclasses.replace(deco_options)
+
+        if tempmatch is None:
+            image = self.image
+            x0, y0, x1, y1 = self.substrate.reference.templateROI
+            template = self.substrate.reference.image[y0:y1, x0:x1]
+            res = cv2.matchTemplate(image, template, cv2.TM_SQDIFF_NORMED)
+            score, _, loc, _ = cv2.minMaxLoc(res)
+            self._tempmatch = (loc, score)
+        else:
+            self._tempmatch = tempmatch
 
     @property
     def image(self) -> npt.NDArray[np.uint8]:
@@ -239,33 +259,19 @@ class CoatingLayerBase(
     def deco_options(self, options: DecoOptionsType):
         self._deco_options = options
 
-    def match_substrate(self) -> Tuple[float, npt.NDArray[np.int32]]:
+    @property
+    def tempmatch(self) -> Tuple[Tuple[int, int], float]:
         """
-        Return template matching score and point between the coating layer image
-        and the reference template image.
-
-        Matching is done by :func:`match_template`.
-
-        Notes
-        =====
-
-        This method is cached. Do not modify its result.
-
+        Return template location and its objective function value.
         """
-        if not hasattr(self, "_match_substrate"):
-            image = self.image
-            x0, y0, x1, y1 = self.substrate.reference.templateROI
-            template = self.substrate.reference.image[y0:y1, x0:x1]
-            score, point = match_template(image, template)
-            self._match_substrate = score, np.array(point, dtype=np.int32)
-        return self._match_substrate
+        return self._tempmatch
 
     def substrate_point(self) -> npt.NDArray[np.int32]:
         """
         Upper left point in ``(x, y)`` where the substrate is located.
 
         """
-        _, temp_point = self.match_substrate()
+        temp_point, _ = self.tempmatch
         temp2subst = self.substrate.reference.temp2subst()
         return temp_point + temp2subst
 
@@ -429,7 +435,7 @@ class CoatingLayer(
             x0, y0, x1, y1 = self.substrate.reference.templateROI
             tempImg = self.substrate.reference.image[y0:y1, x0:x1]
             h, w = tempImg.shape[:2]
-            _, (X0, Y0) = self.match_substrate()
+            (X0, Y0), _ = self.tempmatch
             binImg = self.image[Y0 : Y0 + h, X0 : X0 + w]
             mask = images_XOR(~binImg.astype(bool), ~tempImg.astype(bool))
             image[Y0 : Y0 + h, X0 : X0 + w][~mask] = 255
@@ -466,15 +472,6 @@ class CoatingLayer(
 
     def analyze_layer(self) -> Tuple[()]:
         return ()
-
-
-def match_template(
-    image: npt.NDArray[np.uint8], template: npt.NDArray[np.uint8]
-) -> Tuple[float, Tuple[int, int]]:
-    """Perform template matching using :obj:`cv2.TM_SQDIFF_NORMED`."""
-    res = cv2.matchTemplate(image, template, cv2.TM_SQDIFF_NORMED)
-    score, _, loc, _ = cv2.minMaxLoc(res)
-    return (score, loc)
 
 
 def images_XOR(

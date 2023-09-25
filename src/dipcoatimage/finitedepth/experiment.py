@@ -17,9 +17,6 @@ Base class
 Implementation
 --------------
 
-.. autoclass:: ExperimentParameters
-   :members:
-
 .. autoclass:: Experiment
    :members:
 
@@ -31,6 +28,7 @@ import numpy as np
 import numpy.typing as npt
 from .substrate import SubstrateBase
 from .coatinglayer import CoatingLayerBase
+from .experiment_param import Parameters
 from typing import TypeVar, Generic, Type, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -40,7 +38,6 @@ if TYPE_CHECKING:
 __all__ = [
     "ExperimentError",
     "ExperimentBase",
-    "ExperimentParameters",
     "Experiment",
 ]
 
@@ -84,7 +81,10 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
     .. rubric:: Coating layer construction
 
     :meth:`coatinglayer` method is responsible for transforming each coated
-    substrate image into a coating layer instance.
+    substrate image into a coating layer instance. Finding the location of the
+    substrate can be implemented in this method. Standard implementation use
+    template matching, but another possible way is to use physically measured
+    data (e.g., actuator log).
 
     """
 
@@ -147,20 +147,14 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
         substrate location in previous image can be stored to boost template
         matching of incoming images. If required, :meth:`parameters` can be
         used to controll consecutive creation.
+
         """
 
 
-@dataclasses.dataclass(frozen=True)
-class ExperimentParameters:
-    """Additional parameters for :class:`Experiment` instance."""
-
-    pass
-
-
-class Experiment(ExperimentBase[ExperimentParameters]):
+class Experiment(ExperimentBase[Parameters]):
     """Simplest experiment class with no parameter."""
 
-    Parameters = ExperimentParameters
+    Parameters = Parameters
 
     def examine(self) -> None:
         return None
