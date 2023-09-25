@@ -29,7 +29,6 @@ import dataclasses
 import numpy as np
 import numpy.typing as npt
 from .reference_param import Parameters, DrawOptions, Data
-from .util.imgprocess import colorize
 from typing import TypeVar, Tuple, Optional, Generic, Type, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -312,7 +311,7 @@ class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
         return None
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        ret = colorize(self.image)
+        ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
 
         substROI_opts = self.draw_options.substrateROI
         if substROI_opts.linewidth > 0:

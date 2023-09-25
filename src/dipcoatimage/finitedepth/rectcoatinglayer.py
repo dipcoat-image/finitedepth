@@ -32,7 +32,6 @@ from .rectcoatinglayer_param import (
     DecoOptions,
     Data,
 )
-from .util.imgprocess import colorize
 from .util.dtw import acm, owp
 from .util.geometry import polyline_parallel_area, equidistant_interpolate
 from typing import TypeVar, Type, Tuple, Optional, TYPE_CHECKING
@@ -423,7 +422,7 @@ class RectLayerShape(
             image = np.full(self.image.shape, 255, dtype=np.uint8)
         else:
             raise TypeError("Unrecognized paint mode: %s" % paint)
-        image = colorize(image)
+        image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
 
         subtraction = self.draw_options.subtraction
         if subtraction in [

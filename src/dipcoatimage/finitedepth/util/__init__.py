@@ -4,9 +4,6 @@ Utilities
 
 :mod:`dipcoatimage.finitedepth.util` provides utility functions.
 
-.. automodule:: dipcoatimage.finitedepth.util.imgprocess
-   :members:
-
 .. automodule:: dipcoatimage.finitedepth.util.importing
    :members:
 

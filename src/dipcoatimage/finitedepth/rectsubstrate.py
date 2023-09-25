@@ -15,7 +15,6 @@ import numpy.typing as npt
 from .polysubstrate import PolySubstrateBase
 from .polysubstrate_param import Parameters as Parameters
 from .rectsubstrate_param import DrawOptions, PaintMode, Data
-from .util.imgprocess import colorize
 from typing import Tuple
 
 
@@ -88,7 +87,7 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):
             cv2.drawContours(image, self.contour(), -1, 0, 1)  # type: ignore
         else:
             raise TypeError("Unrecognized draw mode: %s" % paint)
-        ret = colorize(image)
+        ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
 
         vert_opts = self.draw_options.vertices
         if vert_opts.linewidth > 0:

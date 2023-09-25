@@ -32,7 +32,6 @@ import numpy as np
 import numpy.typing as npt
 from .reference import ReferenceBase
 from .substrate_param import Parameters, DrawOptions, Data
-from .util.imgprocess import colorize
 from typing import TypeVar, Generic, Type, Optional, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -348,7 +347,7 @@ class Substrate(SubstrateBase[Parameters, DrawOptions, Data]):
         return None
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        return colorize(self.image())
+        return cv2.cvtColor(self.image(), cv2.COLOR_GRAY2RGB)
 
     def analyze_substrate(self) -> Tuple[()]:
         return ()
