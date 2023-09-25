@@ -81,7 +81,10 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
     .. rubric:: Coating layer construction
 
     :meth:`coatinglayer` method is responsible for transforming each coated
-    substrate image into a coating layer instance.
+    substrate image into a coating layer instance. Finding the location of the
+    substrate can be implemented in this method. Standard implementation use
+    template matching, but another possible way is to use physically measured
+    data (e.g., actuator log).
 
     """
 
@@ -144,29 +147,17 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
         substrate location in previous image can be stored to boost template
         matching of incoming images. If required, :meth:`parameters` can be
         used to controll consecutive creation.
+
         """
 
 
 class Experiment(ExperimentBase[Parameters]):
-    """
-    Experiment with template matching optimization.
-    """
-
-    __slots__ = ("_prev",)
+    """Simplest experiment class with no parameter."""
 
     Parameters = Parameters
 
     def examine(self) -> None:
         return None
-
-    def object_function(
-        self, T: npt.NDArray[np.uint8], Img: npt.NDArray[np.uint8], x: int, y: int
-    ) -> float:
-        h, w = T.shape[:2]
-        I_crop = Img[y : y + h, x : x + w]
-        num = int(np.sum((T - I_crop) ** 2))
-        denom = np.sqrt(int(np.sum(T**2)) * int(np.sum(I_crop**2)))
-        return num / denom
 
     def coatinglayer(
         self,
@@ -178,26 +169,11 @@ class Experiment(ExperimentBase[Parameters]):
         layer_drawoptions: Optional["DataclassInstance"] = None,
         layer_decooptions: Optional["DataclassInstance"] = None,
     ) -> CoatingLayerBase:
-        prev = getattr(self, "_prev", None)
-        if not prev:
-            ret = layer_type(
-                image,
-                substrate,
-                parameters=layer_parameters,
-                draw_options=layer_drawoptions,
-                deco_options=layer_decooptions,
-            )
-            loc, _ = ret.tempmatch
-        else:
-            # TODO: implement optimization
-            ret = layer_type(
-                image,
-                substrate,
-                parameters=layer_parameters,
-                draw_options=layer_drawoptions,
-                deco_options=layer_decooptions,
-            )
-            loc, _ = ret.tempmatch
-        if self.parameters.fast:
-            self._prev = loc
+        ret = layer_type(
+            image,
+            substrate,
+            parameters=layer_parameters,
+            draw_options=layer_drawoptions,
+            deco_options=layer_decooptions,
+        )
         return ret
