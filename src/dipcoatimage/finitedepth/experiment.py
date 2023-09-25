@@ -17,9 +17,6 @@ Base class
 Implementation
 --------------
 
-.. autoclass:: ExperimentParameters
-   :members:
-
 .. autoclass:: Experiment
    :members:
 
@@ -31,6 +28,7 @@ import numpy as np
 import numpy.typing as npt
 from .substrate import SubstrateBase
 from .coatinglayer import CoatingLayerBase
+from .experiment_param import Parameters
 from typing import TypeVar, Generic, Type, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -40,7 +38,6 @@ if TYPE_CHECKING:
 __all__ = [
     "ExperimentError",
     "ExperimentBase",
-    "ExperimentParameters",
     "Experiment",
 ]
 
@@ -150,17 +147,12 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
         """
 
 
-@dataclasses.dataclass(frozen=True)
-class ExperimentParameters:
-    """Additional parameters for :class:`Experiment` instance."""
+class Experiment(ExperimentBase[Parameters]):
+    """
+    Experiment with template matching optimization.
+    """
 
-    pass
-
-
-class Experiment(ExperimentBase[ExperimentParameters]):
-    """Simplest experiment class with no parameter."""
-
-    Parameters = ExperimentParameters
+    Parameters = Parameters
 
     def examine(self) -> None:
         return None
