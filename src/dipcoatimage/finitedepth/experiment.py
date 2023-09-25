@@ -152,6 +152,8 @@ class Experiment(ExperimentBase[Parameters]):
     Experiment with template matching optimization.
     """
 
+    __slots__ = ("_prev",)
+
     Parameters = Parameters
 
     def examine(self) -> None:
@@ -167,11 +169,26 @@ class Experiment(ExperimentBase[Parameters]):
         layer_drawoptions: Optional["DataclassInstance"] = None,
         layer_decooptions: Optional["DataclassInstance"] = None,
     ) -> CoatingLayerBase:
-        ret = layer_type(
-            image,
-            substrate,
-            parameters=layer_parameters,
-            draw_options=layer_drawoptions,
-            deco_options=layer_decooptions,
-        )
+        prev = getattr(self, "_prev", None)
+        if not prev:
+            ret = layer_type(
+                image,
+                substrate,
+                parameters=layer_parameters,
+                draw_options=layer_drawoptions,
+                deco_options=layer_decooptions,
+            )
+            loc, _ = ret.tempmatch
+        else:
+            # TODO: implement optimization
+            ret = layer_type(
+                image,
+                substrate,
+                parameters=layer_parameters,
+                draw_options=layer_drawoptions,
+                deco_options=layer_decooptions,
+            )
+            loc, _ = ret.tempmatch
+        if self.parameters.fast:
+            self._prev = loc
         return ret
