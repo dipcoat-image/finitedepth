@@ -46,7 +46,6 @@ from .coatinglayer_param import (
     Data,
     SubtractionMode,
 )
-from .util.imgprocess import binarize
 from typing import TypeVar, Generic, Type, Optional, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -83,7 +82,7 @@ class CoatingLayerBase(
     Abstract base class for coating layer.
 
     Coating layer class extracts the coating layer region from coated substrate
-    image and analyze it. Image should be grayscale or RGB.
+    image and analyze it. Image should be binary.
 
     .. rubric:: Constructor
 
@@ -140,7 +139,7 @@ class CoatingLayerBase(
     ==========
 
     image
-        Coated substrate image. May be grayscale or RGB.
+        Coated substrate image. Must be binary.
 
     substrate
         Substrate instance.
@@ -160,7 +159,6 @@ class CoatingLayerBase(
         "_draw_options",
         "_deco_options",
         "_tempmatch",
-        "_binary_image",
         "_coated_substrate",
         "_extracted_layer",
         "_layer_contours",
@@ -203,9 +201,9 @@ class CoatingLayerBase(
             self._deco_options = dataclasses.replace(deco_options)
 
         if tempmatch is None:
-            image = self.binary_image()
+            image = self.image
             x0, y0, x1, y1 = self.substrate.reference.templateROI
-            template = self.substrate.reference.binary_image()[y0:y1, x0:x1]
+            template = self.substrate.reference.image[y0:y1, x0:x1]
             res = cv2.matchTemplate(image, template, cv2.TM_SQDIFF_NORMED)
             score, _, loc, _ = cv2.minMaxLoc(res)
             self._tempmatch = (loc, score)
@@ -215,7 +213,7 @@ class CoatingLayerBase(
     @property
     def image(self) -> npt.NDArray[np.uint8]:
         """
-        Coated substrate image. Grayscale or RGB.
+        Coated substrate image.
 
         This array is not writable to enable caching which requires immutability.
         """
@@ -261,20 +259,6 @@ class CoatingLayerBase(
     def deco_options(self, options: DecoOptionsType):
         self._deco_options = options
 
-    def binary_image(self) -> npt.NDArray[np.uint8]:
-        """
-        Binarized :attr:`image` using Otsu's thresholding.
-
-        Notes
-        =====
-
-        This method is cached. Do not modify its result.
-
-        """
-        if not hasattr(self, "_binary_image"):
-            self._binary_image = binarize(self.image)
-        return self._binary_image
-
     @property
     def tempmatch(self) -> Tuple[Tuple[int, int], float]:
         """
@@ -294,7 +278,7 @@ class CoatingLayerBase(
     def coated_substrate(self) -> npt.NDArray[np.bool_]:
         """Remove image artifacts, e.g., bath surface."""
         if not hasattr(self, "_coated_substrate"):
-            _, img = cv2.connectedComponents(cv2.bitwise_not(self.binary_image()))
+            _, img = cv2.connectedComponents(cv2.bitwise_not(self.image))
             x, y = (self.substrate_point() + self.substrate.region_points()).T
             self._coated_substrate = np.isin(img, img[y, x])
         return self._coated_substrate
@@ -378,13 +362,12 @@ class CoatingLayer(
        :context: reset
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import (Reference,
-       ...     get_data_path)
-       >>> ref_path = get_data_path("ref1.png")
-       >>> ref_img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+       >>> from dipcoatimage.finitedepth import Reference, get_data_path
+       >>> gray = cv2.imread(get_data_path("ref1.png"), cv2.IMREAD_GRAYSCALE)
+       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
        >>> tempROI = (200, 50, 1200, 200)
        >>> substROI = (400, 175, 1000, 500)
-       >>> ref = Reference(ref_img, tempROI, substROI)
+       >>> ref = Reference(img, tempROI, substROI)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
@@ -406,9 +389,9 @@ class CoatingLayer(
        :context: close-figs
 
        >>> from dipcoatimage.finitedepth import CoatingLayer
-       >>> coat_path = get_data_path("coat1.png")
-       >>> coat_img = cv2.cvtColor(cv2.imread(coat_path), cv2.COLOR_BGR2RGB)
-       >>> coat = CoatingLayer(coat_img, subst)
+       >>> gray = cv2.imread(get_data_path("coat1.png"), cv2.IMREAD_GRAYSCALE)
+       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+       >>> coat = CoatingLayer(img, subst)
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
     :attr:`draw_options` controls the overall visualization.
@@ -442,7 +425,7 @@ class CoatingLayer(
         return None
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        image = self.image.copy()
+        image = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
 
         subtraction = self.draw_options.subtraction
         if subtraction in [
@@ -450,10 +433,10 @@ class CoatingLayer(
             self.SubtractionMode.FULL,
         ]:
             x0, y0, x1, y1 = self.substrate.reference.templateROI
-            tempImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
+            tempImg = self.substrate.reference.image[y0:y1, x0:x1]
             h, w = tempImg.shape[:2]
             (X0, Y0), _ = self.tempmatch
-            binImg = self.binary_image()[Y0 : Y0 + h, X0 : X0 + w]
+            binImg = self.image[Y0 : Y0 + h, X0 : X0 + w]
             mask = images_XOR(~binImg.astype(bool), ~tempImg.astype(bool))
             image[Y0 : Y0 + h, X0 : X0 + w][~mask] = 255
         if subtraction in [
@@ -461,10 +444,10 @@ class CoatingLayer(
             self.SubtractionMode.FULL,
         ]:
             x0, y0, x1, y1 = self.substrate.reference.substrateROI
-            substImg = self.substrate.reference.binary_image()[y0:y1, x0:x1]
+            substImg = self.substrate.reference.image[y0:y1, x0:x1]
             h, w = substImg.shape[:2]
             X0, Y0 = self.substrate_point()
-            binImg = self.binary_image()[Y0 : Y0 + h, X0 : X0 + w]
+            binImg = self.image[Y0 : Y0 + h, X0 : X0 + w]
             mask = images_XOR(~binImg.astype(bool), ~substImg.astype(bool))
             image[Y0 : Y0 + h, X0 : X0 + w][~mask] = 255
 

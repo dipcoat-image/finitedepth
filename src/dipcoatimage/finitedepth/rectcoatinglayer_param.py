@@ -63,14 +63,11 @@ class PaintMode(enum.Enum):
     -------
     ORIGINAL
         Show the original image.
-    BINARY
-        Show the binarized image.
     EMPTY
         Show empty image. Only the layer will be drawn.
     """
 
     ORIGINAL = "ORIGINAL"
-    BINARY = "BINARY"
     EMPTY = "EMPTY"
 
 
@@ -85,7 +82,7 @@ class DrawOptions:
     subtraction : SubtractionMode
     """
 
-    paint: PaintMode = PaintMode.BINARY
+    paint: PaintMode = PaintMode.ORIGINAL
     subtraction: SubtractionMode = SubtractionMode.NONE
 
 

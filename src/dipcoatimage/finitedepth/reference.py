@@ -29,7 +29,6 @@ import dataclasses
 import numpy as np
 import numpy.typing as npt
 from .reference_param import Parameters, DrawOptions, Data
-from .util.imgprocess import binarize
 from typing import TypeVar, Tuple, Optional, Generic, Type, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -69,7 +68,7 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
        >>> from dipcoatimage.finitedepth import get_data_path
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> img = cv2.imread(get_data_path("ref1.png"))
-       >>> plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)) #doctest: +SKIP
+       >>> plt.imshow(img) #doctest: +SKIP
 
     .. rubric:: Image and ROIs
 
@@ -82,13 +81,7 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
     common in both bare substrate image and coated substrate image. Substrate ROI
     encloses the bare substrate region, narrowing down the target.
 
-    Input image should be grayscale or RGB.
-
-    .. rubric:: Binary image
-
-    Binarization is important for reference image. :meth:`binary_image` is the
-    default implementation which relies on Otsu's thresholding. Subclass may
-    redefine this method.
+    Input image should be binary.
 
     .. rubric:: Constructor
 
@@ -129,7 +122,7 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
     ==========
 
     image
-        Reference image. May be grayscale or RGB.
+        Reference image. Must be binary.
 
     templateROI, substrateROI
         Slice indices in ``(x0, y0, x1, y1)`` for the template and the substrate.
@@ -148,7 +141,6 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         "_substrateROI",
         "_parameters",
         "_draw_options",
-        "_binary_image",
     )
 
     Parameters: Type[ParametersType]
@@ -185,7 +177,7 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
     @property
     def image(self) -> npt.NDArray[np.uint8]:
         """
-        Reference image. Grayscale or RGB.
+        Reference image. Must be binary.
 
         This array is not writable to be immutable for caching.
         """
@@ -222,20 +214,6 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
     @draw_options.setter
     def draw_options(self, options: DrawOptionsType):
         self._draw_options = options
-
-    def binary_image(self) -> npt.NDArray[np.uint8]:
-        """
-        Binarized :attr:`image` using Otsu's thresholding.
-
-        Notes
-        =====
-
-        This method is cached. Do not modify its result.
-
-        """
-        if not hasattr(self, "_binary_image"):
-            self._binary_image = binarize(self.image)
-        return self._binary_image
 
     def substrate_image(self) -> npt.NDArray[np.uint8]:
         """:meth:`image` cropped by :meth:`substrateROI`."""
@@ -300,17 +278,14 @@ class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
     Examples
     ========
 
-    Construct with RGB image, and visualize with :meth:`draw`.
-
     .. plot::
        :include-source:
        :context: reset
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import (Reference,
-       ...     get_data_path)
-       >>> ref_path = get_data_path("ref1.png")
-       >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+       >>> from dipcoatimage.finitedepth import Reference, get_data_path
+       >>> gray = cv2.imread(get_data_path("ref1.png"), cv2.IMREAD_GRAYSCALE)
+       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
        >>> tempROI = (200, 50, 1200, 200)
        >>> substROI = (400, 175, 1000, 500)
        >>> ref = Reference(img, tempROI, substROI)
@@ -336,7 +311,7 @@ class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
         return None
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        ret = self.image.copy()
+        ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
 
         substROI_opts = self.draw_options.substrateROI
         if substROI_opts.linewidth > 0:
