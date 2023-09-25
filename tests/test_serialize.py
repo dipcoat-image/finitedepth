@@ -38,16 +38,16 @@ LAYERARGS = CoatingLayerArgs()
 EXPTARGS = ExperimentArgs()
 
 REF_PATH = get_data_path("ref1.png")
-REF_IMG = cv2.imread(REF_PATH)
+REF_IMG = cv2.imread(REF_PATH, cv2.IMREAD_GRAYSCALE)
 if REF_IMG is None:
     raise TypeError("Invalid reference image sample.")
-REF_IMG = cv2.cvtColor(REF_IMG, cv2.COLOR_BGR2RGB)
+_, REF_IMG = cv2.threshold(REF_IMG, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
 
 COAT_PATH = get_data_path("coat1.png")
-COAT_IMG = cv2.imread(COAT_PATH)
+COAT_IMG = cv2.imread(COAT_PATH, cv2.IMREAD_GRAYSCALE)
 if COAT_IMG is None:
     raise TypeError("Invalid coating layer image sample.")
-COAT_IMG = cv2.cvtColor(COAT_IMG, cv2.COLOR_BGR2RGB)
+_, COAT_IMG = cv2.threshold(COAT_IMG, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
 
 
 def test_ReferenceArgs():
@@ -118,7 +118,7 @@ def test_CoatingLayerArgs():
             ReconstructRadius=50,
             RoughnessMeasure="SDTW",
         ),
-        draw_options=dict(paint="BINARY"),
+        draw_options=dict(paint="EMPTY"),
         deco_options=dict(layer=dict(linewidth=1)),
     )
     layer = layerargs.as_coatinglayer(COAT_IMG, subst)

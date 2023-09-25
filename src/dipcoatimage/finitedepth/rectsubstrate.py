@@ -15,7 +15,6 @@ import numpy.typing as npt
 from .polysubstrate import PolySubstrateBase
 from .polysubstrate_param import Parameters as Parameters
 from .rectsubstrate_param import DrawOptions, PaintMode, Data
-from .util.imgprocess import colorize
 from typing import Tuple
 
 
@@ -38,10 +37,9 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):
        :context: reset
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import (Reference,
-       ...     get_data_path)
-       >>> ref_path = get_data_path("ref3.png")
-       >>> img = cv2.cvtColor(cv2.imread(ref_path), cv2.COLOR_BGR2RGB)
+       >>> from dipcoatimage.finitedepth import Reference, get_data_path
+       >>> gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
+       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
        >>> tempROI = (13, 10, 1246, 200)
        >>> substROI = (100, 100, 1200, 500)
        >>> ref = Reference(img, tempROI, substROI)
@@ -83,15 +81,13 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):
         paint = self.draw_options.paint
         if paint is self.PaintMode.ORIGINAL:
             image = self.image()
-        elif paint is self.PaintMode.BINARY:
-            image = self.binary_image()
         elif paint is self.PaintMode.CONTOUR:
             h, w = self.image().shape[:2]
             image = np.full((h, w), 255, np.uint8)
             cv2.drawContours(image, self.contour(), -1, 0, 1)  # type: ignore
         else:
             raise TypeError("Unrecognized draw mode: %s" % paint)
-        ret = colorize(image)
+        ret = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
 
         vert_opts = self.draw_options.vertices
         if vert_opts.linewidth > 0:
