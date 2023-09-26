@@ -1,12 +1,15 @@
 import os
 
-from dipcoatimage.finitedepth.util import get_data_path
+from dipcoatimage.finitedepth import get_data_path
 
 
 def test_get_data_path():
-    assert get_data_path("coat1.png").split(os.path.sep)[-4:] == [
+    fname = "coat1.png"
+    dpath = get_data_path(fname)
+    assert dpath.split(os.path.sep)[-4:] == [
         "dipcoatimage",
         "finitedepth",
         "data",
-        "coat1.png",
+        fname,
     ]
+    assert os.path.exists(dpath)

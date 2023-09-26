@@ -17,6 +17,8 @@ This package provides
 
 """
 
+from importlib_resources import files
+
 from .analysis import Analysis, AnalysisBase, AnalysisError
 from .coatinglayer import CoatingLayer, CoatingLayerBase, CoatingLayerError
 from .experiment import Experiment, ExperimentBase, ExperimentError
@@ -26,7 +28,6 @@ from .rectsubstrate import RectSubstrate
 from .reference import Reference, ReferenceBase, ReferenceError
 from .serialize import Config, data_converter
 from .substrate import Substrate, SubstrateBase, SubstrateError
-from .util import get_data_path
 from .version import __version__  # noqa
 
 __all__ = [
@@ -54,3 +55,33 @@ __all__ = [
     "Config",
     "get_data_path",
 ]
+
+
+def get_data_path(*paths: str) -> str:
+    """
+    Get path to data file.
+
+    Parameters
+    ----------
+    paths : str
+        Subpaths under ``dipcoatimage/finitedepth/data/`` directory.
+
+    Returns
+    -------
+    path
+        Absolute path to the data.
+
+    Examples
+    ========
+
+    >>> from dipcoatimage.finitedepth import get_data_path
+    >>> get_data_path() # doctest: +SKIP
+    'path/dipcoatimage/finitedepth/data'
+    >>> get_data_path("coat1.png") # doctest: +SKIP
+    'path/dipcoatimage/finitedepth/data/coat1.png'
+
+    """
+    data_path = files("dipcoatimage.finitedepth.data")
+    if not paths:
+        return str(data_path._paths[0])
+    return str(data_path.joinpath(*paths))
