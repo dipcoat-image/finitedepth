@@ -19,6 +19,9 @@ dynamic = [
 [project.urls]
 repository = "https://github.com/dipcoat-image/finitedepth"
 
+[project.scripts]
+finitedepth = "dipcoatimage.finitedepth:main"
+
 [project.optional-dependencies]
 test = [
     "pytest",

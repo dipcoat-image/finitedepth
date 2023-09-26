@@ -121,6 +121,10 @@ def main():
     """Entry point function."""
     import argparse
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        prog="dipcoatimage-finitedepth",
+        description="Parse configuration files and analyze",
+        epilog="Supported file formats: YAML, JSON",
+    )
     parser.add_argument("file", type=str, nargs="+", help="target files")
     analyze_files(*parser.parse_args().file)
