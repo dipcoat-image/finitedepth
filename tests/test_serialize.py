@@ -192,8 +192,7 @@ def test_Config_analyze_singleimage(tmp_path):
             subst_data=os.path.join(tmp_path, "subst.csv"),
             subst_visual=os.path.join(tmp_path, "subst.png"),
             layer_data=os.path.join(tmp_path, "layer.csv"),
-            layer_visual=os.path.join(tmp_path, "layer.mp4"),
-            layer_fps=1,
+            layer_visual=os.path.join(tmp_path, "layer.png"),
         )
     )
     data = Config(
@@ -205,7 +204,50 @@ def test_Config_analyze_singleimage(tmp_path):
         experiment=EXPTARGS,
         analysis=analysisargs,
     )
-    data.analyze("test_Config_analyze_singleimage")
+    data.analyze("test_analyze_singleimage-to-singleimage")
+
+    analysisargs = AnalysisArgs(
+        parameters=dict(
+            ref_data=os.path.join(tmp_path, "ref.csv"),
+            ref_visual=os.path.join(tmp_path, "ref.png"),
+            subst_data=os.path.join(tmp_path, "subst.csv"),
+            subst_visual=os.path.join(tmp_path, "subst.png"),
+            layer_data=os.path.join(tmp_path, "layer.csv"),
+            layer_visual=os.path.join(tmp_path, "layer-%02d.png"),
+        )
+    )
+    data = Config(
+        ref_path=get_data_path("ref1.png"),
+        coat_paths=[get_data_path("coat1.png")],
+        reference=REFARGS,
+        substrate=SUBSTARGS,
+        coatinglayer=LAYERARGS,
+        experiment=EXPTARGS,
+        analysis=analysisargs,
+    )
+    data.analyze("test_analyze_singleimage-to-multiimage")
+
+    analysisargs = AnalysisArgs(
+        parameters=dict(
+            ref_data=os.path.join(tmp_path, "ref.csv"),
+            ref_visual=os.path.join(tmp_path, "ref.png"),
+            subst_data=os.path.join(tmp_path, "subst.csv"),
+            subst_visual=os.path.join(tmp_path, "subst.png"),
+            layer_data=os.path.join(tmp_path, "layer.csv"),
+            layer_visual=os.path.join(tmp_path, "layer.mp4"),
+        ),
+        fps=1.0,
+    )
+    data = Config(
+        ref_path=get_data_path("ref1.png"),
+        coat_paths=[get_data_path("coat1.png")],
+        reference=REFARGS,
+        substrate=SUBSTARGS,
+        coatinglayer=LAYERARGS,
+        experiment=EXPTARGS,
+        analysis=analysisargs,
+    )
+    data.analyze("test_analyze_singleimage-to-video")
 
 
 def test_Config_analyze_multiimage(tmp_path):
@@ -216,8 +258,7 @@ def test_Config_analyze_multiimage(tmp_path):
             subst_data=os.path.join(tmp_path, "subst.csv"),
             subst_visual=os.path.join(tmp_path, "subst.png"),
             layer_data=os.path.join(tmp_path, "layer.csv"),
-            layer_visual=os.path.join(tmp_path, "layer.mp4"),
-            layer_fps=1,
+            layer_visual=os.path.join(tmp_path, "layer-%02d.png"),
         )
     )
     data = Config(
@@ -229,7 +270,29 @@ def test_Config_analyze_multiimage(tmp_path):
         experiment=EXPTARGS,
         analysis=analysisargs,
     )
-    data.analyze("test_Config_analyze_multiimage")
+    data.analyze("test_analyze_multiimage-to-multiimage")
+
+    analysisargs = AnalysisArgs(
+        parameters=dict(
+            ref_data=os.path.join(tmp_path, "ref.csv"),
+            ref_visual=os.path.join(tmp_path, "ref.png"),
+            subst_data=os.path.join(tmp_path, "subst.csv"),
+            subst_visual=os.path.join(tmp_path, "subst.png"),
+            layer_data=os.path.join(tmp_path, "layer.csv"),
+            layer_visual=os.path.join(tmp_path, "layer.mp4"),
+        ),
+        fps=1.0,
+    )
+    data = Config(
+        ref_path=get_data_path("ref1.png"),
+        coat_paths=[get_data_path("coat1.png"), get_data_path("coat1.png")],
+        reference=REFARGS,
+        substrate=SUBSTARGS,
+        coatinglayer=LAYERARGS,
+        experiment=EXPTARGS,
+        analysis=analysisargs,
+    )
+    data.analyze("test_analyze_multiimage-to-video")
 
 
 def test_Config_analyze_video(tmp_path):
@@ -241,7 +304,6 @@ def test_Config_analyze_video(tmp_path):
             subst_visual=os.path.join(tmp_path, "subst.png"),
             layer_data=os.path.join(tmp_path, "layer.csv"),
             layer_visual=os.path.join(tmp_path, "layer.mp4"),
-            layer_fps=1,
         )
     )
     data = Config(
@@ -253,7 +315,7 @@ def test_Config_analyze_video(tmp_path):
         experiment=EXPTARGS,
         analysis=analysisargs,
     )
-    data.analyze("test_Config_analyze_video")
+    data.analyze("test_analyze_video-to-video")
 
 
 def test_Config_from_file():

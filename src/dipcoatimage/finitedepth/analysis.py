@@ -55,6 +55,10 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
     Its instance is passed to the constructor at instance initialization, and can
     be accessed by :attr:`parameters`.
 
+    .. rubric:: FPS
+
+    *FPS* can be set to tell the time interval between each coating layer image.
+
     .. rubric:: Sanity check
 
     Validity of the parameters can be checked by :meth:`verify` or :meth:`valid`.
@@ -69,16 +73,26 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
 
     Parameters: Type[ParametersType]
 
-    def __init__(self, *, parameters: Optional[ParametersType] = None):
+    def __init__(
+        self,
+        parameters: Optional[ParametersType] = None,
+        *,
+        fps: Optional[float] = None,
+    ):
         if parameters is None:
             self._parameters = self.Parameters()
         else:
             self._parameters = dataclasses.replace(parameters)
+        self._fps = fps
         self._iterator = self.__await__()
 
     @property
     def parameters(self) -> ParametersType:
         return self._parameters
+
+    @property
+    def fps(self) -> Optional[float]:
+        return self._fps
 
     def send(self, value: Optional[CoatingLayerBase]):
         if value is None:
@@ -157,14 +171,14 @@ class Analysis(AnalysisBase[Parameters]):
             if file_type == "image":
                 pass
             elif file_type == "video":
-                if self.parameters.layer_fps is None or self.parameters.layer_fps <= 0:
+                if self.fps is None or self.fps <= 0:
                     return AnalysisError(
-                        "layer_fps must be a positive number to write a video."
+                        "fps must be a positive number to write a video."
                     )
             else:
                 return AnalysisError(f"{path} is not image nor video.")
-        if self.parameters.layer_fps is not None and self.parameters.layer_fps <= 0:
-            return AnalysisError("layer_fps must be None or a positive number.")
+        if self.fps is not None and self.fps <= 0:
+            return AnalysisError("fps must be None or a positive number.")
         return None
 
     def __await__(self):
@@ -178,7 +192,7 @@ class Analysis(AnalysisBase[Parameters]):
             writercls = self.DataWriters[ext.lstrip(os.path.extsep).lower()]
             return writercls
 
-        fps = self.parameters.layer_fps
+        fps = self.fps
         # prepare for analysis as much as possible
         if self.parameters.ref_data:
             makedir(self.parameters.ref_data)
@@ -250,7 +264,7 @@ class Analysis(AnalysisBase[Parameters]):
             while True:
                 if self.parameters.layer_data:
                     data = list(dataclasses.astuple(layer.analyze()))
-                    if self.parameters.layer_fps:
+                    if self.fps:
                         data = [i / fps] + data
                     ld_writer.send(data)
 

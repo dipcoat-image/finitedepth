@@ -20,7 +20,7 @@ from .coatinglayer import CoatingLayerBase
 from .experiment import ExperimentBase
 from .analysis import AnalysisBase
 from .util.importing import import_variable
-from typing import List, Type, Tuple, Generator, TYPE_CHECKING
+from typing import List, Type, Tuple, Generator, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
@@ -424,16 +424,22 @@ class AnalysisArgs:
 
     parameters
         Data for arguments of analysis class.
+
+    fps
+        Time interval between each coating layer image.
     """
 
     type: ImportArgs = dataclasses.field(default_factory=ImportArgs)
     parameters: dict = dataclasses.field(default_factory=dict)
+    fps: Optional[float] = None
 
     def __post_init__(self):
         if not self.type.name:
             self.type.name = "Analysis"
 
-    def as_structured_args(self) -> Tuple[Type[AnalysisBase], "DataclassInstance"]:
+    def as_structured_args(
+        self,
+    ) -> Tuple[Type[AnalysisBase], "DataclassInstance", Optional[float]]:
         """
         Structure the primitive data.
 
@@ -453,11 +459,11 @@ class AnalysisArgs:
         params = data_converter.structure(
             self.parameters, cls.Parameters  # type: ignore
         )
-        return (cls, params)
+        return (cls, params, self.fps)
 
     def as_analysis(self) -> AnalysisBase:
-        cls, params = self.as_structured_args()
-        analysis = cls(parameters=params)
+        cls, params, fps = self.as_structured_args()
+        analysis = cls(parameters=params, fps=fps)
         return analysis
 
 
@@ -532,6 +538,8 @@ class Config:
     Class which wraps every information to construct and analyze the experiment.
 
     Environment variables are allowed in *ref_path* and *coat_paths* fields.
+
+    If *fps* is not passed to AnalysisArgs, try to determine it from input video.
     """
 
     ref_path: str = ""
@@ -576,6 +584,7 @@ class Config:
             cap = cv2.VideoCapture(self.coat_paths[0])
             cap.set(cv2.CAP_PROP_POS_FRAMES, index)
             _, frame = cap.read()
+            cap.release()
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         else:
             gray = None
@@ -601,17 +610,20 @@ class Config:
                     )
                 yield img
         elif expt_kind == ExperimentKind.VIDEO:
-            cap = cv2.VideoCapture(self.coat_paths[0])
-            for _ in range(self.image_count()):
-                _, frame = cap.read()
-                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                if gray is None:
-                    img = np.empty((0, 0), np.uint8)
-                else:
-                    _, img = cv2.threshold(
-                        gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
-                    )
-                yield img
+            try:
+                cap = cv2.VideoCapture(self.coat_paths[0])
+                for _ in range(self.image_count()):
+                    _, frame = cap.read()
+                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    if gray is None:
+                        img = np.empty((0, 0), np.uint8)
+                    else:
+                        _, img = cv2.threshold(
+                            gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
+                        )
+                    yield img
+            finally:
+                cap.release()
         else:
             yield np.empty((0, 0), np.uint8)
 
@@ -691,7 +703,13 @@ class Config:
         return self.experiment.as_experiment()
 
     def construct_analysis(self) -> AnalysisBase:
-        return self.analysis.as_analysis()
+        analysis = self.analysis
+        if analysis.fps is None and self.experiment_kind() == ExperimentKind.VIDEO:
+            cap = cv2.VideoCapture(self.coat_paths[0])
+            fps = float(cap.get(cv2.CAP_PROP_FPS))
+            cap.release()
+            analysis = dataclasses.replace(analysis, fps=fps)
+        return analysis.as_analysis()
 
     def analyze(self, name: str = ""):
         """
