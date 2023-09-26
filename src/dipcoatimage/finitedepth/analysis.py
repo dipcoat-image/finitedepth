@@ -11,11 +11,10 @@ import abc
 from collections.abc import Coroutine
 import dataclasses
 import enum
-import imageio.v2 as iio  # TODO: use PyAV
 import mimetypes
 import os
 from .coatinglayer import CoatingLayerBase
-from .analysis_param import CSVWriter, Parameters
+from .analysis_param import ImageWriter, CSVWriter, Parameters
 from typing import List, Type, Optional, TypeVar, Generic, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -242,44 +241,39 @@ class Analysis(AnalysisBase[Parameters]):
             if dirname:
                 os.makedirs(dirname, exist_ok=True)
 
-        def make_writercls(path):
+        def get_writercls(path):
             _, ext = os.path.splitext(path)
             writercls = self.DataWriters[ext.lstrip(os.path.extsep).lower()]
             return writercls
 
-        # prepare for analysis
+        fps = self.parameters.layer_fps
+        # prepare for analysis as much as possible
         if self.parameters.ref_data:
             makedir(self.parameters.ref_data)
-            rd_writer = make_writercls(self.parameters.ref_data)
+            rd_cls = get_writercls(self.parameters.ref_data)
 
         if self.parameters.ref_visual:
             makedir(self.parameters.ref_visual)
+            rv_writer = ImageWriter(self.parameters.ref_visual, fps=fps)
+            next(rv_writer)
 
         if self.parameters.subst_data:
             makedir(self.parameters.subst_data)
-            sd_writer = make_writercls(self.parameters.subst_data)
+            sd_cls = get_writercls(self.parameters.subst_data)
 
         if self.parameters.subst_visual:
             makedir(self.parameters.subst_visual)
+            sv_writer = ImageWriter(self.parameters.subst_visual, fps=fps)
+            next(sv_writer)
 
         if self.parameters.layer_data:
             makedir(self.parameters.layer_data)
-            ld_writer = make_writercls(self.parameters.layer_data)
+            ld_cls = get_writercls(self.parameters.layer_data)
 
         if self.parameters.layer_visual:
             makedir(self.parameters.layer_visual)
-            mtype, _ = mimetypes.guess_type(self.parameters.layer_visual)
-            lv_type, _ = mtype.split("/")
-            if lv_type == "video":
-                fps = self.parameters.layer_fps
-                lv_writer = iio.get_writer(self.parameters.layer_visual, fps=fps)
-            elif lv_type == "image":
-                # TODO: implement wrapper for both video writer and image writer
-                try:
-                    self.parameters.layer_visual % 0
-                    lv_formattable = True
-                except (TypeError, ValueError):
-                    lv_formattable = False
+            lv_writer = ImageWriter(self.parameters.layer_visual, fps=fps)
+            next(lv_writer)
 
         # start analysis
         try:
@@ -287,34 +281,36 @@ class Analysis(AnalysisBase[Parameters]):
             layer = yield
 
             if self.parameters.ref_data:
-                headers = []
-                rd_writer = rd_writer(self.parameters.ref_data, headers)
+                headers = [
+                    f.name for f in dataclasses.fields(layer.substrate.reference.Data)
+                ]
+                rd_writer = rd_cls(self.parameters.ref_data, headers)
                 next(rd_writer)
                 data = list(dataclasses.astuple(layer.substrate.reference.analyze()))
                 rd_writer.send(data)
                 rd_writer.close()
 
             if self.parameters.ref_visual:
-                img = layer.substrate.reference.draw()
-                iio.imwrite(self.parameters.ref_visual, img)
+                rv_writer.send(layer.substrate.reference.draw())
+                rv_writer.close()
 
             if self.parameters.subst_data:
-                headers = []
-                sd_writer = sd_writer(self.parameters.subst_data, headers)
+                headers = [f.name for f in dataclasses.fields(layer.substrate.Data)]
+                sd_writer = sd_cls(self.parameters.subst_data, headers)
                 next(sd_writer)
                 data = list(dataclasses.astuple(layer.substrate.analyze()))
                 sd_writer.send(data)
                 sd_writer.close()
 
             if self.parameters.subst_visual:
-                img = layer.substrate.draw()
-                iio.imwrite(self.parameters.subst_visual, img)
+                sv_writer.send(layer.substrate.draw())
+                sv_writer.close()
 
             if self.parameters.layer_data:
                 headers = [f.name for f in dataclasses.fields(layer.Data)]
-                if self.parameters.layer_fps:
+                if fps:
                     headers = ["time (s)"] + headers
-                ld_writer = ld_writer(self.parameters.layer_data, headers)
+                ld_writer = ld_cls(self.parameters.layer_data, headers)
                 next(ld_writer)
 
             # Loop to analyze layers
@@ -323,18 +319,11 @@ class Analysis(AnalysisBase[Parameters]):
                 if self.parameters.layer_data:
                     data = list(dataclasses.astuple(layer.analyze()))
                     if self.parameters.layer_fps:
-                        data = [i / self.parameters.layer_fps] + data
+                        data = [i / fps] + data
                     ld_writer.send(data)
 
                 if self.parameters.layer_visual:
-                    if lv_type == "video":
-                        lv_writer.append_data(layer.draw())
-                    elif lv_type == "image":
-                        if lv_formattable:
-                            path = self.parameters.layer_visual % i
-                        else:
-                            path = self.parameters.layer_visual
-                        iio.imwrite(path, layer.draw())
+                    lv_writer.send(layer.draw())
 
                 layer = yield
                 i += 1
@@ -343,5 +332,4 @@ class Analysis(AnalysisBase[Parameters]):
             if self.parameters.layer_data:
                 ld_writer.close()
             if self.parameters.layer_visual:
-                if lv_type == "video":
-                    lv_writer.close()
+                lv_writer.close()

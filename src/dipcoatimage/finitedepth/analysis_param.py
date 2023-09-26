@@ -1,12 +1,49 @@
 import csv
 import dataclasses
+import imageio.v2 as iio  # TODO: use PyAV
+import mimetypes
 from typing import Optional, List
 
 
 __all__ = [
+    "ImageWriter",
     "CSVWriter",
     "Parameters",
 ]
+
+
+def ImageWriter(path: str, fps: Optional[float] = None):
+    mtype, _ = mimetypes.guess_type(path)
+    if mtype is None:
+        raise TypeError(f"Unsupported mimetype: {mtype}.")
+
+    ftype, subtype = mtype.split("/")
+    try:
+        path % 0
+        formattable = True
+    except (TypeError, ValueError):
+        formattable = False
+    if ftype == "video" or subtype in [
+        "gif",
+        "tiff",
+    ]:
+        writer = iio.get_writer(path, fps=fps)
+        try:
+            while True:
+                img = yield
+                writer.append_data(img)
+        finally:
+            writer.close()
+    elif ftype == "image":
+        i = 0
+        while True:
+            img = yield
+            if formattable:
+                path = path % i
+            iio.imwrite(path, img)
+            i += 1
+    else:
+        raise TypeError(f"Unsupported mimetype: {mtype}.")
 
 
 def CSVWriter(path: str, header: List[str]):
