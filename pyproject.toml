@@ -33,6 +33,7 @@ doc = [
 ]
 dev = [
     "flake8",
+    "flake8-docstrings",
     "black",
     "isort",
     "mypy==1.4.1",

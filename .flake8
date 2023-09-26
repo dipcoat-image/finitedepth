@@ -1,8 +1,10 @@
 [flake8]
 doctests = True
-exclude = 
+exclude =
+    build,
     doc/build,
 # compatibility with black
 max-line-length = 88
 extend-ignore =
     E203,
+docstring-convention = numpy
