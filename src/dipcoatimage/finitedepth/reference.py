@@ -1,26 +1,4 @@
-"""
-Reference image
-===============
-
-:mod:`dipcoatimage.finitedepth.reference` provides reference image class of
-finite-depth dip coating process.
-
-Base class
-----------
-
-.. autoclass:: ReferenceError
-   :members:
-
-.. autoclass:: ReferenceBase
-   :members:
-
-Implementation
---------------
-
-.. autoclass:: Reference
-   :members:
-
-"""
+"""Substrate reference."""
 
 
 import abc
@@ -31,7 +9,7 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 
-from .reference_param import Data, DrawOptions, Parameters
+from .util.parameters import LineOptions
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
@@ -61,80 +39,7 @@ DataType = TypeVar("DataType", bound="DataclassInstance")
 
 
 class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType]):
-    """
-    Abstract base class for substrate reference.
-
-    .. plot::
-
-       >>> import cv2
-       >>> from dipcoatimage.finitedepth import get_data_path
-       >>> import matplotlib.pyplot as plt #doctest: +SKIP
-       >>> img = cv2.imread(get_data_path("ref1.png"))
-       >>> plt.imshow(img) #doctest: +SKIP
-
-    .. rubric:: Image and ROIs
-
-    Substrate reference class wraps the data to locate the substrate in coated
-    substrate image. It consists of the reference image and two ROIs.
-
-    Reference image, which can be accessed by :attr:`image`, is the picture
-    of bare substrate taken before coating. Two ROIs, :attr:`templateROI` and
-    :attr:`substrateROI`, are defined. Template ROI encloses the region which is
-    common in both bare substrate image and coated substrate image. Substrate ROI
-    encloses the bare substrate region, narrowing down the target.
-
-    Input image should be binary.
-
-    .. rubric:: Constructor
-
-    Constructor signature must not be modified because high-level API use factory
-    to generate reference instances. Additional parameters can be introduced by
-    definig class attribute :attr:`Parameters` and :attr:`DrawOptions`.
-
-    .. rubric:: Parameters and DrawOptions
-
-    Concrete class must have :attr:`Parameters` and :attr:`DrawOptions` which
-    return dataclass types. Their instances are passed to the constructor at
-    instance initialization, and can be accessed by :attr:`parameters` and
-    :attr:`draw_options`.
-
-    :attr:`Parameter` must be frozen to ensure immtability for caching. However,
-    :attr:`DrawOptions` need not be frozen since visualization does not affect
-    the identity of instance. Therefore methods affected by draw options must
-    not be cached.
-
-    .. rubric:: Sanity check
-
-    Validity of the parameters can be checked by :meth:`verify`.
-
-    .. rubric:: Visualization
-
-    :meth:`draw` defines the visualization logic for concrete class.
-    Modifying :attr:`draw_options` changes the visualization result.
-
-    .. rubric:: Analysis
-
-    Concrete class must have :attr:`Data` which returns dataclass type and
-    implement :meth:`analyze_reference` which returns data tuple compatible with
-    :attr:`Data`.
-    :meth:`analyze` is the API for analysis result.
-
-    Parameters
-    ==========
-
-    image
-        Reference image. Must be binary.
-
-    templateROI, substrateROI
-        Slice indices in ``(x0, y0, x1, y1)`` for the template and the substrate.
-
-    parameters
-        Additional parameters.
-
-    draw_options
-        Drawing options.
-
-    """
+    """Abstract base class for substrate reference."""
 
     __slots__ = (
         "_image",
@@ -177,8 +82,7 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
 
     @property
     def image(self) -> npt.NDArray[np.uint8]:
-        """
-        Reference image. Must be binary.
+        """Reference image. Must be binary.
 
         This array is not writable to be immutable for caching.
         """
@@ -196,8 +100,7 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
 
     @property
     def parameters(self) -> ParametersType:
-        """
-        Additional parameters for concrete class.
+        """Additional parameters for concrete class.
 
         Instance of :attr:`Parameters`, which must be a frozen dataclass.
         """
@@ -205,8 +108,7 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
 
     @property
     def draw_options(self) -> DrawOptionsType:
-        """
-        Options to visualize the image.
+        """Options to visualize the image.
 
         Instance of :attr:`DrawOptions` dataclass.
         """
@@ -222,10 +124,7 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         return self.image[y0:y1, x0:x1]
 
     def temp2subst(self) -> npt.NDArray[np.int32]:
-        """
-        Vector from upper left point of template region to upper left point of
-        substrate region.
-        """
+        """Vector from template region to substrate region."""
         x0, y0 = self.templateROI[:2]
         x1, y1 = self.substrateROI[:2]
         return np.array([x1 - x0, y1 - y0], dtype=np.int32)
@@ -243,19 +142,47 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         """Analyze the reference image and return the data in tuple."""
 
     def analyze(self) -> DataType:
-        """
-        Return the result of :meth:`analyze_reference` as dataclass instance.
-        """
+        """Return the result of :meth:`analyze_reference` as dataclass instance."""
         return self.Data(*self.analyze_reference())
 
 
-class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
+@dataclasses.dataclass(frozen=True)
+class Parameters:
+    """Additional parameters for :class:`Reference` instance."""
+
+    pass
+
+
+@dataclasses.dataclass
+class DrawOptions:
+    """Drawing options for :class:`Reference`.
+
+    Attributes
+    ----------
+    templateROI, substrateROI : LineOptions
+        Determines how the ROIs are drawn.
     """
-    Substrate reference class with customizable binarization.
+
+    templateROI: LineOptions = dataclasses.field(
+        default_factory=lambda: LineOptions(color=(0, 255, 0), linewidth=1)
+    )
+    substrateROI: LineOptions = dataclasses.field(
+        default_factory=lambda: LineOptions(color=(255, 0, 0), linewidth=1)
+    )
+
+
+@dataclasses.dataclass
+class Data:
+    """Analysis data for :class:`Reference`."""
+
+    pass
+
+
+class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
+    """Substrate reference class with customizable binarization.
 
     Examples
-    ========
-
+    --------
     .. plot::
        :include-source:
        :context: reset
@@ -278,7 +205,6 @@ class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
 
        >>> ref.draw_options.substrateROI.color = (0, 255, 255)
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
-
     """
 
     Parameters = Parameters
@@ -286,9 +212,11 @@ class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
     Data = Data
 
     def verify(self):
+        """Check error."""
         pass
 
     def draw(self) -> npt.NDArray[np.uint8]:
+        """Return visualized result."""
         ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
 
         substROI_opts = self.draw_options.substrateROI
@@ -307,10 +235,12 @@ class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
         return ret
 
     def analyze_reference(self) -> Tuple[()]:
+        """Return analysis data."""
         return ()
 
 
 def sanitize_ROI(roi: OptionalROI, h: int, w: int) -> IntROI:
+    """Convert :obj:`OptionalROI` to :obj:`IntROI`."""
     full_roi = (0, 0, w, h)
     max_vars = (w, h, w, h)
 

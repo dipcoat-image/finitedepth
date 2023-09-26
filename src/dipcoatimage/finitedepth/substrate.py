@@ -1,29 +1,4 @@
-"""
-Substrate geometry
-==================
-
-:mod:`dipcoatimage.finitedepth.substrate` provides substrate image class of
-finite-depth dip coating process to recognize its geometry.
-
-Base class
-----------
-
-.. autoclass:: SubstrateError
-   :members:
-
-.. autoclass:: SubstrateBase
-   :members:
-
-Implementation
---------------
-
-.. autoclass:: Substrate
-   :members:
-
-.. automodule:: dipcoatimage.finitedepth.rectsubstrate
-
-"""
-
+"""Bare substrate."""
 
 import abc
 import dataclasses
@@ -34,7 +9,6 @@ import numpy as np
 import numpy.typing as npt
 
 from .reference import ReferenceBase
-from .substrate_param import Data, DrawOptions, Parameters
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
@@ -59,8 +33,7 @@ DataType = TypeVar("DataType", bound="DataclassInstance")
 
 
 class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType]):
-    """
-    Abstract base class for substrate.
+    """Abstract base class for substrate.
 
     Substrate class recognizes the geometry of substrate image from
     :class:`.ReferenceBase`.
@@ -98,19 +71,6 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
     implement :meth:`analyze_substrate` which returns data tuple compatible with
     :attr:`Data`.
     :meth:`analyze` is the API for analysis result.
-
-    Parameters
-    ==========
-
-    reference
-        Substrate reference instance.
-
-    parameters
-        Additional parameters.
-
-    draw_options
-        Drawing options.
-
     """
 
     __slots__ = (
@@ -152,8 +112,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
 
     @property
     def parameters(self) -> ParametersType:
-        """
-        Additional parameters for concrete class.
+        """Additional parameters for concrete class.
 
         Instance of :attr:`Parameters`, which must be a frozen dataclass.
         """
@@ -161,8 +120,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
 
     @property
     def draw_options(self) -> DrawOptionsType:
-        """
-        Options to visualize the image.
+        """Options to visualize the image.
 
         Instance of :attr:`DrawOptions` dataclass.
         """
@@ -179,8 +137,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
 
     @abc.abstractmethod
     def region_points(self) -> npt.NDArray[np.int32]:
-        """
-        Points in `[x, y]` in each discrete substrate region.
+        """Points in `[x, y]` in each discrete substrate region.
 
         Returns
         -------
@@ -202,8 +159,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         """
 
     def regions(self) -> npt.NDArray[np.int8]:
-        """
-        Return image labelled by each discrete substrate regions.
+        """Return image labelled by each discrete substrate regions.
 
         Returns
         -------
@@ -229,8 +185,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
     def contours(
         self, region: int
     ) -> Tuple[Tuple[npt.NDArray[np.int32], ...], npt.NDArray[np.int32]]:
-        """
-        Find contours of a substrate region identified by *region*.
+        """Find contours of a substrate region identified by *region*.
 
         Parameters
         ----------
@@ -272,19 +227,36 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         """Analyze the substrate image and return the data in tuple."""
 
     def analyze(self) -> DataType:
-        """
-        Return the result of :meth:`analyze_substrate` as dataclass instance.
-        """
+        """Return the result of :meth:`analyze_substrate` as dataclass instance."""
         return self.Data(*self.analyze_substrate())
 
 
+@dataclasses.dataclass(frozen=True)
+class Parameters:
+    """Additional parameters for :class:`Substrate` instance."""
+
+    pass
+
+
+@dataclasses.dataclass
+class DrawOptions:
+    """Drawing options for :class:`Substrate`."""
+
+    pass
+
+
+@dataclasses.dataclass
+class Data:
+    """Analysis data for :class:`Substrate`."""
+
+    pass
+
+
 class Substrate(SubstrateBase[Parameters, DrawOptions, Data]):
-    """
-    Simplest substrate class with no geometric information.
+    """Simplest substrate class with no geometric information.
 
     Examples
-    ========
-
+    --------
     Construct substrate reference instance first.
 
     .. plot::
@@ -310,7 +282,6 @@ class Substrate(SubstrateBase[Parameters, DrawOptions, Data]):
        >>> from dipcoatimage.finitedepth import Substrate
        >>> subst = Substrate(ref)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
-
     """
 
     Parameters = Parameters
@@ -318,14 +289,18 @@ class Substrate(SubstrateBase[Parameters, DrawOptions, Data]):
     Data = Data
 
     def region_points(self) -> npt.NDArray[np.int32]:
+        """Return a point in substrate region."""
         w = self.image().shape[1]
         return np.array([[w / 2, 0]], dtype=np.int32)
 
     def verify(self):
+        """Check error."""
         pass
 
     def draw(self) -> npt.NDArray[np.uint8]:
+        """Return visualized image."""
         return cv2.cvtColor(self.image(), cv2.COLOR_GRAY2RGB)
 
     def analyze_substrate(self) -> Tuple[()]:
+        """Return analysis data."""
         return ()

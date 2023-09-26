@@ -1,20 +1,15 @@
-"""
-Analysis
-========
-
-:mod:`dipcoatimage.finitedepth.analysis` provides classes to save the analysis
-result from experiment.
-
-"""
+"""Analysis result writer."""
 
 import abc
+import csv
 import dataclasses
 import mimetypes
 import os
 from collections.abc import Coroutine
-from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar
+from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar, List
 
-from .analysis_param import CSVWriter, ImageWriter, Parameters
+import imageio.v2 as iio  # TODO: use PyAV
+
 from .coatinglayer import CoatingLayerBase
 
 if TYPE_CHECKING:
@@ -24,6 +19,8 @@ if TYPE_CHECKING:
 __all__ = [
     "AnalysisError",
     "AnalysisBase",
+    "ImageWriter",
+    "CSVWriter",
     "Analysis",
 ]
 
@@ -38,8 +35,7 @@ ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
 
 
 class AnalysisBase(Coroutine, Generic[ParametersType]):
-    """
-    Class to save the analysis result.
+    """Class to save the analysis result.
 
     Subclass must implement :meth:`__await__` which saves the analysis result.
     See :class:`Analyzer` for example.
@@ -63,7 +59,6 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
     .. rubric:: Sanity check
 
     Validity of the parameters can be checked by :meth:`verify`.
-
     """
 
     __slots__ = (
@@ -88,22 +83,27 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
 
     @property
     def parameters(self) -> ParametersType:
+        """Analysis parameters."""
         return self._parameters
 
     @property
     def fps(self) -> Optional[float]:
+        """Time interval between each coating layer image."""
         return self._fps
 
     def send(self, value: Optional[CoatingLayerBase]):
+        """Analyze the coating layer."""
         if value is None:
             next(self._iterator)
         else:
             self._iterator.send(value)  # type: ignore[arg-type]
 
     def throw(self, type, value, traceback):
+        """Throw exception into the analysis event loop."""
         self._iterator.throw(type, value, traceback)
 
     def close(self):
+        """Terminate the analysis."""
         self._iterator.close()
 
     @abc.abstractmethod
@@ -111,12 +111,81 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
         """Check to detect error and raise before analysis."""
 
 
-class Analysis(AnalysisBase[Parameters]):
-    """
-    Basic analysis class.
+def ImageWriter(path: str, fps: Optional[float] = None):
+    """Write images to image files or a video file."""
+    mtype, _ = mimetypes.guess_type(path)
+    if mtype is None:
+        raise TypeError(f"Unsupported mimetype: {mtype}.")
 
-    Every coating layer instance sent to the coroutine is assumed to have same
-    type and same substrate instance.
+    ftype, subtype = mtype.split("/")
+    try:
+        path % 0
+        formattable = True
+    except (TypeError, ValueError):
+        formattable = False
+    if ftype == "video" or subtype in [
+        "gif",
+        "tiff",
+    ]:
+        writer = iio.get_writer(path, fps=fps)
+        try:
+            while True:
+                img = yield
+                writer.append_data(img)
+        finally:
+            writer.close()
+    elif ftype == "image":
+        i = 0
+        while True:
+            img = yield
+            if formattable:
+                p = path % i
+            else:
+                p = path
+            iio.imwrite(p, img)
+            i += 1
+    else:
+        raise TypeError(f"Unsupported mimetype: {mtype}.")
+
+
+def CSVWriter(path: str, header: List[str]):
+    """Write data to a csv file."""
+    with open(path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(header)
+        while True:
+            data = yield
+            writer.writerow(data)
+
+
+@dataclasses.dataclass(frozen=True)
+class Parameters:
+    """Parameters for :class:`Analysis`.
+
+    Attributes
+    ----------
+    ref_data, ref_visual : str
+        Paths for data file and visualized file of reference image.
+    subst_data, subst_visual : str
+        Paths for data file and visualized file of substrate image.
+    layer_data, layer_visual : str
+        Paths for data file and visualized file of coating layer image(s).
+        Pass formattable string (e.g. `img_%02d.jpg`) to save multiple images.
+    """
+
+    ref_data: str = ""
+    ref_visual: str = ""
+    subst_data: str = ""
+    subst_visual: str = ""
+    layer_data: str = ""
+    layer_visual: str = ""
+
+
+class Analysis(AnalysisBase[Parameters]):
+    """Basic analysis class.
+
+    Every coating layer instance sent to the coroutine is assumed to have same type and
+    same substrate instance.
     """
 
     Parameters = Parameters
@@ -124,6 +193,7 @@ class Analysis(AnalysisBase[Parameters]):
     DataWriters = dict(csv=CSVWriter)
 
     def verify(self):
+        """Check file paths and fps in :meth:`parameters`."""
         for path in [
             self.parameters.ref_data,
             self.parameters.subst_data,
@@ -158,6 +228,8 @@ class Analysis(AnalysisBase[Parameters]):
             raise AnalysisError("fps must be None or a positive number.")
 
     def __await__(self):
+        """Analyze reference and substrate, then each sent coating layer."""
+
         def makedir(path):
             dirname, _ = os.path.split(path)
             if dirname:

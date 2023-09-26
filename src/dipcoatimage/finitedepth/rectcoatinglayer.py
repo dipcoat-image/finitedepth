@@ -1,21 +1,7 @@
-"""
-:mod:`dipcoatimage.finitedepth.rectcoatinglayer` provides class to analyze
-the coating layer over rectangular substrate.
+"""Coating layer over rectangular substrate."""
 
-Base class
-==========
-
-.. autoclass:: RectCoatingLayerBase
-   :members:
-
-Implementation
-==============
-
-.. autoclass:: RectLayerShape
-   :members:
-
-"""
-
+import dataclasses
+import enum
 from typing import TYPE_CHECKING, Tuple, Type, TypeVar
 
 import cv2
@@ -24,19 +10,15 @@ import numpy.typing as npt
 from scipy.optimize import root  # type: ignore
 from scipy.spatial.distance import cdist  # type: ignore
 
-from .coatinglayer import CoatingLayerBase, CoatingLayerError, images_XOR
-from .rectcoatinglayer_param import (
-    Data,
-    DecoOptions,
-    DistanceMeasure,
-    DrawOptions,
-    PaintMode,
-    Parameters,
+from .coatinglayer import (
+    CoatingLayerBase,
+    CoatingLayerError,
+    images_XOR,
     SubtractionMode,
 )
 from .rectsubstrate import RectSubstrate
 from .util.dtw import acm, owp
-from .util.geometry import equidistant_interpolate, polyline_parallel_area
+from .util.parameters import LineOptions, PatchOptions
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
@@ -45,6 +27,8 @@ if TYPE_CHECKING:
 __all__ = [
     "RectCoatingLayerBase",
     "RectLayerShape",
+    "equidistant_interpolate",
+    "polyline_parallel_area",
 ]
 
 
@@ -76,9 +60,7 @@ class RectCoatingLayerBase(
     Data: Type[DataType]
 
     def layer_contours(self) -> Tuple[npt.NDArray[np.int32], ...]:
-        """
-        Return contours of :meth:`extract_layer`.
-        """
+        """Return contours of :meth:`extract_layer`."""
         if not hasattr(self, "_layer_contours"):
             layer_cnts, _ = cv2.findContours(
                 self.extract_layer().astype(np.uint8),
@@ -89,8 +71,7 @@ class RectCoatingLayerBase(
         return self._layer_contours
 
     def interfaces(self) -> Tuple[npt.NDArray[np.int64], ...]:
-        """
-        Find indices of solid-liquid interfaces on :meth:`SubstrateBase.contour`.
+        """Find indices of solid-liquid interfaces on :meth:`SubstrateBase.contour`.
 
         Returns
         -------
@@ -131,9 +112,7 @@ class RectCoatingLayerBase(
         return self._interfaces
 
     def contour(self) -> npt.NDArray[np.int32]:
-        """
-        Contour of the entire coated substrate.
-        """
+        """Contour of the entire coated substrate."""
         if not hasattr(self, "_contour"):
             (cnt,), _ = cv2.findContours(
                 self.coated_substrate().astype(np.uint8),
@@ -144,8 +123,7 @@ class RectCoatingLayerBase(
         return self._contour
 
     def surface(self) -> npt.NDArray[np.int32]:
-        """
-        Return the surface of the entire coated region.
+        """Return the surface of the entire coated region.
 
         Returns
         -------
@@ -173,6 +151,7 @@ class RectCoatingLayerBase(
         return self.contour()[I0 : I1 + 1]
 
     def capbridge_broken(self) -> bool:
+        """Check if capillary bridge is ruptured."""
         p0 = self.substrate_point()
         _, bl, br, _ = self.substrate.contour()[self.substrate.vertices()]
         (B,) = p0 + bl
@@ -188,6 +167,157 @@ class RectCoatingLayerBase(
         return bool(np.any(np.all(roi_binimg, axis=1)))
 
 
+class DistanceMeasure(enum.Enum):
+    """Distance measures to compute the curve similarity.
+
+    Members
+    -------
+    DTW
+        Dynamic time warping.
+    SDTW
+        Squared dynamic time warping.
+    """
+
+    DTW = "DTW"
+    SDTW = "SDTW"
+
+
+@dataclasses.dataclass(frozen=True)
+class Parameters:
+    """Analysis parameters for :class:`RectLayerShape` instance.
+
+    Attributes
+    ----------
+    KernelSize : tuple
+        Size of the kernel for morphological operation to remove noises.
+    ReconstructRadius : int
+        Connected components outside of this radius from bottom corners of the
+        substrate are regarded as image artifacts.
+    RoughnessMeasure : DistanceMeasure
+        Measure to compute layer roughness.
+    """
+
+    KernelSize: Tuple[int, int]
+    ReconstructRadius: int
+    RoughnessMeasure: DistanceMeasure
+
+
+class PaintMode(enum.Enum):
+    """Option to determine how the coating layer image is painted.
+
+    Members
+    -------
+    ORIGINAL
+        Show the original image.
+    EMPTY
+        Show empty image. Only the layer will be drawn.
+    """
+
+    ORIGINAL = "ORIGINAL"
+    EMPTY = "EMPTY"
+
+
+@dataclasses.dataclass
+class DrawOptions:
+    """Drawing options for :class:`RectLayerShape` instance.
+
+    Attributes
+    ----------
+    paint : PaintMode
+    subtraction : SubtractionMode
+    """
+
+    paint: PaintMode = PaintMode.ORIGINAL
+    subtraction: SubtractionMode = SubtractionMode.NONE
+
+
+@dataclasses.dataclass
+class LinesOptions:
+    """Parameters to draw lines in the image.
+
+    Attributes
+    ----------
+    color : tuple
+        Color of the lines in RGB
+    linewidth : int
+        Width of the line.
+        Zero value is the flag to not draw the line.
+    step : int
+        Steps to jump the lines. `1` draws every line.
+    """
+
+    color: Tuple[int, int, int] = (0, 0, 0)
+    linewidth: int = 1
+    step: int = 1
+
+
+@dataclasses.dataclass
+class DecoOptions:
+    """Options to show the analysis result on :class:`RectLayerShape`.
+
+    Attributes
+    ----------
+    layer : PatchOptions
+    contact_line, thickness, uniform_layer : LineOptions
+    conformality, roughness : LinesOptions
+    """
+
+    layer: PatchOptions = dataclasses.field(
+        default_factory=lambda: PatchOptions(
+            fill=True,
+            edgecolor=(0, 0, 255),
+            facecolor=(255, 255, 255),
+            linewidth=1,
+        )
+    )
+    contact_line: LineOptions = dataclasses.field(
+        default_factory=lambda: LineOptions(color=(0, 0, 255), linewidth=1)
+    )
+    thickness: LineOptions = dataclasses.field(
+        default_factory=lambda: LineOptions(color=(0, 0, 255), linewidth=1)
+    )
+    uniform_layer: LineOptions = dataclasses.field(
+        default_factory=lambda: LineOptions(color=(255, 0, 0), linewidth=1)
+    )
+    conformality: LinesOptions = dataclasses.field(
+        default_factory=lambda: LinesOptions(color=(0, 255, 0), linewidth=1, step=10)
+    )
+    roughness: LinesOptions = dataclasses.field(
+        default_factory=lambda: LinesOptions(color=(255, 0, 0), linewidth=1, step=10)
+    )
+
+
+@dataclasses.dataclass
+class Data:
+    """Analysis data for :class:`RectLayerShape` instance.
+
+    - LayerLength_{Left, Right}: Distance between the bottom sideline of the
+      substrate and the upper limit of the coating layer.
+    - Conformality: Conformality of the coating layer.
+    - AverageThickness: Average thickness of the coating layer.
+    - Roughness: Roughness of the coating layer.
+    - MaxThickness_{Left, Bottom, Right}: Number of the pixels for the maximum
+      thickness on each region.
+
+    The following data are the metadata for the analysis.
+
+    - MatchError: Template matching error between 0 to 1. 0 means perfect match.
+    """
+
+    LayerLength_Left: np.float64
+    LayerLength_Right: np.float64
+
+    Conformality: float
+    AverageThickness: np.float64
+    Roughness: float
+
+    MaxThickness_Left: np.float64
+    MaxThickness_Bottom: np.float64
+    MaxThickness_Right: np.float64
+
+    MatchError: float
+
+
 class RectLayerShape(
     RectCoatingLayerBase[
         Parameters,
@@ -196,13 +326,10 @@ class RectLayerShape(
         Data,
     ]
 ):
-    """
-    Class for analyzing the shape and thickness of the coating layer over
-    rectangular substrate.
+    """Coating layer over rectangular substrate.
 
     Examples
-    ========
-
+    --------
     Construct substrate reference class first.
 
     .. plot::
@@ -247,7 +374,6 @@ class RectLayerShape(
        ... )
        >>> coat = RectLayerShape(img, subst, param)
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
-
     """
 
     __slots__ = (
@@ -267,6 +393,7 @@ class RectLayerShape(
     SubtractionMode = SubtractionMode
 
     def verify(self):
+        """Check error."""
         ksize = self.parameters.KernelSize
         if not all(i == 0 or i % 2 == 1 for i in ksize):
             raise CoatingLayerError("Kernel size must be odd.")
@@ -274,6 +401,7 @@ class RectLayerShape(
             raise CoatingLayerError("Capillary bridge is not broken.")
 
     def extract_layer(self) -> npt.NDArray[np.bool_]:
+        """Extract coating layer region."""
         if not hasattr(self, "_extracted_layer"):
             # Perform opening to remove error pixels. We named the parameter as
             # "closing" because the coating layer is black in original image, but
@@ -390,10 +518,7 @@ class RectLayerShape(
         return self._roughness
 
     def max_thickness(self) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
-        """
-        Return the maximum thickness on each side (left, bottom, right) and their
-        points.
-        """
+        """Maximum thickness on each side (left, bottom, right) and their points."""
         if not hasattr(self, "_max_thickness"):
             corners = self.substrate.sideline_intersections() + self.substrate_point()
             surface = self.surface()
@@ -416,6 +541,7 @@ class RectLayerShape(
         return self._max_thickness
 
     def draw(self) -> npt.NDArray[np.uint8]:
+        """Return visualized image."""
         paint = self.draw_options.paint
         if paint == self.PaintMode.ORIGINAL:
             image = self.image
@@ -536,6 +662,7 @@ class RectLayerShape(
         return image
 
     def analyze_layer(self):
+        """Return analysis data."""
         _, B, C, _ = self.substrate.sideline_intersections() + self.substrate_point()
 
         if not self.interfaces():
@@ -569,3 +696,60 @@ class RectLayerShape(
             THCK_R,
             ERR,
         )
+
+
+def equidistant_interpolate(points, n) -> npt.NDArray[np.float64]:
+    """Interpolate *points* with *n* number of points with same distances.
+
+    Parameters
+    ----------
+    points: ndarray
+        Points that are interpolated.
+        The shape must be `(N, 1, D)` where `N` is the number of points and `D`
+        is the dimension.
+    n: int
+        Number of new points.
+
+    Returns
+    -------
+    ndarray
+        Interpolated points with same distances.
+        If `N` is positive number, the shape is `(n, 1, D)`. If `N` is zero,
+        the shape is `(n, 0, D)`.
+    """
+    # https://stackoverflow.com/a/19122075
+    if points.size == 0:
+        return np.empty((n, 0, points.shape[-1]), dtype=np.float64)
+    vec = np.diff(points, axis=0)
+    dist = np.linalg.norm(vec, axis=-1)
+    u = np.insert(np.cumsum(dist), 0, 0)
+    t = np.linspace(0, u[-1], n)
+    ret = np.column_stack([np.interp(t, u, a) for a in np.squeeze(points, axis=1).T])
+    return ret.reshape((n,) + points.shape[1:])
+
+
+def polyline_parallel_area(line: npt.NDArray, t: float) -> np.float64:
+    """Calculate the area formed by convex polyline[1]_ and its parallel curve[2]_.
+
+    Parameters
+    ----------
+    line : ndarray
+        Vertices of a polyline.
+        The first dimension must be the number of vertices and the last dimension
+        must be the dimension of the manifold.
+    t : float
+        Thickness between *line* and its parallel curve.
+
+    Returns
+    -------
+    area : float
+
+    References
+    ----------
+    .. [1] https://en.wikipedia.org/wiki/Polygonal_chain
+    .. [2] https://en.wikipedia.org/wiki/Parallel_curve
+    """
+    vec = np.diff(line, axis=0)
+    d_l = np.linalg.norm(vec, axis=-1)
+    d_theta = np.abs(np.diff(np.arctan2(vec[..., 1], vec[..., 0])))
+    return np.float64(np.sum(d_l) * t + np.sum(d_theta) * (t**2) / 2)

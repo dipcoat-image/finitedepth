@@ -1,36 +1,70 @@
-"""
-Rectangular Substrate
-=====================
-
-:mod:`dipcoatimage.finitedepth.rectsubstrate` provides substrate image class to
-analyze the substrate with rectangular cross-section shape.
-
-.. autoclass:: RectSubstrate
-   :members:
-
-"""
+"""Rectangular substrate."""
+import dataclasses
+import enum
 from typing import Tuple
 
 import cv2
 import numpy as np
 import numpy.typing as npt
 
-from .polysubstrate import PolySubstrateBase
-from .polysubstrate_param import Parameters as Parameters
-from .rectsubstrate_param import Data, DrawOptions, PaintMode
+from .polysubstrate import PolySubstrateBase, Parameters
+from .util.parameters import LineOptions, MarkerOptions
 
 __all__ = [
     "RectSubstrate",
 ]
 
 
-class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):
+class PaintMode(enum.Enum):
+    """Option to determine how the substrate image is painted.
+
+    Members
+    -------
+    ORIGINAL
+        Show the original substrate image.
+    CONTOUR
+        Show the contour of the substrate.
     """
-    Simplest implementation of :class:`RectSubstrateBase`.
+
+    ORIGINAL = "ORIGINAL"
+    CONTOUR = "CONTOUR"
+
+
+@dataclasses.dataclass
+class DrawOptions:
+    """Drawing options for :class:`RectSubstrate`.
+
+    Attributes
+    ----------
+    paint : PaintMode
+    vertices : MarkerOptions
+    sidelines : LineOptions
+    """
+
+    paint: PaintMode = PaintMode.ORIGINAL
+    vertices: MarkerOptions = dataclasses.field(
+        default_factory=lambda: MarkerOptions(color=(0, 255, 0))
+    )
+    sidelines: LineOptions = dataclasses.field(
+        default_factory=lambda: LineOptions(color=(0, 0, 255))
+    )
+
+
+@dataclasses.dataclass
+class Data:
+    """Analysis data for :class:`RectSubstrate`.
+
+    - ChipWidth: Number of the pixels between lower vertices of the substrate.
+    """
+
+    ChipWidth: np.float32
+
+
+class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):
+    """Simplest implementation of :class:`RectSubstrateBase`.
 
     Examples
-    ========
-
+    --------
     Construct substrate reference instance first.
 
     .. plot::
@@ -68,7 +102,6 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):
        >>> subst.draw_options.sidelines.linewidth = 3
        >>> subst.draw_options.sidelines.color = (255, 0, 255)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
-
     """
 
     Parameters = Parameters
@@ -79,6 +112,7 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):
     PaintMode = PaintMode
 
     def draw(self) -> npt.NDArray[np.uint8]:
+        """Return visualized image."""
         paint = self.draw_options.paint
         if paint is self.PaintMode.ORIGINAL:
             image = self.image()
@@ -118,5 +152,6 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):
         return ret
 
     def analyze_substrate(self) -> Tuple[np.float64]:
+        """Return analysis data."""
         _, B, C, _ = self.sideline_intersections()
         return (np.linalg.norm(B - C),)

@@ -1,11 +1,5 @@
-"""
-Polygonal Substrate
-===================
-
-:mod:`dipcoatimage.finitedepth.polysubstrate` provides abstract base class for
-substrate with polygonal cross section.
-
-"""
+"""Polygonal substrate."""
+import dataclasses
 from typing import TYPE_CHECKING, Tuple, Type, TypeVar
 
 import numpy as np
@@ -15,7 +9,6 @@ from numpy.linalg import LinAlgError
 from scipy.ndimage import gaussian_filter1d  # type: ignore
 from scipy.signal import find_peaks, peak_prominences  # type: ignore
 
-from .polysubstrate_param import Parameters
 from .substrate import SubstrateBase, SubstrateError
 
 if TYPE_CHECKING:
@@ -27,6 +20,29 @@ __all__ = [
     "PolySubstrateBase",
     "houghline_accum",
 ]
+
+
+@dataclasses.dataclass(frozen=True)
+class Parameters:
+    """Parameters for :class:`PolySubstrate`.
+
+    Attributes
+    ----------
+    Sigma: positive float
+        Standard deviation of Gaussian kernel to smooth the noise.
+    Rho: positive float
+        Radian resolution for Hough transformation to detect the sidelines.
+    Theta: positive float
+        Angle resolution for Hough transformation to detect the sidelines.
+    Step: positive int
+        Sampling rate of points for Hough transformation. Larger step makes
+        evaluation faster.
+    """
+
+    Sigma: float
+    Rho: float
+    Theta: float
+    Step: int = 1
 
 
 class PolySubstrateError(SubstrateError):
@@ -44,9 +60,7 @@ DataType = TypeVar("DataType", bound="DataclassInstance")
 
 
 class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]):
-    """
-    Abstract base class for substrates whose cross section is a simple
-    polygon[1]_.
+    """Abstract base class for substrates whose cross section is a simple polygon[1]_.
 
     :class:`PolySubstrateBase` provides method to detect the sides of the
     a polygonal substrate. The sides are expected to be mostly linear. Smooth
@@ -75,6 +89,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]
     SidesNum: int
 
     def region_points(self) -> npt.NDArray[np.int32]:
+        """Points in `[x, y]` in each discrete substrate region."""
         w = self.image().shape[1]
         return np.array([[w / 2, 0]], dtype=np.int32)
 
@@ -84,8 +99,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]
         return cnt
 
     def vertices(self) -> npt.NDArray[np.int32]:
-        """
-        Find the polygon vertices from dense contour.
+        """Find the polygon vertices from dense contour.
 
         Returns
         -------
@@ -107,7 +121,6 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]
         .. [1] https://en.wikipedia.org/wiki/Vertex_(geometry)
         .. [2] https://en.wikipedia.org/wiki/Vertex_(curve)
         .. [3] https://stackoverflow.com/q/32629806
-
         """
         cnt = self.contour().astype(np.float64)
 
@@ -131,8 +144,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]
         return np.sort((prom_peaks - (L // 2)) % L)
 
     def sides(self) -> Tuple[npt.NDArray[np.int32], ...]:
-        """
-        Return the points of each side of the polygon.
+        """Return the points of each side of the polygon.
 
         Returns
         -------
@@ -164,8 +176,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]
         return tuple(sides)
 
     def sidelines(self) -> npt.NDArray[np.float32]:
-        r"""
-        Find linear model of polygon sides.
+        r"""Find linear model of polygon sides.
 
         Sides of the polygon can be curves and can have noises. This method finds
         straight sidelines[1]_ using Hough line transformation.
@@ -222,8 +233,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]
         return self._sidelines
 
     def sideline_intersections(self) -> npt.NDArray[np.float32]:
-        """
-        Return the coordinates of intersections of polygon sidelines.
+        """Return the coordinates of intersections of polygon sidelines.
 
         If the polygon has smooth corner, the vertex points are different from
         the corner points on the contour.
@@ -232,7 +242,6 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]
         --------
         vertices
             Return indices of the corner points on contour.
-
         """
         ((r1, t1),) = self.sidelines().transpose(1, 2, 0)
         ((r2, t2),) = np.roll(self.sidelines(), 1, axis=0).transpose(1, 2, 0)
@@ -244,6 +253,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]
         return ret
 
     def verify(self):
+        """Check error."""
         try:
             self.sideline_intersections()
         except LinAlgError:
@@ -254,8 +264,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]
 def houghline_accum(
     rho_array: npt.NDArray[np.int32],
 ) -> Tuple[npt.NDArray[np.int32], Tuple[float, int]]:
-    """
-    Performs hough line accumulation.
+    """Perform hough line accumulation.
 
     Parameters
     ----------
@@ -274,7 +283,6 @@ def houghline_accum(
         Accumulation matrix.
     rho_theta: tuple
         `(rho, theta_idx)` value for the detected line.
-
     """
     rho_min = np.min(rho_array)
     n_rho = np.max(rho_array) - rho_min + 1
