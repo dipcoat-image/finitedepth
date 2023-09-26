@@ -9,15 +9,14 @@ result from experiment.
 
 import abc
 from collections.abc import Coroutine
-import csv
 import dataclasses
 import enum
 import imageio.v2 as iio  # TODO: use PyAV
 import mimetypes
 import os
 from .coatinglayer import CoatingLayerBase
-from .analysis_param import Parameters
-from typing import List, Type, Optional, Dict, Any, TypeVar, Generic, TYPE_CHECKING
+from .analysis_param import CSVWriter, Parameters
+from typing import List, Type, Optional, TypeVar, Generic, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
@@ -26,8 +25,6 @@ if TYPE_CHECKING:
 __all__ = [
     "ExperimentKind",
     "experiment_kind",
-    "DataWriter",
-    "CSVWriter",
     "AnalysisError",
     "AnalysisBase",
     "Analysis",
@@ -97,70 +94,6 @@ def experiment_kind(paths: List[str]) -> ExperimentKind:
     else:
         ret = ExperimentKind.NULL
     return ret
-
-
-class DataWriter(abc.ABC):
-    """
-    Abstract base class to write data file.
-
-    Parameters
-    ==========
-
-    path
-        Path to the data file.
-
-    headers
-        Headers for the data file.
-
-    """
-
-    def __init__(self, path: str, headers: List[str]):
-        self.path = path
-        self.headers = headers
-
-    @abc.abstractmethod
-    def prepare(self):
-        """Prepare to write the data, e.g. create file or write headers."""
-        pass
-
-    @abc.abstractmethod
-    def write_data(self, data: List[Any]):
-        """Write *data* to the file."""
-        pass
-
-    @abc.abstractmethod
-    def terminate(self):
-        """Terminate the writing and close the file."""
-        pass
-
-
-class CSVWriter(DataWriter):
-    """
-    Writer for CSV file.
-
-    Examples
-    ========
-
-    >>> from dipcoatimage.finitedepth.analysis import CSVWriter
-    >>> writer = CSVWriter("data.csv", ["foo", "bar"])
-    >>> def write_csv():
-    ...     writer.prepare()
-    ...     writer.write_data([10, 20])
-    ...     writer.terminate()
-    >>> write_csv() #doctest: +SKIP
-
-    """
-
-    def prepare(self):
-        self.datafile = open(self.path, "w", newline="")
-        self.writer = csv.writer(self.datafile)
-        self.writer.writerow(self.headers)
-
-    def write_data(self, data: List[Any]):
-        self.writer.writerow(data)
-
-    def terminate(self):
-        self.datafile.close()
 
 
 class AnalysisError(Exception):
@@ -266,7 +199,7 @@ class Analysis(AnalysisBase[Parameters]):
 
     Parameters = Parameters
 
-    data_writers: Dict[str, Type[DataWriter]] = dict(csv=CSVWriter)
+    DataWriters = dict(csv=CSVWriter)
 
     def examine(self):
         for path in [
@@ -276,7 +209,7 @@ class Analysis(AnalysisBase[Parameters]):
         ]:
             if path:
                 _, ext = os.path.splitext(path)
-                if ext.lstrip(os.path.extsep).lower() not in self.data_writers:
+                if ext.lstrip(os.path.extsep).lower() not in self.DataWriters:
                     return AnalysisError(f"{path} has unsupported extension.")
         for path in [
             self.parameters.ref_visual,
@@ -311,27 +244,27 @@ class Analysis(AnalysisBase[Parameters]):
 
         def make_writercls(path):
             _, ext = os.path.splitext(path)
-            writercls = self.data_writers[ext.lstrip(os.path.extsep).lower()]
+            writercls = self.DataWriters[ext.lstrip(os.path.extsep).lower()]
             return writercls
 
         # prepare for analysis
         if self.parameters.ref_data:
             makedir(self.parameters.ref_data)
-            rd_cls = make_writercls(self.parameters.ref_data)
+            rd_writer = make_writercls(self.parameters.ref_data)
 
         if self.parameters.ref_visual:
             makedir(self.parameters.ref_visual)
 
         if self.parameters.subst_data:
             makedir(self.parameters.subst_data)
-            sd_cls = make_writercls(self.parameters.subst_data)
+            sd_writer = make_writercls(self.parameters.subst_data)
 
         if self.parameters.subst_visual:
             makedir(self.parameters.subst_visual)
 
         if self.parameters.layer_data:
             makedir(self.parameters.layer_data)
-            ld_cls = make_writercls(self.parameters.layer_data)
+            ld_writer = make_writercls(self.parameters.layer_data)
 
         if self.parameters.layer_visual:
             makedir(self.parameters.layer_visual)
@@ -355,11 +288,11 @@ class Analysis(AnalysisBase[Parameters]):
 
             if self.parameters.ref_data:
                 headers = []
-                rd_writer = rd_cls(self.parameters.ref_data, headers)
-                rd_writer.prepare()
+                rd_writer = rd_writer(self.parameters.ref_data, headers)
+                next(rd_writer)
                 data = list(dataclasses.astuple(layer.substrate.reference.analyze()))
-                rd_writer.write_data(data)
-                rd_writer.terminate()
+                rd_writer.send(data)
+                rd_writer.close()
 
             if self.parameters.ref_visual:
                 img = layer.substrate.reference.draw()
@@ -367,11 +300,11 @@ class Analysis(AnalysisBase[Parameters]):
 
             if self.parameters.subst_data:
                 headers = []
-                sd_writer = sd_cls(self.parameters.subst_data, headers)
-                sd_writer.prepare()
+                sd_writer = sd_writer(self.parameters.subst_data, headers)
+                next(sd_writer)
                 data = list(dataclasses.astuple(layer.substrate.analyze()))
-                sd_writer.write_data(data)
-                sd_writer.terminate()
+                sd_writer.send(data)
+                sd_writer.close()
 
             if self.parameters.subst_visual:
                 img = layer.substrate.draw()
@@ -381,8 +314,8 @@ class Analysis(AnalysisBase[Parameters]):
                 headers = [f.name for f in dataclasses.fields(layer.Data)]
                 if self.parameters.layer_fps:
                     headers = ["time (s)"] + headers
-                ld_writer = ld_cls(self.parameters.layer_data, headers)
-                ld_writer.prepare()
+                ld_writer = ld_writer(self.parameters.layer_data, headers)
+                next(ld_writer)
 
             # Loop to analyze layers
             i = 0
@@ -391,7 +324,7 @@ class Analysis(AnalysisBase[Parameters]):
                     data = list(dataclasses.astuple(layer.analyze()))
                     if self.parameters.layer_fps:
                         data = [i / self.parameters.layer_fps] + data
-                    ld_writer.write_data(data)
+                    ld_writer.send(data)
 
                 if self.parameters.layer_visual:
                     if lv_type == "video":
@@ -408,7 +341,7 @@ class Analysis(AnalysisBase[Parameters]):
 
         finally:
             if self.parameters.layer_data:
-                ld_writer.terminate()
+                ld_writer.close()
             if self.parameters.layer_visual:
                 if lv_type == "video":
                     lv_writer.close()

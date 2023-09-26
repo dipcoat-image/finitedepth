@@ -50,8 +50,6 @@ from .fastexperiment import FastExperiment
 from .analysis import (
     ExperimentKind,
     experiment_kind,
-    DataWriter,
-    CSVWriter,
     AnalysisError,
     AnalysisBase,
     Analysis,

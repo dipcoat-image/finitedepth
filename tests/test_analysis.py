@@ -48,10 +48,10 @@ def test_CSVWriter(tmp_path):
     row1 = [1, 2]
     row2 = [3, 4]
     writer = CSVWriter(datapath, headers)
-    writer.prepare()
-    writer.write_data(row1)
-    writer.write_data(row2)
-    writer.terminate()
+    next(writer)
+    writer.send(row1)
+    writer.send(row2)
+    writer.close()
 
     assert os.path.exists(datapath)
 

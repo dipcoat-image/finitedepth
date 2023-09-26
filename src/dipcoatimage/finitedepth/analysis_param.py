@@ -1,3 +1,4 @@
+import csv
 import dataclasses
 from typing import Optional, List
 
@@ -8,8 +9,13 @@ __all__ = [
 ]
 
 
-async def CSVWriter(filename: str, header: List[str]):
-    ...
+def CSVWriter(path: str, header: List[str]):
+    with open(path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(header)
+        while True:
+            data = yield
+            writer.writerow(data)
 
 
 @dataclasses.dataclass(frozen=True)
