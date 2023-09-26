@@ -21,13 +21,11 @@ repository = "https://github.com/dipcoat-image/finitedepth"
 
 [project.optional-dependencies]
 test = [
-    "PyYAML",
     "pytest",
 ]
 doc = [
     "matplotlib",
     "numpydoc",
-    "PyYAML",
     "sphinx",
 ]
 dev = [
@@ -37,6 +35,7 @@ dev = [
     "isort",
     "docformatter",
     "mypy==1.4.1",
+    "types-PyYAML",
     "dipcoatimage-finitedepth[test,doc]",
 ]
 
