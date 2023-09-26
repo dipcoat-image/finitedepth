@@ -9,14 +9,15 @@ analyze the substrate with rectangular cross-section shape.
    :members:
 
 """
+from typing import Tuple
+
 import cv2
 import numpy as np
 import numpy.typing as npt
+
 from .polysubstrate import PolySubstrateBase
 from .polysubstrate_param import Parameters as Parameters
-from .rectsubstrate_param import DrawOptions, PaintMode, Data
-from typing import Tuple
-
+from .rectsubstrate_param import Data, DrawOptions, PaintMode
 
 __all__ = [
     "RectSubstrate",

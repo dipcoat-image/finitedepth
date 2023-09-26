@@ -1,10 +1,11 @@
 import dataclasses
 import enum
-import numpy as np
-from .coatinglayer_param import SubtractionMode
-from .util.parameters import LineOptions, PatchOptions
 from typing import Tuple
 
+import numpy as np
+
+from .coatinglayer_param import SubtractionMode
+from .util.parameters import LineOptions, PatchOptions
 
 __all__ = [
     "DistanceMeasure",

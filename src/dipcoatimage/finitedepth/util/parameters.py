@@ -11,7 +11,6 @@ import dataclasses
 import enum
 from typing import Tuple
 
-
 __all__ = [
     "LineOptions",
     "PatchOptions",

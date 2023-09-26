@@ -1,20 +1,22 @@
+import os
 from collections.abc import Iterable
+
 import cv2  # type: ignore
+import yaml  # type: ignore
+
 from dipcoatimage.finitedepth import get_data_path
 from dipcoatimage.finitedepth.serialize import (
-    data_converter,
+    AnalysisArgs,
+    CoatingFileType,
+    CoatingLayerArgs,
+    Config,
+    ExperimentArgs,
     ImportArgs,
     ReferenceArgs,
     SubstrateArgs,
-    CoatingLayerArgs,
-    ExperimentArgs,
-    AnalysisArgs,
-    CoatingFileType,
     coatingfile_type,
-    Config,
+    data_converter,
 )
-import os
-import yaml  # type: ignore
 
 
 def dict_includes(sup: dict, sub: dict):

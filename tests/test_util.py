@@ -1,4 +1,5 @@
 import os
+
 from dipcoatimage.finitedepth.util import get_data_path
 
 

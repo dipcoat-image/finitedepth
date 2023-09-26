@@ -9,8 +9,7 @@ import objects.
 
 import enum
 import importlib
-from typing import Tuple, Any
-
+from typing import Any, Tuple
 
 __all__ = [
     "import_variable",

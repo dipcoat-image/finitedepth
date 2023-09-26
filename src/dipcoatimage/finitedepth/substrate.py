@@ -27,12 +27,14 @@ Implementation
 
 import abc
 import dataclasses
+from typing import TYPE_CHECKING, Generic, Optional, Tuple, Type, TypeVar
+
 import cv2
 import numpy as np
 import numpy.typing as npt
+
 from .reference import ReferenceBase
-from .substrate_param import Parameters, DrawOptions, Data
-from typing import TypeVar, Generic, Type, Optional, Tuple, TYPE_CHECKING
+from .substrate_param import Data, DrawOptions, Parameters
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance

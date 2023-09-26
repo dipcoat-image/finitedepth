@@ -17,46 +17,17 @@ This package provides
 
 """
 
-from .version import __version__  # noqa
-
-from .reference import (
-    ReferenceError,
-    ReferenceBase,
-    Reference,
-)
-from .substrate import (
-    SubstrateError,
-    SubstrateBase,
-    Substrate,
-)
-from .polysubstrate import (
-    PolySubstrateError,
-    PolySubstrateBase,
-)
-from .rectsubstrate import (
-    RectSubstrate,
-)
-from .coatinglayer import (
-    CoatingLayerError,
-    CoatingLayerBase,
-    CoatingLayer,
-)
-from .rectcoatinglayer import (
-    RectCoatingLayerBase,
-    RectLayerShape,
-)
-from .experiment import ExperimentError, ExperimentBase, Experiment
-from .analysis import (
-    AnalysisError,
-    AnalysisBase,
-    Analysis,
-)
-from .serialize import (
-    data_converter,
-    Config,
-)
+from .analysis import Analysis, AnalysisBase, AnalysisError
+from .coatinglayer import CoatingLayer, CoatingLayerBase, CoatingLayerError
+from .experiment import Experiment, ExperimentBase, ExperimentError
+from .polysubstrate import PolySubstrateBase, PolySubstrateError
+from .rectcoatinglayer import RectCoatingLayerBase, RectLayerShape
+from .rectsubstrate import RectSubstrate
+from .reference import Reference, ReferenceBase, ReferenceError
+from .serialize import Config, data_converter
+from .substrate import Substrate, SubstrateBase, SubstrateError
 from .util import get_data_path
-
+from .version import __version__  # noqa
 
 __all__ = [
     "ReferenceError",

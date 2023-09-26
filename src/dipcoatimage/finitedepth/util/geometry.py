@@ -1,6 +1,7 @@
+from typing import List
+
 import numpy as np
 import numpy.typing as npt
-from typing import List
 
 __all__ = [
     "split_polyline",

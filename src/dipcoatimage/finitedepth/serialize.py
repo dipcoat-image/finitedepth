@@ -5,22 +5,24 @@ Serialization
 Classes to serialize the analysis parameters into configuration files.
 """
 
-import cattrs
-import cv2
 import dataclasses
 import enum
 import mimetypes
+import os
+from typing import TYPE_CHECKING, Generator, List, Optional, Tuple, Type
+
+import cattrs
+import cv2
 import numpy as np
 import numpy.typing as npt
-import os
 import tqdm  # type: ignore
-from .reference import ReferenceBase, OptionalROI
-from .substrate import SubstrateBase
+
+from .analysis import AnalysisBase
 from .coatinglayer import CoatingLayerBase
 from .experiment import ExperimentBase
-from .analysis import AnalysisBase
+from .reference import OptionalROI, ReferenceBase
+from .substrate import SubstrateBase
 from .util.importing import import_variable
-from typing import List, Type, Tuple, Generator, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
