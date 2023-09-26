@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 
-from .polysubstrate import PolySubstrateBase, Parameters
+from .polysubstrate import Parameters, PolySubstrateBase
 from .util.parameters import LineOptions, MarkerOptions
 
 __all__ = [

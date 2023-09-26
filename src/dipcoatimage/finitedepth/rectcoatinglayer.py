@@ -13,8 +13,8 @@ from scipy.spatial.distance import cdist  # type: ignore
 from .coatinglayer import (
     CoatingLayerBase,
     CoatingLayerError,
-    images_XOR,
     SubtractionMode,
+    images_XOR,
 )
 from .rectsubstrate import RectSubstrate
 from .util.dtw import acm, owp

@@ -2,7 +2,7 @@
 
 import abc
 import dataclasses
-from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar, Tuple
+from typing import TYPE_CHECKING, Generic, Optional, Tuple, Type, TypeVar
 
 import cv2
 import numpy as np
@@ -144,8 +144,7 @@ class Experiment(ExperimentBase[Parameters]):
     ):
         """Create coating layer.
 
-        If *window* parameter has positive axis, template matching
-        is boosted.
+        If *window* parameter has positive axis, template matching is boosted.
         """
         prev = getattr(self, "_prev", None)
         window = self.parameters.window

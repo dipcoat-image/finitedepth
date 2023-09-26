@@ -10,8 +10,8 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 
-from .util.parameters import PatchOptions
 from .substrate import SubstrateBase
+from .util.parameters import PatchOptions
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance

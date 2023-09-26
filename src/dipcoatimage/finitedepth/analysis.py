@@ -6,7 +6,7 @@ import dataclasses
 import mimetypes
 import os
 from collections.abc import Coroutine
-from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar, List
+from typing import TYPE_CHECKING, Generic, List, Optional, Type, TypeVar
 
 import imageio.v2 as iio  # TODO: use PyAV
 
