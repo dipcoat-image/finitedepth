@@ -8,7 +8,7 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    steps: 
+    steps:
 
       - name: get repo
         uses: actions/checkout@v3
@@ -18,7 +18,7 @@ jobs:
 
       - name: install dependencies
         run: |
-          pip install flake8 black
+          pip install flake8 black isort
 
       - name: lint with flake8
         run: |
@@ -38,7 +38,7 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    steps: 
+    steps:
 
       - name: get repo
         uses: actions/checkout@v3
@@ -92,7 +92,7 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    steps: 
+    steps:
 
       - name: get repo
         uses: actions/checkout@v3
