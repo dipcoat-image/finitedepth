@@ -15,6 +15,10 @@ This package provides
 :mod:`dipcoatimage.finitedepth_gui` provides GUI for this package.
 """
 
+import json
+import os
+
+import yaml
 from importlib_resources import files
 
 from .analysis import Analysis, AnalysisBase, AnalysisError
@@ -52,6 +56,7 @@ __all__ = [
     "data_converter",
     "Config",
     "get_data_path",
+    "analyze_files",
 ]
 
 
@@ -80,3 +85,46 @@ def get_data_path(*paths: str) -> str:
     if not paths:
         return str(data_path._paths[0])
     return str(data_path.joinpath(*paths))
+
+
+def analyze_files(*paths: str):
+    """Analyze from config files.
+
+    Supported files are:
+    - YAML
+    - JSON
+    """
+    for path in paths:
+        _, ext = os.path.splitext(path)
+        ext = ext.lstrip(os.path.extsep).lower()
+        try:
+            with open(path, "r") as f:
+                if ext == "yaml" or ext == "yml":
+                    data = yaml.load(f, Loader=yaml.FullLoader)
+                elif ext == "json":
+                    data = json.load(f)
+                else:
+                    print(f"{ext} not supported! Skipping {path} ...")
+        except FileNotFoundError:
+            print(f"File does not exist: Skipping {path} ...")
+            continue
+        for k, v in data.items():
+            try:
+                config = data_converter.structure(v, Config)
+                config.analyze(k)
+            except Exception:
+                print(f"Error occurred! Skipping {path} ...")
+                continue
+
+
+def main():
+    """Entry point function."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        prog="dipcoatimage-finitedepth",
+        description="Parse configuration files and analyze",
+        epilog="Supported file formats: YAML, JSON",
+    )
+    parser.add_argument("file", type=str, nargs="+", help="target files")
+    analyze_files(*parser.parse_args().file)

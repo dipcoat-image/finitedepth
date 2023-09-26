@@ -1,8 +1,9 @@
-importlib_resources
 cattrs
+imageio[ffmpeg]
+importlib_resources
 numpy >= 1.21
 numba
-scipy
 opencv-python-headless
+PyYAML
+scipy
 tqdm
-imageio[ffmpeg]
