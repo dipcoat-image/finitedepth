@@ -2,8 +2,6 @@
 Welcome to DipCoatImage-FiniteDepth's documentation!
 ====================================================
 
-This is the central page for all documents.
-
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
@@ -13,7 +11,6 @@ This is the central page for all documents.
    tutorial/index
    user-guide/index
    explanation/index
-   reference/index
    dev-guide/index
 
 Indices and tables

@@ -1,37 +1,14 @@
-"""
-Experiment
-==========
-
-:mod:`dipcoatimage.finitedepth.experiment` provides factory to construct
-coating layer objects.
-
-Base class
-----------
-
-.. autoclass:: ExperimentError
-   :members:
-
-.. autoclass:: ExperimentBase
-   :members:
-
-Implementation
---------------
-
-.. autoclass:: Experiment
-   :members:
-
-"""
+"""Coating layer factory."""
 
 import abc
 import dataclasses
-from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar
+from typing import TYPE_CHECKING, Generic, Optional, Tuple, Type, TypeVar
 
 import cv2
 import numpy as np
 import numpy.typing as npt
 
 from .coatinglayer import CoatingLayerBase
-from .experiment_param import Parameters
 from .substrate import SubstrateBase
 
 if TYPE_CHECKING:
@@ -56,8 +33,7 @@ class ExperimentError(Exception):
 
 
 class ExperimentBase(abc.ABC, Generic[ParametersType]):
-    """
-    Abstract base class for coating layer factory.
+    """Abstract base class for coating layer factory.
 
     Experiment is an act of transforming incoming coated substrate images to
     coating layer data by processing them agains the bare substrate.
@@ -87,7 +63,6 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
     substrate can be implemented in this method. Standard implementation use
     template matching, but another possible way is to use physically measured
     data (e.g., actuator log).
-
     """
 
     __slots__ = ("_parameters",)
@@ -102,6 +77,7 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
 
     @property
     def parameters(self) -> ParametersType:
+        """Coating layer construction parameters."""
         return self._parameters
 
     @abc.abstractmethod
@@ -119,20 +95,31 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
         layer_drawoptions: Optional["DataclassInstance"] = None,
         layer_decooptions: Optional["DataclassInstance"] = None,
     ) -> CoatingLayerBase:
-        """
-        Factory method to create coating layer.
+        """Create coating layer.
 
         Implementation may define custom way to create new instance. For example,
         substrate location in previous image can be stored to boost template
         matching of incoming images. If required, :meth:`parameters` can be
         used to controll consecutive creation.
-
         """
 
 
-class Experiment(ExperimentBase[Parameters]):
+@dataclasses.dataclass(frozen=True)
+class Parameters:
+    """Additional parameters for :class:`Experiment` instance.
+
+    Attributes
+    ----------
+    window : tuple
+        Restricts the possible location of template to boost speed.
+        Negative value means no restriction in corresponding axis.
     """
-    Experiment class with adjustable template matching window.
+
+    window: Tuple[int, int] = (-1, -1)
+
+
+class Experiment(ExperimentBase[Parameters]):
+    """Experiment class with adjustable template matching window.
 
     Specifying the window can significantly boost the evaluation.
     """
@@ -142,6 +129,7 @@ class Experiment(ExperimentBase[Parameters]):
     Parameters = Parameters
 
     def verify(self):
+        """Check error."""
         pass
 
     def coatinglayer(
@@ -154,6 +142,10 @@ class Experiment(ExperimentBase[Parameters]):
         layer_drawoptions=None,
         layer_decooptions=None,
     ):
+        """Create coating layer.
+
+        If *window* parameter has positive axis, template matching is boosted.
+        """
         prev = getattr(self, "_prev", None)
         window = self.parameters.window
         if not prev:

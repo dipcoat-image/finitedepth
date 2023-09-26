@@ -1,10 +1,9 @@
-"""
-DipCoatImage-FiniteDepth
-========================
+"""Image analysis for finit-depth dip coating.
 
-Image analysis package for the coating layer shape in finite-depth dip coating
-process. Analysis is done by locating the bare substrate from coated substrate
-image, and extracting the coating layer region.
+DipCoatImage-FiniteDepth is an image analysis package for the coating layer
+shape in finite-depth dip coating process. Analysis is done by locating the
+bare substrate from coated substrate image, and extracting the coating layer
+region.
 
 This package provides
 
@@ -14,7 +13,6 @@ This package provides
 4. Saving analysis result
 
 :mod:`dipcoatimage.finitedepth_gui` provides GUI for this package.
-
 """
 
 from importlib_resources import files
@@ -58,8 +56,7 @@ __all__ = [
 
 
 def get_data_path(*paths: str) -> str:
-    """
-    Get path to data file.
+    """Get path to data file.
 
     Parameters
     ----------
@@ -72,14 +69,12 @@ def get_data_path(*paths: str) -> str:
         Absolute path to the data.
 
     Examples
-    ========
-
+    --------
     >>> from dipcoatimage.finitedepth import get_data_path
     >>> get_data_path() # doctest: +SKIP
     'path/dipcoatimage/finitedepth/data'
     >>> get_data_path("coat1.png") # doctest: +SKIP
     'path/dipcoatimage/finitedepth/data/coat1.png'
-
     """
     data_path = files("dipcoatimage.finitedepth.data")
     if not paths:

@@ -1,9 +1,4 @@
-"""
-Serialization
-=============
-
-Classes to serialize the analysis parameters into configuration files.
-"""
+"""Read analysis configuration from file."""
 
 import dataclasses
 import enum
@@ -52,6 +47,7 @@ class ImportArgs:
     module: str = "dipcoatimage.finitedepth"
 
     def import_variable(self) -> Any:
+        """Import the variable using its name and module."""
         if not self.name:
             raise ValueError("Empty variable name")
 
@@ -69,12 +65,10 @@ class ImportArgs:
 
 @dataclasses.dataclass
 class ReferenceArgs:
-    """
-    Data for the concrete instance of :class:`ReferenceBase`.
+    """Data for the concrete instance of :class:`ReferenceBase`.
 
     Parameters
-    ==========
-
+    ----------
     type
         Information to import reference class.
         Class name defaults to ``Reference``.
@@ -83,8 +77,7 @@ class ReferenceArgs:
         Data for arguments of reference class.
 
     Examples
-    ========
-
+    --------
     .. plot::
        :include-source:
 
@@ -100,32 +93,20 @@ class ReferenceArgs:
        >>> ref = refargs.as_reference(img)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
-
     """
 
-    type: ImportArgs = dataclasses.field(default_factory=ImportArgs)
+    type: ImportArgs = dataclasses.field(
+        default_factory=lambda: ImportArgs(name="Reference")
+    )
     templateROI: OptionalROI = (0, 0, None, None)
     substrateROI: OptionalROI = (0, 0, None, None)
     parameters: dict = dataclasses.field(default_factory=dict)
     draw_options: dict = dataclasses.field(default_factory=dict)
 
-    def __post_init__(self):
-        if not self.type.name:
-            self.type.name = "Reference"
-
     def as_structured_args(
         self,
     ) -> Tuple[Type[ReferenceBase], "DataclassInstance", "DataclassInstance"]:
-        """
-        Structure the primitive data.
-
-        Returns
-        =======
-
-        (refcls, params, drawopts)
-            Type and arguments for reference class, structured from the data.
-
-        """
+        """Structure the primitive data."""
         refcls = self.type.import_variable()
         if not (isinstance(refcls, type) and issubclass(refcls, ReferenceBase)):
             raise TypeError(f"{refcls} is not substrate reference class.")
@@ -154,12 +135,10 @@ class ReferenceArgs:
 
 @dataclasses.dataclass
 class SubstrateArgs:
-    """
-    Data for the concrete instance of :class:`SubstrateBase`.
+    """Data for the concrete instance of :class:`SubstrateBase`.
 
     Parameters
-    ==========
-
+    ----------
     type
         Information to import substrate class.
         Class name defaults to ``Substrate``.
@@ -168,8 +147,7 @@ class SubstrateArgs:
         Data for arguments of substrate class.
 
     Examples
-    ========
-
+    --------
     Construct substrate reference instance first.
 
     .. plot::
@@ -201,30 +179,18 @@ class SubstrateArgs:
        >>> subst = substargs.as_substrate(ref)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
-
     """
 
-    type: ImportArgs = dataclasses.field(default_factory=ImportArgs)
+    type: ImportArgs = dataclasses.field(
+        default_factory=lambda: ImportArgs(name="Substrate")
+    )
     parameters: dict = dataclasses.field(default_factory=dict)
     draw_options: dict = dataclasses.field(default_factory=dict)
-
-    def __post_init__(self):
-        if not self.type.name:
-            self.type.name = "Substrate"
 
     def as_structured_args(
         self,
     ) -> Tuple[Type[SubstrateBase], "DataclassInstance", "DataclassInstance"]:
-        """
-        Structure the primitive data.
-
-        Returns
-        =======
-
-        (substcls, params, drawopts)
-            Type and arguments for substrate class, structured from the data.
-
-        """
+        """Structure the primitive data."""
         substcls = self.type.import_variable()
         if not (isinstance(substcls, type) and issubclass(substcls, SubstrateBase)):
             raise TypeError(f"{substcls} is not substrate class.")
@@ -250,12 +216,10 @@ class SubstrateArgs:
 
 @dataclasses.dataclass
 class CoatingLayerArgs:
-    """
-    Data for the concrete instance of :class:`CoatingLayerBase`.
+    """Data for the concrete instance of :class:`CoatingLayerBase`.
 
     Parameters
-    ==========
-
+    ----------
     type
         Information to import substrate class.
         Class name defaults to ``CoatingLayer``.
@@ -264,8 +228,7 @@ class CoatingLayerArgs:
         Data for arguments of coating layer class.
 
     Examples
-    ========
-
+    --------
     Construct substrate reference instance and substrate instance first.
 
     .. plot::
@@ -313,17 +276,14 @@ class CoatingLayerArgs:
        >>> layer = layerargs.as_coatinglayer(img, subst)
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(layer.draw()) #doctest: +SKIP
-
     """
 
-    type: ImportArgs = dataclasses.field(default_factory=ImportArgs)
+    type: ImportArgs = dataclasses.field(
+        default_factory=lambda: ImportArgs(name="CoatingLayer")
+    )
     parameters: dict = dataclasses.field(default_factory=dict)
     draw_options: dict = dataclasses.field(default_factory=dict)
     deco_options: dict = dataclasses.field(default_factory=dict)
-
-    def __post_init__(self):
-        if not self.type.name:
-            self.type.name = "CoatingLayer"
 
     def as_structured_args(
         self,
@@ -333,16 +293,7 @@ class CoatingLayerArgs:
         "DataclassInstance",
         "DataclassInstance",
     ]:
-        """
-        Structure the primitive data.
-
-        Returns
-        =======
-
-        (layercls, params, drawopts, decoopts)
-            Type and arguments for coating layer class, structured from the data.
-
-        """
+        """Structure the primitive data."""
         layercls = self.type.import_variable()
         if not (isinstance(layercls, type) and issubclass(layercls, CoatingLayerBase)):
             raise TypeError(f"{layercls} is not coating layer class.")
@@ -371,38 +322,15 @@ class CoatingLayerArgs:
 
 @dataclasses.dataclass
 class ExperimentArgs:
-    """
-    Data for the concrete instance of :class:`ExperimentBase`.
+    """Data for the concrete instance of :class:`ExperimentBase`."""
 
-    Parameters
-    ==========
-
-    type
-        Information to import substrate class.
-        Class name defaults to ``Experiment``.
-
-    parameters
-        Data for arguments of experiment class.
-    """
-
-    type: ImportArgs = dataclasses.field(default_factory=ImportArgs)
+    type: ImportArgs = dataclasses.field(
+        default_factory=lambda: ImportArgs(name="Experiment")
+    )
     parameters: dict = dataclasses.field(default_factory=dict)
 
-    def __post_init__(self):
-        if not self.type.name:
-            self.type.name = "Experiment"
-
     def as_structured_args(self) -> Tuple[Type[ExperimentBase], "DataclassInstance"]:
-        """
-        Structure the primitive data.
-
-        Returns
-        =======
-
-        (exptcls, params)
-            Type and arguments for experiment class, structured from the data.
-
-        """
+        """Structure the primitive data."""
         exptcls = self.type.import_variable()
         if not (isinstance(exptcls, type) and issubclass(exptcls, ExperimentBase)):
             raise TypeError(f"{exptcls} is not experiment class.")
@@ -421,44 +349,18 @@ class ExperimentArgs:
 
 @dataclasses.dataclass
 class AnalysisArgs:
-    """
-    Data for the concrete instance of :class:`AnalysisBase`.
+    """Data for the concrete instance of :class:`AnalysisBase`."""
 
-    Parameters
-    ==========
-
-    type
-        Information to import substrate class.
-        Class name defaults to ``Analysis``.
-
-    parameters
-        Data for arguments of analysis class.
-
-    fps
-        Time interval between each coating layer image.
-    """
-
-    type: ImportArgs = dataclasses.field(default_factory=ImportArgs)
+    type: ImportArgs = dataclasses.field(
+        default_factory=lambda: ImportArgs(name="Analysis")
+    )
     parameters: dict = dataclasses.field(default_factory=dict)
     fps: Optional[float] = None
-
-    def __post_init__(self):
-        if not self.type.name:
-            self.type.name = "Analysis"
 
     def as_structured_args(
         self,
     ) -> Tuple[Type[AnalysisBase], "DataclassInstance", Optional[float]]:
-        """
-        Structure the primitive data.
-
-        Returns
-        =======
-
-        (cls, params)
-            Type and arguments for analysis class, structured from the data.
-
-        """
+        """Structure the primitive data."""
         cls = self.type.import_variable()
         if not (isinstance(cls, type) and issubclass(cls, AnalysisBase)):
             raise TypeError(f"{cls} is not coating layer class.")
@@ -469,14 +371,14 @@ class AnalysisArgs:
         return (cls, params, self.fps)
 
     def as_analysis(self) -> AnalysisBase:
+        """Construct the analysis instance."""
         cls, params, fps = self.as_structured_args()
         analysis = cls(parameters=params, fps=fps)
         return analysis
 
 
 class CoatingFileType(enum.Enum):
-    """
-    Enumeration of the experiment category by coated substrate files.
+    """Enumeration of the experiment category by coated substrate files.
 
     NULL
         Invalid file
@@ -489,7 +391,6 @@ class CoatingFileType(enum.Enum):
 
     VIDEO
         Single video file
-
     """
 
     NULL = "NULL"
@@ -541,8 +442,7 @@ def coatingfile_type(paths: List[str]) -> CoatingFileType:
 
 @dataclasses.dataclass
 class Config:
-    """
-    Class which wraps every information to construct and analyze the experiment.
+    """Class which wraps every information to construct and analyze the experiment.
 
     Environment variables are allowed in *ref_path* and *coat_paths* fields.
 
@@ -558,13 +458,16 @@ class Config:
     analysis: AnalysisArgs = dataclasses.field(default_factory=AnalysisArgs)
 
     def __post_init__(self):
+        """Expand environment variables in paths."""
         self.ref_path = os.path.expandvars(self.ref_path)
         self.coat_paths = [os.path.expandvars(p) for p in self.coat_paths]
 
     def coatingfile_type(self) -> CoatingFileType:
+        """Return coating file type from *coat_paths*."""
         return coatingfile_type(self.coat_paths)
 
     def image_count(self) -> int:
+        """Return number of images from *coat_paths*."""
         filetype = self.coatingfile_type()
         if (
             filetype == CoatingFileType.SINGLE_IMAGE
@@ -581,6 +484,7 @@ class Config:
         return ret
 
     def image(self, index: int = 0) -> npt.NDArray[np.uint8]:
+        """Return *index*-th image from *coat_paths*."""
         filetype = self.coatingfile_type()
         if (
             filetype == CoatingFileType.SINGLE_IMAGE
@@ -602,6 +506,7 @@ class Config:
         return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     def image_generator(self) -> Generator[npt.NDArray[np.uint8], None, None]:
+        """Return a generator which yields images from *coat_paths*."""
         filetype = self.coatingfile_type()
         if (
             filetype == CoatingFileType.SINGLE_IMAGE
@@ -635,25 +540,20 @@ class Config:
             yield np.empty((0, 0), np.uint8)
 
     def construct_reference(self) -> ReferenceBase:
-        """
-        Construct and return :class:`ReferenceBase` from the data.
-        """
+        """Construct and return :class:`ReferenceBase` from the data."""
         gray = cv2.imread(self.ref_path, cv2.IMREAD_GRAYSCALE)
         _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
         return self.reference.as_reference(img)
 
     def construct_substrate(self) -> SubstrateBase:
-        """
-        Construct and return :class:`SubstrateBase` from the data.
-        """
+        """Construct and return :class:`SubstrateBase` from the data."""
         ref = self.construct_reference()
         return self.substrate.as_substrate(ref)
 
     def construct_coatinglayer(
         self, image_index: int = 0, sequential: bool = True
     ) -> CoatingLayerBase:
-        """
-        Construct and return :class:`CoatingLayerBase` from the data.
+        """Construct and return :class:`CoatingLayerBase` from the data.
 
         Parameters
         ----------
@@ -672,7 +572,6 @@ class Config:
         For speed, you may want to explicitly pass `sequential=False`. This
         ignores the designated :class:`Experiment` and directly constructs the
         coating layer instance.
-
         """
         if image_index > self.image_count() - 1:
             raise ValueError("image_index exceeds image numbers.")
@@ -704,12 +603,11 @@ class Config:
         return layer
 
     def construct_experiment(self) -> ExperimentBase:
-        """
-        Construct and return :class:`ExperimentBase` from the data.
-        """
+        """Construct and return :class:`ExperimentBase` from the data."""
         return self.experiment.as_experiment()
 
     def construct_analysis(self) -> AnalysisBase:
+        """Construct and return :class:`AnalysisBase` from the data."""
         analysis = self.analysis
         if analysis.fps is None and self.coatingfile_type() == CoatingFileType.VIDEO:
             cap = cv2.VideoCapture(self.coat_paths[0])
@@ -719,8 +617,7 @@ class Config:
         return analysis.as_analysis()
 
     def analyze(self, name: str = ""):
-        """
-        Analyze and save the data. Progress bar is shown.
+        """Analyze and save the data. Progress bar is shown.
 
         Parameters
         ----------

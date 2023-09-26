@@ -1,1 +1,0 @@
-.. automodule:: dipcoatimage.finitedepth.substrate

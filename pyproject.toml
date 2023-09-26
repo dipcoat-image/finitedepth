@@ -29,12 +29,13 @@ doc = [
     "numpydoc",
     "PyYAML",
     "sphinx",
-    "sphinx_rtd_theme",
 ]
 dev = [
     "flake8",
+    "flake8-docstrings",
     "black",
     "isort",
+    "docformatter",
     "mypy==1.4.1",
     "dipcoatimage-finitedepth[test,doc]",
 ]
@@ -48,3 +49,8 @@ where = ["src"]
 
 [tool.isort]
 profile = "black"
+
+[tool.docformatter]
+recursive = true
+in-place = true
+black = true

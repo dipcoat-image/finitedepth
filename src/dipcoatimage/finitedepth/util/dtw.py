@@ -1,3 +1,5 @@
+"""Dynamic time warping functions."""
+
 import numpy as np
 import numpy.typing as npt
 from numba import njit  # type: ignore
@@ -10,8 +12,7 @@ __all__ = [
 
 @njit(cache=True)
 def acm(cm: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-    """
-    Compute accumulated cost matrix from local cost matrix.
+    """Compute accumulated cost matrix from local cost matrix.
 
     Implements the algorithm from [1]_, with modification from [2]_.
 
@@ -38,7 +39,6 @@ def acm(cm: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     See Also
     --------
     owp : Compute optimal warping path from the accumulated cost matrix.
-
     """
     p, q = cm.shape
     ret = np.zeros((p, q), dtype=np.float64)
@@ -62,8 +62,7 @@ def acm(cm: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
 
 @njit(cache=True)
 def owp(acm: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
-    """
-    Compute optimal warping path from accumulated cost matrix
+    """Compute optimal warping path from accumulated cost matrix.
 
     Implements the algorithm from [1]_, with modification from [2]_.
 
@@ -88,7 +87,6 @@ def owp(acm: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
     See Also
     --------
     acm : Compute accumulated cost matrix.
-
     """
     p, q = acm.shape
     if p == 0 or q == 0:

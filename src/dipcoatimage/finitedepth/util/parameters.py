@@ -1,11 +1,4 @@
-"""
-Parameter classes
-=================
-
-:mod:`dipcoatimage.finitedepth.util.parameters` provides common classes to
-construct dataclasses for image analysis classes.
-
-"""
+"""Common parameters."""
 
 import dataclasses
 import enum
@@ -21,8 +14,7 @@ __all__ = [
 
 @dataclasses.dataclass
 class LineOptions:
-    """
-    Parameters to draw a line in the image.
+    """Parameters to draw a line in the image.
 
     Attributes
     ----------
@@ -31,7 +23,6 @@ class LineOptions:
     linewidth : int
         Width of the line.
         Zero value is the flag to not draw the line.
-
     """
 
     color: Tuple[int, int, int] = (0, 0, 0)
@@ -40,8 +31,7 @@ class LineOptions:
 
 @dataclasses.dataclass
 class PatchOptions:
-    """
-    Parameters to draw a patch in the image.
+    """Parameters to draw a patch in the image.
 
     Attributes
     ----------
@@ -52,7 +42,6 @@ class PatchOptions:
     linewidth : int
         Width of the edge.
         Zero value is the flag to not draw the edge.
-
     """
 
     fill: bool = True
@@ -62,6 +51,8 @@ class PatchOptions:
 
 
 class MarkerTypes(enum.Enum):
+    """Marker types for :func:`cv2.drawMarker`."""
+
     CROSS = "CROSS"
     TILTED_CROSS = "TILTED_CROSS"
     STAR = "STAR"
@@ -73,8 +64,7 @@ class MarkerTypes(enum.Enum):
 
 @dataclasses.dataclass
 class MarkerOptions:
-    """
-    Parameters to draw a marker in the image.
+    """Parameters to draw a marker in the image.
 
     Attributes
     ----------
@@ -83,7 +73,6 @@ class MarkerOptions:
     marker : MarkerTypes
     linewidth : int
     markersize : int
-
     """
 
     color: Tuple[int, int, int] = (0, 0, 0)
