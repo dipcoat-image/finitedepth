@@ -23,6 +23,7 @@ Implementation
 """
 
 import abc
+import cv2
 import dataclasses
 import numpy as np
 import numpy.typing as npt
@@ -152,7 +153,13 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
 
 
 class Experiment(ExperimentBase[Parameters]):
-    """Simplest experiment class with no parameter."""
+    """
+    Experiment class with adjustable template matching window.
+
+    Specifying the window can significantly boost the evaluation.
+    """
+
+    __slots__ = ("_prev",)
 
     Parameters = Parameters
 
@@ -161,19 +168,45 @@ class Experiment(ExperimentBase[Parameters]):
 
     def coatinglayer(
         self,
-        image: npt.NDArray[np.uint8],
-        substrate: SubstrateBase,
+        image,
+        substrate,
         *,
-        layer_type: Type[CoatingLayerType],
-        layer_parameters: Optional["DataclassInstance"] = None,
-        layer_drawoptions: Optional["DataclassInstance"] = None,
-        layer_decooptions: Optional["DataclassInstance"] = None,
-    ) -> CoatingLayerBase:
+        layer_type,
+        layer_parameters=None,
+        layer_drawoptions=None,
+        layer_decooptions=None,
+    ):
+        prev = getattr(self, "_prev", None)
+        window = self.parameters.window
+        if not prev:
+            x0, y0, x1, y1 = substrate.reference.templateROI
+        else:
+            x0, y0, x1, y1 = substrate.reference.templateROI
+            X, Y = prev
+            w0, h0 = window
+            w1, h1 = x1 - x0, y1 - y0
+            H, W = image.shape[:2]
+
+            if w0 < 0:
+                X0, X1 = 0, None
+            else:
+                X0, X1 = max(X - w0, 0), min(X + w1 + w0, W)
+            if h0 < 0:
+                Y0, Y1 = 0, None
+            else:
+                Y0, Y1 = max(Y - h0, 0), min(Y + h1 + h0, H)
+            image = image[Y0:Y1, X0:X1]
+
+        template = substrate.reference.image[y0:y1, x0:x1]
+        res = cv2.matchTemplate(image, template, cv2.TM_SQDIFF_NORMED)
+        score, _, loc, _ = cv2.minMaxLoc(res)
         ret = layer_type(
             image,
             substrate,
             parameters=layer_parameters,
             draw_options=layer_drawoptions,
             deco_options=layer_decooptions,
+            tempmatch=(loc, score),
         )
+        self._prev = loc
         return ret
