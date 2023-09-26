@@ -7,9 +7,10 @@ Classes to serialize the analysis parameters into configuration files.
 
 import dataclasses
 import enum
+import importlib
 import mimetypes
 import os
-from typing import TYPE_CHECKING, Generator, List, Optional, Tuple, Type
+from typing import TYPE_CHECKING, Any, Generator, List, Optional, Tuple, Type
 
 import cattrs
 import cv2
@@ -22,7 +23,6 @@ from .coatinglayer import CoatingLayerBase
 from .experiment import ExperimentBase
 from .reference import OptionalROI, ReferenceBase
 from .substrate import SubstrateBase
-from .util.importing import import_variable
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
@@ -50,6 +50,21 @@ class ImportArgs:
 
     name: str = ""
     module: str = "dipcoatimage.finitedepth"
+
+    def import_variable(self) -> Any:
+        if not self.name:
+            raise ValueError("Empty variable name")
+
+        SENTINEL = object()
+        if self.module:
+            module = importlib.import_module(self.module)
+            ret = getattr(module, self.name, SENTINEL)
+            if ret is SENTINEL:
+                raise ImportError(f"cannot import name {self.name} from {module}")
+        else:
+            ret = eval(self.name)
+
+        return ret
 
 
 @dataclasses.dataclass
@@ -111,9 +126,7 @@ class ReferenceArgs:
             Type and arguments for reference class, structured from the data.
 
         """
-        name = self.type.name
-        module = self.type.module
-        refcls = import_variable(name, module)
+        refcls = self.type.import_variable()
         if not (isinstance(refcls, type) and issubclass(refcls, ReferenceBase)):
             raise TypeError(f"{refcls} is not substrate reference class.")
 
@@ -212,9 +225,7 @@ class SubstrateArgs:
             Type and arguments for substrate class, structured from the data.
 
         """
-        name = self.type.name
-        module = self.type.module
-        substcls = import_variable(name, module)
+        substcls = self.type.import_variable()
         if not (isinstance(substcls, type) and issubclass(substcls, SubstrateBase)):
             raise TypeError(f"{substcls} is not substrate class.")
 
@@ -332,9 +343,7 @@ class CoatingLayerArgs:
             Type and arguments for coating layer class, structured from the data.
 
         """
-        name = self.type.name
-        module = self.type.module
-        layercls = import_variable(name, module)
+        layercls = self.type.import_variable()
         if not (isinstance(layercls, type) and issubclass(layercls, CoatingLayerBase)):
             raise TypeError(f"{layercls} is not coating layer class.")
 
@@ -394,9 +403,7 @@ class ExperimentArgs:
             Type and arguments for experiment class, structured from the data.
 
         """
-        name = self.type.name
-        module = self.type.module
-        exptcls = import_variable(name, module)
+        exptcls = self.type.import_variable()
         if not (isinstance(exptcls, type) and issubclass(exptcls, ExperimentBase)):
             raise TypeError(f"{exptcls} is not experiment class.")
 
@@ -452,9 +459,7 @@ class AnalysisArgs:
             Type and arguments for analysis class, structured from the data.
 
         """
-        name = self.type.name
-        module = self.type.module
-        cls = import_variable(name, module)
+        cls = self.type.import_variable()
         if not (isinstance(cls, type) and issubclass(cls, AnalysisBase)):
             raise TypeError(f"{cls} is not coating layer class.")
 
