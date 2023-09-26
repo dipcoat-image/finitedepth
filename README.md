@@ -11,7 +11,7 @@ Python package for image analysis on finite depth dip coating process.
 Analysis can be done by passing configuration files.
 
 ```
-$ finitedepth config1.yml conf2.yml ...
+$ finitedepth analyze config1.yml conf2.yml ...
 ```
 
 For advanced usage, refer to [reference](https://dipcoatimage-finitedepth.readthedocs.io/en/latest/) document.

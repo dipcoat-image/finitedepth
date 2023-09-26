@@ -104,16 +104,16 @@ def analyze_files(*paths: str):
                 elif ext == "json":
                     data = json.load(f)
                 else:
-                    print(f"{ext} not supported! Skipping {path} ...")
+                    print(f"Skipping {path} ({ext} not supported)")
         except FileNotFoundError:
-            print(f"File does not exist: Skipping {path} ...")
+            print(f"Skipping {path} (path does not exist)")
             continue
         for k, v in data.items():
             try:
                 config = data_converter.structure(v, Config)
                 config.analyze(k)
             except Exception:
-                print(f"Error occurred! Skipping {path} ...")
+                print(f"Skipping {path} (Error occurred)")
                 continue
 
 
@@ -122,9 +122,18 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        prog="dipcoatimage-finitedepth",
-        description="Parse configuration files and analyze",
+        prog="finitedepth",
+        description="Finite depth dip coating analysis tool",
+    )
+    subparsers = parser.add_subparsers()
+
+    parser_analyze = subparsers.add_parser(
+        "analyze",
+        help="Parse configuration files and analyze",
         epilog="Supported file formats: YAML, JSON",
     )
-    parser.add_argument("file", type=str, nargs="+", help="target files")
-    analyze_files(*parser.parse_args().file)
+    parser_analyze.add_argument("file", type=str, nargs="+", help="target files")
+    parser_analyze.set_defaults(func=analyze_files)
+
+    args = parser.parse_args()
+    args.func(*args.file)
