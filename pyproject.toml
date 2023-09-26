@@ -29,15 +29,14 @@ doc = [
     "numpydoc",
     "PyYAML",
     "sphinx",
-    "sphinx_rtd_theme",
 ]
 dev = [
     "flake8",
     "flake8-docstrings",
     "black",
     "isort",
-    "mypy==1.4.1",
     "docformatter",
+    "mypy==1.4.1",
     "dipcoatimage-finitedepth[test,doc]",
 ]
 
