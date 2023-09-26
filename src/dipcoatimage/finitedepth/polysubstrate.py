@@ -6,15 +6,17 @@ Polygonal Substrate
 substrate with polygonal cross section.
 
 """
+from typing import TYPE_CHECKING, Tuple, Type, TypeVar
+
 import numpy as np
-from numpy.linalg import LinAlgError
 import numpy.typing as npt
 from numba import njit  # type: ignore
+from numpy.linalg import LinAlgError
 from scipy.ndimage import gaussian_filter1d  # type: ignore
 from scipy.signal import find_peaks, peak_prominences  # type: ignore
-from .substrate import SubstrateError, SubstrateBase
+
 from .polysubstrate_param import Parameters
-from typing import TypeVar, Type, Tuple, TYPE_CHECKING
+from .substrate import SubstrateBase, SubstrateError
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance

@@ -1,6 +1,6 @@
 import dataclasses
-from .util.parameters import LineOptions
 
+from .util.parameters import LineOptions
 
 __all__ = [
     "Parameters",

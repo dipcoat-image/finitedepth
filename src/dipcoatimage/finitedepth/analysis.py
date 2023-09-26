@@ -8,13 +8,14 @@ result from experiment.
 """
 
 import abc
-from collections.abc import Coroutine
 import dataclasses
 import mimetypes
 import os
+from collections.abc import Coroutine
+from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar
+
+from .analysis_param import CSVWriter, ImageWriter, Parameters
 from .coatinglayer import CoatingLayerBase
-from .analysis_param import ImageWriter, CSVWriter, Parameters
-from typing import Type, Optional, TypeVar, Generic, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance

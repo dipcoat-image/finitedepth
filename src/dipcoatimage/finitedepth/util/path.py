@@ -8,7 +8,6 @@ runtime.
 """
 from importlib_resources import files
 
-
 __all__ = [
     "get_data_path",
 ]

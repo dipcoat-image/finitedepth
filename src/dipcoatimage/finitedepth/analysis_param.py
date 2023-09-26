@@ -1,9 +1,9 @@
 import csv
 import dataclasses
-import imageio.v2 as iio  # TODO: use PyAV
 import mimetypes
-from typing import Optional, List
+from typing import List, Optional
 
+import imageio.v2 as iio  # TODO: use PyAV
 
 __all__ = [
     "ImageWriter",

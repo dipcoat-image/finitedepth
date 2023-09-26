@@ -34,19 +34,21 @@ Coating layer over rectangular substrate
 
 
 import abc
-import cv2
 import dataclasses
+from typing import TYPE_CHECKING, Generic, Optional, Tuple, Type, TypeVar
+
+import cv2
 import numpy as np
 import numpy.typing as npt
-from .substrate import SubstrateBase
+
 from .coatinglayer_param import (
-    Parameters,
-    DrawOptions,
-    DecoOptions,
     Data,
+    DecoOptions,
+    DrawOptions,
+    Parameters,
     SubtractionMode,
 )
-from typing import TypeVar, Generic, Type, Optional, Tuple, TYPE_CHECKING
+from .substrate import SubstrateBase
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance

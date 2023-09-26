@@ -1,6 +1,8 @@
 import csv
 import os
+
 import pytest
+
 from dipcoatimage.finitedepth.analysis import CSVWriter
 
 

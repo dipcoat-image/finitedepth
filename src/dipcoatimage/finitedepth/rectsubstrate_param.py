@@ -1,8 +1,9 @@
 import dataclasses
 import enum
-import numpy as np
-from .util.parameters import MarkerOptions, LineOptions
 
+import numpy as np
+
+from .util.parameters import LineOptions, MarkerOptions
 
 __all__ = [
     "PaintMode",

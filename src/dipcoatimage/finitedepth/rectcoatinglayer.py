@@ -16,25 +16,27 @@ Implementation
 
 """
 
+from typing import TYPE_CHECKING, Tuple, Type, TypeVar
+
 import cv2
 import numpy as np
 import numpy.typing as npt
 from scipy.optimize import root  # type: ignore
 from scipy.spatial.distance import cdist  # type: ignore
-from .rectsubstrate import RectSubstrate
-from .coatinglayer import CoatingLayerError, CoatingLayerBase, images_XOR
+
+from .coatinglayer import CoatingLayerBase, CoatingLayerError, images_XOR
 from .rectcoatinglayer_param import (
+    Data,
+    DecoOptions,
     DistanceMeasure,
-    Parameters,
     DrawOptions,
     PaintMode,
+    Parameters,
     SubtractionMode,
-    DecoOptions,
-    Data,
 )
+from .rectsubstrate import RectSubstrate
 from .util.dtw import acm, owp
-from .util.geometry import polyline_parallel_area, equidistant_interpolate
-from typing import TypeVar, Type, Tuple, TYPE_CHECKING
+from .util.geometry import equidistant_interpolate, polyline_parallel_area
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance

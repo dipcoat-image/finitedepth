@@ -23,14 +23,16 @@ Implementation
 """
 
 import abc
-import cv2
 import dataclasses
+from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar
+
+import cv2
 import numpy as np
 import numpy.typing as npt
-from .substrate import SubstrateBase
+
 from .coatinglayer import CoatingLayerBase
 from .experiment_param import Parameters
-from typing import TypeVar, Generic, Type, Optional, TYPE_CHECKING
+from .substrate import SubstrateBase
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
