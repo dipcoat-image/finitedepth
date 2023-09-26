@@ -34,7 +34,7 @@ from .rectcoatinglayer_param import (
 )
 from .util.dtw import acm, owp
 from .util.geometry import polyline_parallel_area, equidistant_interpolate
-from typing import TypeVar, Type, Tuple, Optional, TYPE_CHECKING
+from typing import TypeVar, Type, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
@@ -264,13 +264,12 @@ class RectLayerShape(
     PaintMode = PaintMode
     SubtractionMode = SubtractionMode
 
-    def examine(self) -> Optional[CoatingLayerError]:
+    def verify(self):
         ksize = self.parameters.KernelSize
         if not all(i == 0 or i % 2 == 1 for i in ksize):
-            return CoatingLayerError("Kernel size must be odd.")
+            raise CoatingLayerError("Kernel size must be odd.")
         if not self.capbridge_broken():
-            return CoatingLayerError("Capillary bridge is not broken.")
-        return None
+            raise CoatingLayerError("Capillary bridge is not broken.")
 
     def extract_layer(self) -> npt.NDArray[np.bool_]:
         if not hasattr(self, "_extracted_layer"):

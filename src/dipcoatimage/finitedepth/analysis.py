@@ -61,8 +61,7 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
 
     .. rubric:: Sanity check
 
-    Validity of the parameters can be checked by :meth:`verify` or :meth:`valid`.
-    Their result can be implemented by defining :meth:`examine`.
+    Validity of the parameters can be checked by :meth:`verify`.
 
     """
 
@@ -107,31 +106,8 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
         self._iterator.close()
 
     @abc.abstractmethod
-    def examine(self) -> Optional[AnalysisError]:
-        """
-        Check the sanity of parameters.
-
-        If the instance is invalid, return error instance.
-        Else, return :obj:`None`.
-        """
-
     def verify(self):
-        """
-        Verify if all parameters are suitably set by raising error on failure.
-
-        To implement sanity check for concrete class, define :meth:`examine`.
-        """
-        err = self.examine()
-        if err is not None:
-            raise err
-
-    def valid(self) -> bool:
-        """
-        Verify if all parameters are suitably set by returning boolean value.
-
-        To implement sanity check for concrete class, define :meth:`examine`.
-        """
-        return self.examine() is None
+        """Check to detect error and raise before analysis."""
 
 
 class Analysis(AnalysisBase[Parameters]):
@@ -146,7 +122,7 @@ class Analysis(AnalysisBase[Parameters]):
 
     DataWriters = dict(csv=CSVWriter)
 
-    def examine(self):
+    def verify(self):
         for path in [
             self.parameters.ref_data,
             self.parameters.subst_data,
@@ -155,7 +131,7 @@ class Analysis(AnalysisBase[Parameters]):
             if path:
                 _, ext = os.path.splitext(path)
                 if ext.lstrip(os.path.extsep).lower() not in self.DataWriters:
-                    return AnalysisError(f"{path} has unsupported extension.")
+                    raise AnalysisError(f"{path} has unsupported extension.")
         for path in [
             self.parameters.ref_visual,
             self.parameters.subst_visual,
@@ -164,7 +140,7 @@ class Analysis(AnalysisBase[Parameters]):
                 mtype, _ = mimetypes.guess_type(path)
                 file_type, _ = mtype.split("/")
                 if file_type != "image":
-                    return AnalysisError(f"{path} is not image.")
+                    raise AnalysisError(f"{path} is not image.")
         if self.parameters.layer_visual:
             mtype, _ = mimetypes.guess_type(self.parameters.layer_visual)
             file_type, _ = mtype.split("/")
@@ -172,14 +148,13 @@ class Analysis(AnalysisBase[Parameters]):
                 pass
             elif file_type == "video":
                 if self.fps is None or self.fps <= 0:
-                    return AnalysisError(
+                    raise AnalysisError(
                         "fps must be a positive number to write a video."
                     )
             else:
-                return AnalysisError(f"{path} is not image nor video.")
+                raise AnalysisError(f"{path} is not image nor video.")
         if self.fps is not None and self.fps <= 0:
-            return AnalysisError("fps must be None or a positive number.")
-        return None
+            raise AnalysisError("fps must be None or a positive number.")
 
     def __await__(self):
         def makedir(path):
