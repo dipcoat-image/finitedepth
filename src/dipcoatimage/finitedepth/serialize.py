@@ -8,6 +8,8 @@ Classes to serialize the analysis parameters into configuration files.
 import cattrs
 import cv2
 import dataclasses
+import enum
+import mimetypes
 import numpy as np
 import numpy.typing as npt
 import os
@@ -16,7 +18,7 @@ from .reference import ReferenceBase, OptionalROI
 from .substrate import SubstrateBase
 from .coatinglayer import CoatingLayerBase
 from .experiment import ExperimentBase
-from .analysis import ExperimentKind, experiment_kind, AnalysisBase
+from .analysis import AnalysisBase
 from .util.importing import import_variable
 from typing import List, Type, Tuple, Generator, TYPE_CHECKING
 
@@ -31,6 +33,8 @@ __all__ = [
     "CoatingLayerArgs",
     "ExperimentArgs",
     "AnalysisArgs",
+    "ExperimentKind",
+    "experiment_kind",
     "Config",
 ]
 
@@ -68,7 +72,8 @@ class ReferenceArgs:
        :include-source:
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import ReferenceArgs, get_data_path
+       >>> from dipcoatimage.finitedepth import get_data_path
+       >>> from dipcoatimage.finitedepth.serialize import ReferenceArgs
        >>> gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
        >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
        >>> refargs = ReferenceArgs(
@@ -157,7 +162,8 @@ class SubstrateArgs:
        :context: reset
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import ReferenceArgs, get_data_path
+       >>> from dipcoatimage.finitedepth import get_data_path
+       >>> from dipcoatimage.finitedepth.serialize import ReferenceArgs
        >>> gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
        >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
        >>> refargs = ReferenceArgs(
@@ -172,7 +178,8 @@ class SubstrateArgs:
        :include-source:
        :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import SubstrateArgs
+       >>> from dipcoatimage.finitedepth.serialize import SubstrateArgs
+       >>> from dipcoatimage.finitedepth.serialize import data_converter
        >>> params = dict(Sigma=3.0, Rho=1.0, Theta=0.01)
        >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)
        >>> substargs = data_converter.structure(arg, SubstrateArgs)
@@ -253,7 +260,8 @@ class CoatingLayerArgs:
        :context: reset
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import ReferenceArgs, get_data_path
+       >>> from dipcoatimage.finitedepth import get_data_path
+       >>> from dipcoatimage.finitedepth.serialize import ReferenceArgs
        >>> gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
        >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
        >>> refargs = ReferenceArgs(
@@ -265,7 +273,8 @@ class CoatingLayerArgs:
     .. plot::
        :include-source:
        :context: close-figs
-       >>> from dipcoatimage.finitedepth import SubstrateArgs, data_converter
+       >>> from dipcoatimage.finitedepth.serialize import SubstrateArgs
+       >>> from dipcoatimage.finitedepth.serialize import data_converter
        >>> params = dict(Sigma=3.0, Rho=1.0, Theta=0.01)
        >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)
        >>> substargs = data_converter.structure(arg, SubstrateArgs)
@@ -277,7 +286,7 @@ class CoatingLayerArgs:
        :include-source:
        :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import CoatingLayerArgs
+       >>> from dipcoatimage.finitedepth.serialize import CoatingLayerArgs
        >>> gray = cv2.imread(get_data_path("coat3.png"), cv2.IMREAD_GRAYSCALE)
        >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
        >>> params = dict(
@@ -450,6 +459,71 @@ class AnalysisArgs:
         cls, params = self.as_structured_args()
         analysis = cls(parameters=params)
         return analysis
+
+
+class ExperimentKind(enum.Enum):
+    """
+    Enumeration of the experiment category by coated substrate files.
+
+    NULL
+        Invalid file
+
+    SINGLE_IMAGE
+        Single image file
+
+    MULTI_IMAGE
+        Multiple image files
+
+    VIDEO
+        Single video file
+
+    """
+
+    NULL = "NULL"
+    SINGLE_IMAGE = "SINGLE_IMAGE"
+    MULTI_IMAGE = "MULTI_IMAGE"
+    VIDEO = "VIDEO"
+
+
+def experiment_kind(paths: List[str]) -> ExperimentKind:
+    """Get :class:`ExperimentKind` for given paths using MIME type."""
+    INVALID = False
+    video_count, image_count = 0, 0
+    for p in paths:
+        mtype, _ = mimetypes.guess_type(p)
+        if mtype is None:
+            INVALID = True
+            break
+        file_type, _ = mtype.split("/")
+        if file_type == "video":
+            video_count += 1
+        elif file_type == "image":
+            image_count += 1
+        else:
+            # unrecognized type
+            INVALID = True
+            break
+
+        if video_count > 1:
+            # video must be unique
+            INVALID = True
+            break
+        elif video_count and image_count:
+            # video cannot be combined with image
+            INVALID = True
+            break
+
+    if INVALID:
+        ret = ExperimentKind.NULL
+    elif video_count:
+        ret = ExperimentKind.VIDEO
+    elif image_count > 1:
+        ret = ExperimentKind.MULTI_IMAGE
+    elif image_count:
+        ret = ExperimentKind.SINGLE_IMAGE
+    else:
+        ret = ExperimentKind.NULL
+    return ret
 
 
 @dataclasses.dataclass

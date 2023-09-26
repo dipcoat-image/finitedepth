@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 import cv2  # type: ignore
-from dipcoatimage.finitedepth import (
-    get_data_path,
+from dipcoatimage.finitedepth import get_data_path
+from dipcoatimage.finitedepth.serialize import (
     data_converter,
     ImportArgs,
     ReferenceArgs,
@@ -9,6 +9,8 @@ from dipcoatimage.finitedepth import (
     CoatingLayerArgs,
     ExperimentArgs,
     AnalysisArgs,
+    ExperimentKind,
+    experiment_kind,
     Config,
 )
 import os
@@ -147,6 +149,39 @@ def test_ExperimentArgs():
         data_converter.unstructure(expt.parameters),
         exptargs.parameters,
     )
+
+
+def test_experiment_kind():
+    img_path = [
+        get_data_path("coat1.png"),
+    ]
+    assert experiment_kind(img_path) == ExperimentKind.SINGLE_IMAGE
+
+    imgs_path = [
+        get_data_path("coat1.png"),
+        get_data_path("coat2.png"),
+    ]
+    assert experiment_kind(imgs_path) == ExperimentKind.MULTI_IMAGE
+
+    vid_path = [
+        get_data_path("coat3.mp4"),
+    ]
+    assert experiment_kind(vid_path) == ExperimentKind.VIDEO
+
+    empty_path = []
+    assert experiment_kind(empty_path) == ExperimentKind.NULL
+    invalid_path = ["invalid.pdf"]
+    assert experiment_kind(invalid_path) == ExperimentKind.NULL
+    vids_path = [
+        get_data_path("coat3.mp4"),
+        get_data_path("coat3.mp4"),
+    ]
+    assert experiment_kind(vids_path) == ExperimentKind.NULL
+    vidimg_path = [
+        get_data_path("coat3.mp4"),
+        get_data_path("coat1.png"),
+    ]
+    assert experiment_kind(vidimg_path) == ExperimentKind.NULL
 
 
 def test_Config_analyze_singleimage(tmp_path):

@@ -10,89 +10,21 @@ result from experiment.
 import abc
 from collections.abc import Coroutine
 import dataclasses
-import enum
 import mimetypes
 import os
 from .coatinglayer import CoatingLayerBase
 from .analysis_param import ImageWriter, CSVWriter, Parameters
-from typing import List, Type, Optional, TypeVar, Generic, TYPE_CHECKING
+from typing import Type, Optional, TypeVar, Generic, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
 
 
 __all__ = [
-    "ExperimentKind",
-    "experiment_kind",
     "AnalysisError",
     "AnalysisBase",
     "Analysis",
 ]
-
-
-class ExperimentKind(enum.Enum):
-    """
-    Enumeration of the experiment category by coated substrate files.
-
-    NULL
-        Invalid file
-
-    SINGLE_IMAGE
-        Single image file
-
-    MULTI_IMAGE
-        Multiple image files
-
-    VIDEO
-        Single video file
-
-    """
-
-    NULL = "NULL"
-    SINGLE_IMAGE = "SINGLE_IMAGE"
-    MULTI_IMAGE = "MULTI_IMAGE"
-    VIDEO = "VIDEO"
-
-
-def experiment_kind(paths: List[str]) -> ExperimentKind:
-    """Get :class:`ExperimentKind` for given paths using MIME type."""
-    INVALID = False
-    video_count, image_count = 0, 0
-    for p in paths:
-        mtype, _ = mimetypes.guess_type(p)
-        if mtype is None:
-            INVALID = True
-            break
-        file_type, _ = mtype.split("/")
-        if file_type == "video":
-            video_count += 1
-        elif file_type == "image":
-            image_count += 1
-        else:
-            # unrecognized type
-            INVALID = True
-            break
-
-        if video_count > 1:
-            # video must be unique
-            INVALID = True
-            break
-        elif video_count and image_count:
-            # video cannot be combined with image
-            INVALID = True
-            break
-
-    if INVALID:
-        ret = ExperimentKind.NULL
-    elif video_count:
-        ret = ExperimentKind.VIDEO
-    elif image_count > 1:
-        ret = ExperimentKind.MULTI_IMAGE
-    elif image_count:
-        ret = ExperimentKind.SINGLE_IMAGE
-    else:
-        ret = ExperimentKind.NULL
-    return ret
 
 
 class AnalysisError(Exception):
