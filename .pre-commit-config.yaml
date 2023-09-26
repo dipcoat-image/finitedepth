@@ -23,6 +23,12 @@ repos:
     hooks:
     -   id: isort
         args: ["--profile", "black", "--filter-files"]
+-   repo: https://github.com/PyCQA/docformatter
+    rev: v1.7.5
+    hooks:
+    -   id: docformatter
+        additional_dependencies: [tomli]
+        args: ["--config", "./pyproject.toml"]
 -   repo: https://github.com/pycqa/flake8
     rev: 6.1.0
     hooks:
