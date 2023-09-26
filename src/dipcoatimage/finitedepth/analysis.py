@@ -9,158 +9,22 @@ result from experiment.
 
 import abc
 from collections.abc import Coroutine
-import csv
 import dataclasses
-import enum
-import imageio.v2 as iio  # TODO: use PyAV
 import mimetypes
 import os
 from .coatinglayer import CoatingLayerBase
-from .analysis_param import Parameters
-from typing import List, Type, Optional, Dict, Any, TypeVar, Generic, TYPE_CHECKING
+from .analysis_param import ImageWriter, CSVWriter, Parameters
+from typing import Type, Optional, TypeVar, Generic, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
 
 
 __all__ = [
-    "ExperimentKind",
-    "experiment_kind",
-    "DataWriter",
-    "CSVWriter",
     "AnalysisError",
     "AnalysisBase",
     "Analysis",
 ]
-
-
-class ExperimentKind(enum.Enum):
-    """
-    Enumeration of the experiment category by coated substrate files.
-
-    NULL
-        Invalid file
-
-    SINGLE_IMAGE
-        Single image file
-
-    MULTI_IMAGE
-        Multiple image files
-
-    VIDEO
-        Single video file
-
-    """
-
-    NULL = "NULL"
-    SINGLE_IMAGE = "SINGLE_IMAGE"
-    MULTI_IMAGE = "MULTI_IMAGE"
-    VIDEO = "VIDEO"
-
-
-def experiment_kind(paths: List[str]) -> ExperimentKind:
-    """Get :class:`ExperimentKind` for given paths using MIME type."""
-    INVALID = False
-    video_count, image_count = 0, 0
-    for p in paths:
-        mtype, _ = mimetypes.guess_type(p)
-        if mtype is None:
-            INVALID = True
-            break
-        file_type, _ = mtype.split("/")
-        if file_type == "video":
-            video_count += 1
-        elif file_type == "image":
-            image_count += 1
-        else:
-            # unrecognized type
-            INVALID = True
-            break
-
-        if video_count > 1:
-            # video must be unique
-            INVALID = True
-            break
-        elif video_count and image_count:
-            # video cannot be combined with image
-            INVALID = True
-            break
-
-    if INVALID:
-        ret = ExperimentKind.NULL
-    elif video_count:
-        ret = ExperimentKind.VIDEO
-    elif image_count > 1:
-        ret = ExperimentKind.MULTI_IMAGE
-    elif image_count:
-        ret = ExperimentKind.SINGLE_IMAGE
-    else:
-        ret = ExperimentKind.NULL
-    return ret
-
-
-class DataWriter(abc.ABC):
-    """
-    Abstract base class to write data file.
-
-    Parameters
-    ==========
-
-    path
-        Path to the data file.
-
-    headers
-        Headers for the data file.
-
-    """
-
-    def __init__(self, path: str, headers: List[str]):
-        self.path = path
-        self.headers = headers
-
-    @abc.abstractmethod
-    def prepare(self):
-        """Prepare to write the data, e.g. create file or write headers."""
-        pass
-
-    @abc.abstractmethod
-    def write_data(self, data: List[Any]):
-        """Write *data* to the file."""
-        pass
-
-    @abc.abstractmethod
-    def terminate(self):
-        """Terminate the writing and close the file."""
-        pass
-
-
-class CSVWriter(DataWriter):
-    """
-    Writer for CSV file.
-
-    Examples
-    ========
-
-    >>> from dipcoatimage.finitedepth.analysis import CSVWriter
-    >>> writer = CSVWriter("data.csv", ["foo", "bar"])
-    >>> def write_csv():
-    ...     writer.prepare()
-    ...     writer.write_data([10, 20])
-    ...     writer.terminate()
-    >>> write_csv() #doctest: +SKIP
-
-    """
-
-    def prepare(self):
-        self.datafile = open(self.path, "w", newline="")
-        self.writer = csv.writer(self.datafile)
-        self.writer.writerow(self.headers)
-
-    def write_data(self, data: List[Any]):
-        self.writer.writerow(data)
-
-    def terminate(self):
-        self.datafile.close()
 
 
 class AnalysisError(Exception):
@@ -191,6 +55,10 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
     Its instance is passed to the constructor at instance initialization, and can
     be accessed by :attr:`parameters`.
 
+    .. rubric:: FPS
+
+    *FPS* can be set to tell the time interval between each coating layer image.
+
     .. rubric:: Sanity check
 
     Validity of the parameters can be checked by :meth:`verify` or :meth:`valid`.
@@ -205,16 +73,26 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
 
     Parameters: Type[ParametersType]
 
-    def __init__(self, *, parameters: Optional[ParametersType] = None):
+    def __init__(
+        self,
+        parameters: Optional[ParametersType] = None,
+        *,
+        fps: Optional[float] = None,
+    ):
         if parameters is None:
             self._parameters = self.Parameters()
         else:
             self._parameters = dataclasses.replace(parameters)
+        self._fps = fps
         self._iterator = self.__await__()
 
     @property
     def parameters(self) -> ParametersType:
         return self._parameters
+
+    @property
+    def fps(self) -> Optional[float]:
+        return self._fps
 
     def send(self, value: Optional[CoatingLayerBase]):
         if value is None:
@@ -266,7 +144,7 @@ class Analysis(AnalysisBase[Parameters]):
 
     Parameters = Parameters
 
-    data_writers: Dict[str, Type[DataWriter]] = dict(csv=CSVWriter)
+    DataWriters = dict(csv=CSVWriter)
 
     def examine(self):
         for path in [
@@ -276,7 +154,7 @@ class Analysis(AnalysisBase[Parameters]):
         ]:
             if path:
                 _, ext = os.path.splitext(path)
-                if ext.lstrip(os.path.extsep).lower() not in self.data_writers:
+                if ext.lstrip(os.path.extsep).lower() not in self.DataWriters:
                     return AnalysisError(f"{path} has unsupported extension.")
         for path in [
             self.parameters.ref_visual,
@@ -293,14 +171,14 @@ class Analysis(AnalysisBase[Parameters]):
             if file_type == "image":
                 pass
             elif file_type == "video":
-                if self.parameters.layer_fps is None or self.parameters.layer_fps <= 0:
+                if self.fps is None or self.fps <= 0:
                     return AnalysisError(
-                        "layer_fps must be a positive number to write a video."
+                        "fps must be a positive number to write a video."
                     )
             else:
                 return AnalysisError(f"{path} is not image nor video.")
-        if self.parameters.layer_fps is not None and self.parameters.layer_fps <= 0:
-            return AnalysisError("layer_fps must be None or a positive number.")
+        if self.fps is not None and self.fps <= 0:
+            return AnalysisError("fps must be None or a positive number.")
         return None
 
     def __await__(self):
@@ -309,44 +187,39 @@ class Analysis(AnalysisBase[Parameters]):
             if dirname:
                 os.makedirs(dirname, exist_ok=True)
 
-        def make_writercls(path):
+        def get_writercls(path):
             _, ext = os.path.splitext(path)
-            writercls = self.data_writers[ext.lstrip(os.path.extsep).lower()]
+            writercls = self.DataWriters[ext.lstrip(os.path.extsep).lower()]
             return writercls
 
-        # prepare for analysis
+        fps = self.fps
+        # prepare for analysis as much as possible
         if self.parameters.ref_data:
             makedir(self.parameters.ref_data)
-            rd_cls = make_writercls(self.parameters.ref_data)
+            rd_cls = get_writercls(self.parameters.ref_data)
 
         if self.parameters.ref_visual:
             makedir(self.parameters.ref_visual)
+            rv_writer = ImageWriter(self.parameters.ref_visual, fps=fps)
+            next(rv_writer)
 
         if self.parameters.subst_data:
             makedir(self.parameters.subst_data)
-            sd_cls = make_writercls(self.parameters.subst_data)
+            sd_cls = get_writercls(self.parameters.subst_data)
 
         if self.parameters.subst_visual:
             makedir(self.parameters.subst_visual)
+            sv_writer = ImageWriter(self.parameters.subst_visual, fps=fps)
+            next(sv_writer)
 
         if self.parameters.layer_data:
             makedir(self.parameters.layer_data)
-            ld_cls = make_writercls(self.parameters.layer_data)
+            ld_cls = get_writercls(self.parameters.layer_data)
 
         if self.parameters.layer_visual:
             makedir(self.parameters.layer_visual)
-            mtype, _ = mimetypes.guess_type(self.parameters.layer_visual)
-            lv_type, _ = mtype.split("/")
-            if lv_type == "video":
-                fps = self.parameters.layer_fps
-                lv_writer = iio.get_writer(self.parameters.layer_visual, fps=fps)
-            elif lv_type == "image":
-                # TODO: implement wrapper for both video writer and image writer
-                try:
-                    self.parameters.layer_visual % 0
-                    lv_formattable = True
-                except (TypeError, ValueError):
-                    lv_formattable = False
+            lv_writer = ImageWriter(self.parameters.layer_visual, fps=fps)
+            next(lv_writer)
 
         # start analysis
         try:
@@ -354,61 +227,55 @@ class Analysis(AnalysisBase[Parameters]):
             layer = yield
 
             if self.parameters.ref_data:
-                headers = []
+                headers = [
+                    f.name for f in dataclasses.fields(layer.substrate.reference.Data)
+                ]
                 rd_writer = rd_cls(self.parameters.ref_data, headers)
-                rd_writer.prepare()
+                next(rd_writer)
                 data = list(dataclasses.astuple(layer.substrate.reference.analyze()))
-                rd_writer.write_data(data)
-                rd_writer.terminate()
+                rd_writer.send(data)
+                rd_writer.close()
 
             if self.parameters.ref_visual:
-                img = layer.substrate.reference.draw()
-                iio.imwrite(self.parameters.ref_visual, img)
+                rv_writer.send(layer.substrate.reference.draw())
+                rv_writer.close()
 
             if self.parameters.subst_data:
-                headers = []
+                headers = [f.name for f in dataclasses.fields(layer.substrate.Data)]
                 sd_writer = sd_cls(self.parameters.subst_data, headers)
-                sd_writer.prepare()
+                next(sd_writer)
                 data = list(dataclasses.astuple(layer.substrate.analyze()))
-                sd_writer.write_data(data)
-                sd_writer.terminate()
+                sd_writer.send(data)
+                sd_writer.close()
 
             if self.parameters.subst_visual:
-                img = layer.substrate.draw()
-                iio.imwrite(self.parameters.subst_visual, img)
+                sv_writer.send(layer.substrate.draw())
+                sv_writer.close()
 
             if self.parameters.layer_data:
                 headers = [f.name for f in dataclasses.fields(layer.Data)]
-                if self.parameters.layer_fps:
+                if fps:
                     headers = ["time (s)"] + headers
                 ld_writer = ld_cls(self.parameters.layer_data, headers)
-                ld_writer.prepare()
+                next(ld_writer)
 
             # Loop to analyze layers
             i = 0
             while True:
                 if self.parameters.layer_data:
                     data = list(dataclasses.astuple(layer.analyze()))
-                    if self.parameters.layer_fps:
-                        data = [i / self.parameters.layer_fps] + data
-                    ld_writer.write_data(data)
+                    if self.fps:
+                        data = [i / fps] + data
+                    ld_writer.send(data)
 
                 if self.parameters.layer_visual:
-                    if lv_type == "video":
-                        lv_writer.append_data(layer.draw())
-                    elif lv_type == "image":
-                        if lv_formattable:
-                            path = self.parameters.layer_visual % i
-                        else:
-                            path = self.parameters.layer_visual
-                        iio.imwrite(path, layer.draw())
+                    lv_writer.send(layer.draw())
 
                 layer = yield
                 i += 1
 
         finally:
             if self.parameters.layer_data:
-                ld_writer.terminate()
+                ld_writer.close()
             if self.parameters.layer_visual:
-                if lv_type == "video":
-                    lv_writer.close()
+                lv_writer.close()

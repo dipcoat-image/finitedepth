@@ -8,6 +8,8 @@ Classes to serialize the analysis parameters into configuration files.
 import cattrs
 import cv2
 import dataclasses
+import enum
+import mimetypes
 import numpy as np
 import numpy.typing as npt
 import os
@@ -16,9 +18,9 @@ from .reference import ReferenceBase, OptionalROI
 from .substrate import SubstrateBase
 from .coatinglayer import CoatingLayerBase
 from .experiment import ExperimentBase
-from .analysis import ExperimentKind, experiment_kind, AnalysisBase
+from .analysis import AnalysisBase
 from .util.importing import import_variable
-from typing import List, Type, Tuple, Generator, TYPE_CHECKING
+from typing import List, Type, Tuple, Generator, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
@@ -31,6 +33,8 @@ __all__ = [
     "CoatingLayerArgs",
     "ExperimentArgs",
     "AnalysisArgs",
+    "ExperimentKind",
+    "experiment_kind",
     "Config",
 ]
 
@@ -68,7 +72,8 @@ class ReferenceArgs:
        :include-source:
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import ReferenceArgs, get_data_path
+       >>> from dipcoatimage.finitedepth import get_data_path
+       >>> from dipcoatimage.finitedepth.serialize import ReferenceArgs
        >>> gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
        >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
        >>> refargs = ReferenceArgs(
@@ -157,7 +162,8 @@ class SubstrateArgs:
        :context: reset
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import ReferenceArgs, get_data_path
+       >>> from dipcoatimage.finitedepth import get_data_path
+       >>> from dipcoatimage.finitedepth.serialize import ReferenceArgs
        >>> gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
        >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
        >>> refargs = ReferenceArgs(
@@ -172,7 +178,8 @@ class SubstrateArgs:
        :include-source:
        :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import SubstrateArgs
+       >>> from dipcoatimage.finitedepth.serialize import SubstrateArgs
+       >>> from dipcoatimage.finitedepth.serialize import data_converter
        >>> params = dict(Sigma=3.0, Rho=1.0, Theta=0.01)
        >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)
        >>> substargs = data_converter.structure(arg, SubstrateArgs)
@@ -253,7 +260,8 @@ class CoatingLayerArgs:
        :context: reset
 
        >>> import cv2
-       >>> from dipcoatimage.finitedepth import ReferenceArgs, get_data_path
+       >>> from dipcoatimage.finitedepth import get_data_path
+       >>> from dipcoatimage.finitedepth.serialize import ReferenceArgs
        >>> gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
        >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
        >>> refargs = ReferenceArgs(
@@ -265,7 +273,8 @@ class CoatingLayerArgs:
     .. plot::
        :include-source:
        :context: close-figs
-       >>> from dipcoatimage.finitedepth import SubstrateArgs, data_converter
+       >>> from dipcoatimage.finitedepth.serialize import SubstrateArgs
+       >>> from dipcoatimage.finitedepth.serialize import data_converter
        >>> params = dict(Sigma=3.0, Rho=1.0, Theta=0.01)
        >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)
        >>> substargs = data_converter.structure(arg, SubstrateArgs)
@@ -277,7 +286,7 @@ class CoatingLayerArgs:
        :include-source:
        :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import CoatingLayerArgs
+       >>> from dipcoatimage.finitedepth.serialize import CoatingLayerArgs
        >>> gray = cv2.imread(get_data_path("coat3.png"), cv2.IMREAD_GRAYSCALE)
        >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
        >>> params = dict(
@@ -415,16 +424,22 @@ class AnalysisArgs:
 
     parameters
         Data for arguments of analysis class.
+
+    fps
+        Time interval between each coating layer image.
     """
 
     type: ImportArgs = dataclasses.field(default_factory=ImportArgs)
     parameters: dict = dataclasses.field(default_factory=dict)
+    fps: Optional[float] = None
 
     def __post_init__(self):
         if not self.type.name:
             self.type.name = "Analysis"
 
-    def as_structured_args(self) -> Tuple[Type[AnalysisBase], "DataclassInstance"]:
+    def as_structured_args(
+        self,
+    ) -> Tuple[Type[AnalysisBase], "DataclassInstance", Optional[float]]:
         """
         Structure the primitive data.
 
@@ -444,12 +459,77 @@ class AnalysisArgs:
         params = data_converter.structure(
             self.parameters, cls.Parameters  # type: ignore
         )
-        return (cls, params)
+        return (cls, params, self.fps)
 
     def as_analysis(self) -> AnalysisBase:
-        cls, params = self.as_structured_args()
-        analysis = cls(parameters=params)
+        cls, params, fps = self.as_structured_args()
+        analysis = cls(parameters=params, fps=fps)
         return analysis
+
+
+class ExperimentKind(enum.Enum):
+    """
+    Enumeration of the experiment category by coated substrate files.
+
+    NULL
+        Invalid file
+
+    SINGLE_IMAGE
+        Single image file
+
+    MULTI_IMAGE
+        Multiple image files
+
+    VIDEO
+        Single video file
+
+    """
+
+    NULL = "NULL"
+    SINGLE_IMAGE = "SINGLE_IMAGE"
+    MULTI_IMAGE = "MULTI_IMAGE"
+    VIDEO = "VIDEO"
+
+
+def experiment_kind(paths: List[str]) -> ExperimentKind:
+    """Get :class:`ExperimentKind` for given paths using MIME type."""
+    INVALID = False
+    video_count, image_count = 0, 0
+    for p in paths:
+        mtype, _ = mimetypes.guess_type(p)
+        if mtype is None:
+            INVALID = True
+            break
+        file_type, _ = mtype.split("/")
+        if file_type == "video":
+            video_count += 1
+        elif file_type == "image":
+            image_count += 1
+        else:
+            # unrecognized type
+            INVALID = True
+            break
+
+        if video_count > 1:
+            # video must be unique
+            INVALID = True
+            break
+        elif video_count and image_count:
+            # video cannot be combined with image
+            INVALID = True
+            break
+
+    if INVALID:
+        ret = ExperimentKind.NULL
+    elif video_count:
+        ret = ExperimentKind.VIDEO
+    elif image_count > 1:
+        ret = ExperimentKind.MULTI_IMAGE
+    elif image_count:
+        ret = ExperimentKind.SINGLE_IMAGE
+    else:
+        ret = ExperimentKind.NULL
+    return ret
 
 
 @dataclasses.dataclass
@@ -458,6 +538,8 @@ class Config:
     Class which wraps every information to construct and analyze the experiment.
 
     Environment variables are allowed in *ref_path* and *coat_paths* fields.
+
+    If *fps* is not passed to AnalysisArgs, try to determine it from input video.
     """
 
     ref_path: str = ""
@@ -502,6 +584,7 @@ class Config:
             cap = cv2.VideoCapture(self.coat_paths[0])
             cap.set(cv2.CAP_PROP_POS_FRAMES, index)
             _, frame = cap.read()
+            cap.release()
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         else:
             gray = None
@@ -527,17 +610,20 @@ class Config:
                     )
                 yield img
         elif expt_kind == ExperimentKind.VIDEO:
-            cap = cv2.VideoCapture(self.coat_paths[0])
-            for _ in range(self.image_count()):
-                _, frame = cap.read()
-                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                if gray is None:
-                    img = np.empty((0, 0), np.uint8)
-                else:
-                    _, img = cv2.threshold(
-                        gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
-                    )
-                yield img
+            try:
+                cap = cv2.VideoCapture(self.coat_paths[0])
+                for _ in range(self.image_count()):
+                    _, frame = cap.read()
+                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    if gray is None:
+                        img = np.empty((0, 0), np.uint8)
+                    else:
+                        _, img = cv2.threshold(
+                            gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
+                        )
+                    yield img
+            finally:
+                cap.release()
         else:
             yield np.empty((0, 0), np.uint8)
 
@@ -617,7 +703,13 @@ class Config:
         return self.experiment.as_experiment()
 
     def construct_analysis(self) -> AnalysisBase:
-        return self.analysis.as_analysis()
+        analysis = self.analysis
+        if analysis.fps is None and self.experiment_kind() == ExperimentKind.VIDEO:
+            cap = cv2.VideoCapture(self.coat_paths[0])
+            fps = float(cap.get(cv2.CAP_PROP_FPS))
+            cap.release()
+            analysis = dataclasses.replace(analysis, fps=fps)
+        return analysis.as_analysis()
 
     def analyze(self, name: str = ""):
         """
