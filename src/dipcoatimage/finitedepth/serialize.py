@@ -33,8 +33,8 @@ __all__ = [
     "CoatingLayerArgs",
     "ExperimentArgs",
     "AnalysisArgs",
-    "ExperimentKind",
-    "experiment_kind",
+    "CoatingFileType",
+    "coatingfile_type",
     "Config",
 ]
 
@@ -467,7 +467,7 @@ class AnalysisArgs:
         return analysis
 
 
-class ExperimentKind(enum.Enum):
+class CoatingFileType(enum.Enum):
     """
     Enumeration of the experiment category by coated substrate files.
 
@@ -491,8 +491,8 @@ class ExperimentKind(enum.Enum):
     VIDEO = "VIDEO"
 
 
-def experiment_kind(paths: List[str]) -> ExperimentKind:
-    """Get :class:`ExperimentKind` for given paths using MIME type."""
+def coatingfile_type(paths: List[str]) -> CoatingFileType:
+    """Get :class:`CoatingFileType` for given paths using MIME type."""
     INVALID = False
     video_count, image_count = 0, 0
     for p in paths:
@@ -520,15 +520,15 @@ def experiment_kind(paths: List[str]) -> ExperimentKind:
             break
 
     if INVALID:
-        ret = ExperimentKind.NULL
+        ret = CoatingFileType.NULL
     elif video_count:
-        ret = ExperimentKind.VIDEO
+        ret = CoatingFileType.VIDEO
     elif image_count > 1:
-        ret = ExperimentKind.MULTI_IMAGE
+        ret = CoatingFileType.MULTI_IMAGE
     elif image_count:
-        ret = ExperimentKind.SINGLE_IMAGE
+        ret = CoatingFileType.SINGLE_IMAGE
     else:
-        ret = ExperimentKind.NULL
+        ret = CoatingFileType.NULL
     return ret
 
 
@@ -554,17 +554,17 @@ class Config:
         self.ref_path = os.path.expandvars(self.ref_path)
         self.coat_paths = [os.path.expandvars(p) for p in self.coat_paths]
 
-    def experiment_kind(self) -> ExperimentKind:
-        return experiment_kind(self.coat_paths)
+    def coatingfile_type(self) -> CoatingFileType:
+        return coatingfile_type(self.coat_paths)
 
     def image_count(self) -> int:
-        expt_kind = self.experiment_kind()
+        filetype = self.coatingfile_type()
         if (
-            expt_kind == ExperimentKind.SINGLE_IMAGE
-            or expt_kind == ExperimentKind.MULTI_IMAGE
+            filetype == CoatingFileType.SINGLE_IMAGE
+            or filetype == CoatingFileType.MULTI_IMAGE
         ):
             ret = len(self.coat_paths)
-        elif expt_kind == ExperimentKind.VIDEO:
+        elif filetype == CoatingFileType.VIDEO:
             (path,) = self.coat_paths
             cap = cv2.VideoCapture(path)
             ret = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -574,13 +574,13 @@ class Config:
         return ret
 
     def image(self, index: int = 0) -> npt.NDArray[np.uint8]:
-        expt_kind = self.experiment_kind()
+        filetype = self.coatingfile_type()
         if (
-            expt_kind == ExperimentKind.SINGLE_IMAGE
-            or expt_kind == ExperimentKind.MULTI_IMAGE
+            filetype == CoatingFileType.SINGLE_IMAGE
+            or filetype == CoatingFileType.MULTI_IMAGE
         ):
             gray = cv2.imread(self.coat_paths[index], cv2.IMREAD_GRAYSCALE)
-        elif expt_kind == ExperimentKind.VIDEO:
+        elif filetype == CoatingFileType.VIDEO:
             cap = cv2.VideoCapture(self.coat_paths[0])
             cap.set(cv2.CAP_PROP_POS_FRAMES, index)
             _, frame = cap.read()
@@ -595,10 +595,10 @@ class Config:
         return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     def image_generator(self) -> Generator[npt.NDArray[np.uint8], None, None]:
-        expt_kind = self.experiment_kind()
+        filetype = self.coatingfile_type()
         if (
-            expt_kind == ExperimentKind.SINGLE_IMAGE
-            or expt_kind == ExperimentKind.MULTI_IMAGE
+            filetype == CoatingFileType.SINGLE_IMAGE
+            or filetype == CoatingFileType.MULTI_IMAGE
         ):
             for path in self.coat_paths:
                 gray = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
@@ -609,7 +609,7 @@ class Config:
                         gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
                     )
                 yield img
-        elif expt_kind == ExperimentKind.VIDEO:
+        elif filetype == CoatingFileType.VIDEO:
             try:
                 cap = cv2.VideoCapture(self.coat_paths[0])
                 for _ in range(self.image_count()):
@@ -704,7 +704,7 @@ class Config:
 
     def construct_analysis(self) -> AnalysisBase:
         analysis = self.analysis
-        if analysis.fps is None and self.experiment_kind() == ExperimentKind.VIDEO:
+        if analysis.fps is None and self.coatingfile_type() == CoatingFileType.VIDEO:
             cap = cv2.VideoCapture(self.coat_paths[0])
             fps = float(cap.get(cv2.CAP_PROP_FPS))
             cap.release()

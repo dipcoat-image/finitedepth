@@ -9,8 +9,8 @@ from dipcoatimage.finitedepth.serialize import (
     CoatingLayerArgs,
     ExperimentArgs,
     AnalysisArgs,
-    ExperimentKind,
-    experiment_kind,
+    CoatingFileType,
+    coatingfile_type,
     Config,
 )
 import os
@@ -151,37 +151,37 @@ def test_ExperimentArgs():
     )
 
 
-def test_experiment_kind():
+def test_coatingfile_type():
     img_path = [
         get_data_path("coat1.png"),
     ]
-    assert experiment_kind(img_path) == ExperimentKind.SINGLE_IMAGE
+    assert coatingfile_type(img_path) == CoatingFileType.SINGLE_IMAGE
 
     imgs_path = [
         get_data_path("coat1.png"),
         get_data_path("coat2.png"),
     ]
-    assert experiment_kind(imgs_path) == ExperimentKind.MULTI_IMAGE
+    assert coatingfile_type(imgs_path) == CoatingFileType.MULTI_IMAGE
 
     vid_path = [
         get_data_path("coat3.mp4"),
     ]
-    assert experiment_kind(vid_path) == ExperimentKind.VIDEO
+    assert coatingfile_type(vid_path) == CoatingFileType.VIDEO
 
     empty_path = []
-    assert experiment_kind(empty_path) == ExperimentKind.NULL
+    assert coatingfile_type(empty_path) == CoatingFileType.NULL
     invalid_path = ["invalid.pdf"]
-    assert experiment_kind(invalid_path) == ExperimentKind.NULL
+    assert coatingfile_type(invalid_path) == CoatingFileType.NULL
     vids_path = [
         get_data_path("coat3.mp4"),
         get_data_path("coat3.mp4"),
     ]
-    assert experiment_kind(vids_path) == ExperimentKind.NULL
+    assert coatingfile_type(vids_path) == CoatingFileType.NULL
     vidimg_path = [
         get_data_path("coat3.mp4"),
         get_data_path("coat1.png"),
     ]
-    assert experiment_kind(vidimg_path) == ExperimentKind.NULL
+    assert coatingfile_type(vidimg_path) == CoatingFileType.NULL
 
 
 def test_Config_analyze_singleimage(tmp_path):
