@@ -115,8 +115,7 @@ class CoatingLayerBase(
 
     .. rubric:: Sanity check
 
-    Validity of the parameters can be checked by :meth:`verify` or :meth:`valid`.
-    Their result can be implemented by defining :meth:`examine`.
+    Validity of the parameters can be checked by :meth:`verify`.
 
     .. rubric:: Visualization
 
@@ -295,31 +294,8 @@ class CoatingLayerBase(
         return self._extracted_layer
 
     @abc.abstractmethod
-    def examine(self) -> Optional[CoatingLayerError]:
-        """
-        Check the sanity of parameters.
-
-        If the instance is invalid, return error instance.
-        Else, return :obj:`None`.
-        """
-
     def verify(self):
-        """
-        Verify if all parameters are suitably set by raising error on failure.
-
-        To implement sanity check for concrete class, define :meth:`examine`.
-        """
-        err = self.examine()
-        if err is not None:
-            raise err
-
-    def valid(self) -> bool:
-        """
-        Verify if all parameters are suitably set by returning boolean value.
-
-        To implement sanity check for concrete class, define :meth:`examine`.
-        """
-        return self.examine() is None
+        """Check to detect error and raise before analysis."""
 
     @abc.abstractmethod
     def draw(self) -> npt.NDArray[np.uint8]:
@@ -421,8 +397,8 @@ class CoatingLayer(
 
     SubtractionMode = SubtractionMode
 
-    def examine(self) -> None:
-        return None
+    def verify(self):
+        pass
 
     def draw(self) -> npt.NDArray[np.uint8]:
         image = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)

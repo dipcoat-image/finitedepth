@@ -14,7 +14,7 @@ from scipy.ndimage import gaussian_filter1d  # type: ignore
 from scipy.signal import find_peaks, peak_prominences  # type: ignore
 from .substrate import SubstrateError, SubstrateBase
 from .polysubstrate_param import Parameters
-from typing import TypeVar, Optional, Type, Tuple, TYPE_CHECKING
+from typing import TypeVar, Type, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
@@ -241,12 +241,11 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]
         (ret,) = (np.linalg.inv(mat) @ vec).transpose(2, 0, 1)
         return ret
 
-    def examine(self) -> Optional[PolySubstrateError]:
+    def verify(self):
         try:
             self.sideline_intersections()
         except LinAlgError:
-            return PolySubstrateError("Cannot find sideline intersections.")
-        return None
+            raise PolySubstrateError("Cannot find sideline intersections.")
 
 
 @njit(cache=True)
