@@ -115,3 +115,12 @@ def analyze_files(*paths: str):
             except Exception:
                 print(f"Error occurred! Skipping {path} ...")
                 continue
+
+
+def main():
+    """Entry point function."""
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("file", type=str, nargs="+", help="target files")
+    analyze_files(*parser.parse_args().file)
