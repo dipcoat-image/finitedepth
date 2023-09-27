@@ -6,7 +6,7 @@ import dataclasses
 import mimetypes
 import os
 from collections.abc import Coroutine
-from typing import TYPE_CHECKING, Generic, List, Optional, Type, TypeVar
+from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar
 
 import imageio.v2 as iio  # TODO: use PyAV
 
@@ -148,11 +148,10 @@ def ImageWriter(path: str, fps: Optional[float] = None):
         raise TypeError(f"Unsupported mimetype: {mtype}.")
 
 
-def CSVWriter(path: str, header: List[str]):
+def CSVWriter(path: str):
     """Write data to a csv file."""
     with open(path, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(header)
         while True:
             data = yield
             writer.writerow(data)
@@ -245,6 +244,8 @@ class Analysis(AnalysisBase[Parameters]):
         if self.parameters.ref_data:
             makedir(self.parameters.ref_data)
             rd_cls = get_writercls(self.parameters.ref_data)
+            rd_writer = rd_cls(self.parameters.ref_data)
+            next(rd_writer)
 
         if self.parameters.ref_visual:
             makedir(self.parameters.ref_visual)
@@ -254,6 +255,8 @@ class Analysis(AnalysisBase[Parameters]):
         if self.parameters.subst_data:
             makedir(self.parameters.subst_data)
             sd_cls = get_writercls(self.parameters.subst_data)
+            sd_writer = sd_cls(self.parameters.subst_data)
+            next(sd_writer)
 
         if self.parameters.subst_visual:
             makedir(self.parameters.subst_visual)
@@ -263,6 +266,8 @@ class Analysis(AnalysisBase[Parameters]):
         if self.parameters.layer_data:
             makedir(self.parameters.layer_data)
             ld_cls = get_writercls(self.parameters.layer_data)
+            ld_writer = ld_cls(self.parameters.layer_data)
+            next(ld_writer)
 
         if self.parameters.layer_visual:
             makedir(self.parameters.layer_visual)
@@ -278,34 +283,27 @@ class Analysis(AnalysisBase[Parameters]):
                 headers = [
                     f.name for f in dataclasses.fields(layer.substrate.reference.Data)
                 ]
-                rd_writer = rd_cls(self.parameters.ref_data, headers)
-                next(rd_writer)
+                rd_writer.send(headers)
                 data = list(dataclasses.astuple(layer.substrate.reference.analyze()))
                 rd_writer.send(data)
-                rd_writer.close()
 
             if self.parameters.ref_visual:
                 rv_writer.send(layer.substrate.reference.draw())
-                rv_writer.close()
 
             if self.parameters.subst_data:
                 headers = [f.name for f in dataclasses.fields(layer.substrate.Data)]
-                sd_writer = sd_cls(self.parameters.subst_data, headers)
-                next(sd_writer)
+                sd_writer.send(headers)
                 data = list(dataclasses.astuple(layer.substrate.analyze()))
                 sd_writer.send(data)
-                sd_writer.close()
 
             if self.parameters.subst_visual:
                 sv_writer.send(layer.substrate.draw())
-                sv_writer.close()
 
             if self.parameters.layer_data:
                 headers = [f.name for f in dataclasses.fields(layer.Data)]
                 if fps:
                     headers = ["time (s)"] + headers
-                ld_writer = ld_cls(self.parameters.layer_data, headers)
-                next(ld_writer)
+                ld_writer.send(headers)
 
             # Loop to analyze layers
             i = 0
@@ -323,6 +321,14 @@ class Analysis(AnalysisBase[Parameters]):
                 i += 1
 
         finally:
+            if self.parameters.ref_data:
+                rd_writer.close()
+            if self.parameters.ref_visual:
+                rv_writer.close()
+            if self.parameters.subst_data:
+                sd_writer.close()
+            if self.parameters.subst_visual:
+                sv_writer.close()
             if self.parameters.layer_data:
                 ld_writer.close()
             if self.parameters.layer_visual:
