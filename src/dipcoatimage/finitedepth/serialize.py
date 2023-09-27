@@ -1,14 +1,15 @@
 """Read analysis configuration from file."""
 
 import dataclasses
-import enum
+import glob
 import importlib
 import mimetypes
 import os
-from typing import TYPE_CHECKING, Any, Generator, List, Optional, Tuple, Type
+from typing import TYPE_CHECKING, Any, Generator, Optional, Tuple, Type
 
 import cattrs
 import cv2
+import imageio.v3 as iio
 import numpy as np
 import numpy.typing as npt
 import tqdm  # type: ignore
@@ -30,9 +31,8 @@ __all__ = [
     "CoatingLayerArgs",
     "ExperimentArgs",
     "AnalysisArgs",
-    "CoatingFileType",
-    "coatingfile_type",
     "Config",
+    "binarize",
 ]
 
 
@@ -377,80 +377,19 @@ class AnalysisArgs:
         return analysis
 
 
-class CoatingFileType(enum.Enum):
-    """Enumeration of the experiment category by coated substrate files.
-
-    NULL
-        Invalid file
-
-    SINGLE_IMAGE
-        Single image file
-
-    MULTI_IMAGE
-        Multiple image files
-
-    VIDEO
-        Single video file
-    """
-
-    NULL = "NULL"
-    SINGLE_IMAGE = "SINGLE_IMAGE"
-    MULTI_IMAGE = "MULTI_IMAGE"
-    VIDEO = "VIDEO"
-
-
-def coatingfile_type(paths: List[str]) -> CoatingFileType:
-    """Get :class:`CoatingFileType` for given paths using MIME type."""
-    INVALID = False
-    video_count, image_count = 0, 0
-    for p in paths:
-        mtype, _ = mimetypes.guess_type(p)
-        if mtype is None:
-            INVALID = True
-            break
-        file_type, _ = mtype.split("/")
-        if file_type == "video":
-            video_count += 1
-        elif file_type == "image":
-            image_count += 1
-        else:
-            # unrecognized type
-            INVALID = True
-            break
-
-        if video_count > 1:
-            # video must be unique
-            INVALID = True
-            break
-        elif video_count and image_count:
-            # video cannot be combined with image
-            INVALID = True
-            break
-
-    if INVALID:
-        ret = CoatingFileType.NULL
-    elif video_count:
-        ret = CoatingFileType.VIDEO
-    elif image_count > 1:
-        ret = CoatingFileType.MULTI_IMAGE
-    elif image_count:
-        ret = CoatingFileType.SINGLE_IMAGE
-    else:
-        ret = CoatingFileType.NULL
-    return ret
-
-
 @dataclasses.dataclass
 class Config:
     """Class which wraps every information to construct and analyze the experiment.
 
-    Environment variables are allowed in *ref_path* and *coat_paths* fields.
+    Notes
+    -----
+    Environment variables are allowed in *ref_path* and *coat_path* fields.
 
-    If *fps* is not passed to AnalysisArgs, try to determine it from input video.
+    If *fps* is not passed to AnalysisArgs, try to determine it from input files.
     """
 
     ref_path: str = ""
-    coat_paths: List[str] = dataclasses.field(default_factory=list)
+    coat_path: str = ""
     reference: ReferenceArgs = dataclasses.field(default_factory=ReferenceArgs)
     substrate: SubstrateArgs = dataclasses.field(default_factory=SubstrateArgs)
     coatinglayer: CoatingLayerArgs = dataclasses.field(default_factory=CoatingLayerArgs)
@@ -460,161 +399,62 @@ class Config:
     def __post_init__(self):
         """Expand environment variables in paths."""
         self.ref_path = os.path.expandvars(self.ref_path)
-        self.coat_paths = [os.path.expandvars(p) for p in self.coat_paths]
+        self.coat_path = os.path.expandvars(self.coat_path)
 
-    def coatingfile_type(self) -> CoatingFileType:
-        """Return coating file type from *coat_paths*."""
-        return coatingfile_type(self.coat_paths)
-
-    def image_count(self) -> int:
+    def frame_count(self) -> int:
         """Return number of images from *coat_paths*."""
-        filetype = self.coatingfile_type()
-        if (
-            filetype == CoatingFileType.SINGLE_IMAGE
-            or filetype == CoatingFileType.MULTI_IMAGE
-        ):
-            ret = len(self.coat_paths)
-        elif filetype == CoatingFileType.VIDEO:
-            (path,) = self.coat_paths
-            cap = cv2.VideoCapture(path)
-            ret = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            cap.release()
-        else:
-            ret = -1
-        return ret
-
-    def image(self, index: int = 0) -> npt.NDArray[np.uint8]:
-        """Return *index*-th image from *coat_paths*."""
-        filetype = self.coatingfile_type()
-        if (
-            filetype == CoatingFileType.SINGLE_IMAGE
-            or filetype == CoatingFileType.MULTI_IMAGE
-        ):
-            gray = cv2.imread(self.coat_paths[index], cv2.IMREAD_GRAYSCALE)
-        elif filetype == CoatingFileType.VIDEO:
-            cap = cv2.VideoCapture(self.coat_paths[0])
-            cap.set(cv2.CAP_PROP_POS_FRAMES, index)
-            _, frame = cap.read()
-            cap.release()
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        else:
-            gray = None
-        if gray is None:
-            img = np.empty((0, 0), np.uint8)
-        else:
-            _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-        return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        i = 0
+        files = glob.glob(self.coat_path)
+        for f in files:
+            mtype, _ = mimetypes.guess_type(f)
+            if mtype is None:
+                continue
+            mtype, _ = mtype.split("/")
+            if mtype == "image":
+                i += 1
+            elif mtype == "video":
+                cap = cv2.VideoCapture(f)
+                i += int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                cap.release()
+            else:
+                continue
+        return i
 
     def image_generator(self) -> Generator[npt.NDArray[np.uint8], None, None]:
         """Return a generator which yields images from *coat_paths*."""
-        filetype = self.coatingfile_type()
-        if (
-            filetype == CoatingFileType.SINGLE_IMAGE
-            or filetype == CoatingFileType.MULTI_IMAGE
-        ):
-            for path in self.coat_paths:
-                gray = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
-                if gray is None:
-                    img = np.empty((0, 0), np.uint8)
+        files = glob.glob(self.coat_path)
+        for f in files:
+            mtype, _ = mimetypes.guess_type(f)
+            if mtype is None:
+                continue
+            mtype, _ = mtype.split("/")
+            if mtype == "image":
+                yield iio.imread(f)
+            elif mtype == "video":
+                yield from iio.imiter(f)
+            else:
+                continue
+
+    def fps(self) -> Optional[float]:
+        """Find fps."""
+        fps = self.analysis.fps
+        if fps is None:
+            files = glob.glob(self.coat_path)
+            for f in files:
+                mtype, _ = mimetypes.guess_type(f)
+                if mtype is None:
+                    continue
+                mtype, _ = mtype.split("/")
+                if mtype == "image":
+                    continue
+                elif mtype == "video":
+                    cap = cv2.VideoCapture(f)
+                    fps = float(cap.get(cv2.CAP_PROP_FPS))
+                    cap.release()
+                    break
                 else:
-                    _, img = cv2.threshold(
-                        gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
-                    )
-                yield img
-        elif filetype == CoatingFileType.VIDEO:
-            try:
-                cap = cv2.VideoCapture(self.coat_paths[0])
-                for _ in range(self.image_count()):
-                    _, frame = cap.read()
-                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    if gray is None:
-                        img = np.empty((0, 0), np.uint8)
-                    else:
-                        _, img = cv2.threshold(
-                            gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
-                        )
-                    yield img
-            finally:
-                cap.release()
-        else:
-            yield np.empty((0, 0), np.uint8)
-
-    def construct_reference(self) -> ReferenceBase:
-        """Construct and return :class:`ReferenceBase` from the data."""
-        gray = cv2.imread(self.ref_path, cv2.IMREAD_GRAYSCALE)
-        _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-        return self.reference.as_reference(img)
-
-    def construct_substrate(self) -> SubstrateBase:
-        """Construct and return :class:`SubstrateBase` from the data."""
-        ref = self.construct_reference()
-        return self.substrate.as_substrate(ref)
-
-    def construct_coatinglayer(
-        self, image_index: int = 0, sequential: bool = True
-    ) -> CoatingLayerBase:
-        """Construct and return :class:`CoatingLayerBase` from the data.
-
-        Parameters
-        ----------
-        image_index : int
-            Index of the image to construct the coating layer instance in
-            multiframe experiment.
-
-        sequential: bool
-            If True, construction of instance is recursively done.
-
-        Notes
-        -----
-        If the experiment consists of multiple frames (images or video), the
-        index of image can be specified by *image_index*.
-
-        For speed, you may want to explicitly pass `sequential=False`. This
-        ignores the designated :class:`Experiment` and directly constructs the
-        coating layer instance.
-        """
-        if image_index > self.image_count() - 1:
-            raise ValueError("image_index exceeds image numbers.")
-
-        subst = self.construct_substrate()
-        layercls, params, drawopts, decoopts = self.coatinglayer.as_structured_args()
-        if sequential:
-            expt = self.construct_experiment()
-            img_gen = self.image_generator()
-            for _ in range(image_index + 1):
-                img = next(img_gen)
-                layer = expt.coatinglayer(
-                    img,
-                    subst,
-                    layer_type=layercls,
-                    layer_parameters=params,
-                    layer_drawoptions=drawopts,
-                    layer_decooptions=decoopts,
-                )
-        else:
-            img = self.image(image_index)
-            layer = layercls(
-                img,
-                subst,
-                parameters=params,
-                draw_options=drawopts,
-                deco_options=decoopts,
-            )
-        return layer
-
-    def construct_experiment(self) -> ExperimentBase:
-        """Construct and return :class:`ExperimentBase` from the data."""
-        return self.experiment.as_experiment()
-
-    def construct_analysis(self) -> AnalysisBase:
-        """Construct and return :class:`AnalysisBase` from the data."""
-        analysis = self.analysis
-        if analysis.fps is None and self.coatingfile_type() == CoatingFileType.VIDEO:
-            cap = cv2.VideoCapture(self.coat_paths[0])
-            fps = float(cap.get(cv2.CAP_PROP_FPS))
-            cap.release()
-            analysis = dataclasses.replace(analysis, fps=fps)
-        return analysis.as_analysis()
+                    continue
+        return fps
 
     def analyze(self, name: str = ""):
         """Analyze and save the data. Progress bar is shown.
@@ -625,21 +465,24 @@ class Config:
             Description for progress bar.
         """
         # Run verify() here and nowhere else. (Must centralize checks)
-        subst = self.construct_substrate()
+        gray = cv2.imread(self.ref_path, cv2.IMREAD_GRAYSCALE)
+        _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+        ref = self.reference.as_reference(img)
+        ref.verify()
+        subst = self.substrate.as_substrate(ref)
         subst.verify()
-        subst.reference.verify()
         layercls, params, drawopts, decoopts = self.coatinglayer.as_structured_args()
-        expt = self.construct_experiment()
+        expt = self.experiment.as_experiment()
         expt.verify()
-        analysis = self.construct_analysis()
+        analysis = dataclasses.replace(self.analysis, fps=self.fps()).as_analysis()
         analysis.verify()
         try:
             analysis.send(None)
             for img in tqdm.tqdm(
-                self.image_generator(), total=self.image_count(), desc=name
+                self.image_generator(), total=self.frame_count(), desc=name
             ):
                 layer = expt.coatinglayer(
-                    img,
+                    binarize(img),
                     subst,
                     layer_type=layercls,
                     layer_parameters=params,
@@ -650,3 +493,25 @@ class Config:
                 analysis.send(layer)
         finally:
             analysis.close()
+
+
+def binarize(image: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
+    """Binarize *image* with Otsu's thresholding."""
+    if image.size == 0:
+        return np.empty((0, 0), dtype=np.uint8)
+    if len(image.shape) == 2:
+        gray = image
+    elif len(image.shape) == 3:
+        ch = image.shape[-1]
+        if ch == 1:
+            gray = image
+        elif ch == 3:
+            gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        else:
+            raise TypeError(f"Image with invalid channel: {ch}")
+    else:
+        raise TypeError(f"Invalid image shape: {image}")
+    _, ret = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+    if ret is None:
+        ret = np.empty((0, 0), dtype=np.uint8)
+    return ret
