@@ -124,6 +124,8 @@ def ImageWriter(path: str, fps: Optional[float] = None):
     except (TypeError, ValueError):
         formattable = False
     if ftype == "video":
+        if fps is None:
+            raise TypeError("Cannot write video without fps.")
         with iio.imopen(path, "w", plugin="pyav") as out_file:
             out_file.init_video_stream("vp9", fps=int(fps))
             while True:
