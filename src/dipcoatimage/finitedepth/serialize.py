@@ -624,8 +624,10 @@ class Config:
         name : str
             Description for progress bar.
         """
+        # Run verify() here and nowhere else. (Must centralize checks)
         subst = self.construct_substrate()
         subst.verify()
+        subst.reference.verify()
         layercls, params, drawopts, decoopts = self.coatinglayer.as_structured_args()
         expt = self.construct_experiment()
         expt.verify()
