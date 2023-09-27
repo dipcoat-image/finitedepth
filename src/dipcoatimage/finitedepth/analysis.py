@@ -8,7 +8,7 @@ import os
 from collections.abc import Coroutine
 from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar
 
-import imageio.v2 as iio  # TODO: use PyAV
+import imageio.v3 as iio  # TODO: use PyAV
 
 from .coatinglayer import CoatingLayerBase
 
@@ -117,23 +117,20 @@ def ImageWriter(path: str, fps: Optional[float] = None):
     if mtype is None:
         raise TypeError(f"Unsupported mimetype: {mtype}.")
 
-    ftype, subtype = mtype.split("/")
+    ftype, _ = mtype.split("/")
     try:
         path % 0
         formattable = True
     except (TypeError, ValueError):
         formattable = False
-    if ftype == "video" or subtype in [
-        "gif",
-        "tiff",
-    ]:
-        writer = iio.get_writer(path, fps=fps)
-        try:
+    if ftype == "video":
+        if fps is None:
+            raise TypeError("Cannot write video without fps.")
+        with iio.imopen(path, "w", plugin="pyav") as out_file:
+            out_file.init_video_stream("vp9", fps=int(fps))
             while True:
                 img = yield
-                writer.append_data(img)
-        finally:
-            writer.close()
+                out_file.write_frame(img)
     elif ftype == "image":
         i = 0
         while True:

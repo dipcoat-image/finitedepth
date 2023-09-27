@@ -1,5 +1,5 @@
 cattrs
-imageio[ffmpeg]
+imageio[pyav]
 importlib_resources
 numpy >= 1.21
 numba
