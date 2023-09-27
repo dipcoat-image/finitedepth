@@ -7,14 +7,12 @@ import yaml  # type: ignore
 from dipcoatimage.finitedepth import get_data_path
 from dipcoatimage.finitedepth.serialize import (
     AnalysisArgs,
-    CoatingFileType,
     CoatingLayerArgs,
     Config,
     ExperimentArgs,
     ImportArgs,
     ReferenceArgs,
     SubstrateArgs,
-    coatingfile_type,
     data_converter,
 )
 
@@ -153,39 +151,6 @@ def test_ExperimentArgs():
     )
 
 
-def test_coatingfile_type():
-    img_path = [
-        get_data_path("coat1.png"),
-    ]
-    assert coatingfile_type(img_path) == CoatingFileType.SINGLE_IMAGE
-
-    imgs_path = [
-        get_data_path("coat1.png"),
-        get_data_path("coat2.png"),
-    ]
-    assert coatingfile_type(imgs_path) == CoatingFileType.MULTI_IMAGE
-
-    vid_path = [
-        get_data_path("coat3.mp4"),
-    ]
-    assert coatingfile_type(vid_path) == CoatingFileType.VIDEO
-
-    empty_path = []
-    assert coatingfile_type(empty_path) == CoatingFileType.NULL
-    invalid_path = ["invalid.pdf"]
-    assert coatingfile_type(invalid_path) == CoatingFileType.NULL
-    vids_path = [
-        get_data_path("coat3.mp4"),
-        get_data_path("coat3.mp4"),
-    ]
-    assert coatingfile_type(vids_path) == CoatingFileType.NULL
-    vidimg_path = [
-        get_data_path("coat3.mp4"),
-        get_data_path("coat1.png"),
-    ]
-    assert coatingfile_type(vidimg_path) == CoatingFileType.NULL
-
-
 def test_Config_analyze_singleimage(tmp_path):
     analysisargs = AnalysisArgs(
         parameters=dict(
@@ -199,7 +164,7 @@ def test_Config_analyze_singleimage(tmp_path):
     )
     data = Config(
         ref_path=get_data_path("ref1.png"),
-        coat_paths=[get_data_path("coat1.png")],
+        coat_path=get_data_path("coat1.png"),
         reference=REFARGS,
         substrate=SUBSTARGS,
         coatinglayer=LAYERARGS,
@@ -220,7 +185,7 @@ def test_Config_analyze_singleimage(tmp_path):
     )
     data = Config(
         ref_path=get_data_path("ref1.png"),
-        coat_paths=[get_data_path("coat1.png")],
+        coat_path=get_data_path("coat1.png"),
         reference=REFARGS,
         substrate=SUBSTARGS,
         coatinglayer=LAYERARGS,
@@ -242,7 +207,7 @@ def test_Config_analyze_singleimage(tmp_path):
     )
     data = Config(
         ref_path=get_data_path("ref1.png"),
-        coat_paths=[get_data_path("coat1.png")],
+        coat_path=get_data_path("coat1.png"),
         reference=REFARGS,
         substrate=SUBSTARGS,
         coatinglayer=LAYERARGS,
@@ -250,51 +215,6 @@ def test_Config_analyze_singleimage(tmp_path):
         analysis=analysisargs,
     )
     data.analyze("test_analyze_singleimage-to-video")
-
-
-def test_Config_analyze_multiimage(tmp_path):
-    analysisargs = AnalysisArgs(
-        parameters=dict(
-            ref_data=os.path.join(tmp_path, "ref.csv"),
-            ref_visual=os.path.join(tmp_path, "ref.png"),
-            subst_data=os.path.join(tmp_path, "subst.csv"),
-            subst_visual=os.path.join(tmp_path, "subst.png"),
-            layer_data=os.path.join(tmp_path, "layer.csv"),
-            layer_visual=os.path.join(tmp_path, "layer-%02d.png"),
-        )
-    )
-    data = Config(
-        ref_path=get_data_path("ref1.png"),
-        coat_paths=[get_data_path("coat1.png"), get_data_path("coat1.png")],
-        reference=REFARGS,
-        substrate=SUBSTARGS,
-        coatinglayer=LAYERARGS,
-        experiment=EXPTARGS,
-        analysis=analysisargs,
-    )
-    data.analyze("test_analyze_multiimage-to-multiimage")
-
-    analysisargs = AnalysisArgs(
-        parameters=dict(
-            ref_data=os.path.join(tmp_path, "ref.csv"),
-            ref_visual=os.path.join(tmp_path, "ref.png"),
-            subst_data=os.path.join(tmp_path, "subst.csv"),
-            subst_visual=os.path.join(tmp_path, "subst.png"),
-            layer_data=os.path.join(tmp_path, "layer.csv"),
-            layer_visual=os.path.join(tmp_path, "layer.mp4"),
-        ),
-        fps=1.0,
-    )
-    data = Config(
-        ref_path=get_data_path("ref1.png"),
-        coat_paths=[get_data_path("coat1.png"), get_data_path("coat1.png")],
-        reference=REFARGS,
-        substrate=SUBSTARGS,
-        coatinglayer=LAYERARGS,
-        experiment=EXPTARGS,
-        analysis=analysisargs,
-    )
-    data.analyze("test_analyze_multiimage-to-video")
 
 
 def test_Config_analyze_video(tmp_path):
@@ -310,7 +230,7 @@ def test_Config_analyze_video(tmp_path):
     )
     data = Config(
         ref_path=get_data_path("ref3.png"),
-        coat_paths=[get_data_path("coat3.mp4")],
+        coat_path=get_data_path("coat3.mp4"),
         reference=REFARGS,
         substrate=SUBSTARGS,
         coatinglayer=LAYERARGS,

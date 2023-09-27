@@ -1,15 +1,11 @@
 SINGLEIMAGE:
-  coat_paths:
-  - coat1.png
   ref_path: ref1.png
+  coat_path: coat1.png
 
 MULTIIMAGE:
-  coat_paths:
-  - coat1.png
-  - coat1.png
   ref_path: ref1.png
+  coat_path: coat*.png
 
 VIDEO:
-  coat_paths:
-  - coat3.mp4
   ref_path: ref3.png
+  coat_path: coat3.mp4
