@@ -38,6 +38,7 @@ dev = [
     "isort",
     "docformatter",
     "mypy==1.4.1",
+    "types-Pillow",
     "types-PyYAML",
     "dipcoatimage-finitedepth[test,doc]",
 ]
