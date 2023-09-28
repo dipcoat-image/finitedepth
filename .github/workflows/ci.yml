@@ -59,7 +59,7 @@ jobs:
       - name: install package
         run: |
           pip install -r requirements.txt
-          pip install mypy==1.4.1 types-PyYAML
+          pip install mypy==1.4.1 types-PyYAML types-Pillow
 
       - name: run mypy check
         run: mypy src
