@@ -8,6 +8,7 @@ import os
 from collections.abc import Coroutine
 from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar
 
+import cv2
 import imageio.v3 as iio  # TODO: use PyAV
 
 from .coatinglayer import CoatingLayerBase
@@ -167,6 +168,8 @@ class Parameters:
     layer_data, layer_visual : str
         Paths for data file and visualized file of coating layer image(s).
         Pass formattable string (e.g. `img_%02d.jpg`) to save multiple images.
+    layer_fourcc : str
+        FourCC of codec to record analyzed layer video.
     """
 
     ref_data: str = ""
@@ -175,6 +178,7 @@ class Parameters:
     subst_visual: str = ""
     layer_data: str = ""
     layer_visual: str = ""
+    layer_fourcc: str = ""
 
 
 class Analysis(AnalysisBase[Parameters]):
@@ -214,14 +218,14 @@ class Analysis(AnalysisBase[Parameters]):
             if file_type == "image":
                 pass
             elif file_type == "video":
-                if self.fps is None or self.fps <= 0:
+                if self.fps is None or self.fps > 0:
                     raise AnalysisError(
-                        "fps must be a positive number to write a video."
+                        "fps must be a nonnegative number to write a video."
                     )
             else:
                 raise AnalysisError(f"{path} is not image nor video.")
-        if self.fps is not None and self.fps <= 0:
-            raise AnalysisError("fps must be None or a positive number.")
+        if self.fps is not None and self.fps > 0:
+            raise AnalysisError("fps must be None or a nonnegative number.")
 
     def __await__(self):
         """Analyze reference and substrate, then each sent coating layer."""
