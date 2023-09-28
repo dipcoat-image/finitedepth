@@ -9,7 +9,6 @@ from collections.abc import Coroutine
 from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar
 
 import cv2
-import imageio.v3 as iio  # TODO: use PyAV
 
 from .coatinglayer import CoatingLayerBase
 
@@ -112,38 +111,28 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
         """Check to detect error and raise before analysis."""
 
 
-def ImageWriter(path: str, fps: Optional[float] = None):
+def ImageWriter(path: str, fourcc: int, fps: float):
     """Write images to image files or a video file."""
     mtype, _ = mimetypes.guess_type(path)
     if mtype is None:
-        raise TypeError(f"Unsupported mimetype: {mtype}.")
+        raise TypeError(f"Invalid path: {path}.")
 
     ftype, _ = mtype.split("/")
-    try:
-        path % 0
-        formattable = True
-    except (TypeError, ValueError):
-        formattable = False
     if ftype == "video":
-        if fps is None:
-            raise TypeError("Cannot write video without fps.")
-        with iio.imopen(path, "w", plugin="pyav") as out_file:
-            out_file.init_video_stream("vp9", fps=int(fps))
-            while True:
-                img = yield
-                out_file.write_frame(img)
+        pass
     elif ftype == "image":
-        i = 0
-        while True:
-            img = yield
-            if formattable:
-                p = path % i
-            else:
-                p = path
-            iio.imwrite(p, img)
-            i += 1
+        fourcc = 0
+        fps = 0.0
     else:
         raise TypeError(f"Unsupported mimetype: {mtype}.")
+    img = yield
+    writer = cv2.VideoWriter(path, fourcc, fps, img.shape[:2])
+    try:
+        while True:
+            writer.write(img)
+            img = yield
+    finally:
+        writer.release()
 
 
 def CSVWriter(path: str):
@@ -218,13 +207,13 @@ class Analysis(AnalysisBase[Parameters]):
             if file_type == "image":
                 pass
             elif file_type == "video":
-                if self.fps is None or self.fps > 0:
+                if self.fps is None or self.fps < 0:
                     raise AnalysisError(
                         "fps must be a nonnegative number to write a video."
                     )
             else:
                 raise AnalysisError(f"{path} is not image nor video.")
-        if self.fps is not None and self.fps > 0:
+        if self.fps is not None and self.fps < 0:
             raise AnalysisError("fps must be None or a nonnegative number.")
 
     def __await__(self):
@@ -250,7 +239,7 @@ class Analysis(AnalysisBase[Parameters]):
 
         if self.parameters.ref_visual:
             makedir(self.parameters.ref_visual)
-            rv_writer = ImageWriter(self.parameters.ref_visual, fps=fps)
+            rv_writer = ImageWriter(self.parameters.ref_visual, 0, 0.0)
             next(rv_writer)
 
         if self.parameters.subst_data:
@@ -261,7 +250,7 @@ class Analysis(AnalysisBase[Parameters]):
 
         if self.parameters.subst_visual:
             makedir(self.parameters.subst_visual)
-            sv_writer = ImageWriter(self.parameters.subst_visual, fps=fps)
+            sv_writer = ImageWriter(self.parameters.subst_visual, 0, 0.0)
             next(sv_writer)
 
         if self.parameters.layer_data:
@@ -272,7 +261,11 @@ class Analysis(AnalysisBase[Parameters]):
 
         if self.parameters.layer_visual:
             makedir(self.parameters.layer_visual)
-            lv_writer = ImageWriter(self.parameters.layer_visual, fps=fps)
+            if len(self.parameters.layer_fourcc) == 4:
+                fourcc = cv2.VideoWriter_fourcc(*self.parameters.layer_fourcc)
+            else:
+                fourcc = 0
+            lv_writer = ImageWriter(self.parameters.layer_visual, fourcc, fps)
             next(lv_writer)
 
         # start analysis
