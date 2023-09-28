@@ -1,5 +1,6 @@
 """Read analysis configuration from file."""
 
+import abc
 import dataclasses
 import glob
 import importlib
@@ -9,9 +10,10 @@ from typing import TYPE_CHECKING, Any, Generator, Optional, Tuple, Type
 
 import cattrs
 import cv2
-import imageio.v3 as iio
 import numpy as np
 import numpy.typing as npt
+import PIL.Image
+import PIL.ImageSequence
 import tqdm  # type: ignore
 
 from .analysis import AnalysisBase
@@ -31,6 +33,7 @@ __all__ = [
     "CoatingLayerArgs",
     "ExperimentArgs",
     "AnalysisArgs",
+    "ConfigBase",
     "Config",
     "binarize",
 ]
@@ -378,7 +381,7 @@ class AnalysisArgs:
 
 
 @dataclasses.dataclass
-class Config:
+class ConfigBase(abc.ABC):
     """Class which wraps every information to construct and analyze the experiment.
 
     Notes
@@ -401,8 +404,64 @@ class Config:
         self.ref_path = os.path.expandvars(self.ref_path)
         self.coat_path = os.path.expandvars(self.coat_path)
 
+    @abc.abstractmethod
     def frame_count(self) -> int:
-        """Return number of images from *coat_paths*."""
+        """Return total number of images from *coat_paths*."""
+
+    @abc.abstractmethod
+    def reference_image(self) -> npt.NDArray[np.uint8]:
+        """Return binarized image from :attr:`ref_path`."""
+
+    @abc.abstractmethod
+    def image_generator(self) -> Generator[npt.NDArray[np.uint8], None, None]:
+        """Yield binarized images from :attr:`coat_path`."""
+
+    @abc.abstractmethod
+    def fps(self) -> Optional[float]:
+        """Find fps."""
+
+    def analyze(self, name: str = ""):
+        """Analyze and save the data. Progress bar is shown.
+
+        Parameters
+        ----------
+        name : str
+            Description for progress bar.
+        """
+        # Run verify() here and nowhere else. (Must centralize checks)
+        ref = self.reference.as_reference(self.reference_image())
+        ref.verify()
+        subst = self.substrate.as_substrate(ref)
+        subst.verify()
+        layercls, params, drawopts, decoopts = self.coatinglayer.as_structured_args()
+        expt = self.experiment.as_experiment()
+        expt.verify()
+        analysis = dataclasses.replace(self.analysis, fps=self.fps()).as_analysis()
+        analysis.verify()
+        try:
+            analysis.send(None)
+            for img in tqdm.tqdm(
+                self.image_generator(), total=self.frame_count(), desc=name
+            ):
+                layer = expt.coatinglayer(
+                    img,
+                    subst,
+                    layer_type=layercls,
+                    layer_parameters=params,
+                    layer_drawoptions=drawopts,
+                    layer_decooptions=decoopts,
+                )
+                layer.verify()
+                analysis.send(layer)
+        finally:
+            analysis.close()
+
+
+class Config(ConfigBase):
+    """Analyze using cv2."""
+
+    def frame_count(self) -> int:
+        """Return total number of images from *coat_paths*."""
         i = 0
         files = glob.glob(self.coat_path)
         for f in files:
@@ -411,7 +470,8 @@ class Config:
                 continue
             mtype, _ = mtype.split("/")
             if mtype == "image":
-                i += 1
+                with PIL.Image.open(f) as img:
+                    i += img.n_frames
             elif mtype == "video":
                 cap = cv2.VideoCapture(f)
                 i += int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -420,8 +480,14 @@ class Config:
                 continue
         return i
 
+    def reference_image(self) -> npt.NDArray[np.uint8]:
+        """Return binarized image from :attr:`ref_path`."""
+        with PIL.Image.open(self.ref_path) as img:
+            ret = binarize(np.array(img), "rgb")
+        return ret
+
     def image_generator(self) -> Generator[npt.NDArray[np.uint8], None, None]:
-        """Return a generator which yields images from *coat_paths*."""
+        """Yield binarized images from :attr:`coat_path`."""
         files = glob.glob(self.coat_path)
         for f in files:
             mtype, _ = mimetypes.guess_type(f)
@@ -429,9 +495,16 @@ class Config:
                 continue
             mtype, _ = mtype.split("/")
             if mtype == "image":
-                yield iio.imread(f)
+                with PIL.Image.open(f) as img:
+                    for frame in PIL.ImageSequence.Iterator(img):
+                        yield binarize(np.array(frame), "rgb")
             elif mtype == "video":
-                yield from iio.imiter(f)
+                cap = cv2.VideoCapture(f)
+                while True:
+                    ok, frame = cap.read()
+                    if not ok:
+                        break
+                    yield binarize(frame, "bgr")
             else:
                 continue
 
@@ -456,47 +529,30 @@ class Config:
                     continue
         return fps
 
-    def analyze(self, name: str = ""):
-        """Analyze and save the data. Progress bar is shown.
 
-        Parameters
-        ----------
-        name : str
-            Description for progress bar.
-        """
-        # Run verify() here and nowhere else. (Must centralize checks)
-        gray = cv2.imread(self.ref_path, cv2.IMREAD_GRAYSCALE)
-        _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-        ref = self.reference.as_reference(img)
-        ref.verify()
-        subst = self.substrate.as_substrate(ref)
-        subst.verify()
-        layercls, params, drawopts, decoopts = self.coatinglayer.as_structured_args()
-        expt = self.experiment.as_experiment()
-        expt.verify()
-        analysis = dataclasses.replace(self.analysis, fps=self.fps()).as_analysis()
-        analysis.verify()
-        try:
-            analysis.send(None)
-            for img in tqdm.tqdm(
-                self.image_generator(), total=self.frame_count(), desc=name
-            ):
-                layer = expt.coatinglayer(
-                    binarize(img),
-                    subst,
-                    layer_type=layercls,
-                    layer_parameters=params,
-                    layer_drawoptions=drawopts,
-                    layer_decooptions=decoopts,
-                )
-                layer.verify()
-                analysis.send(layer)
-        finally:
-            analysis.close()
+def binarize(
+    image: npt.NDArray[np.uint8],
+    color: str,
+) -> npt.NDArray[np.uint8]:
+    """Binarize *image* with Otsu's thresholding.
 
+    Parameters
+    ----------
+    image : ndarray
+        Input image.
+    color : {"rgb", "bgr"}
+        Color convention. For example, "rgb" indicates that 3-channel image should be
+        interpreted as "RGB" and 4-channel be "RGBA".
 
-def binarize(image: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
-    """Binarize *image* with Otsu's thresholding."""
+    Notes
+    -----
+    Shape of *image* can be:
+    - (H, W) or (H, W, 1) : grayscale image.
+    - (H, W, 3) : RGB or BGR image.
+    - (H, W, 4) : RGBA or BGRA image.
+    """
+    if color not in ["rgb", "bgr"]:
+        raise TypeError(f"Invalid color convention: {color}")
     if image.size == 0:
         return np.empty((0, 0), dtype=np.uint8)
     if len(image.shape) == 2:
@@ -505,8 +561,14 @@ def binarize(image: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
         ch = image.shape[-1]
         if ch == 1:
             gray = image
-        elif ch == 3:
+        elif ch == 3 and color == "rgb":
             gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        elif ch == 3 and color == "bgr":
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        elif ch == 4 and color == "rgb":
+            gray = cv2.cvtColor(image, cv2.COLOR_RGBA2GRAY)
+        elif ch == 4 and color == "bgr":
+            gray = cv2.cvtColor(image, cv2.COLOR_BGRA2GRAY)
         else:
             raise TypeError(f"Image with invalid channel: {ch}")
     else:

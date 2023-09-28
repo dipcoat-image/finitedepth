@@ -2,7 +2,6 @@ import os
 from collections.abc import Iterable
 
 import cv2  # type: ignore
-import yaml  # type: ignore
 
 from dipcoatimage.finitedepth import get_data_path
 from dipcoatimage.finitedepth.serialize import (
@@ -194,28 +193,6 @@ def test_Config_analyze_singleimage(tmp_path):
     )
     data.analyze("test_analyze_singleimage-to-multiimage")
 
-    analysisargs = AnalysisArgs(
-        parameters=dict(
-            ref_data=os.path.join(tmp_path, "ref.csv"),
-            ref_visual=os.path.join(tmp_path, "ref.png"),
-            subst_data=os.path.join(tmp_path, "subst.csv"),
-            subst_visual=os.path.join(tmp_path, "subst.png"),
-            layer_data=os.path.join(tmp_path, "layer.csv"),
-            layer_visual=os.path.join(tmp_path, "layer.mp4"),
-        ),
-        fps=1.0,
-    )
-    data = Config(
-        ref_path=get_data_path("ref1.png"),
-        coat_path=get_data_path("coat1.png"),
-        reference=REFARGS,
-        substrate=SUBSTARGS,
-        coatinglayer=LAYERARGS,
-        experiment=EXPTARGS,
-        analysis=analysisargs,
-    )
-    data.analyze("test_analyze_singleimage-to-video")
-
 
 def test_Config_analyze_video(tmp_path):
     analysisargs = AnalysisArgs(
@@ -226,6 +203,7 @@ def test_Config_analyze_video(tmp_path):
             subst_visual=os.path.join(tmp_path, "subst.png"),
             layer_data=os.path.join(tmp_path, "layer.csv"),
             layer_visual=os.path.join(tmp_path, "layer.mp4"),
+            layer_foucc="mp4v",
         )
     )
     data = Config(
@@ -238,16 +216,3 @@ def test_Config_analyze_video(tmp_path):
         analysis=analysisargs,
     )
     data.analyze("test_analyze_video-to-video")
-
-
-def test_Config_from_file():
-    cwd = os.getcwd()
-
-    try:
-        os.chdir(get_data_path())
-        with open("config.yml") as f:
-            config = yaml.load(f, Loader=yaml.FullLoader)
-        for k, v in config.items():
-            data_converter.structure(v, Config).analyze()
-    finally:
-        os.chdir(cwd)

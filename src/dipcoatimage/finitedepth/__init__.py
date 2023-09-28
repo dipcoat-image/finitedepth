@@ -28,7 +28,7 @@ from .polysubstrate import PolySubstrateBase, PolySubstrateError
 from .rectcoatinglayer import RectCoatingLayerBase, RectLayerShape
 from .rectsubstrate import RectSubstrate
 from .reference import Reference, ReferenceBase, ReferenceError
-from .serialize import Config, data_converter
+from .serialize import Config, ConfigBase, data_converter
 from .substrate import Substrate, SubstrateBase, SubstrateError
 from .version import __version__  # noqa
 
@@ -54,6 +54,7 @@ __all__ = [
     "AnalysisBase",
     "Analysis",
     "data_converter",
+    "ConfigBase",
     "Config",
     "get_data_path",
     "analyze_files",

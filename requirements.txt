@@ -1,9 +1,9 @@
 cattrs
-imageio[pyav]
 importlib_resources
 numpy >= 1.21
 numba
 opencv-python-headless
+Pillow
 PyYAML
 scipy
 tqdm
