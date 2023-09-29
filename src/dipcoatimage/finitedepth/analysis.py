@@ -113,26 +113,40 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
 
 def ImageWriter(path: str, fourcc: int, fps: float):
     """Write images to image files or a video file."""
+    try:
+        path % 0
+        formattable = True
+    except TypeError:
+        formattable = False
+
     mtype, _ = mimetypes.guess_type(path)
     if mtype is None:
         raise TypeError(f"Invalid path: {path}.")
-
     ftype, _ = mtype.split("/")
-    if ftype == "video":
-        pass
-    elif ftype == "image":
-        fourcc = 0
-        fps = 0.0
+
+    if ftype == "image" and not formattable:
+        img = yield
+        try:
+            while True:
+                img = yield
+        finally:
+            cv2.imwrite(path, img)
     else:
-        raise TypeError(f"Unsupported mimetype: {mtype}.")
-    img = yield
-    writer = cv2.VideoWriter(path, fourcc, fps, img.shape[:2])
-    try:
-        while True:
-            writer.write(img)
-            img = yield
-    finally:
-        writer.release()
+        if ftype == "video":
+            pass
+        elif ftype == "image":
+            fourcc = 0
+            fps = 0.0
+        else:
+            raise TypeError(f"Unsupported mimetype: {mtype}.")
+        img = yield
+        writer = cv2.VideoWriter(path, fourcc, fps, img.shape[:2])
+        try:
+            while True:
+                writer.write(img)
+                img = yield
+        finally:
+            writer.release()
 
 
 def CSVWriter(path: str):
@@ -290,7 +304,8 @@ class Analysis(AnalysisBase[Parameters]):
                 rd_writer.send(data)
 
             if ref_visual:
-                rv_writer.send(layer.substrate.reference.draw())
+                img = cv2.cvtColor(layer.substrate.reference.draw(), cv2.COLOR_RGB2BGR)
+                rv_writer.send(img)
 
             if subst_data:
                 headers = [f.name for f in dataclasses.fields(layer.substrate.Data)]
@@ -299,7 +314,8 @@ class Analysis(AnalysisBase[Parameters]):
                 sd_writer.send(data)
 
             if subst_visual:
-                sv_writer.send(layer.substrate.draw())
+                img = cv2.cvtColor(layer.substrate.draw(), cv2.COLOR_RGB2BGR)
+                sv_writer.send(img)
 
             if layer_data:
                 headers = [f.name for f in dataclasses.fields(layer.Data)]
@@ -317,7 +333,8 @@ class Analysis(AnalysisBase[Parameters]):
                     ld_writer.send(data)
 
                 if layer_visual:
-                    lv_writer.send(layer.draw())
+                    img = cv2.cvtColor(layer.draw(), cv2.COLOR_RGB2BGR)
+                    lv_writer.send(img)
 
                 layer = yield
                 i += 1
