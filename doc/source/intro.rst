@@ -40,7 +40,7 @@ Image analysis is performed based on two types of images; *reference image* and
 .. plot::
    :context: reset
    :caption: Reference image (left) and target image (right).
-      Red box shows substrate region.
+      Red box is substrate region.
 
    import cv2, numpy as np, matplotlib.pyplot as plt
    from dipcoatimage.finitedepth import *
@@ -62,7 +62,7 @@ Image analysis is performed based on two types of images; *reference image* and
    config = data_converter.structure(data, Config)
    coat = config.construct_coatinglayer(0, False)
 
-   _, axes = plt.subplots(1, 2, figsize=(6, 3))
+   _, axes = plt.subplots(1, 2, figsize=(6, 2.5))
    axes[0].imshow(coat.substrate.reference.draw(), cmap="gray")
    axes[0].axis("off")
    axes[1].imshow(coat.draw(), cmap="gray")
@@ -82,7 +82,7 @@ The basic scheme of analysis is:
 
    coat.draw_options.subtraction = coat.SubtractionMode.SUBSTRATE
    coat.deco_options.layer.facecolor = (69, 132, 182)
-   plt.figure(figsize=(3, 3))
+   plt.figure(figsize=(3, 2.5))
    plt.axis("off")
    plt.imshow(coat.draw())
    plt.tight_layout()

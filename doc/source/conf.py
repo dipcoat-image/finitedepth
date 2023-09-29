@@ -4,6 +4,13 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import os
+
+import cv2
+import numpy as np
+
+from dipcoatimage.finitedepth import Config, data_converter, get_data_path
+
 # -- Path setup --------------------------------------------------------------
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -67,6 +74,50 @@ html_theme = "alabaster"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = []  # type: ignore
+_LOGO = "logo.png"
+html_theme_options = dict(
+    logo=_LOGO,
+    logo_name=True,
+    sidebar_width="250px",
+)
 
 plot_html_show_formats = False
 plot_html_show_source_link = False
+
+# -- Custom scripts ----------------------------------------------------------
+
+data = dict(
+    ref_path=get_data_path("ref3.png"),
+    coat_path=get_data_path("coat3.mp4"),
+    reference=dict(
+        templateROI=(13, 10, 1246, 200),
+        substrateROI=(100, 100, 1200, 500),
+    ),
+    coatinglayer=dict(
+        deco_options=dict(
+            layer=dict(
+                facecolor=(69, 132, 182),
+                linewidth=0,
+            )
+        )
+    ),
+)
+config = data_converter.structure(data, Config)
+coat = config.construct_coatinglayer(0, False)
+img = coat.draw()
+
+img[np.where(img == (0, 0, 0))[:-1]] = (100, 100, 100)
+
+mask = coat.image.astype(bool) ^ coat.extract_layer()
+k = cv2.getStructuringElement(cv2.MORPH_RECT, (25, 25))
+edge_mask = cv2.erode(mask.astype(np.uint8), k).astype(bool) ^ mask
+img[edge_mask] = (255, 255, 255)
+
+alpha = ~np.all(img == (255, 255, 255), axis=-1) * 255
+
+_STATIC = "../build/html/_static"
+os.makedirs(_STATIC, exist_ok=True)
+cv2.imwrite(
+    os.path.join(_STATIC, _LOGO),
+    cv2.cvtColor(np.dstack([img, alpha]).astype(np.uint8), cv2.COLOR_RGBA2BGRA),
+)
