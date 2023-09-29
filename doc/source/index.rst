@@ -29,8 +29,10 @@ Welcome to DipCoatImage-FiniteDepth documentation!
    coat = config.construct_coatinglayer(0, False)
    img = coat.draw()
    img[np.where(img == (0, 0, 0))[:-1]] = (100, 100, 100)
-   plt.imshow(img)
+   plt.figure(figsize=(4, 4))
    plt.axis("off")
+   plt.imshow(img)
+   plt.tight_layout()
 
 DipCoatImage-FiniteDepth is a Python package to visualize and analyze the
 coating layer profile in *finite depth dip coating* process.
