@@ -40,28 +40,32 @@ Image analysis is performed based on two types of images; *reference image* and
 .. plot::
    :context: reset
    :caption: Reference image (left) and target image (right).
+      Red box shows substrate region.
 
    import cv2, numpy as np, matplotlib.pyplot as plt
    from dipcoatimage.finitedepth import *
    data = dict(
       ref_path=get_data_path("ref3.png"),
-      coat_path=get_data_path("coat3.png"),
+      coat_path=get_data_path("coat3.mp4"),
       reference=dict(
          templateROI=(13, 10, 1246, 200),
          substrateROI=(100, 100, 1200, 500),
+         draw_options=dict(
+            templateROI=dict(linewidth=0),
+            substrateROI=dict(color=(255, 0, 0), linewidth=4),
+         ),
       ),
       coatinglayer=dict(
-         draw_options=dict(subtraction="SUBSTRATE"),
-         deco_options=dict(layer=dict(facecolor=(69, 132, 182))),
+         deco_options=dict(layer=dict(facecolor=(0, 0, 0))),
       ),
    )
    config = data_converter.structure(data, Config)
    coat = config.construct_coatinglayer(0, False)
 
-   _, axes = plt.subplots(1, 2, figsize=(8, 2))
-   axes[0].imshow(coat.substrate.reference.image[:650], cmap="gray")
+   _, axes = plt.subplots(1, 2, figsize=(6, 3))
+   axes[0].imshow(coat.substrate.reference.draw(), cmap="gray")
    axes[0].axis("off")
-   axes[1].imshow(coat.image[:650], cmap="gray")
+   axes[1].imshow(coat.draw(), cmap="gray")
    axes[1].axis("off")
    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
    plt.show()
@@ -76,9 +80,11 @@ The basic scheme of analysis is:
    :context: close-figs
    :caption: Coating layer region (blue) with substrate region removed.
 
-   plt.figure(figsize=(4, 2))
+   coat.draw_options.subtraction = coat.SubtractionMode.SUBSTRATE
+   coat.deco_options.layer.facecolor = (69, 132, 182)
+   plt.figure(figsize=(3, 3))
    plt.axis("off")
-   plt.imshow(coat.draw()[:650])
+   plt.imshow(coat.draw())
    plt.tight_layout()
 
 The resulting coating layer region can be further processed to return desired
