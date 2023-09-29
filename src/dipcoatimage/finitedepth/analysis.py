@@ -140,7 +140,8 @@ def ImageWriter(path: str, fourcc: int, fps: float):
         else:
             raise TypeError(f"Unsupported mimetype: {mtype}.")
         img = yield
-        writer = cv2.VideoWriter(path, fourcc, fps, img.shape[:2])
+        h, w = img.shape[:2]
+        writer = cv2.VideoWriter(path, fourcc, fps, (w, h))
         try:
             while True:
                 writer.write(img)
@@ -294,6 +295,8 @@ class Analysis(AnalysisBase[Parameters]):
         try:
             # Use first sent value
             layer = yield
+            layer.substrate.reference.verify()
+            layer.substrate.verify()
 
             if ref_data:
                 headers = [
@@ -326,8 +329,16 @@ class Analysis(AnalysisBase[Parameters]):
             # Loop to analyze layers
             i = 0
             while True:
+                try:
+                    layer.verify()
+                    valid = True
+                except Exception:
+                    valid = False
                 if layer_data:
-                    data = list(dataclasses.astuple(layer.analyze()))
+                    if valid:
+                        data = list(dataclasses.astuple(layer.analyze()))
+                    else:
+                        data = []
                     if self.fps:
                         data = [i / fps] + data
                     ld_writer.send(data)

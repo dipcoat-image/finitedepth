@@ -187,11 +187,16 @@ class CoatingLayerBase(
         """Decorate and return the coated substrate image.
 
         Result is in RGB format.
+
+        Must return an image even if the instance is not valid.
         """
 
     @abc.abstractmethod
     def analyze_layer(self) -> Tuple:
-        """Analyze the coated substrate image and return the data in tuple."""
+        """Analyze the coated substrate image and return the data in tuple.
+
+        May raise error if the instance is not valid.
+        """
 
     def analyze(self) -> DataType:
         """Return the result of :meth:`analyze_layer` as dataclass instance."""

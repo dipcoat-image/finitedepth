@@ -600,6 +600,9 @@ class RectLayerShape(
                 contactline_opts.linewidth,
             )
 
+        if not self.capbridge_broken():
+            return image
+
         thickness_opts = self.deco_options.thickness
         if thickness_opts.linewidth > 0:
             lines = []

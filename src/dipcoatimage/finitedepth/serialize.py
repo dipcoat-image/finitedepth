@@ -423,11 +423,9 @@ class ConfigBase(abc.ABC):
         name : str
             Description for progress bar.
         """
-        # Run verify() here and nowhere else. (Must centralize checks)
+        # Let Analyzer verify ref, subst, and layer to do whatever it wants.
         ref = self.reference.as_reference(self.reference_image())
-        ref.verify()
         subst = self.substrate.as_substrate(ref)
-        subst.verify()
         layercls, params, drawopts, decoopts = self.coatinglayer.as_structured_args()
         expt = self.experiment.as_experiment()
         expt.verify()
@@ -446,7 +444,6 @@ class ConfigBase(abc.ABC):
                     layer_drawoptions=drawopts,
                     layer_decooptions=decoopts,
                 )
-                layer.verify()
                 analysis.send(layer)
         finally:
             analysis.close()
