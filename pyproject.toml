@@ -37,6 +37,7 @@ dev = [
     "black",
     "isort",
     "docformatter",
+    "doc8",
     "mypy==1.4.1",
     "types-Pillow",
     "types-PyYAML",

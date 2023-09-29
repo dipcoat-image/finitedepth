@@ -8,24 +8,29 @@ Installing
 ==========
 
 Running test requires additional packages to be installed.
-As mentioned in :ref:`Installation <install-options>` document, you can install DipCoatImage-FiniteDepth with ``dev`` option to install these packages altogether.
+As mentioned in :ref:`Installation <install-options>` document, you can
+install DipCoatImage-FiniteDepth with ``dev`` option to install these
+packages altogether.
 
 Linting
 =======
 
-DipCoatImage-FiniteDepth use `Flake8 <https://flake8.pycqa.org/en/latest/>`_ and `Black <https://black.readthedocs.io/en/stable/>`_ for linting.
+DipCoatImage-FiniteDepth use `Flake8 <https://flake8.pycqa.org/en/latest/>`_
+and `Black <https://black.readthedocs.io/en/stable/>`_ for linting.
 
 One of the few inconsistencies between two modules is line length policy.
 Flake8 encourages 79 characters for code lines and Black prefers 88 characters.
 DipCoatImage-FiniteDepth follows Blacks chooses 88 limit.
 
-Flake8 limits the line length for docstrings and comments to 72 characters, 7 characters smaller than code line.
-Black does not have any explicit policy for this, so to respect Flake8 we limit these lines to 81 characters.
+Flake8 limits the line length for docstrings and comments to 72 characters,
+7 characters smaller than code line. Black does not have any explicit policy
+for this, so to respect Flake8 we limit these lines to 81 characters.
 
 Flake8
 ======
 
-To check code quality with Flake8, simpliy run the following command in root path (where ``setup.py`` file is located).
+To check code quality with Flake8, simpliy run the following command in root
+path (where ``setup.py`` file is located).
 
 .. code-block:: bash
 
@@ -49,8 +54,8 @@ To only check the codes without modifying them, run the following command.
 Type Checking
 =============
 
-DipCoatImage-FiniteDepth use `Mypy <https://mypy.readthedocs.io/en/stable/>`_ for type check.
-Run the following command to check your code.
+DipCoatImage-FiniteDepth use `Mypy <https://mypy.readthedocs.io/en/stable/>`_
+for type check. Run the following command to check your code.
 
 .. code-block:: bash
 
@@ -59,8 +64,8 @@ Run the following command to check your code.
 Unit testing
 ============
 
-DipCoatImage-FiniteDepth use `pytest <https://docs.pytest.org/en/stable/>`_ for unit testing.
-Run the following command to test your entire code.
+DipCoatImage-FiniteDepth use `pytest <https://docs.pytest.org/en/stable/>`_
+for unit testing. Run the following command to test your entire code.
 
 .. code-block:: bash
 
@@ -69,8 +74,9 @@ Run the following command to test your entire code.
 Building document
 =================
 
-DipCoatImage-FiniteDepth use `Sphinx <https://www.sphinx-doc.org/en/master/>`_ to build documentation.
-The following command changes your current directory to ``doc/`` and tries building the files.
+DipCoatImage-FiniteDepth use `Sphinx <https://www.sphinx-doc.org/en/master/>`_
+to build documentation. The following command changes your current directory
+to ``doc/`` and tries building the files.
 
 .. code-block:: bash
 

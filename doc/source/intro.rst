@@ -1,22 +1,51 @@
-============
-Introduction
-============
+===============
+Getting started
+===============
 
-.. currentmodule:: dipcoatimage.finitedepth
-
-DipCoatImage-FiniteDepth is a Python package to perform image analysis on the coating layer shape from batch dip coating process with finite immersion depth.
-
-Dip coating with finite depth is commonly used to partially apply liquid film onto a three-dimensional object.
-The image below shows how the finite depth dip coating is performed.
+What is "finite depth dip coating"?
+===================================
 
 .. figure:: ./_images/finite-depth-dip-coating.jpg
    :align: center
 
-   Finite depth dip coating process; immersion, deposition, termination and fluid redistribution.
+   The four stages of the finite-depth coating process.
 
-The termination of the process is governed by the lower end effect of the system, where the capillary bridge is formed between the bulk fluid and the coating layer and soon ruptures.
-After the capillary bridge breaks, coating layer changes its shape over time by fluid redistribution.
-This temporal evolution of the coating layer must be analyzed to optimize the coating process.
+Finite depth dip coating is a process in which a substrate is partially coated
+with liquid by being dipped into a bath with relatively small immersion depth.
+Unlike traditional dip coating, the coating layer is confined into a small
+portion of the substrate and thus the lower edge effect dominates the system.
+
+The process consists of four stages:
+
+#. Immersion
+      In this initial stage, the substrate descends into the bath.
+#. Withdrawal
+      The substrate is now gradually pulled out of the bath.
+#. Pinch-off
+      As the substrate exits the bath, a capillary bridge forms between the
+      coating layer and the bulk fluid. The bridge then thins by pinch-off
+      dynamics and eventually ruptures.
+#. Termination
+      Surface tension redistributes the fluid until equilibrium is reached.
+
+To achieve uniform coating, the coating layer profile should be measured and
+studied; and that's what *DipcoatImage-FiniteDepth* is for.
+
+Installation
+============
+
+DipcoatImage-FiniteDepth can be installed by `pip` from its github repository.
+
+.. code-block:: bash
+
+   $ pip install git+ssh://git@github.com/dipcoat-image/finitedepth.git
+
+This installs the package with its latest commit. If you want a specific
+version, append ``@[tag name]`` such as:
+
+.. code-block:: bash
+
+   $ pip install git+ssh://git@github.com/dipcoat-image/finitedepth.git@v1.0.0
 
 Analysis images
 ===============
@@ -26,7 +55,8 @@ Two silhouette images are required to analyze the coating layer shape:
 1. Bare substrate image
 2. Coated substrate image
 
-Below are the images of the bare substrate and the coated substrate from acutal coating process.
+Below are the images of the bare substrate and the coated substrate from
+acutal coating process.
 
 .. plot::
    :context: reset
@@ -49,8 +79,10 @@ Below are the images of the bare substrate and the coated substrate from acutal 
    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
    plt.show()
 
-From these two images, the coating layer region can be extracted and further analyzed to yield the quantitative data (e.g., coating layer thickness).
-Temporal evolution of the coating layer can be assessed by analyzing the series of coated substrate images from the coating process.
+From these two images, the coating layer region can be extracted and further
+analyzed to yield the quantitative data (e.g., coating layer thickness).
+Temporal evolution of the coating layer can be assessed by analyzing the
+series of coated substrate images from the coating process.
 
 .. plot::
    :context: close-figs
@@ -72,7 +104,8 @@ Temporal evolution of the coating layer can be assessed by analyzing the series 
 Image processing classes
 ========================
 
-:mod:`dipcoatimage.finitedepth` defines three kind of classes for image processing:
+:mod:`dipcoatimage.finitedepth` defines three kind of classes for
+image processing:
 
 1. Substrate reference
 2. Substrate
@@ -81,9 +114,11 @@ Image processing classes
 Substrate reference class
 -------------------------
 
-Substrate reference class(or in short, reference class) is a container for the bare substrate image and two ROIs; template ROI and substrate ROI.
+Substrate reference class(or in short, reference class) is a container for the
+bare substrate image and two ROIs; template ROI and substrate ROI.
 
-The first ROI specifies the template region for the coating layer class, and the second specifies the substrate region for the substrate class.
+The first ROI specifies the template region for the coating layer class, and
+the second specifies the substrate region for the substrate class.
 
 .. plot::
    :context: reset
@@ -122,10 +157,12 @@ It uses the substrate region from the substrate reference instance.
 Coating layer class
 -------------------
 
-Coating layer class extracts the coating layer region from the coated substrate image using the substrate instance.
+Coating layer class extracts the coating layer region from the coated substrate
+image using the substrate instance.
 It then retrieves quantitative data and visualized image from it.
 
-To analyze the coating layer shape, the coating layer instance uses the substrate geometry information detected by the substrate instance.
+To analyze the coating layer shape, the coating layer instance uses the
+substrate geometry information detected by the substrate instance.
 
 .. plot::
    :context: close-figs
@@ -143,9 +180,13 @@ To analyze the coating layer shape, the coating layer instance uses the substrat
 Analysis classes
 ================
 
-Analyzing the coating experiment usually involves processing multiple images(e.g., frames from the coating process video) of a coated substrate with respect to a single bare substrate image.
+Analyzing the coating experiment usually involves processing multiple
+images(e.g., frames from the coating process video) of a coated substrate
+with respect to a single bare substrate image.
 
-:mod:`dipcoatimage.finitedepth` provides systematic way to construct multiple coating layer instances, to save the analysis results, and to serialize the analysis parameters into file.
+:mod:`dipcoatimage.finitedepth` provides systematic way to construct multiple
+coating layer instances, to save the analysis results, and to serialize the
+analysis parameters into file.
 
 Experiment class
 ----------------
@@ -155,13 +196,16 @@ Experiment class is a factory for coating layer instance.
 Analyzer class
 --------------
 
-:class:`.Analyzer` collects the data and the visualized images from multiple coating layer instance, and saves them as files.
+:class:`.Analyzer` collects the data and the visualized images from multiple
+coating layer instance, and saves them as files.
 
 Experiment configuration
 ------------------------
 
-:class:`.Config` is a dataclass which describes a whole configuration of finite depth dip coating experiment.
-It can also automatically construct a :class:`.Analyzer` instance from the data and perform the analysis.
+:class:`.Config` is a dataclass which describes a whole configuration of
+finite depth dip coating experiment. It can also automatically construct a
+:class:`.Analyzer` instance from the data and perform the analysis.
 
-Serializing and deserializing the experiment data can be done by :obj:`.data_converter`, which is a :class:`cattrs.Converter`.
-This allows configuration for the analysis to be saved to and loaded from file.
+Serializing and deserializing the experiment data can be done by
+:obj:`.data_converter`, which is a :class:`cattrs.Converter`. This allows
+configuration for the analysis to be saved to and loaded from file.

@@ -415,6 +415,64 @@ class ConfigBase(abc.ABC):
     def fps(self) -> Optional[float]:
         """Find fps."""
 
+    def construct_reference(self) -> ReferenceBase:
+        """Construct reference instance."""
+        return self.reference.as_reference(self.reference_image())
+
+    def construct_substrate(self) -> SubstrateBase:
+        """Construct substrate instance."""
+        return self.substrate.as_substrate(self.construct_reference())
+
+    def construct_coatinglayer(self, i: int, sequential=True):
+        """Construct *i*-th coating layer instance.
+
+        If *sequential* is *True*, coating layer is sequentially constructed
+        using :class:`ExperimentBase` factory. Else, :class:`CoatingLayerBase`
+        object is directly constructed.
+
+        Parameters
+        ----------
+        i : int
+            Index of the frame from *coat_path*
+        sequential : bool, default=True
+            Controls sequential construction.
+        """
+        if i + 1 > self.frame_count():
+            raise ValueError("Index out of range.")
+        img_gen = self.image_generator()
+        subst = self.construct_substrate()
+        layercls, params, drawopts, decoopts = self.coatinglayer.as_structured_args()
+        if sequential:
+            expt = self.construct_experiment()
+            for _ in range(i + 1):
+                img = next(img_gen)
+                layer = expt.coatinglayer(
+                    img,
+                    subst,
+                    layer_type=layercls,
+                    layer_parameters=params,
+                    layer_drawoptions=drawopts,
+                    layer_decooptions=decoopts,
+                )
+        else:
+            for _ in range(i + 1):
+                img = next(img_gen)
+            layer = layercls(
+                img, subst, params, draw_options=drawopts, deco_options=decoopts
+            )
+        return layer
+
+    def construct_experiment(self) -> ExperimentBase:
+        """Construct experiment instance."""
+        return self.experiment.as_experiment()
+
+    def construct_analysis(self) -> AnalysisBase:
+        """Construct analysis instance.
+
+        :meth:`fps` is used for *fps* parameter.
+        """
+        return dataclasses.replace(self.analysis, fps=self.fps()).as_analysis()
+
     def analyze(self, name: str = ""):
         """Analyze and save the data. Progress bar is shown.
 
@@ -424,12 +482,11 @@ class ConfigBase(abc.ABC):
             Description for progress bar.
         """
         # Let Analyzer verify ref, subst, and layer to do whatever it wants.
-        ref = self.reference.as_reference(self.reference_image())
-        subst = self.substrate.as_substrate(ref)
+        subst = self.construct_substrate()
         layercls, params, drawopts, decoopts = self.coatinglayer.as_structured_args()
-        expt = self.experiment.as_experiment()
+        expt = self.construct_experiment()
         expt.verify()
-        analysis = dataclasses.replace(self.analysis, fps=self.fps()).as_analysis()
+        analysis = self.construct_analysis()
         analysis.verify()
         try:
             analysis.send(None)

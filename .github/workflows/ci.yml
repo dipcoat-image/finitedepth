@@ -20,7 +20,7 @@ jobs:
 
       - name: install dependencies
         run: |
-          pip install flake8 black isort docformatter
+          pip install flake8 black isort docformatter doc8
 
       - name: lint with flake8
         run: |
@@ -37,6 +37,10 @@ jobs:
       - name: lint with docformatter
         run: |
           docformatter --check .
+
+      - name: lint with doc8
+        run: |
+          doc8 .
 
   type-check:
 

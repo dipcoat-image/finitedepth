@@ -258,9 +258,9 @@ class DecoOptions:
     layer: PatchOptions = dataclasses.field(
         default_factory=lambda: PatchOptions(
             fill=True,
-            edgecolor=(0, 0, 255),
+            edgecolor=(0, 0, 0),
             facecolor=(255, 255, 255),
-            linewidth=1,
+            linewidth=2,
         )
     )
 
