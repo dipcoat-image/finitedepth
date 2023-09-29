@@ -50,11 +50,10 @@ Contents
    :maxdepth: 2
 
    intro
-   install
    tutorial/index
-   user-guide/index
+   guide/index
+   reference
    explanation/index
-   dev-guide/index
 
 Indices and tables
 ==================

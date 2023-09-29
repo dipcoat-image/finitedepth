@@ -1,8 +1,8 @@
 .. _user-guide:
 
-==========
-User guide
-==========
+=============
+How-to guides
+=============
 
 .. toctree::
    :maxdepth: 2
