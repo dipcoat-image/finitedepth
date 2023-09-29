@@ -18,9 +18,8 @@ Welcome to DipCoatImage-FiniteDepth documentation!
       coatinglayer=dict(
          deco_options=dict(
             layer=dict(
-               edgecolor=(255, 255, 255),
                facecolor=(69, 132, 182),
-               linewidth=7,
+               linewidth=0,
             )
          )
       )
@@ -28,7 +27,14 @@ Welcome to DipCoatImage-FiniteDepth documentation!
    config = data_converter.structure(data, Config)
    coat = config.construct_coatinglayer(0, False)
    img = coat.draw()
+
    img[np.where(img == (0, 0, 0))[:-1]] = (100, 100, 100)
+
+   mask = (coat.image.astype(bool) ^ coat.extract_layer())
+   k = cv2.getStructuringElement(cv2.MORPH_RECT, (25, 25))
+   edge_mask = cv2.erode(mask.astype(np.uint8), k).astype(bool) ^ mask
+   img[edge_mask] = (255, 255, 255)
+
    plt.figure(figsize=(4, 4))
    plt.axis("off")
    plt.imshow(img)
