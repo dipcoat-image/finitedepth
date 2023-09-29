@@ -184,25 +184,27 @@ class Analysis(AnalysisBase[Parameters]):
     def verify(self):
         """Check file paths and fps in :meth:`parameters`."""
         for path in [
-            self.parameters.ref_data,
-            self.parameters.subst_data,
-            self.parameters.layer_data,
+            os.path.expandvars(self.parameters.ref_data),
+            os.path.expandvars(self.parameters.subst_data),
+            os.path.expandvars(self.parameters.layer_data),
         ]:
             if path:
                 _, ext = os.path.splitext(path)
                 if ext.lstrip(os.path.extsep).lower() not in self.DataWriters:
                     raise AnalysisError(f"{path} has unsupported extension.")
         for path in [
-            self.parameters.ref_visual,
-            self.parameters.subst_visual,
+            os.path.expandvars(self.parameters.ref_visual),
+            os.path.expandvars(self.parameters.subst_visual),
         ]:
             if path:
                 mtype, _ = mimetypes.guess_type(path)
                 file_type, _ = mtype.split("/")
                 if file_type != "image":
                     raise AnalysisError(f"{path} is not image.")
-        if self.parameters.layer_visual:
-            mtype, _ = mimetypes.guess_type(self.parameters.layer_visual)
+        if os.path.expandvars(self.parameters.layer_visual):
+            mtype, _ = mimetypes.guess_type(
+                os.path.expandvars(self.parameters.layer_visual)
+            )
             file_type, _ = mtype.split("/")
             if file_type == "image":
                 pass
@@ -231,41 +233,47 @@ class Analysis(AnalysisBase[Parameters]):
 
         fps = self.fps
         # prepare for analysis as much as possible
-        if self.parameters.ref_data:
-            makedir(self.parameters.ref_data)
-            rd_cls = get_writercls(self.parameters.ref_data)
-            rd_writer = rd_cls(self.parameters.ref_data)
+        ref_data = os.path.expandvars(self.parameters.ref_data)
+        if ref_data:
+            makedir(ref_data)
+            rd_cls = get_writercls(ref_data)
+            rd_writer = rd_cls(ref_data)
             next(rd_writer)
 
-        if self.parameters.ref_visual:
-            makedir(self.parameters.ref_visual)
-            rv_writer = ImageWriter(self.parameters.ref_visual, 0, 0.0)
+        ref_visual = os.path.expandvars(self.parameters.ref_visual)
+        if ref_visual:
+            makedir(ref_visual)
+            rv_writer = ImageWriter(ref_visual, 0, 0.0)
             next(rv_writer)
 
-        if self.parameters.subst_data:
-            makedir(self.parameters.subst_data)
-            sd_cls = get_writercls(self.parameters.subst_data)
-            sd_writer = sd_cls(self.parameters.subst_data)
+        subst_data = os.path.expandvars(self.parameters.subst_data)
+        if subst_data:
+            makedir(subst_data)
+            sd_cls = get_writercls(subst_data)
+            sd_writer = sd_cls(subst_data)
             next(sd_writer)
 
-        if self.parameters.subst_visual:
-            makedir(self.parameters.subst_visual)
-            sv_writer = ImageWriter(self.parameters.subst_visual, 0, 0.0)
+        subst_visual = os.path.expandvars(self.parameters.subst_visual)
+        if subst_visual:
+            makedir(subst_visual)
+            sv_writer = ImageWriter(subst_visual, 0, 0.0)
             next(sv_writer)
 
-        if self.parameters.layer_data:
-            makedir(self.parameters.layer_data)
-            ld_cls = get_writercls(self.parameters.layer_data)
-            ld_writer = ld_cls(self.parameters.layer_data)
+        layer_data = os.path.expandvars(self.parameters.layer_data)
+        if layer_data:
+            makedir(layer_data)
+            ld_cls = get_writercls(layer_data)
+            ld_writer = ld_cls(layer_data)
             next(ld_writer)
 
-        if self.parameters.layer_visual:
-            makedir(self.parameters.layer_visual)
+        layer_visual = os.path.expandvars(self.parameters.layer_visual)
+        if layer_visual:
+            makedir(layer_visual)
             if len(self.parameters.layer_fourcc) == 4:
                 fourcc = cv2.VideoWriter_fourcc(*self.parameters.layer_fourcc)
             else:
                 fourcc = 0
-            lv_writer = ImageWriter(self.parameters.layer_visual, fourcc, fps)
+            lv_writer = ImageWriter(layer_visual, fourcc, fps)
             next(lv_writer)
 
         # start analysis
@@ -273,7 +281,7 @@ class Analysis(AnalysisBase[Parameters]):
             # Use first sent value
             layer = yield
 
-            if self.parameters.ref_data:
+            if ref_data:
                 headers = [
                     f.name for f in dataclasses.fields(layer.substrate.reference.Data)
                 ]
@@ -281,19 +289,19 @@ class Analysis(AnalysisBase[Parameters]):
                 data = list(dataclasses.astuple(layer.substrate.reference.analyze()))
                 rd_writer.send(data)
 
-            if self.parameters.ref_visual:
+            if ref_visual:
                 rv_writer.send(layer.substrate.reference.draw())
 
-            if self.parameters.subst_data:
+            if subst_data:
                 headers = [f.name for f in dataclasses.fields(layer.substrate.Data)]
                 sd_writer.send(headers)
                 data = list(dataclasses.astuple(layer.substrate.analyze()))
                 sd_writer.send(data)
 
-            if self.parameters.subst_visual:
+            if subst_visual:
                 sv_writer.send(layer.substrate.draw())
 
-            if self.parameters.layer_data:
+            if layer_data:
                 headers = [f.name for f in dataclasses.fields(layer.Data)]
                 if fps:
                     headers = ["time (s)"] + headers
@@ -302,28 +310,28 @@ class Analysis(AnalysisBase[Parameters]):
             # Loop to analyze layers
             i = 0
             while True:
-                if self.parameters.layer_data:
+                if layer_data:
                     data = list(dataclasses.astuple(layer.analyze()))
                     if self.fps:
                         data = [i / fps] + data
                     ld_writer.send(data)
 
-                if self.parameters.layer_visual:
+                if layer_visual:
                     lv_writer.send(layer.draw())
 
                 layer = yield
                 i += 1
 
         finally:
-            if self.parameters.ref_data:
+            if ref_data:
                 rd_writer.close()
-            if self.parameters.ref_visual:
+            if ref_visual:
                 rv_writer.close()
-            if self.parameters.subst_data:
+            if subst_data:
                 sd_writer.close()
-            if self.parameters.subst_visual:
+            if subst_visual:
                 sv_writer.close()
-            if self.parameters.layer_data:
+            if layer_data:
                 ld_writer.close()
-            if self.parameters.layer_visual:
+            if layer_visual:
                 lv_writer.close()

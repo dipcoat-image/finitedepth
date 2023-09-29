@@ -380,7 +380,7 @@ class AnalysisArgs:
         return analysis
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class ConfigBase(abc.ABC):
     """Class which wraps every information to construct and analyze the experiment.
 
@@ -398,11 +398,6 @@ class ConfigBase(abc.ABC):
     coatinglayer: CoatingLayerArgs = dataclasses.field(default_factory=CoatingLayerArgs)
     experiment: ExperimentArgs = dataclasses.field(default_factory=ExperimentArgs)
     analysis: AnalysisArgs = dataclasses.field(default_factory=AnalysisArgs)
-
-    def __post_init__(self):
-        """Expand environment variables in paths."""
-        self.ref_path = os.path.expandvars(self.ref_path)
-        self.coat_path = os.path.expandvars(self.coat_path)
 
     @abc.abstractmethod
     def frame_count(self) -> int:
@@ -463,7 +458,7 @@ class Config(ConfigBase):
     def frame_count(self) -> int:
         """Return total number of images from *coat_paths*."""
         i = 0
-        files = glob.glob(self.coat_path)
+        files = glob.glob(os.path.expandvars(self.coat_path))
         for f in files:
             mtype, _ = mimetypes.guess_type(f)
             if mtype is None:
@@ -482,13 +477,13 @@ class Config(ConfigBase):
 
     def reference_image(self) -> npt.NDArray[np.uint8]:
         """Return binarized image from :attr:`ref_path`."""
-        with PIL.Image.open(self.ref_path) as img:
+        with PIL.Image.open(os.path.expandvars(self.ref_path)) as img:
             ret = binarize(np.array(img), "rgb")
         return ret
 
     def image_generator(self) -> Generator[npt.NDArray[np.uint8], None, None]:
         """Yield binarized images from :attr:`coat_path`."""
-        files = glob.glob(self.coat_path)
+        files = glob.glob(os.path.expandvars(self.coat_path))
         for f in files:
             mtype, _ = mimetypes.guess_type(f)
             if mtype is None:
@@ -512,7 +507,7 @@ class Config(ConfigBase):
         """Find fps."""
         fps = self.analysis.fps
         if fps is None:
-            files = glob.glob(self.coat_path)
+            files = glob.glob(os.path.expandvars(self.coat_path))
             for f in files:
                 mtype, _ = mimetypes.guess_type(f)
                 if mtype is None:
