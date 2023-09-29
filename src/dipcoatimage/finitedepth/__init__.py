@@ -114,7 +114,7 @@ def analyze_files(*paths: str):
                 config = data_converter.structure(v, Config)
                 config.analyze(k)
             except Exception:
-                print(f"Skipping {v} (Error occurred)")
+                print(f"Skipping {k} (Error occurred)")
                 continue
 
 
