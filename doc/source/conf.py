@@ -115,7 +115,11 @@ img[edge_mask] = (255, 255, 255)
 
 alpha = ~np.all(img == (255, 255, 255), axis=-1) * 255
 
-_STATIC = "../build/html/_static"
+if os.environ.get("READTHEDOCS", False):
+    _OUTPUT = os.environ["READTHEDOCS_OUTPUT"]
+else:
+    _OUTPUT = "../build"
+_STATIC = os.path.join(_OUTPUT, "html", "_static")
 os.makedirs(_STATIC, exist_ok=True)
 cv2.imwrite(
     os.path.join(_STATIC, _LOGO),
