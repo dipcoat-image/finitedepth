@@ -20,6 +20,7 @@ Contents
    tutorial/index
    guide/index
    reference/index
+   config-reference
    explanation/index
 
 Indices and tables

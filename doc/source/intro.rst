@@ -36,7 +36,8 @@ Fundamentals
 ------------
 
 Image analysis is performed based on two types of images; *reference image* and
-*target image*.
+*target image*. Reference image is an image of bare substrate, and target image
+is an image of coated substrate.
 
 .. plot::
    :context: reset
@@ -124,7 +125,7 @@ It can be run as a package as well:
    $ python -m dipcoatimage.finitedepth analyze config1.yml config2.json ...
 
 The configuration file must contain entries which are constructed to
-:class:`Config` instance. See :ref:`config-analysis` for more information.
+:class:`Config` instance. See :ref:`config-example` for more information.
 
 .. note::
    To check other options, run:

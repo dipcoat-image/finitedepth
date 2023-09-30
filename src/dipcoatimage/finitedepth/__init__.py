@@ -13,8 +13,10 @@ This package provides
 4. Saving analysis result
 """
 
+import argparse
 import json
 import os
+import sys
 
 import yaml
 from importlib_resources import files
@@ -118,9 +120,6 @@ def analyze_files(*paths: str):
 
 def main():
     """Entry point function."""
-    import argparse
-    import sys
-
     parser = argparse.ArgumentParser(
         prog="finitedepth",
         description="Finite depth dip coating analysis tool",
@@ -152,4 +151,4 @@ def main():
     elif args.command == "data":
         print(get_data_path())
     elif args.command == "analyze":
-        analyze_files(args.files)
+        analyze_files(*args.file)

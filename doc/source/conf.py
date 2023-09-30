@@ -39,6 +39,7 @@ extensions = [
     "matplotlib.sphinxext.plot_directive",
     "numpydoc",
     "autoapi.extension",
+    "sphinx_tabs.tabs",
 ]
 
 autodoc_member_order = "bysource"
