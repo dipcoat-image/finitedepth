@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 
-from .util.parameters import LineOptions
+from .parameters import LineOptions
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance

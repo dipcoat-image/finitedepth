@@ -7,8 +7,8 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 
+from .parameters import LineOptions, MarkerOptions
 from .polysubstrate import Parameters, PolySubstrateBase
-from .util.parameters import LineOptions, MarkerOptions
 
 __all__ = [
     "RectSubstrate",
