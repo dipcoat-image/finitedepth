@@ -67,6 +67,20 @@ autoapi_python_use_implicit_namespaces = True
 autoapi_dirs = ["../../src/dipcoatimage/finitedepth"]
 autoapi_root = "reference"
 
+
+def skip_submodules(app, what, name, obj, skip, options):
+    if what == "module" and name in [
+        "finitedepth.version",
+        "finitedepth.__main__",
+    ]:
+        skip = True
+    return skip
+
+
+def setup(sphinx):
+    sphinx.connect("autoapi-skip-member", skip_submodules)
+
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
