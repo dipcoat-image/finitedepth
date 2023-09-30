@@ -1,8 +1,9 @@
-=========
 Tutorials
 =========
 
 Introductory examples are provided in this document.
 
 .. toctree::
-   :maxdepth: 2
+   :titlesonly:
+
+   config

@@ -10,7 +10,6 @@ For example, :mod:`finitedepth` can be accessed by:
 
    import dipcoatimage.finitedepth
 
-
 .. toctree::
    :titlesonly:
 

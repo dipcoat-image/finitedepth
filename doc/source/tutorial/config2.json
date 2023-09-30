@@ -1,0 +1,9 @@
+{"Analysis2":{
+    "ref_path": "$FINITEDEPTH_DATA/ref2.png",
+    "coat_path": "$FINITEDEPTH_DATA/coat2.png",
+    "reference": {
+        "tempROI": [200, 50, 1200, 200],
+        "substROI": [400, 175, 1000, 500]
+    },
+    "analysis": {"layer_visual": "result2.jpg"}
+}}

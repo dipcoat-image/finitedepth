@@ -1,0 +1,8 @@
+Analysis1:
+  ref_path: $FINITEDEPTH_DATA/ref1.png
+  coat_path: $FINITEDEPTH_DATA/coat1.png
+  reference:
+    tempROI: [200, 50, 1200, 200]
+    substROI: [400, 175, 1000, 500]
+  analysis:
+    layer_visual: result1.jpg

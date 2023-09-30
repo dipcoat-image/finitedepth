@@ -1,11 +1,10 @@
-===============
 Getting started
 ===============
 
 .. currentmodule:: finitedepth
 
 What is "finite depth dip coating"?
-===================================
+-----------------------------------
 
 .. figure:: ./_images/finite-depth-dip-coating.jpg
    :align: center
@@ -34,7 +33,7 @@ To achieve uniform coating, the coating layer profile should be measured and
 studied; and that's what *DipcoatImage-FiniteDepth* is for.
 
 Fundamentals
-============
+------------
 
 Image analysis is performed based on two types of images; *reference image* and
 *target image*.
@@ -93,7 +92,7 @@ The resulting coating layer region can be further processed to return desired
 data, e.g., thickness or unifomity.
 
 Installation
-============
+------------
 
 DipcoatImage-FiniteDepth can be installed by `pip` from its github repository.
 
@@ -109,7 +108,7 @@ version, append ``@[tag name]`` such as:
    $ pip install git+ssh://git@github.com/dipcoat-image/finitedepth.git@v1.0.0
 
 Basic usage
-===========
+-----------
 
 DipcoatImage-FiniteDepth provides command-line to invoke analysis using
 configuration files.
@@ -124,13 +123,13 @@ It can be run as a package as well:
 
    $ python -m dipcoatimage.finitedepth analyze config1.yml config2.json ...
 
-The configuration file must contain entries which can be constructed to
-:class:`Config` instance.
+The configuration file must contain entries which are constructed to
+:class:`Config` instance. See :ref:`config-analysis` for more information.
 
 User can also import the classes from :mod:`finitedepth` to define
 their own analysis.
 
 Next steps
-==========
+----------
 
 Check out more resources to help you customize your analysis:

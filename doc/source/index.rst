@@ -1,4 +1,3 @@
-==================================================
 Welcome to DipCoatImage-FiniteDepth documentation!
 ==================================================
 
@@ -12,7 +11,7 @@ The advantages of DipCoatImage-FiniteDepth are:
 * Written in pure Python.
 
 Contents
-========
+--------
 
 .. toctree::
    :maxdepth: 2
@@ -24,7 +23,7 @@ Contents
    explanation/index
 
 Indices and tables
-==================
+------------------
 
 * :ref:`genindex`
 * :ref:`modindex`
