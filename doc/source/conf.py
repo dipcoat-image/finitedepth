@@ -63,8 +63,8 @@ intersphinx_mapping = {
 
 numpydoc_show_class_members = False
 
-autoapi_dirs = ["../../src"]
-
+autoapi_python_use_implicit_namespaces = True
+autoapi_dirs = ["../../src/dipcoatimage/finitedepth"]
 autoapi_root = "reference"
 
 # -- Options for HTML output -------------------------------------------------
