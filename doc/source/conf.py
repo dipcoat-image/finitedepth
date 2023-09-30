@@ -48,7 +48,7 @@ autodoc_default_options = {
 }
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = []  # type: ignore
+templates_path = ["_templates"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -65,6 +65,7 @@ numpydoc_show_class_members = False
 
 autoapi_python_use_implicit_namespaces = True
 autoapi_dirs = ["../../src/dipcoatimage/finitedepth"]
+autoapi_template_dir = "_templates/autoapi"
 autoapi_root = "reference"
 
 
