@@ -443,7 +443,8 @@ class Config(ConfigBase):
             mtype, _ = mtype.split("/")
             if mtype == "image":
                 with PIL.Image.open(f) as img:
-                    yield binarize(np.array(img), "rgb")
+                    for frame in PIL.ImageSequence.Iterator(img):
+                        yield binarize(np.array(frame), "rgb")
             elif mtype == "video":
                 cap = cv2.VideoCapture(f)
                 while True:
