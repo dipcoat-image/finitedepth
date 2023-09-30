@@ -119,20 +119,37 @@ def analyze_files(*paths: str):
 def main():
     """Entry point function."""
     import argparse
+    import sys
 
     parser = argparse.ArgumentParser(
         prog="finitedepth",
         description="Finite depth dip coating analysis tool",
     )
-    subparsers = parser.add_subparsers()
+    subparsers = parser.add_subparsers(dest="command")
+
+    subparsers.add_parser(
+        "data",
+        description="Print path to sample data directory.",
+        help="Print path to sample data directory.",
+        epilog=(
+            "In Python runtime, dipcoatimage.finitedepth.get_data_path() "
+            "returns same result."
+        ),
+    )
 
     parser_analyze = subparsers.add_parser(
         "analyze",
-        help="Parse configuration files and analyze",
-        epilog="Supported file formats: YAML, JSON",
+        description="Parse configuration files and analyze.",
+        help="Parse configuration files and analyze.",
+        epilog="Supported file formats: YAML, JSON.",
     )
     parser_analyze.add_argument("file", type=str, nargs="+", help="target files")
-    parser_analyze.set_defaults(func=analyze_files)
 
     args = parser.parse_args()
-    args.func(*args.file)
+    if args.command is None:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+    elif args.command == "data":
+        print(get_data_path())
+    elif args.command == "analyze":
+        analyze_files(args.files)

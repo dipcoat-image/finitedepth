@@ -126,6 +126,13 @@ It can be run as a package as well:
 The configuration file must contain entries which are constructed to
 :class:`Config` instance. See :ref:`config-analysis` for more information.
 
+.. note::
+   To check other options, run:
+
+   .. code-block:: bash
+
+      $ finitedepth -h
+
 User can also import the classes from :mod:`finitedepth` to define
 their own analysis.
 
@@ -133,3 +140,5 @@ Next steps
 ----------
 
 Check out more resources to help you customize your analysis:
+
+* Read :ref:`tutorials` for basic examples.
