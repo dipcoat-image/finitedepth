@@ -35,10 +35,10 @@ author = "Jisoo Song"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "sphinx.ext.autodoc",
     "sphinx.ext.intersphinx",
     "matplotlib.sphinxext.plot_directive",
     "numpydoc",
+    "autoapi.extension",
 ]
 
 autodoc_member_order = "bysource"
@@ -62,6 +62,10 @@ intersphinx_mapping = {
 }
 
 numpydoc_show_class_members = False
+
+autoapi_dirs = ["../../src"]
+
+autoapi_root = "reference"
 
 # -- Options for HTML output -------------------------------------------------
 

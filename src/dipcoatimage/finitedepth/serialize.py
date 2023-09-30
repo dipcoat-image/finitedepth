@@ -68,7 +68,7 @@ class ImportArgs:
 
 @dataclasses.dataclass
 class ReferenceArgs:
-    """Data for the concrete instance of :class:`ReferenceBase`.
+    """Data for the concrete instance of `ReferenceBase`.
 
     Parameters
     ----------
@@ -78,24 +78,6 @@ class ReferenceArgs:
 
     templateROI, substrateROI, parameters, draw_options
         Data for arguments of reference class.
-
-    Examples
-    --------
-    .. plot::
-       :include-source:
-
-       >>> import cv2
-       >>> from dipcoatimage.finitedepth import get_data_path
-       >>> from dipcoatimage.finitedepth.serialize import ReferenceArgs
-       >>> gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
-       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-       >>> refargs = ReferenceArgs(
-       ...     templateROI=(13, 10, 1246, 200),
-       ...     substrateROI=(100, 100, 1200, 500)
-       ... )
-       >>> ref = refargs.as_reference(img)
-       >>> import matplotlib.pyplot as plt #doctest: +SKIP
-       >>> plt.imshow(ref.draw()) #doctest: +SKIP
     """
 
     type: ImportArgs = dataclasses.field(
@@ -138,7 +120,7 @@ class ReferenceArgs:
 
 @dataclasses.dataclass
 class SubstrateArgs:
-    """Data for the concrete instance of :class:`SubstrateBase`.
+    """Data for the concrete instance of `SubstrateBase`.
 
     Parameters
     ----------
@@ -148,40 +130,6 @@ class SubstrateArgs:
 
     parameters, draw_options
         Data for arguments of substrate class.
-
-    Examples
-    --------
-    Construct substrate reference instance first.
-
-    .. plot::
-       :include-source:
-       :context: reset
-
-       >>> import cv2
-       >>> from dipcoatimage.finitedepth import get_data_path
-       >>> from dipcoatimage.finitedepth.serialize import ReferenceArgs
-       >>> gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
-       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-       >>> refargs = ReferenceArgs(
-       ...     templateROI=(13, 10, 1246, 200),
-       ...     substrateROI=(100, 100, 1200, 500)
-       ... )
-       >>> ref = refargs.as_reference(img)
-
-    Construct substrate instance from the data.
-
-    .. plot::
-       :include-source:
-       :context: close-figs
-
-       >>> from dipcoatimage.finitedepth.serialize import SubstrateArgs
-       >>> from dipcoatimage.finitedepth.serialize import data_converter
-       >>> params = dict(Sigma=3.0, Rho=1.0, Theta=0.01)
-       >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)
-       >>> substargs = data_converter.structure(arg, SubstrateArgs)
-       >>> subst = substargs.as_substrate(ref)
-       >>> import matplotlib.pyplot as plt #doctest: +SKIP
-       >>> plt.imshow(subst.draw()) #doctest: +SKIP
     """
 
     type: ImportArgs = dataclasses.field(
@@ -219,7 +167,7 @@ class SubstrateArgs:
 
 @dataclasses.dataclass
 class CoatingLayerArgs:
-    """Data for the concrete instance of :class:`CoatingLayerBase`.
+    """Data for the concrete instance of `CoatingLayerBase`.
 
     Parameters
     ----------
@@ -229,56 +177,6 @@ class CoatingLayerArgs:
 
     parameters, draw_options, deco_options
         Data for arguments of coating layer class.
-
-    Examples
-    --------
-    Construct substrate reference instance and substrate instance first.
-
-    .. plot::
-       :include-source:
-       :context: reset
-
-       >>> import cv2
-       >>> from dipcoatimage.finitedepth import get_data_path
-       >>> from dipcoatimage.finitedepth.serialize import ReferenceArgs
-       >>> gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
-       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-       >>> refargs = ReferenceArgs(
-       ...     templateROI=(13, 10, 1246, 200),
-       ...     substrateROI=(100, 100, 1200, 500)
-       ... )
-       >>> ref = refargs.as_reference(img)
-
-    .. plot::
-       :include-source:
-       :context: close-figs
-       >>> from dipcoatimage.finitedepth.serialize import SubstrateArgs
-       >>> from dipcoatimage.finitedepth.serialize import data_converter
-       >>> params = dict(Sigma=3.0, Rho=1.0, Theta=0.01)
-       >>> arg = dict(type={"name": "RectSubstrate"}, parameters=params)
-       >>> substargs = data_converter.structure(arg, SubstrateArgs)
-       >>> subst = substargs.as_substrate(ref)
-
-    Construct coating layer instance from the data.
-
-    .. plot::
-       :include-source:
-       :context: close-figs
-
-       >>> from dipcoatimage.finitedepth.serialize import CoatingLayerArgs
-       >>> gray = cv2.imread(get_data_path("coat3.png"), cv2.IMREAD_GRAYSCALE)
-       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-       >>> params = dict(
-       ...     KernelSize=(1, 1),
-       ...     ReconstructRadius=50,
-       ...     RoughnessMeasure="SDTW",
-       ...     RoughnessSamples=100,
-       ... )
-       >>> arg = dict(type={"name": "RectLayerShape"}, parameters=params)
-       >>> layerargs = data_converter.structure(arg, CoatingLayerArgs)
-       >>> layer = layerargs.as_coatinglayer(img, subst)
-       >>> import matplotlib.pyplot as plt #doctest: +SKIP
-       >>> plt.imshow(layer.draw()) #doctest: +SKIP
     """
 
     type: ImportArgs = dataclasses.field(
@@ -325,7 +223,7 @@ class CoatingLayerArgs:
 
 @dataclasses.dataclass
 class ExperimentArgs:
-    """Data for the concrete instance of :class:`ExperimentBase`."""
+    """Data for the concrete instance of `ExperimentBase`."""
 
     type: ImportArgs = dataclasses.field(
         default_factory=lambda: ImportArgs(name="Experiment")
@@ -352,7 +250,7 @@ class ExperimentArgs:
 
 @dataclasses.dataclass
 class AnalysisArgs:
-    """Data for the concrete instance of :class:`AnalysisBase`."""
+    """Data for the concrete instance of `AnalysisBase`."""
 
     type: ImportArgs = dataclasses.field(
         default_factory=lambda: ImportArgs(name="Analysis")
@@ -427,7 +325,7 @@ class ConfigBase(abc.ABC):
         """Construct *i*-th coating layer instance.
 
         If *sequential* is *True*, coating layer is sequentially constructed
-        using :class:`ExperimentBase` factory. Else, :class:`CoatingLayerBase`
+        using `ExperimentBase` factory. Else, `CoatingLayerBase`
         object is directly constructed.
 
         Parameters

@@ -41,6 +41,7 @@ dev = [
     "mypy==1.4.1",
     "types-Pillow",
     "types-PyYAML",
+    "sphinx-autoapi",
     "dipcoatimage-finitedepth[test,doc]",
 ]
 

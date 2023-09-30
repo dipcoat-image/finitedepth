@@ -20,7 +20,7 @@ Contents
    intro
    tutorial/index
    guide/index
-   reference
+   reference/index
    explanation/index
 
 Indices and tables

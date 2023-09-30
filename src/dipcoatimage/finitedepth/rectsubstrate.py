@@ -32,7 +32,7 @@ class PaintMode(enum.Enum):
 
 @dataclasses.dataclass
 class DrawOptions:
-    """Drawing options for :class:`RectSubstrate`.
+    """Drawing options for `RectSubstrate`.
 
     Attributes
     ----------
@@ -52,7 +52,7 @@ class DrawOptions:
 
 @dataclasses.dataclass
 class Data:
-    """Analysis data for :class:`RectSubstrate`.
+    """Analysis data for `RectSubstrate`.
 
     - ChipWidth: Number of the pixels between lower vertices of the substrate.
     """
@@ -61,7 +61,7 @@ class Data:
 
 
 class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):
-    """Simplest implementation of :class:`RectSubstrateBase`.
+    """Simplest implementation of `RectSubstrateBase`.
 
     Examples
     --------

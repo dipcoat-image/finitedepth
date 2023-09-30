@@ -11,8 +11,6 @@ This package provides
 2. Detecting bare substrate geometry
 3. Extracting and analyzing coating layer
 4. Saving analysis result
-
-:mod:`dipcoatimage.finitedepth_gui` provides GUI for this package.
 """
 
 import json

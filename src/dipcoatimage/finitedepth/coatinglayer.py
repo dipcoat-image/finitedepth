@@ -34,7 +34,7 @@ DataType = TypeVar("DataType", bound="DataclassInstance")
 
 
 class CoatingLayerError(Exception):
-    """Base class for error from :class:`CoatingLayerBase`."""
+    """Base class for error from `CoatingLayerBase`."""
 
     pass
 
@@ -205,7 +205,7 @@ class CoatingLayerBase(
 
 @dataclasses.dataclass(frozen=True)
 class Parameters:
-    """Additional parameters for :class:`CoatingLayer` instance."""
+    """Additional parameters for `CoatingLayer` instance."""
 
     pass
 
@@ -236,7 +236,7 @@ class SubtractionMode(enum.Enum):
 
 @dataclasses.dataclass
 class DrawOptions:
-    """Drawing options for :class:`CoatingLayer` instance.
+    """Drawing options for `CoatingLayer` instance.
 
     Attributes
     ----------
@@ -248,7 +248,7 @@ class DrawOptions:
 
 @dataclasses.dataclass
 class DecoOptions:
-    """Options to show the coating layer of :class:`CoatingLayer`.
+    """Options to show the coating layer of `CoatingLayer`.
 
     Attributes
     ----------
@@ -267,7 +267,7 @@ class DecoOptions:
 
 @dataclasses.dataclass
 class Data:
-    """Analysis data for :class:`CoatingLayer`."""
+    """Analysis data for `CoatingLayer`."""
 
     pass
 
@@ -311,7 +311,7 @@ class CoatingLayer(
        >>> subst = Substrate(ref)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
-    Construct :class:`CoatingLayer` from substrate instance. :meth:`analyze` returns
+    Construct `CoatingLayer` from substrate instance. :meth:`analyze` returns
     the number of pixels in coating area region.
 
     .. plot::

@@ -26,7 +26,7 @@ __all__ = [
 
 
 class ReferenceError(Exception):
-    """Base class for error from :class:`ReferenceBase`."""
+    """Base class for error from `ReferenceBase`."""
 
     pass
 
@@ -148,14 +148,14 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
 
 @dataclasses.dataclass(frozen=True)
 class Parameters:
-    """Additional parameters for :class:`Reference` instance."""
+    """Additional parameters for `Reference` instance."""
 
     pass
 
 
 @dataclasses.dataclass
 class DrawOptions:
-    """Drawing options for :class:`Reference`.
+    """Drawing options for `Reference`.
 
     Attributes
     ----------
@@ -173,7 +173,7 @@ class DrawOptions:
 
 @dataclasses.dataclass
 class Data:
-    """Analysis data for :class:`Reference`."""
+    """Analysis data for `Reference`."""
 
     pass
 
@@ -240,7 +240,7 @@ class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
 
 
 def sanitize_ROI(roi: OptionalROI, h: int, w: int) -> IntROI:
-    """Convert :obj:`OptionalROI` to :obj:`IntROI`."""
+    """Convert `OptionalROI` to `IntROI`."""
     full_roi = (0, 0, w, h)
     max_vars = (w, h, w, h)
 

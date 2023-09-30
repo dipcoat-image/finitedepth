@@ -17,5 +17,5 @@ base classes (or itself). API methods that are used by the concrete
 implementations are not cached by the base class. If the result needs to be
 cached, it should be implemented in the concrete class itself. For example,
 :meth:`SubstrateBase.contours` is cached because it is used by
-:class:`CoatingLayerBase`. However :meth:`CoatingLayerBase.interfaces` is not
+`CoatingLayerBase`. However :meth:`CoatingLayerBase.interfaces` is not
 cached because no other base class needs access to it.

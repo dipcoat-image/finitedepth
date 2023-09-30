@@ -184,7 +184,7 @@ class DistanceMeasure(enum.Enum):
 
 @dataclasses.dataclass(frozen=True)
 class Parameters:
-    """Analysis parameters for :class:`RectLayerShape` instance.
+    """Analysis parameters for `RectLayerShape` instance.
 
     Attributes
     ----------
@@ -219,7 +219,7 @@ class PaintMode(enum.Enum):
 
 @dataclasses.dataclass
 class DrawOptions:
-    """Drawing options for :class:`RectLayerShape` instance.
+    """Drawing options for `RectLayerShape` instance.
 
     Attributes
     ----------
@@ -253,7 +253,7 @@ class LinesOptions:
 
 @dataclasses.dataclass
 class DecoOptions:
-    """Options to show the analysis result on :class:`RectLayerShape`.
+    """Options to show the analysis result on `RectLayerShape`.
 
     Attributes
     ----------
@@ -289,7 +289,7 @@ class DecoOptions:
 
 @dataclasses.dataclass
 class Data:
-    """Analysis data for :class:`RectLayerShape` instance.
+    """Analysis data for `RectLayerShape` instance.
 
     - LayerLength_{Left, Right}: Distance between the bottom sideline of the
       substrate and the upper limit of the coating layer.
@@ -357,7 +357,7 @@ class RectLayerShape(
        >>> subst = RectSubstrate(ref, param)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
-    Construct :class:`RectLayerShape` from substrate class. :meth:`analyze`
+    Construct `RectLayerShape` from substrate class. :meth:`analyze`
     returns the number of pixels in coating area region.
 
     .. plot::
@@ -732,7 +732,7 @@ def equidistant_interpolate(points, n) -> npt.NDArray[np.float64]:
 
 
 def polyline_parallel_area(line: npt.NDArray, t: float) -> np.float64:
-    """Calculate the area formed by convex polyline[1]_ and its parallel curve[2]_.
+    """Calculate the area formed by convex polyline [1]_ and its parallel curve [2]_.
 
     Parameters
     ----------

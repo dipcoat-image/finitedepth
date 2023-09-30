@@ -81,7 +81,7 @@ them.
 
 For unstructuring, we use :mod:`cattrs`.
 It is a powerful package which supports dataclass converter.
-DipcoatImage-FiniteDepth provides :obj:`data_converter`, a dedicated
+DipcoatImage-FiniteDepth provides `data_converter`, a dedicated
 :class:`cattrs.Converter` instance.
 
 >>> from dipcoatimage.finitedepth import data_converter

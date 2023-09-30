@@ -123,9 +123,9 @@ It can be run as a package as well:
    $ python -m dipcoatimage.finitedepth analyze config1.yml config2.json ...
 
 The configuration file must contain entries which can be constructed to
-:class:`Config` instance.
+`Config` instance.
 
-User can also import the classes from :mod:`dipcoatimage.finitedepth` to define
+User can also import the classes from `dipcoatimage.finitedepth` to define
 their own analysis.
 
 Next steps
