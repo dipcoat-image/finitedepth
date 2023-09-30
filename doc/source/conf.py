@@ -87,18 +87,14 @@ def setup(sphinx):
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "alabaster"
+html_theme = "furo"
+html_title = "DipCoatImage-FiniteDepth"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = []  # type: ignore
-_LOGO = "logo.png"
-html_theme_options = dict(
-    logo=_LOGO,
-    logo_name=True,
-    sidebar_width="250px",
-)
+html_static_path = ["_static"]
+html_logo = "_static/logo.png"
 
 plot_html_show_formats = False
 plot_html_show_source_link = False
@@ -134,13 +130,8 @@ img[edge_mask] = (255, 255, 255)
 
 alpha = ~np.all(img == (255, 255, 255), axis=-1) * 255
 
-if os.environ.get("READTHEDOCS", False):
-    _OUTPUT = os.environ["READTHEDOCS_OUTPUT"]
-else:
-    _OUTPUT = "../build"
-_STATIC = os.path.join(_OUTPUT, "html", "_static")
-os.makedirs(_STATIC, exist_ok=True)
+os.makedirs("_static", exist_ok=True)
 cv2.imwrite(
-    os.path.join(_STATIC, _LOGO),
+    "_static/logo.png",
     cv2.cvtColor(np.dstack([img, alpha]).astype(np.uint8), cv2.COLOR_RGBA2BGRA),
 )

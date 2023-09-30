@@ -28,6 +28,7 @@ test = [
 ]
 doc = [
     "matplotlib",
+    "furo",
     "numpydoc",
     "sphinx",
     "sphinx-autoapi",
