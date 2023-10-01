@@ -62,6 +62,7 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         *,
         draw_options: Optional[DrawOptionsType] = None,
     ):
+        """Initialize the instance."""
         super().__init__()
         self._image = image
         self._image.setflags(write=False)

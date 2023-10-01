@@ -70,6 +70,7 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
     Parameters: Type[ParametersType]
 
     def __init__(self, *, parameters: Optional[ParametersType] = None):
+        """Initialize the instance."""
         if parameters is None:
             self._parameters = self.Parameters()
         else:

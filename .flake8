@@ -12,4 +12,4 @@ per-file-ignores =
     src/dipcoatimage/finitedepth/version.py:D
     tests/**:D
     doc/source/conf.py:D
-docstring-convention = numpy
+docstring-convention = google

@@ -44,6 +44,8 @@ package is provided.
 
             echo $env:FINITEDEPTH_DATA
 
+.. _basic-example:
+
 Basic example
 -------------
 
