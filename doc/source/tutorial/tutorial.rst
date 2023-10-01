@@ -47,10 +47,10 @@ package is provided.
 Basic example
 -------------
 
-Download :download:`config1.yml <./config1.yml>` file in your local directory.
-The contents of the file is:
+Download :download:`config.yml <./config.yml>` file in your local directory.
+The contents of the file are:
 
-.. literalinclude:: ./config1.yml
+.. literalinclude:: ./config.yml
     :language: yaml
 
 The ``ref_path`` and ``coat_path`` are important parameters which specify
@@ -72,14 +72,15 @@ the coating layer region:
 
 .. code-block:: bash
 
-    finitedepth analyze config1.yml
+    finitedepth analyze config.yml
 
 .. plot::
+    :context: reset
     :caption: ``result1.jpg``
 
     import os, yaml, matplotlib.pyplot as plt
-    from dipcoatimage.finitedepth import *
-    with open(os.path.join("config1.yml"), "r") as f:
+    from dipcoatimage.finitedepth import data_converter, Config
+    with open(os.path.join("config.yml"), "r") as f:
         data = yaml.load(f, Loader=yaml.FullLoader)
     (v,) = data.values()
     config = data_converter.structure(v, Config)
@@ -89,21 +90,21 @@ the coating layer region:
     plt.show()
 
 Configuration file can also be ``JSON``.
-Download :download:`config2.json <./config2.json>` and run:
+Download :download:`config.json <./config.json>` and run:
 
 .. code-block:: bash
 
-    finitedepth analyze config1.json
+    finitedepth analyze config.json
 
-.. literalinclude:: ./config2.json
+.. literalinclude:: ./config.json
     :language: json
 
 .. plot::
+    :context: close-figs
     :caption: ``result2.jpg``
 
-    import os, json, matplotlib.pyplot as plt
-    from dipcoatimage.finitedepth import *
-    with open(os.path.join("config2.json"), "r") as f:
+    import json
+    with open(os.path.join("config.json"), "r") as f:
         data = json.load(f)
     (v,) = data.values()
     config = data_converter.structure(v, Config)
@@ -121,25 +122,24 @@ Download :download:`config2.json <./config2.json>` and run:
         finitedepth analyze -h
 
 
-Under the hood
---------------
+Reference, substrate and coating layer
+--------------------------------------
 
 Configurations in the previous section are only minimum examples;
 under the hood, there are more than meets the eye.
 
-Change the ``config1.yml`` as follows and run the analysis again:
+Change the ``config.yml`` as follows and run the analysis again:
 
-.. literalinclude:: ./config1-subst.yml
+.. literalinclude:: ./config-subst.yml
     :language: yaml
 
 You will now have two additional files; ``ref1.jpg`` and ``subst1.jpg``.
 
 .. plot::
+    :context: close-figs
     :caption: ``ref1.jpg`` and ``subst1.jpg``
 
-    import os, yaml, matplotlib.pyplot as plt
-    from dipcoatimage.finitedepth import *
-    with open(os.path.join("config1.yml"), "r") as f:
+    with open(os.path.join("config.yml"), "r") as f:
         data = yaml.load(f, Loader=yaml.FullLoader)
     (v,) = data.values()
     config = data_converter.structure(v, Config)
@@ -180,3 +180,29 @@ Specifying types
 Previous configurations did not specify the instance types, defaulting
 them to :class:`Reference`, :class:`Substrate`, and :class:`CoatingLayer`.
 By using advanced types, more detailed analysis can be achieved.
+
+Download :download:`config-rect.yml <./config-rect.yml>` file in your local
+directory.
+The contents of the file are:
+
+.. literalinclude:: ./config-rect.yml
+    :language: yaml
+
+Here, we specified the substrate type to :class:`RectSubstrate` and
+coating layer type to :class:`RectLayerShape`. We also passed necessary
+parameters, which are described in their API reference.
+
+The resulting coating layer instance is equipped with fancy visualization:
+
+.. plot::
+    :context: close-figs
+    :caption: ``result3.jpg``
+
+    with open(os.path.join("config-rect.yml"), "r") as f:
+        data = yaml.load(f, Loader=yaml.FullLoader)
+    (v,) = data.values()
+    config = data_converter.structure(v, Config)
+    coat = config.construct_coatinglayer(0)
+    plt.axis("off")
+    plt.imshow(coat.draw())
+    plt.show()
