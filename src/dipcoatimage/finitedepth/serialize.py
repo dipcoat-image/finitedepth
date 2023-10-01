@@ -43,7 +43,7 @@ data_converter = cattrs.Converter()
 """:class:`cattrs.Converter` object for configuration serialization.
 
 Examples:
-    Constructing :class:`Config` from YAML-format configuration file:
+    Constructing :class:`Config` objects from YAML-format configuration file:
 
     .. code-block:: python
 
