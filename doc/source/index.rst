@@ -17,7 +17,7 @@ Contents
    :maxdepth: 2
 
    intro
-   tutorial/index
+   tutorial/tutorial
    config-reference
    guide/index
    reference/index

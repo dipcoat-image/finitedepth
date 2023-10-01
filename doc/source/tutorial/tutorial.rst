@@ -1,12 +1,12 @@
-.. _config-example:
+.. _tutorial:
 
-Analysis from configuration file
-================================
+Tutorial
+========
 
 .. currentmodule:: finitedepth
 
-Systematic analysis can be achieved by specifying the analysis parameters
-in configuration file.
+In this page, a step-by-step guide to achieve basic understanding of the
+package is provided.
 
 .. note::
 

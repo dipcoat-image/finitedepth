@@ -126,17 +126,18 @@ It can be run as a package as well:
 
    python -m dipcoatimage.finitedepth analyze config1.yml config2.json ...
 
-The configuration file must contain entries which are constructed to
-:class:`Config` instance. See :ref:`config-example` for more information.
+The configuration file must contain entries which can construct
+:class:`Config` instance. See :ref:`config-reference` for more information.
 
 .. note::
-   To check other options, run:
+   To check other commands, run:
 
    .. code-block:: bash
 
       finitedepth -h
 
-User can also import the classes from :mod:`finitedepth` to define
+User can also import the classes from
+:mod:`dipcoatimage.finitedepth <finitedepth>` package to implement
 their own analysis.
 
 Next steps
@@ -144,4 +145,4 @@ Next steps
 
 Check out more resources to help you customize your analysis:
 
-* Read :ref:`tutorials` for basic examples.
+* Read :ref:`tutorial` for basic examples.
