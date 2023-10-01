@@ -172,3 +172,11 @@ The :ref:`fundamental scheme <fundamentals>` is implemented as follows:
 
     Actual analysis involves two additional types (:class:`ExperimentBase`
     and :class:`AnalysisBase`), but we spare the details in this section.
+
+
+Specifying types
+----------------
+
+Previous configurations did not specify the instance types, defaulting
+them to :class:`Reference`, :class:`Substrate`, and :class:`CoatingLayer`.
+By using advanced types, more detailed analysis can be achieved.
