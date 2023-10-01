@@ -28,8 +28,11 @@ test = [
 ]
 doc = [
     "matplotlib",
+    "furo",
     "numpydoc",
     "sphinx",
+    "sphinx-autoapi",
+    "sphinx-tabs",
 ]
 dev = [
     "flake8",
@@ -37,6 +40,7 @@ dev = [
     "black",
     "isort",
     "docformatter",
+    "doc8",
     "mypy==1.4.1",
     "types-Pillow",
     "types-PyYAML",
@@ -57,3 +61,10 @@ profile = "black"
 recursive = true
 in-place = true
 black = true
+
+[tool.doc8]
+ignore = ["D004"]
+ignore-path = [
+    "src",
+    "doc/build",
+]

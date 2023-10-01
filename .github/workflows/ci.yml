@@ -110,9 +110,17 @@ jobs:
 
       - name: install package
         run: |
-          pip install .[doc]
+          pip install .[doc] doc8
+
+      - name: force update package
+        run: |
+          pip install -U sphinx-tabs
 
       - name: build document
         run: |
           cd doc
           make html SPHINXOPTS="-W --keep-going"
+
+      - name: lint with doc8  # doc8 test must be done after building doc once.
+        run: |
+          doc8 .

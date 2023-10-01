@@ -1,20 +1,30 @@
-====================================================
-Welcome to DipCoatImage-FiniteDepth's documentation!
-====================================================
+Welcome to DipCoatImage-FiniteDepth documentation!
+==================================================
+
+DipCoatImage-FiniteDepth is a Python package to visualize and analyze the
+coating layer profile in *finite depth dip coating* process.
+
+The advantages of DipCoatImage-FiniteDepth are:
+
+* Provides simple image analysis scheme.
+* Good extensibility.
+* Written in pure Python.
+
+Contents
+--------
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
 
    intro
-   install
-   tutorial/index
-   user-guide/index
+   tutorial/tutorial
+   config-reference
+   guide/index
+   reference/index
    explanation/index
-   dev-guide/index
 
 Indices and tables
-==================
+------------------
 
 * :ref:`genindex`
 * :ref:`modindex`

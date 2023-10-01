@@ -1,0 +1,11 @@
+Analysis1:
+  ref_path: $FINITEDEPTH_DATA/ref1.png
+  coat_path: $FINITEDEPTH_DATA/coat1.png
+  reference:
+    templateROI: [200, 50, 1200, 200]
+    substrateROI: [400, 175, 1000, 500]
+  analysis:
+    parameters:
+      ref_visual: ref1.jpg
+      subst_visual: subst1.jpg
+      layer_visual: result1.jpg

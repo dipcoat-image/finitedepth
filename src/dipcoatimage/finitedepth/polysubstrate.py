@@ -24,7 +24,7 @@ __all__ = [
 
 @dataclasses.dataclass(frozen=True)
 class Parameters:
-    """Parameters for :class:`PolySubstrate`.
+    """Parameters for `PolySubstrate`.
 
     Attributes
     ----------
@@ -46,7 +46,7 @@ class Parameters:
 
 
 class PolySubstrateError(SubstrateError):
-    """Base class for the errors from :class:`PolySubstrate`."""
+    """Base class for the errors from `PolySubstrate`."""
 
     pass
 
@@ -60,13 +60,15 @@ DataType = TypeVar("DataType", bound="DataclassInstance")
 
 
 class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]):
-    """Abstract base class for substrates whose cross section is a simple polygon[1]_.
+    """Abstract base class for substrates whose cross section is a simple polygon.
 
-    :class:`PolySubstrateBase` provides method to detect the sides of the
+    A simple polygon does not have intersection nor hole [#simple-polygon]_.
+
+    `PolySubstrateBase` provides method to detect the sides of the
     a polygonal substrate. The sides are expected to be mostly linear. Smooth
     corners are allowed.
 
-    Concrete class must define :attr:`SidesNum` class attribute, which is the
+    Concrete class must define `SidesNum` class attribute, which is the
     number of the sides of the polygon.
 
     The following substrate images are not supported:
@@ -75,7 +77,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]
 
     References
     ----------
-    .. [1] https://en.wikipedia.org/wiki/Simple_polygon
+    .. [#simple-polygon] https://en.wikipedia.org/wiki/Simple_polygon
     """
 
     __slots__ = (
@@ -108,19 +110,20 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]
 
         Notes
         -----
-        A vertex is a point where two or more sides of a polygon meet[1]_.
-        The sides can be curves, where the vertices can be defined as local
-        extrema of curvature[2]_. This method finds the vertices by locating a
-        certain number (defined by d:attr:`SidesNum`) of the extrema.
+        A vertex is a point where two or more sides of a polygon meet
+        [#vertex-geom]_. The sides can be curves, where the vertices can be
+        defined as local extrema of curvature [#vertex-curve]_. This method finds
+        the vertices by locating a certain number (defined by `SidesNum`) of the
+        extrema.
 
-        Gaussian filter was used to reduce noise from contour[3]_. Sigma value
-        is determined from :meth:`parameters`.
+        Gaussian filter was used to reduce noise from contour [#so-curvature]_.
+        Sigma value is determined from :meth:`parameters`.
 
         References
         ----------
-        .. [1] https://en.wikipedia.org/wiki/Vertex_(geometry)
-        .. [2] https://en.wikipedia.org/wiki/Vertex_(curve)
-        .. [3] https://stackoverflow.com/q/32629806
+        .. [#vertex-geom] https://en.wikipedia.org/wiki/Vertex_(geometry)
+        .. [#vertex-curve] https://en.wikipedia.org/wiki/Vertex_(curve)
+        .. [#so-curvature] https://stackoverflow.com/q/32629806
         """
         cnt = self.contour().astype(np.float64)
 
@@ -179,7 +182,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]
         r"""Find linear model of polygon sides.
 
         Sides of the polygon can be curves and can have noises. This method finds
-        straight sidelines[1]_ using Hough line transformation.
+        straight sidelines [#extended-side]_ using Hough line transformation.
 
         Returns
         -------
@@ -201,7 +204,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]
 
         References
         ----------
-        .. [1] https://en.wikipedia.org/wiki/Extended_side
+        .. [#extended-side] https://en.wikipedia.org/wiki/Extended_side
         """
         if not hasattr(self, "_sidelines"):
             # Do not find the line from smoothed contour. Noise is removed anyway

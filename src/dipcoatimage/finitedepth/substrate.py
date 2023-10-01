@@ -22,7 +22,7 @@ __all__ = [
 
 
 class SubstrateError(Exception):
-    """Base class for error from :class:`SubstrateBase`."""
+    """Base class for error from `SubstrateBase`."""
 
     pass
 
@@ -36,7 +36,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
     """Abstract base class for substrate.
 
     Substrate class recognizes the geometry of substrate image from
-    :class:`.ReferenceBase`.
+    `.ReferenceBase`.
 
     .. rubric:: Constructor
 
@@ -233,21 +233,21 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
 
 @dataclasses.dataclass(frozen=True)
 class Parameters:
-    """Additional parameters for :class:`Substrate` instance."""
+    """Additional parameters for `Substrate` instance."""
 
     pass
 
 
 @dataclasses.dataclass
 class DrawOptions:
-    """Drawing options for :class:`Substrate`."""
+    """Drawing options for `Substrate`."""
 
     pass
 
 
 @dataclasses.dataclass
 class Data:
-    """Analysis data for :class:`Substrate`."""
+    """Analysis data for `Substrate`."""
 
     pass
 
@@ -273,7 +273,7 @@ class Substrate(SubstrateBase[Parameters, DrawOptions, Data]):
        >>> import matplotlib.pyplot as plt #doctest: +SKIP
        >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
-    Construct :class:`Substrate` instance from reference instance.
+    Construct `Substrate` instance from reference instance.
 
     .. plot::
        :include-source:

@@ -26,7 +26,7 @@ __all__ = [
 
 
 class AnalysisError(Exception):
-    """Base class for error from :class:`AnalysisBase`."""
+    """Base class for error from `AnalysisBase`."""
 
     pass
 
@@ -38,7 +38,7 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
     """Class to save the analysis result.
 
     Subclass must implement :meth:`__await__` which saves the analysis result.
-    See :class:`Analyzer` for example.
+    See `Analyzer` for example.
 
     .. rubric:: Constructor
 
@@ -161,7 +161,7 @@ def CSVWriter(path: str):
 
 @dataclasses.dataclass(frozen=True)
 class Parameters:
-    """Parameters for :class:`Analysis`.
+    """Parameters for `Analysis`.
 
     Attributes
     ----------

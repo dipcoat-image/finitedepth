@@ -1,0 +1,32 @@
+Analysis1:
+  ref_path: $FINITEDEPTH_DATA/ref3.png
+  coat_path: $FINITEDEPTH_DATA/coat3.png
+  reference:
+    templateROI: [10, 10, 1250, 200]
+    substrateROI: [100, 100, 1200, 500]
+  substrate:
+    type:
+      name: RectSubstrate
+    parameters:
+      Sigma: 3.0
+      Rho: 1.0
+      Theta: 0.01
+  coatinglayer:
+    type:
+      name: RectLayerShape
+    parameters:
+      KernelSize: [1, 1]
+      ReconstructRadius: 50
+      RoughnessMeasure: "DTW"
+    draw_options:
+      subtraction: "SUBSTRATE"
+    deco_options:
+      uniform_layer:
+        linewidth: 0
+      roughness:
+        linewidth: 0
+  analysis:
+    parameters:
+      subst_data: subst3.csv
+      layer_visual: result3.jpg
+      layer_data: result3.csv

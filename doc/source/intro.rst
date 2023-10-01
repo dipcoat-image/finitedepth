@@ -1,167 +1,148 @@
-============
-Introduction
-============
+Getting started
+===============
 
-.. currentmodule:: dipcoatimage.finitedepth
+.. currentmodule:: finitedepth
 
-DipCoatImage-FiniteDepth is a Python package to perform image analysis on the coating layer shape from batch dip coating process with finite immersion depth.
-
-Dip coating with finite depth is commonly used to partially apply liquid film onto a three-dimensional object.
-The image below shows how the finite depth dip coating is performed.
+What is "finite depth dip coating"?
+-----------------------------------
 
 .. figure:: ./_images/finite-depth-dip-coating.jpg
    :align: center
 
-   Finite depth dip coating process; immersion, deposition, termination and fluid redistribution.
+   The four stages of the finite-depth coating process.
 
-The termination of the process is governed by the lower end effect of the system, where the capillary bridge is formed between the bulk fluid and the coating layer and soon ruptures.
-After the capillary bridge breaks, coating layer changes its shape over time by fluid redistribution.
-This temporal evolution of the coating layer must be analyzed to optimize the coating process.
+Finite depth dip coating is a process in which a substrate is partially coated
+with liquid by being dipped into a bath with relatively small immersion depth.
+Unlike traditional dip coating, the coating layer is confined into a small
+portion of the substrate and thus the lower edge effect dominates the system.
 
-Analysis images
-===============
+The process consists of four stages:
 
-Two silhouette images are required to analyze the coating layer shape:
+#. Immersion
+      In this initial stage, the substrate descends into the bath.
+#. Withdrawal
+      The substrate is now gradually pulled out of the bath.
+#. Pinch-off
+      As the substrate exits the bath, a capillary bridge forms between the
+      coating layer and the bulk fluid. The bridge then thins by pinch-off
+      dynamics and eventually ruptures.
+#. Termination
+      Surface tension redistributes the fluid until equilibrium is reached.
 
-1. Bare substrate image
-2. Coated substrate image
+To achieve uniform coating, the coating layer profile should be measured and
+studied; and that's what *DipcoatImage-FiniteDepth* is for.
 
-Below are the images of the bare substrate and the coated substrate from acutal coating process.
+.. _fundamentals:
+
+Fundamentals
+------------
+
+Image analysis is performed based on two types of images; *reference image* and
+*target image*. Reference image is an image of bare substrate, and target image
+is an image of coated substrate.
 
 .. plot::
    :context: reset
-   :caption: Bare substrate image(left) and coated substate image (right)
-   :align: center
+   :caption: Reference image (left) and target image (right).
+      Red box is substrate region.
 
-   import cv2, matplotlib.pyplot as plt
-   from dipcoatimage.finitedepth import get_data_path
+   import cv2, numpy as np, matplotlib.pyplot as plt
+   from dipcoatimage.finitedepth import *
+   data = dict(
+      ref_path=get_data_path("ref3.png"),
+      coat_path=get_data_path("coat3.mp4"),
+      reference=dict(
+         templateROI=(13, 10, 1246, 200),
+         substrateROI=(100, 100, 1200, 500),
+         draw_options=dict(
+            templateROI=dict(linewidth=0),
+            substrateROI=dict(color=(255, 0, 0), linewidth=4),
+         ),
+      ),
+      coatinglayer=dict(
+         deco_options=dict(layer=dict(facecolor=(0, 0, 0))),
+      ),
+   )
+   config = data_converter.structure(data, Config)
+   coat = config.construct_coatinglayer(0, False)
 
-   ref_path = get_data_path("ref3.png")
-   ref_gray = cv2.imread(ref_path, cv2.IMREAD_GRAYSCALE)
-   coat_path = get_data_path("coat3.png")
-   coat_gray = cv2.imread(coat_path, cv2.IMREAD_GRAYSCALE)
-
-   _, axes = plt.subplots(1, 2, figsize=(8, 4))
-   axes[0].imshow(ref_gray, cmap="gray")
+   _, axes = plt.subplots(1, 2, figsize=(6, 2.5))
+   axes[0].imshow(coat.substrate.reference.draw(), cmap="gray")
    axes[0].axis("off")
-   axes[1].imshow(coat_gray, cmap="gray")
+   axes[1].imshow(coat.draw(), cmap="gray")
    axes[1].axis("off")
    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
    plt.show()
 
-From these two images, the coating layer region can be extracted and further analyzed to yield the quantitative data (e.g., coating layer thickness).
-Temporal evolution of the coating layer can be assessed by analyzing the series of coated substrate images from the coating process.
+The basic scheme of analysis is:
+
+#. Select the substrate region from the reference image.
+#. Locate the substrate region in the target image.
+#. Retrieve the coating layer region from the target image.
 
 .. plot::
    :context: close-figs
-   :caption: Coating layer region image
-   :align: center
+   :caption: Coating layer region (blue) with substrate region removed.
 
-   from dipcoatimage.finitedepth import Reference, Substrate, CoatingLayer
-
-   _, ref_img = cv2.threshold(ref_gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-   ref = Reference(ref_img, (13, 10, 1246, 200), (100, 100, 1200, 500))
-   subst = Substrate(ref)
-   _, coat_img = cv2.threshold(coat_gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-   coat = CoatingLayer(coat_img, subst)
-   coat.draw_options.remove_substrate = True
-
+   coat.draw_options.subtraction = coat.SubtractionMode.SUBSTRATE
+   coat.deco_options.layer.facecolor = (69, 132, 182)
+   plt.figure(figsize=(3, 2.5))
    plt.axis("off")
    plt.imshow(coat.draw())
+   plt.tight_layout()
 
-Image processing classes
-========================
+The resulting coating layer region can be further processed to return desired
+data, e.g., thickness or unifomity.
 
-:mod:`dipcoatimage.finitedepth` defines three kind of classes for image processing:
+Installation
+------------
 
-1. Substrate reference
-2. Substrate
-3. Coating layer
+DipcoatImage-FiniteDepth can be installed by `pip` from its github repository.
 
-Substrate reference class
--------------------------
+.. code-block:: bash
 
-Substrate reference class(or in short, reference class) is a container for the bare substrate image and two ROIs; template ROI and substrate ROI.
+   pip install git+ssh://git@github.com/dipcoat-image/finitedepth.git
 
-The first ROI specifies the template region for the coating layer class, and the second specifies the substrate region for the substrate class.
+This installs the package with its latest commit. If you want a specific
+version, append ``@[tag name]`` such as:
 
-.. plot::
-   :context: reset
-   :include-source:
-   :caption: Template ROI (green) and substrate ROI (red) visuaized by :class:`.Reference`
-   :align: center
+.. code-block:: bash
 
-   >>> import cv2
-   >>> from dipcoatimage.finitedepth import get_data_path, Reference
-   >>> import matplotlib.pyplot as plt #doctest: +SKIP
-   >>> ref_gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
-   >>> _, ref_img = cv2.threshold(ref_gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-   >>> templateROI, substrateROI = (100, 50, 1200, 200), (300, 100, 950, 600)
-   >>> ref = Reference(ref_img, templateROI, substrateROI)
-   >>> plt.imshow(ref.draw()) #doctest: +SKIP
+   pip install git+ssh://git@github.com/dipcoat-image/finitedepth.git@v1.0.0
 
-Substrate class
----------------
+Basic usage
+-----------
 
-Substrate class detects the geometry of the substrate.
-It uses the substrate region from the substrate reference instance.
+DipcoatImage-FiniteDepth provides command-line to invoke analysis using
+configuration files.
 
-.. plot::
-   :context: close-figs
-   :include-source:
-   :caption: Edge of the substrate (blue) detected by :class:`.RectSubstrate`
-   :align: center
+.. code-block:: bash
 
-   >>> from dipcoatimage.finitedepth import RectSubstrate, data_converter
-   >>> param_val = dict(Sigma=3.0, Rho=1.0, Theta=0.01)
-   >>> param = data_converter.structure(param_val, RectSubstrate.Parameters)
-   >>> subst = RectSubstrate(ref, parameters=param)
-   >>> subst.draw_options.draw_lines = False
-   >>> plt.imshow(subst.draw()) #doctest: +SKIP
+   finitedepth analyze config1.yml config2.json ...
 
-Coating layer class
--------------------
+It can be run as a package as well:
 
-Coating layer class extracts the coating layer region from the coated substrate image using the substrate instance.
-It then retrieves quantitative data and visualized image from it.
+.. code-block:: bash
 
-To analyze the coating layer shape, the coating layer instance uses the substrate geometry information detected by the substrate instance.
+   python -m dipcoatimage.finitedepth analyze config1.yml config2.json ...
 
-.. plot::
-   :context: close-figs
-   :include-source:
-   :caption: Coating layer region (blue) extracted by :class:`.CoatingLayer`
-   :align: center
+The configuration file must contain entries which can construct
+:class:`Config` instance. See :ref:`config-reference` for more information.
 
-   >>> from dipcoatimage.finitedepth import CoatingLayer
-   >>> coat_gray = cv2.imread(get_data_path("coat3.png"), cv2.IMREAD_GRAYSCALE)
-   >>> _, coat_img = cv2.threshold(coat_gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-   >>> coat = CoatingLayer(coat_img, subst)
-   >>> coat.draw_options.subtraction = coat.SubtractionMode.FULL
-   >>> plt.imshow(coat.draw()) #doctest: +SKIP
+.. note::
+   To check other commands, run:
 
-Analysis classes
-================
+   .. code-block:: bash
 
-Analyzing the coating experiment usually involves processing multiple images(e.g., frames from the coating process video) of a coated substrate with respect to a single bare substrate image.
+      finitedepth -h
 
-:mod:`dipcoatimage.finitedepth` provides systematic way to construct multiple coating layer instances, to save the analysis results, and to serialize the analysis parameters into file.
+User can also import the classes from
+:mod:`dipcoatimage.finitedepth <finitedepth>` package to implement
+their own analysis.
 
-Experiment class
-----------------
+Next steps
+----------
 
-Experiment class is a factory for coating layer instance.
+Check out more resources to help you customize your analysis:
 
-Analyzer class
---------------
-
-:class:`.Analyzer` collects the data and the visualized images from multiple coating layer instance, and saves them as files.
-
-Experiment configuration
-------------------------
-
-:class:`.Config` is a dataclass which describes a whole configuration of finite depth dip coating experiment.
-It can also automatically construct a :class:`.Analyzer` instance from the data and perform the analysis.
-
-Serializing and deserializing the experiment data can be done by :obj:`.data_converter`, which is a :class:`cattrs.Converter`.
-This allows configuration for the analysis to be saved to and loaded from file.
+* Read :ref:`tutorial` for basic examples.

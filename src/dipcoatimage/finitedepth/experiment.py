@@ -27,7 +27,7 @@ ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
 
 
 class ExperimentError(Exception):
-    """Base class for error from :class:`ExperimentBase`."""
+    """Base class for error from `ExperimentBase`."""
 
     pass
 
@@ -37,7 +37,7 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
 
     Experiment is an act of transforming incoming coated substrate images to
     coating layer data by processing them agains the bare substrate.
-    :class:`ExperimentBase` provides structured way to define transformation of
+    `ExperimentBase` provides structured way to define transformation of
     a series of images.
 
     .. rubric:: Constructor
@@ -106,7 +106,7 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
 
 @dataclasses.dataclass(frozen=True)
 class Parameters:
-    """Additional parameters for :class:`Experiment` instance.
+    """Additional parameters for `Experiment` instance.
 
     Attributes
     ----------
