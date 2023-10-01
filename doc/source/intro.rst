@@ -32,6 +32,8 @@ The process consists of four stages:
 To achieve uniform coating, the coating layer profile should be measured and
 studied; and that's what *DipcoatImage-FiniteDepth* is for.
 
+.. _fundamentals:
+
 Fundamentals
 ------------
 

@@ -1,7 +1,9 @@
 .. _config-example:
 
-Analyzing from configuration file
-=================================
+Analysis from configuration file
+================================
+
+.. currentmodule:: finitedepth
 
 Systematic analysis can be achieved by specifying the analysis parameters
 in configuration file.
@@ -51,23 +53,22 @@ The contents of the file is:
 .. literalinclude:: ./config1.yml
     :language: yaml
 
-The important parameters in the configuration file are ``ref_path`` and
-``coat_path``, which are the paths to reference image and target image(s).
-Note that the paths contain environment variable which we already set.
+The ``ref_path`` and ``coat_path`` are important parameters which specify
+*reference image* and *target image(s)*. Note that the paths contain
+environment variable which we already set.
 
-For reference image, *template ROI* (``tempROI``) and *substrate ROI*
-(``substROI``) are specified. These parameters are explained in
-:class:`ReferenceBase`.
-
-Finally, the visualization result is specified in ``layer_visual``.
-As a result, the coating layer image will be saved as an image file.
+The target image is analyzed using the reference image and other parameters
+(``tempROI`` and ``substROI``) to yield visualized result. The result is
+stored to the path specified by ``layer_visual``, which is an image file
+in this example.
 
 .. note::
 
     Refer to the :ref:`config-reference` page for an exhaustive description
     of every parameter in the configuration file.
 
-Running the following command will generate ``result1.jpg``:
+Running the following command will generate ``result1.jpg`` which highlights
+the coating layer region:
 
 .. code-block:: bash
 
@@ -120,3 +121,54 @@ Download :download:`config2.json <./config2.json>` and run:
         finitedepth analyze -h
 
 
+Under the hood
+--------------
+
+Configurations in the previous section are only minimum examples;
+under the hood, there are more than meets the eye.
+
+Change the ``config1.yml`` as follows and run the analysis again:
+
+.. literalinclude:: ./config1-subst.yml
+    :language: yaml
+
+You will now have two additional files; ``ref1.jpg`` and ``subst1.jpg``.
+
+.. plot::
+    :caption: ``ref1.jpg`` and ``subst1.jpg``
+
+    import os, yaml, matplotlib.pyplot as plt
+    from dipcoatimage.finitedepth import *
+    with open(os.path.join("config1.yml"), "r") as f:
+        data = yaml.load(f, Loader=yaml.FullLoader)
+    (v,) = data.values()
+    config = data_converter.structure(v, Config)
+    coat = config.construct_coatinglayer(0)
+    _, axes = plt.subplots(1, 2, figsize=(12, 6))
+    axes[0].imshow(coat.substrate.reference.draw())
+    axes[0].axis("off")
+    axes[1].imshow(coat.substrate.draw())
+    axes[1].axis("off")
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    plt.show()
+
+One can discover that ``subst1.jpg`` is actually ``ref1.jpg`` cropped
+by ``substrateROI``. Indeed, ``substrateROI`` specifies the
+*substrate region* from the reference image, which is the red box in
+``ref1.jpg``. Similary, ``templateROI`` specifies the *template region*
+which helps locating the substrate region in the target image.
+
+The :ref:`fundamental scheme <fundamentals>` is implemented as follows:
+
+1. Reference image constructs *reference instance*
+   (:class:`ReferenceBase`).
+2. Reference instance constructs *substrate instance*
+   (:class:`SubstrateBase`).
+3. Substrate instance and target image construct *coating layer instance*
+   (:class:`CoatingLayerBase`).
+4. Coating layer instance defines the analysis result.
+
+.. note::
+
+    Actual analysis involves two additional types (:class:`ExperimentBase`
+    and :class:`AnalysisBase`), but we spare the details in this section.
