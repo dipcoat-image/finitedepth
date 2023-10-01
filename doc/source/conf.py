@@ -5,6 +5,7 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 import os
+import yaml
 
 import cv2
 import numpy as np
@@ -104,6 +105,8 @@ plot_html_show_source_link = False
 
 # -- Custom scripts ----------------------------------------------------------
 
+# Draw logo
+
 data = dict(
     ref_path=get_data_path("ref3.png"),
     coat_path=get_data_path("coat3.mp4"),
@@ -138,3 +141,14 @@ cv2.imwrite(
     "_static/logo.png",
     cv2.cvtColor(np.dstack([img, alpha]).astype(np.uint8), cv2.COLOR_RGBA2BGRA),
 )
+
+# Tutorial file
+
+with open("tutorial/config-rect.yml") as f:
+    data = yaml.load(f, Loader=yaml.FullLoader)
+(v,) = data.values()
+config = data_converter.structure(v, Config)
+config.analysis.parameters["subst_data"] = "tutorial/output/subst3.csv"
+config.analysis.parameters["layer_visual"] = ""
+config.analysis.parameters["layer_data"] = "tutorial/output/result3.csv"
+config.analyze("Generating tutorial data...")

@@ -47,10 +47,10 @@ package is provided.
 Basic example
 -------------
 
-Download :download:`config.yml <./config.yml>` file in your local directory.
+Download :download:`config.yml <config.yml>` file in your local directory.
 The contents of the file are:
 
-.. literalinclude:: ./config.yml
+.. literalinclude:: config.yml
     :language: yaml
 
 The ``ref_path`` and ``coat_path`` are important parameters which specify
@@ -90,13 +90,13 @@ the coating layer region:
     plt.show()
 
 Configuration file can also be ``JSON``.
-Download :download:`config.json <./config.json>` and run:
+Download :download:`config.json <config.json>` and run:
 
 .. code-block:: bash
 
     finitedepth analyze config.json
 
-.. literalinclude:: ./config.json
+.. literalinclude:: config.json
     :language: json
 
 .. plot::
@@ -130,7 +130,7 @@ under the hood, there are more than meets the eye.
 
 Change the ``config.yml`` as follows and run the analysis again:
 
-.. literalinclude:: ./config-subst.yml
+.. literalinclude:: config-subst.yml
     :language: yaml
 
 You will now have two additional files; ``ref1.jpg`` and ``subst1.jpg``.
@@ -181,16 +181,16 @@ Previous configurations did not specify the instance types, defaulting
 them to :class:`Reference`, :class:`Substrate`, and :class:`CoatingLayer`.
 By using advanced types, more detailed analysis can be achieved.
 
-Download :download:`config-rect.yml <./config-rect.yml>` file in your local
+Download :download:`config-rect.yml <config-rect.yml>` file in your local
 directory.
 The contents of the file are:
 
-.. literalinclude:: ./config-rect.yml
+.. literalinclude:: config-rect.yml
     :language: yaml
 
 Here, we specified the substrate type to :class:`RectSubstrate` and
 coating layer type to :class:`RectLayerShape`. We also passed necessary
-parameters, which are described in their API reference.
+parameters, which are described in their docstrings..
 
 The resulting coating layer instance is equipped with fancy visualization:
 
@@ -206,3 +206,19 @@ The resulting coating layer instance is equipped with fancy visualization:
     plt.axis("off")
     plt.imshow(coat.draw())
     plt.show()
+
+Also, analysis data of the substrate geometry and the coating layer shape are
+saved in ``subst3.csv`` and ``result3.csv``:
+
+.. csv-table:: subst3.csv
+   :file: output/subst3.csv
+
+.. csv-table:: result3.csv
+   :file: output/result3.csv
+
+The meaning of these data are described in the class docstrings of
+:class:`RectSubstrate` and :class:`RectLayerShape`.
+
+Likewise, by implementing your custom classes and specifying them in
+configuration file, you can customize your analysis. Refer to :ref:`howto`
+and :ref:`api` pages for more explanation.

@@ -1,5 +1,6 @@
 # Custom entries
 doc/source/_static/logo.png
+doc/source/tutorial/output/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
