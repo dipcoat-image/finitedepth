@@ -61,3 +61,11 @@ profile = "black"
 recursive = true
 in-place = true
 black = true
+
+[tool.doc8]
+ignore = ["D004"]
+ignore-path = [
+    "src",
+    "doc/build",
+    "doc/source/tutorial/tutorial.rst",
+]
