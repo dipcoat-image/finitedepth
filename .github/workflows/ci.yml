@@ -20,7 +20,7 @@ jobs:
 
       - name: install dependencies
         run: |
-          pip install flake8 black isort docformatter doc8
+          pip install flake8 black isort docformatter
 
       - name: lint with flake8
         run: |
@@ -37,10 +37,6 @@ jobs:
       - name: lint with docformatter
         run: |
           docformatter --check .
-
-      - name: lint with doc8
-        run: |
-          doc8 .
 
   type-check:
 
@@ -114,9 +110,13 @@ jobs:
 
       - name: install package
         run: |
-          pip install .[doc]
+          pip install .[doc] doc8
 
       - name: build document
         run: |
           cd doc
           make html SPHINXOPTS="-W --keep-going"
+
+      - name: lint with doc8  # doc8 test must be done after building doc once.
+        run: |
+          doc8 .

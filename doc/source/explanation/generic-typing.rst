@@ -69,7 +69,7 @@ is the right choice.
 3. If you just want to override a few methods, you may inherit from concrete
 class.
 
-:ref:`user-guide` provides guide to implement concrete class from abstract
+:ref:`howto` provides guide to implement concrete class from abstract
 class. To know how to define new abstract class, `.RectLayerShape` can
 serve as a good example.
 
