@@ -112,6 +112,10 @@ jobs:
         run: |
           pip install .[doc] doc8
 
+      - name: force update package
+        run: |
+          pip install -U sphinx-tabs
+
       - name: build document
         run: |
           cd doc
