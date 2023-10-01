@@ -67,13 +67,56 @@ As a result, the coating layer image will be saved as an image file.
     Refer to the :ref:`config-reference` page for an exhaustive description
     of every parameter in the configuration file.
 
-:download:`config2.json <./config2.json>`
+Running the following command will generate ``result1.jpg``:
+
+.. code-block:: bash
+
+    finitedepth analyze config1.yml
+
+.. plot::
+    :caption: ``result1.jpg``
+
+    import os, yaml, matplotlib.pyplot as plt
+    from dipcoatimage.finitedepth import *
+    with open(os.path.join("config1.yml"), "r") as f:
+        data = yaml.load(f, Loader=yaml.FullLoader)
+    (v,) = data.values()
+    config = data_converter.structure(v, Config)
+    coat = config.construct_coatinglayer(0)
+    plt.axis("off")
+    plt.imshow(coat.draw())
+    plt.show()
+
+Configuration file can also be ``JSON``.
+Download :download:`config2.json <./config2.json>` and run:
+
+.. code-block:: bash
+
+    finitedepth analyze config1.json
 
 .. literalinclude:: ./config2.json
     :language: json
 
+.. plot::
+    :caption: ``result2.jpg``
 
-:download:`config3.yml <./config3.yml>`
+    import os, json, matplotlib.pyplot as plt
+    from dipcoatimage.finitedepth import *
+    with open(os.path.join("config2.json"), "r") as f:
+        data = json.load(f)
+    (v,) = data.values()
+    config = data_converter.structure(v, Config)
+    coat = config.construct_coatinglayer(0)
+    plt.axis("off")
+    plt.imshow(coat.draw())
+    plt.show()
 
-.. literalinclude:: ./config3.yml
-    :language: yaml
+.. note::
+
+    To check supported file formats, run:
+
+    .. code-block:: bash
+
+        finitedepth analyze -h
+
+

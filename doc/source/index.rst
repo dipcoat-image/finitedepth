@@ -18,9 +18,9 @@ Contents
 
    intro
    tutorial/index
+   config-reference
    guide/index
    reference/index
-   config-reference
    explanation/index
 
 Indices and tables

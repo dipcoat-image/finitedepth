@@ -3,7 +3,7 @@
     "coat_path": "$FINITEDEPTH_DATA/coat2.png",
     "reference": {
         "templateROI": [200, 50, 1200, 200],
-        "substrateROI": [400, 175, 1000, 500]
+        "substrateROI": [400, 175, 1000, 600]
     },
     "analysis": {"parameters": {"layer_visual": "result2.jpg"}}
 }}

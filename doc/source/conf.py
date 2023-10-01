@@ -21,6 +21,8 @@ from dipcoatimage.finitedepth import Config, data_converter, get_data_path
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
+os.environ["FINITEDEPTH_DATA"] = get_data_path()
+
 
 # -- Project information -----------------------------------------------------
 

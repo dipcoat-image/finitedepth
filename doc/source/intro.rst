@@ -99,14 +99,14 @@ DipcoatImage-FiniteDepth can be installed by `pip` from its github repository.
 
 .. code-block:: bash
 
-   $ pip install git+ssh://git@github.com/dipcoat-image/finitedepth.git
+   pip install git+ssh://git@github.com/dipcoat-image/finitedepth.git
 
 This installs the package with its latest commit. If you want a specific
 version, append ``@[tag name]`` such as:
 
 .. code-block:: bash
 
-   $ pip install git+ssh://git@github.com/dipcoat-image/finitedepth.git@v1.0.0
+   pip install git+ssh://git@github.com/dipcoat-image/finitedepth.git@v1.0.0
 
 Basic usage
 -----------
@@ -116,13 +116,13 @@ configuration files.
 
 .. code-block:: bash
 
-   $ finitedepth analyze config1.yml config2.json ...
+   finitedepth analyze config1.yml config2.json ...
 
 It can be run as a package as well:
 
 .. code-block:: bash
 
-   $ python -m dipcoatimage.finitedepth analyze config1.yml config2.json ...
+   python -m dipcoatimage.finitedepth analyze config1.yml config2.json ...
 
 The configuration file must contain entries which are constructed to
 :class:`Config` instance. See :ref:`config-example` for more information.
@@ -132,7 +132,7 @@ The configuration file must contain entries which are constructed to
 
    .. code-block:: bash
 
-      $ finitedepth -h
+      finitedepth -h
 
 User can also import the classes from :mod:`finitedepth` to define
 their own analysis.
