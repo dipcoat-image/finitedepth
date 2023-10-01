@@ -115,7 +115,7 @@ Download :download:`config.json <config.json>` and run:
 
 .. note::
 
-    To check supported file formats, run:
+    To check supported formats for configuration file, run:
 
     .. code-block:: bash
 
@@ -212,9 +212,11 @@ saved in ``subst3.csv`` and ``result3.csv``:
 
 .. csv-table:: subst3.csv
    :file: output/subst3.csv
+   :header-rows: 1
 
 .. csv-table:: result3.csv
    :file: output/result3.csv
+   :header-rows: 1
 
 The meaning of these data are described in the class docstrings of
 :class:`RectSubstrate` and :class:`RectLayerShape`.
@@ -222,3 +224,33 @@ The meaning of these data are described in the class docstrings of
 Likewise, by implementing your custom classes and specifying them in
 configuration file, you can customize your analysis. Refer to :ref:`howto`
 and :ref:`api` pages for more explanation.
+
+Controlling visualization
+-------------------------
+
+Configuration file can define options to visualize the analysis result.
+
+Change the ``config-rect.yml`` as follows and run the analysis again:
+
+.. literalinclude:: config-rect2.yml
+    :language: yaml
+
+The :class:`RectLayerShape` now subtracts the substrate region from the
+visualization result. Also, the uniform layer and the roughness samples
+are no longer shown.
+
+.. plot::
+    :context: close-figs
+    :caption: ``result3.jpg``
+
+    with open(os.path.join("config-rect2.yml"), "r") as f:
+        data = yaml.load(f, Loader=yaml.FullLoader)
+    (v,) = data.values()
+    config = data_converter.structure(v, Config)
+    coat = config.construct_coatinglayer(0)
+    plt.axis("off")
+    plt.imshow(coat.draw())
+    plt.show()
+
+Each reference, substrate, and coating layer class can define its own
+visualization options.

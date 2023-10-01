@@ -5,10 +5,10 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 import os
-import yaml
 
 import cv2
 import numpy as np
+import yaml
 
 from dipcoatimage.finitedepth import Config, data_converter, get_data_path
 
