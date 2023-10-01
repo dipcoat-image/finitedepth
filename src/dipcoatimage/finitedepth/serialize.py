@@ -430,7 +430,7 @@ class Config(ConfigBase):
     def reference_image(self) -> npt.NDArray[np.uint8]:
         """Return binarized image from :attr:`ref_path`."""
         with PIL.Image.open(os.path.expandvars(self.ref_path)) as img:
-            ret = binarize(np.array(img), "rgb")
+            ret = binarize(np.array(img.convert("L")), "rgb")
         return ret
 
     def image_generator(self) -> Generator[npt.NDArray[np.uint8], None, None]:
@@ -444,7 +444,7 @@ class Config(ConfigBase):
             if mtype == "image":
                 with PIL.Image.open(f) as img:
                     for frame in PIL.ImageSequence.Iterator(img):
-                        yield binarize(np.array(frame), "rgb")
+                        yield binarize(np.array(frame.convert("L")), "rgb")
             elif mtype == "video":
                 cap = cv2.VideoCapture(f)
                 while True:
