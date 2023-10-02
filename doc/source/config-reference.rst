@@ -153,20 +153,76 @@ this map depend on :ref:`config-ref-type` field.
 substrate
 ---------
 
+Type: Map, optional.
+
+Type and arguments to construct :class:`SubstrateBase` implementation.
+Defaults to construct :class:`Substrate` instance.
+
+The substrate instance is constructed from this data and reference instance
+from ``ref_path`` and ``reference`` fields.
+
+.. _config-subst-type:
+
 type
 ^^^^
+
+Type: Map, optional.
+
+Data to import a substrate type. Defaults to import :class:`Substrate`.
+
+This map consists of variable name and module name to import an object,
+which must be a concrete implementation of :class:`SubstrateBase`.
 
 name
 """"
 
+Type: String, optional.
+
+Name of the substrate class. Defaults to ``"Substrate"``.
+
 module
 """"""
+
+Type: String, optional.
+
+Module from which the substrate class is imported. Defaults to
+``"dipcoatimage.finitedepth"``.
 
 parameters
 ^^^^^^^^^^
 
+Type: Map, optional.
+
+Parameters of the substrate instance. Defaults to an empty map.
+
+Parameters of a substrate instance are encapsulated and passed as a
+:func:`Dataclass <dataclasses.dataclass>` instance, whose type is defined
+as class attribute
+:attr:`Parameters <substrate.SubstrateBase.Parameters>`.
+This map is structured by :obj:`data_converter` to construct the parameter
+dataclass instance.
+
+As each implementation of :class:`SubstrateBase` define its own
+:attr:`Parameters <substrate.SubstrateBase.Parameters>`, the members of
+this map depend on :ref:`config-subst-type` field.
+
 draw_options
 ^^^^^^^^^^^^
+
+Type: Map, optional.
+
+Drawing options of the substrate instance. Defaults to an empty map.
+
+Drawing options of a substrate instance are encapsulated and passed as a
+:func:`Dataclass <dataclasses.dataclass>` instance, whose type is defined
+as class attribute
+:attr:`DrawOptions <substrate.SubstrateBase.DrawOptions>`.
+This map is structured by :obj:`data_converter` to construct the drawing
+option dataclass instance.
+
+As each implementation of :class:`SubstrateBase` define its own
+:attr:`DrawOptions <substrate.SubstrateBase.DrawOptions>`, the members of
+this map depend on :ref:`config-subst-type` field.
 
 coatinglayer
 ------------
