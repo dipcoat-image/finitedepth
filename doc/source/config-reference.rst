@@ -45,7 +45,7 @@ Path to a file which stores reference image.
 Scope of the file format depends on the :class:`ConfigBase` implementation.
 
 The reference instance is constructed from this reference image and
-data from ``reference`` field.
+``reference`` field.
 
 coat_path
 ---------
@@ -56,9 +56,9 @@ Path to a file which stores taret image(s).
 
 Scope of the file format depends on the :class:`ConfigBase` implementation.
 
-The coating layer instances are constructed from these coating layer images
-and data from ``coatinglayer`` field, using experiment instance from
-``experiment`` field as factory.
+The coating layer instances are constructed from these target images and
+``coatinglayer`` field, using experiment instance from ``experiment`` field
+as a factory.
 
 reference
 ---------
@@ -68,7 +68,7 @@ Type: Map, optional.
 Type and arguments to construct :class:`ReferenceBase` implementation.
 Defaults to construct :class:`Reference` instance.
 
-The reference instance is constructed from this data and reference image
+The reference instance is constructed from this field and reference image
 from ``ref_path`` field.
 
 .. _config-ref-type:
@@ -158,8 +158,8 @@ Type: Map, optional.
 Type and arguments to construct :class:`SubstrateBase` implementation.
 Defaults to construct :class:`Substrate` instance.
 
-The substrate instance is constructed from this data and reference instance
-from ``ref_path`` and ``reference`` fields.
+The substrate instance is constructed from this field and reference
+instance from ``ref_path`` and ``reference`` fields.
 
 .. _config-subst-type:
 
@@ -227,23 +227,96 @@ this map depend on :ref:`config-subst-type` field.
 coatinglayer
 ------------
 
+Type: Map, optional.
+
+Type and arguments to construct :class:`CoatingLayerBase` implementation.
+Defaults to construct :class:`CoatingLayer` instance.
+
+The coating layer instances are constructed from this field and the target
+images from ``coat_path`` field, using experiment instance from ``experiment``
+field as a factory.
+
+.. _config-coat-type:
+
 type
 ^^^^
+
+Type: Map, optional.
+
+Data to import a coating layer type. Defaults to import
+:class:`CoatingLayer`.
+
+This map consists of variable name and module name to import an object,
+which must be a concrete implementation of :class:`CoatingLayerBase`.
 
 name
 """"
 
+Type: String, optional.
+
+Name of the coating layer class. Defaults to ``"CoatingLayer"``.
+
 module
 """"""
+
+Type: String, optional.
+
+Module from which the coating layer class is imported. Defaults to
+``"dipcoatimage.finitedepth"``.
 
 parameters
 ^^^^^^^^^^
 
+Type: Map, optional.
+
+Parameters of the coating layer instance. Defaults to an empty map.
+
+Parameters of a coating layer instance are encapsulated and passed as a
+:func:`Dataclass <dataclasses.dataclass>` instance, whose type is defined
+as class attribute
+:attr:`Parameters <coatinglayer.CoatingLayerBase.Parameters>`.
+This map is structured by :obj:`data_converter` to construct the parameter
+dataclass instance.
+
+As each implementation of :class:`CoatingLayerBase` define its own
+:attr:`Parameters <coatinglayer.CoatingLayerBase.Parameters>`, the members
+of this map depend on :ref:`config-coat-type` field.
+
 draw_options
 ^^^^^^^^^^^^
 
+Type: Map, optional.
+
+Drawing options of the coating layer instance. Defaults to an empty map.
+
+Drawing options of a coating layer instance are encapsulated and passed as a
+:func:`Dataclass <dataclasses.dataclass>` instance, whose type is defined
+as class attribute
+:attr:`DrawOptions <coatinglayer.CoatingLayerBase.DrawOptions>`.
+This map is structured by :obj:`data_converter` to construct the drawing
+option dataclass instance.
+
+As each implementation of :class:`CoatingLayerBase` define its own
+:attr:`DrawOptions <coatinglayer.CoatingLayerBase.DrawOptions>`, the members
+of this map depend on :ref:`config-coat-type` field.
+
 deco_options
 ^^^^^^^^^^^^
+
+Type: Map, optional.
+
+Decorating options of the coating layer instance. Defaults to an empty map.
+
+Decorating options of a coating layer instance are encapsulated and passed as a
+:func:`Dataclass <dataclasses.dataclass>` instance, whose type is defined
+as class attribute
+:attr:`DecoOptions <coatinglayer.CoatingLayerBase.DecoOptions>`.
+This map is structured by :obj:`data_converter` to construct the decorating
+option dataclass instance.
+
+As each implementation of :class:`CoatingLayerBase` define its own
+:attr:`DecoOptions <coatinglayer.CoatingLayerBase.DecoOptions>`, the members
+of this map depend on :ref:`config-coat-type` field.
 
 experiment
 ----------
