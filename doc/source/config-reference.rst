@@ -5,8 +5,8 @@ Configuration file reference
 
 .. currentmodule:: finitedepth
 
-A configuration file consists of nested mapping entries. Each top level item
-represent individual analysis suite; the key is the title of the suite
+A configuration file consists of nested mapping entries, each top level item
+representing individual analysis suite. The key is the title of the suite
 and the value is its data, which corresponds to the parameters of
 :class:`ConfigBase`.
 
@@ -28,40 +28,48 @@ in runtime and call its :meth:`~serialize.ConfigBase.analyze` method.
 
 .. note::
 
-    It is possible for you to define your own configuration. Refer to
-    :ref:`howto-extend-config` page.
+    You can define your own configuration format which does not follow the
+    structure described here. Refer to :ref:`howto-extend-config` page.
 
-In the rest of this document, members of analysis suite data are described.
-Each subsection describes the member of upper-level map. Refer to the
-:ref:`tutorial` page for examples.
+This document describes the members of analysis suite data.
+Each subsection describes the member of upper-level item.
+Refer to :ref:`tutorial` page for working examples.
 
 ref_path
 --------
 
 Type: String.
 
-Path to the file to get reference image.
+Path to a file which stores reference image.
 
 Scope of the file format depends on the :class:`ConfigBase` implementation.
+
+The reference instance is constructed from this reference image and
+data from ``reference`` field.
 
 coat_path
 ---------
 
 Type: String.
 
-Path to the file to get taret image(s).
+Path to a file which stores taret image(s).
 
 Scope of the file format depends on the :class:`ConfigBase` implementation.
+
+The coating layer instances are constructed from these coating layer images
+and data from ``coatinglayer`` field, using experiment instance from
+``experiment`` field as factory.
 
 reference
 ---------
 
 Type: Map, optional.
 
-Parameters for reference instance.
+Type and arguments to construct :class:`ReferenceBase` implementation.
+Defaults to construct :class:`Reference` instance.
 
-With the reference image constructed by ``ref_path``, the data in this map
-construct instance of :class:`ReferenceBase` implementation.
+The reference instance is constructed from this data and reference image
+from ``ref_path`` field.
 
 .. _config-ref-type:
 
@@ -70,10 +78,10 @@ type
 
 Type: Map, optional.
 
-Specify concrete class of :class:`ReferenceBase`.
+Data to import a reference type. Defaults to import :class:`Reference`.
 
-This map consists of variable name and module name to import the class.
-Default data imports :class:`Reference`.
+This map consists of variable name and module name to import an object,
+which must be a concrete implementation of :class:`ReferenceBase`.
 
 name
 """"
@@ -111,26 +119,36 @@ parameters
 
 Type: Map, optional.
 
-Data for :attr:`ReferenceBase.Parameters <reference.ReferenceBase.Parameters>`.
+Parameters of the reference instance. Defaults to an empty map.
 
-This map is structured by :obj:`data_converter` to construct the instance of
-:attr:`~reference.ReferenceBase.Parameters` attribute of :class:`ReferenceBase`
-implementation, specified by the :ref:`config-ref-type` field.
+Parameters of a reference instance are encapsulated and passed as a
+:func:`Dataclass <dataclasses.dataclass>` instance, whose type is defined
+as class attribute
+:attr:`Parameters <reference.ReferenceBase.Parameters>`.
+This map is structured by :obj:`data_converter` to construct the parameter
+dataclass instance.
 
-The members of this map depends on the reference type.
+As each implementation of :class:`ReferenceBase` define its own
+:attr:`Parameters <reference.ReferenceBase.Parameters>`, the members of this
+map depend on :ref:`config-ref-type` field.
 
 draw_options
 ^^^^^^^^^^^^
 
 Type: Map, optional.
 
-Data for :attr:`ReferenceBase.DrawOptions <reference.ReferenceBase.DrawOptions>`.
+Drawing options of the reference instance. Defaults to an empty map.
 
-This map is structured by :obj:`data_converter` to construct the instance of
-:attr:`~reference.ReferenceBase.DrawOptions` attribute of :class:`ReferenceBase`
-implementation, specified by the :ref:`config-ref-type` field.
+Drawing options of a reference instance are encapsulated and passed as a
+:func:`Dataclass <dataclasses.dataclass>` instance, whose type is defined
+as class attribute
+:attr:`DrawOptions <reference.ReferenceBase.DrawOptions>`.
+This map is structured by :obj:`data_converter` to construct the drawing
+option dataclass instance.
 
-The members of this map depends on the reference type.
+As each implementation of :class:`ReferenceBase` define its own
+:attr:`DrawOptions <reference.ReferenceBase.DrawOptions>`, the members of
+this map depend on :ref:`config-ref-type` field.
 
 substrate
 ---------
