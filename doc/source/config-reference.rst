@@ -5,10 +5,10 @@ Configuration file reference
 
 .. currentmodule:: finitedepth
 
-A configuration file consists of nested mapping entries, each top level item
-representing individual analysis suite. The key is the title of the suite
-and the value is its data, which corresponds to the parameters of
-:class:`ConfigBase`.
+A configuration file consists of nested mapping entries, each top-level item
+representing individual analysis suite. The key of the top-level mapping is
+the title of the suite and the value is its data, which corresponds to the
+arguments of :class:`ConfigBase`.
 
 For example, the following YAML-format configuration file includes two
 analysis suites:
@@ -23,17 +23,18 @@ analysis suites:
 
 When :ref:`command-line analysis <basic-example>` is invoked, each analysis
 suite is automatically structured to :class:`Config` instance using
-:obj:`data_converter`. Alternatively, user can directly construct the instance
-in runtime and call its :meth:`~serialize.ConfigBase.analyze` method.
+:obj:`data_converter`. Alternatively, user can directly construct the
+configuration instance in runtime and call its
+:meth:`~serialize.ConfigBase.analyze` method.
+
+This document describes the members of the analysis suite data which applies to
+every :class:`ConfigBase` implementation. Refer to :ref:`tutorial` page for
+working examples.
 
 .. note::
 
-    You can define your own configuration format which does not follow the
-    structure described here. Refer to :ref:`howto-extend-config` page.
-
-This document describes the members of analysis suite data.
-Each subsection describes the member of upper-level item.
-Refer to :ref:`tutorial` page for working examples.
+    You can define your own :class:`ConfigBase` implementation other than
+    :class:`Config`. Refer to :ref:`howto-extend-config` page.
 
 ref_path
 --------
@@ -321,17 +322,58 @@ of this map depend on :ref:`config-coat-type` field.
 experiment
 ----------
 
+Type: Map, optional.
+
+Type and arguments to construct :class:`ExperimentBase` implementation.
+Defaults to construct :class:`Experiment` instance.
+
+The experiment instance is a factory object for the coating layer instances,
+and is constructed solely from this field.
+
+.. _config-expt-type:
+
 type
 ^^^^
+
+Type: Map, optional.
+
+Data to import an experiment type. Defaults to import :class:`Experiment`.
+
+This map consists of variable name and module name to import an object,
+which must be a concrete implementation of :class:`ExperimentBase`.
 
 name
 """"
 
+Type: String, optional.
+
+Name of the experiment class. Defaults to ``"Experiment"``.
+
 module
 """"""
 
+Type: String, optional.
+
+Module from which the experiment class is imported. Defaults to
+``"dipcoatimage.finitedepth"``.
+
 parameters
 ^^^^^^^^^^
+
+Type: Map, optional.
+
+Parameters of the experiment instance. Defaults to an empty map.
+
+Parameters of a experiment instance are encapsulated and passed as a
+:func:`Dataclass <dataclasses.dataclass>` instance, whose type is defined
+as class attribute
+:attr:`Parameters <experiment.ExperimentBase.Parameters>`.
+This map is structured by :obj:`data_converter` to construct the parameter
+dataclass instance.
+
+As each implementation of :class:`ExperimentBase` define its own
+:attr:`Parameters <experiment.ExperimentBase.Parameters>`, the members
+of this map depend on :ref:`config-expt-type` field.
 
 analysis
 --------
