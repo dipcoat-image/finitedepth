@@ -5,13 +5,13 @@ Configuration file reference
 
 .. currentmodule:: finitedepth
 
-A configuration file consists of nested mapping entries, each top-level item
-representing individual analysis suite. The key of the top-level mapping is
-the title of the suite and the value is its data, which corresponds to the
-arguments of :class:`ConfigBase`.
+A configuration file consists of nested maps, each top-level entry
+representing an individual set of experiment and analysis. The key of the
+top-level map is its title and the value is its data, which corresponds to
+the arguments of :class:`ConfigBase`.
 
-For example, the following YAML-format configuration file includes two
-analysis suites:
+For example, the following YAML-format configuration file includes two sets
+of data:
 
 .. code-block:: YAML
 
@@ -21,15 +21,15 @@ analysis suites:
     Title2:
         ...
 
-When :ref:`command-line analysis <basic-example>` is invoked, each analysis
-suite is automatically structured to :class:`Config` instance using
+When :ref:`command-line analysis <basic-example>` is invoked, each entry is
+automatically structured to :class:`Config` instance using
 :obj:`data_converter`. Alternatively, user can directly construct the
 configuration instance in runtime and call its
 :meth:`~serialize.ConfigBase.analyze` method.
 
-This document describes the members of the analysis suite data which applies to
-every concrete subclass of :class:`ConfigBase`. Refer to :ref:`tutorial` page
-for working examples.
+This document describes the data structure which applies to every concrete
+subclass of :class:`ConfigBase`. Refer to :ref:`tutorial` page for working
+examples.
 
 .. note::
 
