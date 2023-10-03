@@ -480,7 +480,11 @@ class Config(ConfigBase):
                     continue
                 mtype, _ = mtype.split("/")
                 if mtype == "image":
-                    continue
+                    with PIL.Image.open(f) as img:
+                        duration = img.info.get("duration")
+                    if duration is not None:
+                        fps = float(1000 / duration)
+                        break
                 elif mtype == "video":
                     cap = cv2.VideoCapture(f)
                     fps = float(cap.get(cv2.CAP_PROP_FPS))
