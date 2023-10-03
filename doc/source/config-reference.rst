@@ -1,6 +1,6 @@
 .. _config-reference:
 
-Configuration file reference
+Configuration File Reference
 ============================
 
 .. currentmodule:: finitedepth

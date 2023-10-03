@@ -7,5 +7,6 @@ How-to guides
    :maxdepth: 2
 
    analyze-runtime
-   extend-configure
+   define-your-own
    dataclass-design
+   extend-configure

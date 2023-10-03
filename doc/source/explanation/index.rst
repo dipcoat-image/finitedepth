@@ -1,5 +1,7 @@
-Explanation
-===========
+.. _explanation:
+
+Explanations
+============
 
 This document explains the design of DipcoatImage-FiniteDepth.
 
