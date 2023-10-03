@@ -1,4 +1,3 @@
-===========
 Explanation
 ===========
 
@@ -11,4 +10,5 @@ This document explains the design of DipcoatImage-FiniteDepth.
    generic-typing
    caching
    testing
+   documentation
    error-notes

@@ -92,6 +92,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         *,
         draw_options: Optional[DrawOptionsType] = None,
     ):
+        """Initialize the instance."""
         super().__init__()
         self._ref = reference
 

@@ -44,6 +44,8 @@ package is provided.
 
             echo $env:FINITEDEPTH_DATA
 
+.. _basic-example:
+
 Basic example
 -------------
 
@@ -161,17 +163,18 @@ which helps locating the substrate region in the target image.
 The :ref:`fundamental scheme <fundamentals>` is implemented as follows:
 
 1. Reference image constructs *reference instance*
-   (:class:`ReferenceBase`).
+   (inherits :class:`ReferenceBase`).
 2. Reference instance constructs *substrate instance*
-   (:class:`SubstrateBase`).
+   (inherits :class:`SubstrateBase`).
 3. Substrate instance and target image construct *coating layer instance*
-   (:class:`CoatingLayerBase`).
-4. Coating layer instance defines the analysis result.
+   (inherits :class:`CoatingLayerBase`), which defines analysis result.
 
 .. note::
 
-    Actual analysis involves two additional types (:class:`ExperimentBase`
-    and :class:`AnalysisBase`), but we spare the details in this section.
+    Actual analysis involves *experiment class* (inherits
+    :class:`ExperimentBase`) and *analysis class* (inherits
+    :class:`AnalysisBase`), but we spare the details in this section.
+    Refer to their docstrings.
 
 
 Specifying types

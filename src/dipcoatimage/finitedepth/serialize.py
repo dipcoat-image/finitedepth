@@ -40,6 +40,20 @@ __all__ = [
 
 
 data_converter = cattrs.Converter()
+""":class:`cattrs.Converter` object for configuration serialization.
+
+Examples:
+    Constructing :class:`Config` objects from YAML-format configuration file:
+
+    .. code-block:: python
+
+        from dipcoatimage.finitedepth import data_converter, Config
+        import yaml
+        with open("path-to-config-file.yml", "r") as f:
+            data = yaml.load(f, Loader=yaml.FullLoader)
+        for k, v in data.items():
+            config = data_converter.structure(v, Config)
+"""
 
 
 @dataclasses.dataclass
@@ -289,8 +303,8 @@ class ConfigBase(abc.ABC):
     If *fps* is not passed to AnalysisArgs, try to determine it from input files.
     """
 
-    ref_path: str = ""
-    coat_path: str = ""
+    ref_path: str
+    coat_path: str
     reference: ReferenceArgs = dataclasses.field(default_factory=ReferenceArgs)
     substrate: SubstrateArgs = dataclasses.field(default_factory=SubstrateArgs)
     coatinglayer: CoatingLayerArgs = dataclasses.field(default_factory=CoatingLayerArgs)

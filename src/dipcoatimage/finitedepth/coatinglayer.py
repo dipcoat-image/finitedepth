@@ -72,6 +72,7 @@ class CoatingLayerBase(
         deco_options: Optional[DecoOptionsType] = None,
         tempmatch: Optional[Tuple[Tuple[int, int], float]] = None,
     ):
+        """Initialize the instance."""
         super().__init__()
         self._image = image
         self._image.setflags(write=False)

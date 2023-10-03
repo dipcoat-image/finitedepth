@@ -74,6 +74,7 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
         *,
         fps: Optional[float] = None,
     ):
+        """Initialize the instance."""
         if parameters is None:
             self._parameters = self.Parameters()
         else:
