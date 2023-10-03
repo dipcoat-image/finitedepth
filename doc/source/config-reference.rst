@@ -28,12 +28,12 @@ configuration instance in runtime and call its
 :meth:`~serialize.ConfigBase.analyze` method.
 
 This document describes the members of the analysis suite data which applies to
-every :class:`ConfigBase` implementation. Refer to :ref:`tutorial` page for
-working examples.
+every concrete subclass of :class:`ConfigBase`. Refer to :ref:`tutorial` page
+for working examples.
 
 .. note::
 
-    You can define your own :class:`ConfigBase` implementation other than
+    You can implement your own :class:`ConfigBase` subclass other than
     :class:`Config`. Refer to :ref:`howto-extend-config` page.
 
 ref_path
@@ -43,7 +43,7 @@ Type: String.
 
 Path to a file which stores reference image.
 
-Scope of the file format depends on the :class:`ConfigBase` implementation.
+Scope of the file format depends on :class:`ConfigBase` implementation.
 
 The reference instance is constructed from this reference image and
 ``reference`` field.
@@ -55,7 +55,7 @@ Type: String.
 
 Path to a file which stores taret image(s).
 
-Scope of the file format depends on the :class:`ConfigBase` implementation.
+Scope of the file format depends on :class:`ConfigBase` implementation.
 
 The coating layer instances are constructed from these target images and
 ``coatinglayer`` field, using experiment instance from ``experiment`` field
@@ -66,7 +66,7 @@ reference
 
 Type: Map, optional.
 
-Type and arguments to construct :class:`ReferenceBase` implementation.
+Type and arguments to construct reference instance.
 Defaults to construct :class:`Reference` instance.
 
 The reference instance is constructed from this field and reference image
@@ -82,7 +82,7 @@ Type: Map, optional.
 Data to import a reference type. Defaults to import :class:`Reference`.
 
 This map consists of variable name and module name to import an object,
-which must be a concrete implementation of :class:`ReferenceBase`.
+which must be a concrete subclass of :class:`ReferenceBase`.
 
 name
 """"
@@ -156,7 +156,7 @@ substrate
 
 Type: Map, optional.
 
-Type and arguments to construct :class:`SubstrateBase` implementation.
+Type and arguments to construct substrate instance.
 Defaults to construct :class:`Substrate` instance.
 
 The substrate instance is constructed from this field and reference
@@ -172,7 +172,7 @@ Type: Map, optional.
 Data to import a substrate type. Defaults to import :class:`Substrate`.
 
 This map consists of variable name and module name to import an object,
-which must be a concrete implementation of :class:`SubstrateBase`.
+which must be a concrete subclass of :class:`SubstrateBase`.
 
 name
 """"
@@ -230,7 +230,7 @@ coatinglayer
 
 Type: Map, optional.
 
-Type and arguments to construct :class:`CoatingLayerBase` implementation.
+Type and arguments to construct coating layer instance.
 Defaults to construct :class:`CoatingLayer` instance.
 
 The coating layer instances are constructed from this field and the target
@@ -248,7 +248,7 @@ Data to import a coating layer type. Defaults to import
 :class:`CoatingLayer`.
 
 This map consists of variable name and module name to import an object,
-which must be a concrete implementation of :class:`CoatingLayerBase`.
+which must be a concrete subclass of :class:`CoatingLayerBase`.
 
 name
 """"
@@ -324,7 +324,7 @@ experiment
 
 Type: Map, optional.
 
-Type and arguments to construct :class:`ExperimentBase` implementation.
+Type and arguments to construct experiment instance.
 Defaults to construct :class:`Experiment` instance.
 
 The experiment instance is a factory object for the coating layer instances,
@@ -340,7 +340,7 @@ Type: Map, optional.
 Data to import an experiment type. Defaults to import :class:`Experiment`.
 
 This map consists of variable name and module name to import an object,
-which must be a concrete implementation of :class:`ExperimentBase`.
+which must be a concrete subclass of :class:`ExperimentBase`.
 
 name
 """"
@@ -378,17 +378,55 @@ of this map depend on :ref:`config-expt-type` field.
 analysis
 --------
 
+Type: Map, optional.
+
+Type and arguments to construct analysis instance.
+Defaults to construct :class:`Analysis` instance.
+
+The analysis instance saves the analysis results as file,
+and is constructed solely from this field.
+
+.. _config-analysis-type:
+
 type
 ^^^^
+
+Type: Map, optional.
+
+Data to import an analysis type. Defaults to import :class:`Analysis`.
+
+This map consists of variable name and module name to import an object,
+which must be a concrete subclass of :class:`AnalysisBase`.
 
 name
 """"
 
+Type: String, optional.
+
+Name of the analysis class. Defaults to ``"Analysis"``.
+
 module
 """"""
+
+Type: String, optional.
+
+Module from which the analysis class is imported. Defaults to
+``"dipcoatimage.finitedepth"``.
 
 parameters
 ^^^^^^^^^^
 
-fps
-^^^
+Type: Map, optional.
+
+Parameters of the analysis instance. Defaults to an empty map.
+
+Parameters of a analysis instance are encapsulated and passed as a
+:func:`Dataclass <dataclasses.dataclass>` instance, whose type is defined
+as class attribute
+:attr:`Parameters <analysis.AnalysisBase.Parameters>`.
+This map is structured by :obj:`data_converter` to construct the parameter
+dataclass instance.
+
+As each implementation of :class:`AnalysisBase` define its own
+:attr:`Parameters <analysis.AnalysisBase.Parameters>`, the members
+of this map depend on :ref:`config-analysis-type` field.
