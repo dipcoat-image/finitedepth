@@ -99,11 +99,15 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         if parameters is None:
             self._parameters = self.Parameters()
         else:
+            if not isinstance(parameters, self.Parameters):
+                raise TypeError(f"{parameters} is not instance of {self.Parameters}")
             self._parameters = dataclasses.replace(parameters)
 
         if draw_options is None:
             self._draw_options = self.DrawOptions()
         else:
+            if not isinstance(draw_options, self.DrawOptions):
+                raise TypeError(f"{draw_options} is not instance of {self.DrawOptions}")
             self._draw_options = dataclasses.replace(draw_options)
 
     @property

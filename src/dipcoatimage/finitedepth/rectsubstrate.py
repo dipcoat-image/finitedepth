@@ -54,10 +54,10 @@ class DrawOptions:
 class Data:
     """Analysis data for `RectSubstrate`.
 
-    - ChipWidth: Number of the pixels between lower vertices of the substrate.
+    - Width: Number of the pixels between lower vertices of the substrate.
     """
 
-    ChipWidth: np.float32
+    Width: np.float32
 
 
 class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):

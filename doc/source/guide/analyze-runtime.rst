@@ -40,7 +40,7 @@ To construct reference instance, we must first read reference image.
     >>> from dipcoatimage.finitedepth import get_data_path
     >>> gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
     >>> _, refimg = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-    >>> plt.imshow(refimg, cmap="gray") #doctest: +SKIP
+    >>> plt.imshow(refimg, cmap="gray")  #doctest: +SKIP
 
 Now we can construct a reference instance. Type of the reference
 instance must be a concrete subclass of :class:`ReferenceBase`. In
@@ -58,7 +58,7 @@ this example, we use :class:`Reference`.
     ...     parameters=Reference.Parameters(),
     ...     draw_options=Reference.DrawOptions(),
     ... )
-    >>> plt.imshow(ref.draw()) #doctest: +SKIP
+    >>> plt.imshow(ref.draw())  #doctest: +SKIP
 
 Apart from the reference image, :class:`ReferenceBase` has
 four more arguments which are consistent for every concrete
@@ -115,7 +115,7 @@ The options can be modified:
     :context:
 
     >>> ref.draw_options.templateROI.color = (0, 0, 255)
-    >>> plt.imshow(ref.draw()) #doctest: +SKIP
+    >>> plt.imshow(ref.draw())  #doctest: +SKIP
 
 :meth:`~ReferenceBase.analyze` method returns numerical analysis
 results wrapped in a dataclass. Its type is defined in
@@ -133,8 +133,67 @@ Data()
 Substrate instance
 ------------------
 
-Substrate instance handles substrate region in bare substrate image,
-which is defined by reference instance.
+Substrate instance wraps reference instance to get the substrate
+region in reference image.
+
+The role of the substrate instance is to analyze the geometry
+of the bare substrate, which is used by coating layer instance
+to quantify the shape of the coating layer.
+
+Type of the substrate instance must be a concrete subclass of
+:class:`SubstrateBase`. In this example, we use :class:`RectSubstrate`
+which detects the corners and edges of rectangular substrate.
+
+.. plot::
+    :include-source:
+    :context:
+
+    >>> from dipcoatimage.finitedepth import RectSubstrate
+    >>> subst = RectSubstrate(
+    ...     ref,
+    ...     parameters=RectSubstrate.Parameters(Sigma=3.0, Rho=1.0, Theta=0.01),
+    ...     draw_options=RectSubstrate.DrawOptions(),
+    ... )
+    >>> plt.imshow(subst.draw())  #doctest: +SKIP
+
+Similarly to the reference type, :class:`SubstrateBase` has strictly
+defined signatures.
+
+#. *parameters* (:obj:`dataclass <dataclasses.dataclass>`)
+    Any additional parameters which affect the analysis of
+    substrate instance.
+
+    The type of the dataclass is defined in
+    :attr:`~SubstrateBase.Parameters` attribute,
+    which varies by each concrete subclass.
+#. *draw_options* (:obj:`dataclass <dataclasses.dataclass>`)
+    Options to visualize the substrate instance.
+
+    The type of the dataclass is defined in
+    :attr:`~SubstrateBase.DrawOptions` attribute,
+    which varies by each concrete subclass.
+
+:meth:`~SubstrateBase.draw` method returns visualized result which
+can be controlled by :attr:`~SubstrateBase.draw_options`, and
+:meth:`~SubstrateBase.analyze` method returns numerical data.
+Now you might be starting to see the repeating design pattern.
+
+.. plot::
+    :include-source:
+    :context:
+
+    >>> subst.analyze()
+    Data(Width=525.98883)
+    >>> subst.draw_options.vertices.linewidth = 3
+    >>> plt.imshow(subst.draw())  #doctest: +SKIP
+
+.. note::
+
+    Unlike visualization result, the numerical result is strictly
+    determined by immutable :attr:`SubstrateBase.parameters` and
+    is never changed. This design allows caching of expensive
+    intermediate steps, and applies to reference instance and
+    coating layer instance as well.
 
 .. _howto-coatinglayer:
 
