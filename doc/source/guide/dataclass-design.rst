@@ -1,3 +1,5 @@
+.. _howto-define-dataclass:
+
 How to define dataclass
 =======================
 
