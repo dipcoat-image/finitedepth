@@ -386,5 +386,68 @@ you want, and close it.
 
 Congratulations! You have successfully performed analysis.
 
-Using configuration file
-------------------------
+Configuration instance
+----------------------
+
+Reading the images and constructing all the instances is a tedious work.
+Configuration instance helps you automatize essentially every task that have been
+described so far:
+
+#. Read the reference image and target images.
+#. Binarize the images.
+#. Construct the instances.
+#. Determine the FPS of target images, if possible.
+#. Start and finish the analysis coroutine.
+
+Type of the configuration instance must be a concrete subclass of
+:class:`ConfigBase`. In this example, we use :class:`Config` to analyze the
+target images in a video:
+
+>>> from dipcoatimage.finitedepth.serialize import *
+>>> config = Config(
+...     ref_path=get_data_path("ref3.png"),
+...     coat_path=get_data_path("coat3.mp4"),
+...     reference=ReferenceArgs(
+...         templateROI=(200, 50, 1200, 200),
+...         substrateROI=(350, 175, 1000, 500),
+...     ),
+...     substrate=SubstrateArgs(
+...         type=ImportArgs(name="RectSubstrate"),
+...         parameters=dict(Sigma=3.0, Rho=1.0, Theta=0.01),
+...     ),
+...     coatinglayer=CoatingLayerArgs(
+...         type=ImportArgs(name="RectLayerShape"),
+...         parameters=dict(
+...             KernelSize=(1, 1),
+...             ReconstructRadius=50,
+...             RoughnessMeasure=RectLayerShape.DistanceMeasure.DTW,
+...         ),
+...     ),
+...     experiment=ExperimentArgs(
+...         parameters=dict(window=(5, 5)),
+...     ),
+...     analysis=AnalysisArgs(
+...         parameters=dict(layer_visual="result%d.jpg", layer_data="result.csv")
+...     ),
+... )
+>>> config.analyze("My analysis")  #doctest: +SKIP
+
+As you can see, passing every argument to :class:`Config` is quite verbose.
+A better approach is to write a :ref:`configuration file <config-reference>`,
+read it as :obj:`dict`, and constructing the configuration instance from it.
+
+As :class:`ConfigBase` is a dataclass, it can be easily structured using
+:mod:`catters` package. Use :obj:`data_converter` to convert the dictionary
+to configuration intance (and vice versa).
+
+.. code-block:: python
+
+    import yaml
+    from dipcoatimage.finitedepth import data_converter
+    with open("my-config-file.yml") as f:
+        data = yaml.load(f, Loader=yaml.FullLoader)
+    for k, v in data.items():
+        config = data_converter(v, Config)
+        config.analyze(k)
+
+See :ref:`tutorial` for configuration file examples.
