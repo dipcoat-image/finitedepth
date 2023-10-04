@@ -230,7 +230,7 @@ over :class:`RectSubstrate`.
     :context: close-figs
 
     >>> from dipcoatimage.finitedepth import RectLayerShape
-    >>> param=RectLayerShape.Parameters(
+    >>> layer_param=RectLayerShape.Parameters(
     ...     KernelSize=(1, 1),
     ...     ReconstructRadius=50,
     ...     RoughnessMeasure=RectLayerShape.DistanceMeasure.DTW,
@@ -238,7 +238,7 @@ over :class:`RectSubstrate`.
     >>> coat = RectLayerShape(
     ...     coatimg,
     ...     subst,
-    ...     parameters=param,
+    ...     parameters=layer_param,
     ...     draw_options=RectLayerShape.DrawOptions(),
     ...     deco_options=RectLayerShape.DecoOptions(),
     ... )
@@ -327,6 +327,9 @@ speeding up the construction.
     ...     parameters=Experiment.Parameters(window=(5, 5))
     ... )
 
+:class:`ExperimentBase` has only one argument *parameters*, whose type is
+defined in :attr:`~ExperimentBase.Parameters` attribute.
+
 Now, we sequentially construct two :class:`RectLayerShape` instances using same
 arguments. The result is identical, but the second construction is several
 times faster because template matching is performed over only a small window.
@@ -335,27 +338,50 @@ times faster because template matching is performed over only a small window.
     :include-source:
     :context: close-figs
 
-    >>> coat1 = expt.coatinglayer(coatimg, subst, RectLayerShape, param)
-    >>> coat2 = expt.coatinglayer(coatimg, subst, RectLayerShape, param)
-    >>> _, axes = plt.subplots(1, 2)
-    >>> axes[0].imshow(coat1.draw())
-    >>> axes[1].imshow(coat2.draw())
-    >>> plt.show()
+    >>> coat1 = expt.coatinglayer(coatimg, subst, RectLayerShape, layer_param)
+    >>> coat2 = expt.coatinglayer(coatimg, subst, RectLayerShape, layer_param)
+    >>> _, axes = plt.subplots(1, 2)  #doctest: +SKIP
+    >>> axes[0].imshow(coat1.draw())  #doctest: +SKIP
+    >>> axes[1].imshow(coat2.draw())  #doctest: +SKIP
+    >>> plt.show()  #doctest: +SKIP
 
 .. _howto-analysis:
 
 Analysis instance
 -----------------
 
-Analysis instance provides coroutine to store the analysis result
-as files.
+Analysis instance is a coroutine which receives the coating layer instances
+to save the analysis result as file.
+
+Type of the analysis instance must be a concrete subclass of
+:class:`AnalysisBase`. In this example, we use :class:`Analysis`.
+
+>>> from dipcoatimage.finitedepth import Analysis
+>>> analysis = Analysis(
+...     parameters=Analysis.Parameters(layer_visual="result%d.jpg"),
+...     fps=50,
+... )
+
+#. *parameters* (:obj:`dataclass <dataclasses.dataclass>`)
+    Any additional parameters which affect the resulting file
+
+    The type of the dataclass is defined in
+    :attr:`~AnalysisBase.Parameters` attribute,
+    which varies by each concrete subclass.
+#. *fps* (float, optional)
+    Frame rate per second of the target images.
+
+    This argument is required to write videos and mark the data with timestamps.
+
+You can now start the coroutine, send the coating layer instances as much as
+you want, and close it.
+
+>>> next(analysis)  # start the coroutine  #doctest: +SKIP
+>>> analysis.send(coat1)  #doctest: +SKIP
+>>> analysis.send(coat2)  #doctest: +SKIP
+>>> analysis.close()  #doctest: +SKIP
+
+Congratulations! You have successfully performed analysis.
 
 Using configuration file
 ------------------------
-
-Analyze!
---------
-
-Analysis is performed by constructing the coating layer instances
-(preferably using experiment instance) and sending them to the
-analysis coroutine,
