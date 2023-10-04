@@ -1,7 +1,6 @@
 """Rectangular substrate."""
 import dataclasses
 import enum
-from typing import Tuple
 
 import cv2
 import numpy as np
@@ -151,7 +150,7 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):
 
         return ret
 
-    def analyze_substrate(self) -> Tuple[np.float64]:
+    def analyze(self):
         """Return analysis data."""
         _, B, C, _ = self.sideline_intersections()
-        return (np.linalg.norm(B - C),)
+        return self.Data(np.linalg.norm(B - C))

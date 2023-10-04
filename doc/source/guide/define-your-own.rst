@@ -148,13 +148,12 @@ methods that deserve mentioning here, though.
     Checks the instance parameters and raises error before running expensive
     analysis.
 
-#. ``analyze_[reference/substrate/layer]()``
+#. ``analyze()``
     Defined in: :class:`ReferenceBase`, :class:`SubstrateBase`,
     :class:`CoatingLayerBase`.
 
-    Return a tuple which contains analysis result. Analysis algorithm should be
-    implemented here. ``analyze()`` internally calls this method to acquire the
-    data which are wrapped by ``Data``.
+    Return a dataclass which contains analysis result. Type of the dataclass
+    must be ``Data`` attribute. Analysis algorithm should be implemented here.
 
 #. ``draw()``
     Defined in: :class:`ReferenceBase`, :class:`SubstrateBase`,

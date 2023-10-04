@@ -228,12 +228,11 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         """Decorate and return the substrate image as RGB format."""
 
     @abc.abstractmethod
-    def analyze_substrate(self) -> Tuple:
-        """Analyze the substrate image and return the data in tuple."""
-
     def analyze(self) -> DataType:
-        """Return the result of :meth:`analyze_substrate` as dataclass instance."""
-        return self.Data(*self.analyze_substrate())
+        """Analyze the substrate image and return the data.
+
+        May raise error if the instance is not valid.
+        """
 
 
 @dataclasses.dataclass(frozen=True)
@@ -306,6 +305,6 @@ class Substrate(SubstrateBase[Parameters, DrawOptions, Data]):
         """Return visualized image."""
         return cv2.cvtColor(self.image(), cv2.COLOR_GRAY2RGB)
 
-    def analyze_substrate(self) -> Tuple[()]:
+    def analyze(self):
         """Return analysis data."""
-        return ()
+        return self.Data()

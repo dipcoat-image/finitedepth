@@ -666,7 +666,7 @@ class RectLayerShape(
 
         return image
 
-    def analyze_layer(self):
+    def analyze(self):
         """Return analysis data."""
         _, B, C, _ = self.substrate.sideline_intersections() + self.substrate_point()
 
@@ -690,7 +690,7 @@ class RectLayerShape(
 
         _, ERR = self.tempmatch
 
-        return (
+        return self.Data(
             LEN_L,
             LEN_R,
             C,

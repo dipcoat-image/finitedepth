@@ -199,15 +199,11 @@ class CoatingLayerBase(
         """
 
     @abc.abstractmethod
-    def analyze_layer(self) -> Tuple:
-        """Analyze the coated substrate image and return the data in tuple.
+    def analyze(self) -> DataType:
+        """Analyze the coated substrate image and return the data.
 
         May raise error if the instance is not valid.
         """
-
-    def analyze(self) -> DataType:
-        """Return the result of :meth:`analyze_layer` as dataclass instance."""
-        return self.Data(*self.analyze_layer())
 
 
 @dataclasses.dataclass(frozen=True)
@@ -408,9 +404,9 @@ class CoatingLayer(
 
         return image
 
-    def analyze_layer(self) -> Tuple[()]:
-        """Return analyzed data."""
-        return ()
+    def analyze(self):
+        """Return analysis data."""
+        return self.Data()
 
 
 def images_XOR(
