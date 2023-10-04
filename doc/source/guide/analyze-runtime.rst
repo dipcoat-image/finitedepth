@@ -157,7 +157,8 @@ which detects the corners and edges of rectangular substrate.
     >>> plt.imshow(subst.draw())  #doctest: +SKIP
 
 Similarly to the reference type, :class:`SubstrateBase` has strictly
-defined signatures.
+defined signatures. Apart from the reference instance, we need two
+more arguments:
 
 #. *parameters* (:obj:`dataclass <dataclasses.dataclass>`)
     Any additional parameters which affect the analysis of
@@ -200,8 +201,98 @@ Now you might be starting to see the repeating design pattern.
 Coating layer instance
 ----------------------
 
-Coating layer instance handles *target image*, which is an image of
-coated substrate.
+Coating layer instance wraps substrate instance and *target image*,
+which is a binary image of a coated substrate.
+
+Coating layer instance is the most important object. It extracts
+the coating layer region from the target image and analyze it,
+quantifying the shape of the coating layer.
+
+We first read target image.
+
+.. plot::
+    :include-source:
+    :context:
+
+    >>> import cv2
+    >>> from dipcoatimage.finitedepth import get_data_path
+    >>> gray = cv2.imread(get_data_path("coat3.png"), cv2.IMREAD_GRAYSCALE)
+    >>> _, coatimg = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+    >>> plt.imshow(coatimg, cmap="gray")  #doctest: +SKIP
+
+Now we construct a coating layer instance. Type of the coating layer instance
+must be a concrete subclass of :class:`CoatingLayerBase`. In this example,
+we use :class:`RectLayerShape` which analyzes the shape of the coating layer
+over :class:`RectSubstrate`.
+
+.. plot::
+    :include-source:
+    :context:
+
+    >>> from dipcoatimage.finitedepth import RectLayerShape
+    >>> coat = RectLayerShape(
+    ...     coatimg,
+    ...     subst,
+    ...     parameters=RectLayerShape.Parameters(
+    ...         KernelSize=(1, 1),
+    ...         ReconstructRadius=50,
+    ...         RoughnessMeasure=RectLayerShape.DistanceMeasure.DTW,
+    ...     ),
+    ...     draw_options=RectLayerShape.DrawOptions(),
+    ...     deco_options=RectLayerShape.DecoOptions(),
+    ... )
+    >>> plt.imshow(coat.draw())  #doctest: +SKIP
+
+:class:`CoatingLayerBase` has somewhat more complicated signatures.
+Apart from the target image and substrate instance, there are four
+more arguments:
+
+#. *parameters* (:obj:`dataclass <dataclasses.dataclass>`)
+    Any additional parameters which affect the analysis of
+    coating layer instance.
+
+    The type of the dataclass is defined in
+    :attr:`~CoatingLayerBase.Parameters` attribute,
+    which varies by each concrete subclass.
+#. *draw_options* (:obj:`dataclass <dataclasses.dataclass>`)
+    Options to visualize the coated substrate.
+
+    The type of the dataclass is defined in
+    :attr:`~CoatingLayerBase.DrawOptions` attribute,
+    which varies by each concrete subclass.
+#. *deco_options* (:obj:`dataclass <dataclasses.dataclass>`)
+    Options to visualize the coating layer.
+
+    The type of the dataclass is defined in
+    :attr:`~CoatingLayerBase.DecoOptions` attribute,
+    which varies by each concrete subclass.
+#. *tempmatch* (tuple)
+    Location of the template region in the target image.
+
+    **NOT FOR DIRECT USE.** This argument is for experiment
+    instance to quickly construct coating layer instances,
+    which is described in the next section.
+
+:meth:`~CoatingLayerBase.draw` method returns visualized result which
+can be controlled by :attr:`~CoatingLayerBase.draw_options` and
+:attr:`~CoatingLayerBase.deco_options`. :meth:`~CoatingLayerBase.analyze`
+method returns numerical data.
+
+.. plot::
+    :include-source:
+    :context:
+
+    >>> coat.analyze()
+    Data(Width=525.98883)
+    >>> coat.draw_options.subtraction = coat.SubtractionMode.TEMPLATE
+    >>> coat.deco_options.roughness.linewidth = 0
+    >>> plt.imshow(coat.draw())  #doctest: +SKIP
+
+.. note::
+
+    *draw_options* and *deco_options* are designed to cover different scopes.
+    In general, *draw_options* controls how the substrate body is drawn,
+    while *deco_options* controls how the analysis result is displayed.
 
 .. _howto-experiment:
 
