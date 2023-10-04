@@ -1,7 +1,7 @@
 .. _howto-runtime:
 
-How to analyze an experiment in runtime
-=======================================
+How to analyze in runtime
+=========================
 
 .. currentmodule:: finitedepth
 
