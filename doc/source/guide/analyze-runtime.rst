@@ -358,7 +358,10 @@ Type of the analysis instance must be a concrete subclass of
 
 >>> from dipcoatimage.finitedepth import Analysis
 >>> analysis = Analysis(
-...     parameters=Analysis.Parameters(layer_visual="result%d.jpg"),
+...     parameters=Analysis.Parameters(
+...         layer_visual="result%d.jpg",
+...         layer_data="result.csv",
+... ),
 ...     fps=50,
 ... )
 
@@ -376,7 +379,7 @@ Type of the analysis instance must be a concrete subclass of
 You can now start the coroutine, send the coating layer instances as much as
 you want, and close it.
 
->>> next(analysis)  # start the coroutine  #doctest: +SKIP
+>>> analysis.send(None)  # start the coroutine  #doctest: +SKIP
 >>> analysis.send(coat1)  #doctest: +SKIP
 >>> analysis.send(coat2)  #doctest: +SKIP
 >>> analysis.close()  #doctest: +SKIP
