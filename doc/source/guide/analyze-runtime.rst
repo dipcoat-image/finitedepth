@@ -374,7 +374,8 @@ Type of the analysis instance must be a concrete subclass of
 #. *fps* (float, optional)
     Frame rate per second of the target images.
 
-    This argument is required to write videos and mark the data with timestamps.
+    This argument is required to write videos and mark the data with
+    timestamps.
 
 You can now start the coroutine, send the coating layer instances as much as
 you want, and close it.
@@ -390,8 +391,8 @@ Configuration instance
 ----------------------
 
 Reading the images and constructing all the instances is a tedious work.
-Configuration instance helps you automatize essentially every task that have been
-described so far:
+Configuration instance helps you automatize essentially every task that have
+been described so far:
 
 #. Read the reference image and target images.
 #. Binarize the images.
@@ -427,7 +428,10 @@ target images in a video:
 ...         parameters=dict(window=(5, 5)),
 ...     ),
 ...     analysis=AnalysisArgs(
-...         parameters=dict(layer_visual="result%d.jpg", layer_data="result.csv")
+...         parameters=dict(
+...             layer_visual="result%d.jpg",
+...             layer_data="result.csv",
+...         )
 ...     ),
 ... )
 >>> config.analyze("My analysis")  #doctest: +SKIP
