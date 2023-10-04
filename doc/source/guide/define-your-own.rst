@@ -16,14 +16,9 @@ own classes which seamlessly bind with the framework.
 Basic rules
 -----------
 
-As described in :ref:`howto-runtime`, there are five abstract base classes
-which consistitute the analysis:
-
-#. :class:`ReferenceBase`
-#. :class:`SubstrateBase`
-#. :class:`CoatingLayerBase`
-#. :class:`ExperimentBase`
-#. :class:`AnalysisBase`
+As described in :ref:`howto-runtime`, five abstract base classes consistitute
+the analysis; :class:`ReferenceBase`, :class:`SubstrateBase`,
+:class:`CoatingLayerBase`, :class:`ExperimentBase` and :class:`AnalysisBase`.
 
 To define their concrete subclasses, there are some common rules to follow.
 
@@ -34,8 +29,9 @@ The abstract base classes strictly define their signatures which should not
 be modified.
 
 If you need to introduce new parameters, do not define them in ``__init__``
-method. Instead, wrap them with dataclasses with are passed to the class
-constructor. This procedure is explained in the following section.
+method. Instead, define dataclasses which wraps them and assign the dataclasses
+as type variables which are passed to the constructor. This procedure is
+explained in the following section.
 
 Set type variables
 ^^^^^^^^^^^^^^^^^^
@@ -44,19 +40,19 @@ The abstract base classes are generic types whose type variables must
 be set in concrete classes.
 
 Each class defines different type variables. For example,
-:class:`SubstrateBase` has three type variables, each assigned to
+:class:`SubstrateBase` needs three type variables, each assigned to
 :attr:`~SubstrateBase.Parameters`, :attr:`~SubstrateBase.DrawOptions`,
 and :attr:`~SubstrateBase.Data`. On the other hand,
-:class:`CoatingLayer` has four type variables, each assigned to
-:attr:`~CoatingLayer.Parameters`, :attr:`~CoatingLayer.DrawOptions`,
-:attr:`~CoatingLayer.DecoOptions`, and :attr:`~CoatingLayer.Data`.
+:class:`CoatingLayerBase` needs four type variables, each assigned to
+:attr:`~CoatingLayerBase.Parameters`, :attr:`~CoatingLayerBase.DrawOptions`,
+:attr:`~CoatingLayerBase.DecoOptions`, and :attr:`~CoatingLayerBase.Data`.
 Concrete class must have all of its type variables assigned.
 
 All type variables are dataclasses. To set the type variable,
 take the following step:
 
-#. Define the dataclass.
-#. Pass the dataclass as the type variable of base class.
+#. Define dataclass.
+#. Pass the dataclass as type variable of base class.
 #. Assign the dataclass as the type variable attribute.
 
 The following is the example of setting type variable for custom
@@ -82,25 +78,25 @@ substrate class.
         Data = MyData
 
 See :ref:`api` of each abstract base class for the list of type
-variables it defines. Read :ref:`howto-define-dataclass` for good
-practice to define dataclass.
+variables it defines. Read :ref:`howto-define-dataclass` to learn good
+practices to define dataclass.
 
 Set slots
 ^^^^^^^^^
 
-Abstract base classes define class attribute :obj:`object.__slots__`
+Abstract base classes define class attribute :obj:`~object.__slots__`
 to save memory space.
 
 When your concrete instance needs to define new attributes, you must
 declare them in ``__slots__``. This is especially important when you
-need to cache your method.
+need to cache your method, which is explained in the following section.
 
 Cache by attribute
 ^^^^^^^^^^^^^^^^^^
 
 Caching of methods **MUST** be done by private attribute.
 
-**DO:** 
+**DO:**
 
 .. code-block:: python
 
@@ -128,16 +124,45 @@ Caching of methods **MUST** be done by private attribute.
             return "bar"
 
 This is because external caching increases the reference count
-of *self*, preventing it from being garbage collected in time.
-Our objects usually consume large memory because of image
-arrays. If the objects linger in cache stack, the program will
-crash after constructing a few instances.
+of *self*, preventing it from being garbage collected on time.
+Our objects usually consume large memory space because of image
+arrays; if the objects stacks up in external cache, the program will
+soon crash.
 
-It is generally OK to use external caching in experiment class
-and analysis class, as they need relatively small memory space.
+It is generally OK to use external caching in experiment class and analysis
+class, as they need relatively small memory space. Of course, this does not
+hold if your implementations require large memory space.
 
 Implement abstract methods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Concrete class needs to implement every abstract method in abstrac base class.
+
+You can find the abstract methods in :ref:`api` page. There are some common
+methods that deserve mentioning here, though.
+
+#. ``verify()``
+    Defined in: :class:`ReferenceBase`, :class:`SubstrateBase`,
+    :class:`CoatingLayerBase`, :class:`ExperimentBase`, :class:`AnalysisBase`.
+
+    Checks the instance parameters and raises error before running expensive
+    analysis.
+
+#. ``analyze_[reference/substrate/layer]()``
+    Defined in: :class:`ReferenceBase`, :class:`SubstrateBase`,
+    :class:`CoatingLayerBase`.
+
+    Return a tuple which contains analysis result. Analysis algorithm should be
+    implemented here. ``analyze()`` internally calls this method to acquire the
+    data which are wrapped by ``Data``.
+
+#. ``draw()``
+    Defined in: :class:`ReferenceBase`, :class:`SubstrateBase`,
+    :class:`CoatingLayerBase`.
+
+    Return visualization result in RGB. This method must return in any case.
+    If analysis fails and cannot be visualized, it must at least return
+    original image in RGB.
 
 Examples
 --------
