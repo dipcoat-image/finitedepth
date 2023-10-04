@@ -9,4 +9,3 @@ How-to guides
    analyze-runtime
    define-your-own
    dataclass-design
-   extend-configure

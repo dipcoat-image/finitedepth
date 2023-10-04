@@ -1,2 +1,4 @@
-How to define your own classes
-==============================
+.. _howto-define-class:
+
+How to define your own class
+============================
