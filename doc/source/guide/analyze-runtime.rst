@@ -48,7 +48,7 @@ this example, we use :class:`Reference`.
 
 .. plot::
     :include-source:
-    :context:
+    :context: close-figs
 
     >>> from dipcoatimage.finitedepth import Reference
     >>> ref = Reference(
@@ -112,7 +112,7 @@ The options can be modified:
 
 .. plot::
     :include-source:
-    :context:
+    :context: close-figs
 
     >>> ref.draw_options.templateROI.color = (0, 0, 255)
     >>> plt.imshow(ref.draw())  #doctest: +SKIP
@@ -146,7 +146,7 @@ which detects the corners and edges of rectangular substrate.
 
 .. plot::
     :include-source:
-    :context:
+    :context: close-figs
 
     >>> from dipcoatimage.finitedepth import RectSubstrate
     >>> subst = RectSubstrate(
@@ -181,7 +181,7 @@ Now you might be starting to see the repeating design pattern.
 
 .. plot::
     :include-source:
-    :context:
+    :context: close-figs
 
     >>> subst.analyze()
     Data(Width=525.98883)
@@ -204,7 +204,7 @@ Coating layer instance
 Coating layer instance wraps substrate instance and *target image*,
 which is a binary image of a coated substrate.
 
-Coating layer instance is the most important object. It extracts
+Coating layer instance is the most important object in analysis. It extracts
 the coating layer region from the target image and analyze it,
 quantifying the shape of the coating layer.
 
@@ -212,7 +212,7 @@ We first read target image.
 
 .. plot::
     :include-source:
-    :context:
+    :context: close-figs
 
     >>> import cv2
     >>> from dipcoatimage.finitedepth import get_data_path
@@ -227,17 +227,18 @@ over :class:`RectSubstrate`.
 
 .. plot::
     :include-source:
-    :context:
+    :context: close-figs
 
     >>> from dipcoatimage.finitedepth import RectLayerShape
+    >>> param=RectLayerShape.Parameters(
+    ...     KernelSize=(1, 1),
+    ...     ReconstructRadius=50,
+    ...     RoughnessMeasure=RectLayerShape.DistanceMeasure.DTW,
+    ... )
     >>> coat = RectLayerShape(
     ...     coatimg,
     ...     subst,
-    ...     parameters=RectLayerShape.Parameters(
-    ...         KernelSize=(1, 1),
-    ...         ReconstructRadius=50,
-    ...         RoughnessMeasure=RectLayerShape.DistanceMeasure.DTW,
-    ...     ),
+    ...     parameters=param,
     ...     draw_options=RectLayerShape.DrawOptions(),
     ...     deco_options=RectLayerShape.DecoOptions(),
     ... )
@@ -271,7 +272,9 @@ more arguments:
 
     **NOT FOR DIRECT USE.** This argument is for experiment
     instance to quickly construct coating layer instances,
-    which is described in the next section.
+    which is described in the next section. If not passed,
+    the coating layer instance automatically finds the template
+    location using template matching.
 
 :meth:`~CoatingLayerBase.draw` method returns visualized result which
 can be controlled by :attr:`~CoatingLayerBase.draw_options` and
@@ -280,10 +283,10 @@ method returns numerical data.
 
 .. plot::
     :include-source:
-    :context:
+    :context: close-figs
 
     >>> coat.analyze()
-    Data(Width=525.98883)
+    Data(LayerLength_Left=236.6932474452997, ...)
     >>> coat.draw_options.subtraction = coat.SubtractionMode.TEMPLATE
     >>> coat.deco_options.roughness.linewidth = 0
     >>> plt.imshow(coat.draw())  #doctest: +SKIP
@@ -294,13 +297,50 @@ method returns numerical data.
     In general, *draw_options* controls how the substrate body is drawn,
     while *deco_options* controls how the analysis result is displayed.
 
+Typically, multiple coating layer instances are constructed from consecutive
+target images for temporal evaluation. Experiment instance facilitates the
+sequential construction of coating layer instances.
+
 .. _howto-experiment:
 
 Experiment instance
 -------------------
 
-Experiment instance is a factory object to construct consecutive
-coating layer instances.
+Experiment instance is a coating layer instance factory.
+
+Why the name *experiment*? It's because conceptually, conducting an experiment
+is acquiring useful data from coated substrate. Experiment instance defines how
+consecutive target images, rather than a single image, construct coating layer
+instances.
+
+Type of the experiment instance must be a concrete subclass of
+:class:`ExperimentBase`. In this example, we use :class:`Experiment` which
+narrows down the template location using the previous result, significantly
+speeding up the construction.
+
+.. plot::
+    :include-source:
+    :context: close-figs
+
+    >>> from dipcoatimage.finitedepth import Experiment
+    >>> expt = Experiment(
+    ...     parameters=Experiment.Parameters(window=(5, 5))
+    ... )
+
+Now, we sequentially construct two :class:`RectLayerShape` instances using same
+arguments. The result is identical, but the second construction is several
+times faster because template matching is performed over only a small window.
+
+.. plot::
+    :include-source:
+    :context: close-figs
+
+    >>> coat1 = expt.coatinglayer(coatimg, subst, RectLayerShape, param)
+    >>> coat2 = expt.coatinglayer(coatimg, subst, RectLayerShape, param)
+    >>> _, axes = plt.subplots(1, 2)
+    >>> axes[0].imshow(coat1.draw())
+    >>> axes[1].imshow(coat2.draw())
+    >>> plt.show()
 
 .. _howto-analysis:
 
