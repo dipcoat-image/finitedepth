@@ -74,6 +74,8 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
         if parameters is None:
             self._parameters = self.Parameters()
         else:
+            if not isinstance(parameters, self.Parameters):
+                raise TypeError(f"{parameters} is not instance of {self.Parameters}")
             self._parameters = dataclasses.replace(parameters)
 
     @property
@@ -137,7 +139,6 @@ class Experiment(ExperimentBase[Parameters]):
         self,
         image,
         substrate,
-        *,
         layer_type,
         layer_parameters=None,
         layer_drawoptions=None,
@@ -148,11 +149,12 @@ class Experiment(ExperimentBase[Parameters]):
         If *window* parameter has positive axis, template matching is boosted.
         """
         prev = getattr(self, "_prev", None)
+        x0, y0, x1, y1 = substrate.reference.templateROI
         window = self.parameters.window
         if not prev:
-            x0, y0, x1, y1 = substrate.reference.templateROI
+            target_image = image
+            X0, Y0 = 0, 0
         else:
-            x0, y0, x1, y1 = substrate.reference.templateROI
             X, Y = prev
             w0, h0 = window
             w1, h1 = x1 - x0, y1 - y0
@@ -166,11 +168,12 @@ class Experiment(ExperimentBase[Parameters]):
                 Y0, Y1 = 0, None
             else:
                 Y0, Y1 = max(Y - h0, 0), min(Y + h1 + h0, H)
-            image = image[Y0:Y1, X0:X1]
+            target_image = image[Y0:Y1, X0:X1]
 
         template = substrate.reference.image[y0:y1, x0:x1]
-        res = cv2.matchTemplate(image, template, cv2.TM_SQDIFF_NORMED)
-        score, _, loc, _ = cv2.minMaxLoc(res)
+        res = cv2.matchTemplate(target_image, template, cv2.TM_SQDIFF_NORMED)
+        score, _, (x, y), _ = cv2.minMaxLoc(res)
+        loc = (X0 + x, Y0 + y)
         ret = layer_type(
             image,
             substrate,

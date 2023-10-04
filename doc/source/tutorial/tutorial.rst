@@ -174,7 +174,7 @@ The :ref:`fundamental scheme <fundamentals>` is implemented as follows:
     Actual analysis involves *experiment class* (inherits
     :class:`ExperimentBase`) and *analysis class* (inherits
     :class:`AnalysisBase`), but we spare the details in this section.
-    Refer to their docstrings.
+    Refer to :ref:`howto-runtime` page and class docstrings.
 
 
 Specifying types

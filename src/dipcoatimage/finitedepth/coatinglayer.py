@@ -82,16 +82,22 @@ class CoatingLayerBase(
         if parameters is None:
             self._parameters = self.Parameters()
         else:
+            if not isinstance(parameters, self.Parameters):
+                raise TypeError(f"{parameters} is not instance of {self.Parameters}")
             self._parameters = dataclasses.replace(parameters)
 
         if draw_options is None:
             self._draw_options = self.DrawOptions()
         else:
+            if not isinstance(draw_options, self.DrawOptions):
+                raise TypeError(f"{draw_options} is not instance of {self.DrawOptions}")
             self._draw_options = dataclasses.replace(draw_options)
 
         if deco_options is None:
             self._deco_options = self.DecoOptions()
         else:
+            if not isinstance(deco_options, self.DecoOptions):
+                raise TypeError(f"{deco_options} is not instance of {self.DecoOptions}")
             self._deco_options = dataclasses.replace(deco_options)
 
         if tempmatch is None:

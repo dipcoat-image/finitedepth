@@ -1,4 +1,4 @@
-Getting started
+Getting Started
 ===============
 
 .. currentmodule:: finitedepth
@@ -146,3 +146,9 @@ Next steps
 Check out more resources to help you customize your analysis:
 
 * Read :ref:`tutorial` for basic examples.
+* :ref:`config-reference` will be helpful when you apply this package
+  to analyze your dataset.
+* :ref:`howto` provide advanced information to use 100% of
+  DipcoatImage-FiniteDepth.
+* :ref:`api` delineates every component of this package.
+* :ref:`explanation` are in-depth descriptions for developers.

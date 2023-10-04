@@ -78,6 +78,8 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
         if parameters is None:
             self._parameters = self.Parameters()
         else:
+            if not isinstance(parameters, self.Parameters):
+                raise TypeError(f"{parameters} is not instance of {self.Parameters}")
             self._parameters = dataclasses.replace(parameters)
         self._fps = fps
         self._iterator = self.__await__()

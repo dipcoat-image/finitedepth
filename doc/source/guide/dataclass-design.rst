@@ -1,13 +1,12 @@
-===================
-Designing Dataclass
-===================
+How to define dataclass
+=======================
 
 User needs to define dataclasses and assign them to specific class
 attributes. This document explaines the steps to design the dataclass
 fully compatible with API.
 
 Defining dataclass
-==================
+------------------
 
 Here, we define a nested dataclass for example.
 It has :class:`enum.Enum`-type field and custom object field.
@@ -37,7 +36,7 @@ This class alone is enough to define custom classes, but we can go further for
 more abilities.
 
 Making dataclass serializable
-=============================
+-----------------------------
 
 It is a common practice to save the analysis configuration as file and load it.
 Popular file format is JSON, which ensures native compatibility with python

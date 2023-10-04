@@ -1,6 +1,6 @@
 .. _config-reference:
 
-Configuration file reference
+Configuration File Reference
 ============================
 
 .. currentmodule:: finitedepth
@@ -34,7 +34,7 @@ examples.
 .. note::
 
     You can implement your own :class:`ConfigBase` subclass other than
-    :class:`Config`. Refer to :ref:`howto-extend-config` page.
+    :class:`Config`. Refer to :ref:`howto-define-class` page.
 
 ref_path
 --------

@@ -6,5 +6,6 @@ How-to guides
 .. toctree::
    :maxdepth: 2
 
-   extend-configure
+   analyze-runtime
+   define-your-own
    dataclass-design
