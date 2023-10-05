@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 
+from .cache import attrcache
 from .reference import ReferenceBase
 
 if TYPE_CHECKING:
@@ -27,12 +28,15 @@ class SubstrateError(Exception):
     pass
 
 
+ReferenceType = TypeVar("ReferenceType", bound=ReferenceBase)
 ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
 DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
 DataType = TypeVar("DataType", bound="DataclassInstance")
 
 
-class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType]):
+class SubstrateBase(
+    abc.ABC, Generic[ReferenceType, ParametersType, DrawOptionsType, DataType]
+):
     """Abstract base class for substrate.
 
     Substrate class recognizes the geometry of substrate image from
@@ -73,21 +77,13 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
     :meth:`analyze` is the API for analysis result.
     """
 
-    __slots__ = (
-        "_ref",
-        "_parameters",
-        "_draw_options",
-        "_regions",
-        "_contours",
-    )
-
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
     Data: Type[DataType]
 
     def __init__(
         self,
-        reference: ReferenceBase,
+        reference: ReferenceType,
         parameters: Optional[ParametersType] = None,
         *,
         draw_options: Optional[DrawOptionsType] = None,
@@ -111,7 +107,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
             self._draw_options = dataclasses.replace(draw_options)
 
     @property
-    def reference(self) -> ReferenceBase:
+    def reference(self) -> ReferenceType:
         """Substrate reference instance passed to constructor."""
         return self._ref
 
@@ -163,6 +159,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         s.t. the center point falls on the substrate region)
         """
 
+    @attrcache("_regions")
     def regions(self) -> npt.NDArray[np.int8]:
         """Return image labelled by each discrete substrate regions.
 
@@ -180,12 +177,11 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         --------
         region_points
         """
-        if not hasattr(self, "_regions"):
-            self._regions = np.full(self.image().shape[:2], -1, dtype=np.int8)
-            _, labels = cv2.connectedComponents(cv2.bitwise_not(self.image()))
-            for i, pt in enumerate(self.region_points()):
-                self._regions[labels == labels[pt[1], pt[0]]] = i
-        return self._regions
+        ret = np.full(self.image().shape[:2], -1, dtype=np.int8)
+        _, labels = cv2.connectedComponents(cv2.bitwise_not(self.image()))
+        for i, pt in enumerate(self.region_points()):
+            ret[labels == labels[pt[1], pt[0]]] = i
+        return ret
 
     def contours(
         self, region: int
@@ -228,12 +224,11 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         """Decorate and return the substrate image as RGB format."""
 
     @abc.abstractmethod
-    def analyze_substrate(self) -> Tuple:
-        """Analyze the substrate image and return the data in tuple."""
-
     def analyze(self) -> DataType:
-        """Return the result of :meth:`analyze_substrate` as dataclass instance."""
-        return self.Data(*self.analyze_substrate())
+        """Analyze the substrate image and return the data.
+
+        May raise error if the instance is not valid.
+        """
 
 
 @dataclasses.dataclass(frozen=True)
@@ -257,7 +252,7 @@ class Data:
     pass
 
 
-class Substrate(SubstrateBase[Parameters, DrawOptions, Data]):
+class Substrate(SubstrateBase[ReferenceBase, Parameters, DrawOptions, Data]):
     """Simplest substrate class with no geometric information.
 
     Examples
@@ -306,6 +301,6 @@ class Substrate(SubstrateBase[Parameters, DrawOptions, Data]):
         """Return visualized image."""
         return cv2.cvtColor(self.image(), cv2.COLOR_GRAY2RGB)
 
-    def analyze_substrate(self) -> Tuple[()]:
+    def analyze(self):
         """Return analysis data."""
-        return ()
+        return self.Data()

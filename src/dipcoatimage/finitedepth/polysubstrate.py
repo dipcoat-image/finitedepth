@@ -1,6 +1,6 @@
 """Polygonal substrate."""
 import dataclasses
-from typing import TYPE_CHECKING, Tuple, Type, TypeVar
+from typing import Tuple, Type, TypeVar
 
 import numpy as np
 import numpy.typing as npt
@@ -9,11 +9,14 @@ from numpy.linalg import LinAlgError
 from scipy.ndimage import gaussian_filter1d  # type: ignore
 from scipy.signal import find_peaks, peak_prominences  # type: ignore
 
-from .substrate import SubstrateBase, SubstrateError
-
-if TYPE_CHECKING:
-    from _typeshed import DataclassInstance
-
+from .cache import attrcache
+from .substrate import (
+    DataType,
+    DrawOptionsType,
+    ReferenceType,
+    SubstrateBase,
+    SubstrateError,
+)
 
 __all__ = [
     "PolySubstrateError",
@@ -55,11 +58,11 @@ ROTATION_MATRIX = np.array([[0, 1], [-1, 0]])
 
 
 ParametersType = TypeVar("ParametersType", bound=Parameters)
-DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
-DataType = TypeVar("DataType", bound="DataclassInstance")
 
 
-class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]):
+class PolySubstrateBase(
+    SubstrateBase[ReferenceType, ParametersType, DrawOptionsType, DataType]
+):
     """Abstract base class for substrates whose cross section is a simple polygon.
 
     A simple polygon does not have intersection nor hole [#simple-polygon]_.
@@ -79,11 +82,6 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]
     ----------
     .. [#simple-polygon] https://en.wikipedia.org/wiki/Simple_polygon
     """
-
-    __slots__ = (
-        "_vertices",
-        "_sidelines",
-    )
 
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
@@ -178,6 +176,7 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]
         sides = np.split(np.roll(cnt, shift, axis=0), np.sort((vert - shift) % L))[1:]
         return tuple(sides)
 
+    @attrcache("_sidelines")
     def sidelines(self) -> npt.NDArray[np.float32]:
         r"""Find linear model of polygon sides.
 
@@ -206,34 +205,32 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]
         ----------
         .. [#extended-side] https://en.wikipedia.org/wiki/Extended_side
         """
-        if not hasattr(self, "_sidelines"):
-            # Do not find the line from smoothed contour. Noise is removed anyway
-            # without smoothing by Hough transformation. In fact, smoothing
-            # propagates the outlier error to nearby data.
-            RHO_RES = self.parameters.Rho
-            THETA_RES = self.parameters.Theta
-            lines = []
-            # Directly use Hough transformation to find lines
-            for side in self.sides():
-                tan = np.diff(side, axis=0)
-                atan = np.arctan2(tan[..., 1], tan[..., 0])  # -pi < atan <= pi
-                theta = atan - np.pi / 2
-                tmin, tmax = theta.min(), theta.max()
-                if tmin < tmax:
-                    theta_rng = np.arange(tmin, tmax, THETA_RES, dtype=np.float32)
-                else:
-                    theta_rng = np.array([tmin], dtype=np.float32)
+        # Do not find the line from smoothed contour. Noise is removed anyway
+        # without smoothing by Hough transformation. In fact, smoothing
+        # propagates the outlier error to nearby data.
+        RHO_RES = self.parameters.Rho
+        THETA_RES = self.parameters.Theta
+        lines = []
+        # Directly use Hough transformation to find lines
+        for side in self.sides():
+            tan = np.diff(side, axis=0)
+            atan = np.arctan2(tan[..., 1], tan[..., 0])  # -pi < atan <= pi
+            theta = atan - np.pi / 2
+            tmin, tmax = theta.min(), theta.max()
+            if tmin < tmax:
+                theta_rng = np.arange(tmin, tmax, THETA_RES, dtype=np.float32)
+            else:
+                theta_rng = np.array([tmin], dtype=np.float32)
 
-                # Interpolate & perform hough transformation.
-                c = side[:: self.parameters.Step]
-                rho = c[..., 0] * np.cos(theta_rng) + c[..., 1] * np.sin(theta_rng)
-                rho_digit = (rho / RHO_RES).astype(np.int32)
+            # Interpolate & perform hough transformation.
+            c = side[:: self.parameters.Step]
+            rho = c[..., 0] * np.cos(theta_rng) + c[..., 1] * np.sin(theta_rng)
+            rho_digit = (rho / RHO_RES).astype(np.int32)
 
-                _, (rho, theta_idx) = houghline_accum(rho_digit)
-                lines.append([[rho * RHO_RES, theta_rng[theta_idx]]])
+            _, (rho, theta_idx) = houghline_accum(rho_digit)
+            lines.append([[rho * RHO_RES, theta_rng[theta_idx]]])
 
-            self._sidelines = np.array(lines, dtype=np.float32)
-        return self._sidelines
+        return np.array(lines, dtype=np.float32)
 
     def sideline_intersections(self) -> npt.NDArray[np.float32]:
         """Return the coordinates of intersections of polygon sidelines.

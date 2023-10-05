@@ -11,6 +11,7 @@ from numba import njit  # type: ignore
 from scipy.optimize import root  # type: ignore
 from scipy.spatial.distance import cdist  # type: ignore
 
+from .cache import attrcache
 from .coatinglayer import (
     CoatingLayerBase,
     CoatingLayerError,
@@ -50,28 +51,22 @@ class RectCoatingLayerBase(
 ):
     """Abstract base class for coating layer over rectangular substrate."""
 
-    __slots__ = (
-        "_interfaces",
-        "_contour",
-        "_surface_indices",
-    )
-
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
     DecoOptions: Type[DecoOptionsType]
     Data: Type[DataType]
 
+    @attrcache("_layer_contours")
     def layer_contours(self) -> Tuple[npt.NDArray[np.int32], ...]:
         """Return contours of :meth:`extract_layer`."""
-        if not hasattr(self, "_layer_contours"):
-            layer_cnts, _ = cv2.findContours(
-                self.extract_layer().astype(np.uint8),
-                cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_NONE,
-            )
-            self._layer_contours = tuple(layer_cnts)
-        return self._layer_contours
+        layer_cnts, _ = cv2.findContours(
+            self.extract_layer().astype(np.uint8),
+            cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_NONE,
+        )
+        return tuple(layer_cnts)
 
+    @attrcache("_interfaces")
     def interfaces(self) -> Tuple[npt.NDArray[np.int64], ...]:
         """Find indices of solid-liquid interfaces on :meth:`SubstrateBase.contour`.
 
@@ -93,36 +88,33 @@ class RectCoatingLayerBase(
         by the layer. To acquire the interface points, slice the substrate
         contour with the indices.
         """
-        if not hasattr(self, "_interfaces"):
-            subst_cnt = self.substrate.contour() + self.substrate_point()
-            ret = []
-            for layer_cnt in self.layer_contours():
-                H, W = self.image.shape[:2]
-                lcnt_img = np.zeros((H, W), dtype=np.uint8)
-                lcnt_img[layer_cnt[..., 1], layer_cnt[..., 0]] = 255
-                dilated_lcnt = cv2.dilate(lcnt_img, np.ones((3, 3))).astype(bool)
+        subst_cnt = self.substrate.contour() + self.substrate_point()
+        ret = []
+        for layer_cnt in self.layer_contours():
+            H, W = self.image.shape[:2]
+            lcnt_img = np.zeros((H, W), dtype=np.uint8)
+            lcnt_img[layer_cnt[..., 1], layer_cnt[..., 0]] = 255
+            dilated_lcnt = cv2.dilate(lcnt_img, np.ones((3, 3))).astype(bool)
 
-                x, y = subst_cnt.transpose(2, 0, 1)
-                mask = dilated_lcnt[np.clip(y, 0, H - 1), np.clip(x, 0, W - 1)]
+            x, y = subst_cnt.transpose(2, 0, 1)
+            mask = dilated_lcnt[np.clip(y, 0, H - 1), np.clip(x, 0, W - 1)]
 
-                # Find indices of continuous True blocks
-                idxs = np.where(
-                    np.diff(np.concatenate(([False], mask[:, 0], [False]))) == 1
-                )[0].reshape(-1, 2)
-                ret.append(idxs)
-            self._interfaces = tuple(ret)
-        return self._interfaces
+            # Find indices of continuous True blocks
+            idxs = np.where(
+                np.diff(np.concatenate(([False], mask[:, 0], [False]))) == 1
+            )[0].reshape(-1, 2)
+            ret.append(idxs)
+        return tuple(ret)
 
+    @attrcache("_contour")
     def contour(self) -> npt.NDArray[np.int32]:
         """Contour of the entire coated substrate."""
-        if not hasattr(self, "_contour"):
-            (cnt,), _ = cv2.findContours(
-                self.coated_substrate().astype(np.uint8),
-                cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_NONE,
-            )
-            self._contour = cnt
-        return self._contour
+        (cnt,), _ = cv2.findContours(
+            self.coated_substrate().astype(np.uint8),
+            cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_NONE,
+        )
+        return cnt
 
     def surface(self) -> npt.NDArray[np.int32]:
         """Return the surface of the entire coated region.
@@ -378,13 +370,6 @@ class RectLayerShape(
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
     """
 
-    __slots__ = (
-        "_uniform_layer",
-        "_conformality",
-        "_roughness",
-        "_max_thickness",
-    )
-
     Parameters = Parameters
     DrawOptions = DrawOptions
     DecoOptions = DecoOptions
@@ -402,97 +387,94 @@ class RectLayerShape(
         if not self.capbridge_broken():
             raise CoatingLayerError("Capillary bridge is not broken.")
 
+    @attrcache("_extracted_layer")
     def extract_layer(self) -> npt.NDArray[np.bool_]:
         """Extract coating layer region."""
-        if not hasattr(self, "_extracted_layer"):
-            # Perform opening to remove error pixels. We named the parameter as
-            # "closing" because the coating layer is black in original image, but
-            # in fact we do opening since the layer is True in extracted layer.
-            ksize = self.parameters.KernelSize
-            if any(i == 0 for i in ksize):
-                img = super().extract_layer().astype(np.uint8) * 255
-            else:
-                kernel = cv2.getStructuringElement(cv2.MORPH_RECT, ksize)
-                img = cv2.morphologyEx(
-                    super().extract_layer().astype(np.uint8) * 255,
-                    cv2.MORPH_OPEN,
-                    kernel,
-                )
+        # Perform opening to remove error pixels. We named the parameter as
+        # "closing" because the coating layer is black in original image, but
+        # in fact we do opening since the layer is True in extracted layer.
+        ksize = self.parameters.KernelSize
+        if any(i == 0 for i in ksize):
+            img = super().extract_layer().astype(np.uint8) * 255
+        else:
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, ksize)
+            img = cv2.morphologyEx(
+                super().extract_layer().astype(np.uint8) * 255,
+                cv2.MORPH_OPEN,
+                kernel,
+            )
 
-            # closed image may still have error pixels, and at least we have to
-            # remove the errors that are disconnected to the layer.
-            # we identify the layer pixels as the connected components that are
-            # close to the lower vertices.
-            vicinity_mask = np.zeros(img.shape, np.uint8)
-            p0 = self.substrate_point()
-            _, bl, br, _ = self.substrate.contour()[self.substrate.vertices()]
-            (B,) = p0 + bl
-            (C,) = p0 + br
-            R = self.parameters.ReconstructRadius
-            cv2.circle(vicinity_mask, B.astype(np.int32), R, 1, -1)
-            cv2.circle(vicinity_mask, C.astype(np.int32), R, 1, -1)
-            n = np.dot((C - B) / np.linalg.norm((C - B)), ROTATION_MATRIX)
-            pts = np.stack([B, B + R * n, C + R * n, C]).astype(np.int32)
-            cv2.fillPoly(vicinity_mask, [pts], 1)
-            _, labels = cv2.connectedComponents(img)
-            layer_comps = np.unique(labels[np.where(vicinity_mask.astype(bool))])
-            layer_mask = np.isin(labels, layer_comps[layer_comps != 0])
+        # closed image may still have error pixels, and at least we have to
+        # remove the errors that are disconnected to the layer.
+        # we identify the layer pixels as the connected components that are
+        # close to the lower vertices.
+        vicinity_mask = np.zeros(img.shape, np.uint8)
+        p0 = self.substrate_point()
+        _, bl, br, _ = self.substrate.contour()[self.substrate.vertices()]
+        (B,) = p0 + bl
+        (C,) = p0 + br
+        R = self.parameters.ReconstructRadius
+        cv2.circle(vicinity_mask, B.astype(np.int32), R, 1, -1)
+        cv2.circle(vicinity_mask, C.astype(np.int32), R, 1, -1)
+        n = np.dot((C - B) / np.linalg.norm((C - B)), ROTATION_MATRIX)
+        pts = np.stack([B, B + R * n, C + R * n, C]).astype(np.int32)
+        cv2.fillPoly(vicinity_mask, [pts], 1)
+        _, labels = cv2.connectedComponents(img)
+        layer_comps = np.unique(labels[np.where(vicinity_mask.astype(bool))])
+        layer_mask = np.isin(labels, layer_comps[layer_comps != 0])
 
-            self._extracted_layer = layer_mask
-        return self._extracted_layer
+        return layer_mask
 
+    @attrcache("_uniform_layer")
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """Return thickness and points for uniform layer."""
         if not self.interfaces():
             return (np.float64(0), np.empty((0, 1, 2), np.float64))
 
-        if not hasattr(self, "_uniform_layer"):
-            (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
-            subst_cnt = self.substrate.contour() + self.substrate_point()
-            covered_subst = subst_cnt[i0:i1]
-            # Acquiring parallel curve from contour is difficult because of noise.
-            # Noise induces small bumps which are greatly amplified in parallel curve.
-            # Smoothing is not an answer since it cannot 100% remove the bumps.
-            # Instead, points must be fitted to a model.
-            # Here, we simply use convex hull as a model.
-            covered_hull = np.flip(cv2.convexHull(covered_subst), axis=0)
+        (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
+        subst_cnt = self.substrate.contour() + self.substrate_point()
+        covered_subst = subst_cnt[i0:i1]
+        # Acquiring parallel curve from contour is difficult because of noise.
+        # Noise induces small bumps which are greatly amplified in parallel curve.
+        # Smoothing is not an answer since it cannot 100% remove the bumps.
+        # Instead, points must be fitted to a model.
+        # Here, we simply use convex hull as a model.
+        covered_hull = np.flip(cv2.convexHull(covered_subst), axis=0)
 
-            S = np.count_nonzero(self.extract_layer())
-            (t,) = root(lambda x: polyline_parallel_area(covered_hull, x) - S, 0).x
-            t = np.float64(t)
+        S = np.count_nonzero(self.extract_layer())
+        (t,) = root(lambda x: polyline_parallel_area(covered_hull, x) - S, 0).x
+        t = np.float64(t)
 
-            normal = np.dot(np.gradient(covered_hull, axis=0), ROTATION_MATRIX)
-            n = normal / np.linalg.norm(normal, axis=-1)[..., np.newaxis]
-            ul_sparse = covered_hull + t * n
+        normal = np.dot(np.gradient(covered_hull, axis=0), ROTATION_MATRIX)
+        n = normal / np.linalg.norm(normal, axis=-1)[..., np.newaxis]
+        ul_sparse = covered_hull + t * n
 
-            ul_len = np.ceil(cv2.arcLength(ul_sparse.astype(np.float32), closed=False))
-            ul = equidistant_interpolate(ul_sparse, int(ul_len))
+        ul_len = np.ceil(cv2.arcLength(ul_sparse.astype(np.float32), closed=False))
+        ul = equidistant_interpolate(ul_sparse, int(ul_len))
 
-            self._uniform_layer = (t, ul)
-        return self._uniform_layer
+        return (t, ul)
 
+    @attrcache("_conformality")
     def conformality(self) -> Tuple[float, npt.NDArray[np.int32]]:
         """Conformality of the coating layer and its optimal path."""
         if not self.interfaces():
             return (np.nan, np.empty((0, 2), dtype=np.int32))
 
-        if not hasattr(self, "_conformality"):
-            (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
-            subst_cnt = self.substrate.contour() + self.substrate_point()
-            intf = subst_cnt[i0:i1]
+        (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
+        subst_cnt = self.substrate.contour() + self.substrate_point()
+        intf = subst_cnt[i0:i1]
 
-            surf = self.surface()
+        surf = self.surface()
 
-            dist = cdist(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))
-            mat = acm(dist)
-            path = owp(mat)
-            d = dist[path[:, 0], path[:, 1]]
-            d_avrg = mat[-1, -1] / len(path)
-            C = 1 - np.sum(np.abs(d - d_avrg)) / mat[-1, -1]
-            self._conformality = (float(C), path)
+        dist = cdist(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))
+        mat = acm(dist)
+        path = owp(mat)
+        d = dist[path[:, 0], path[:, 1]]
+        d_avrg = mat[-1, -1] / len(path)
+        C = 1 - np.sum(np.abs(d - d_avrg)) / mat[-1, -1]
+        return (float(C), path)
 
-        return self._conformality
-
+    @attrcache("_roughness")
     def roughness(self) -> Tuple[float, npt.NDArray[np.int32]]:
         """Roughness of the coating layer and its optimal path."""
         surf = self.surface()
@@ -501,46 +483,42 @@ class RectLayerShape(
         if surf.size == 0 or ul.size == 0:
             return (np.nan, np.empty((0, 2), dtype=np.int32))
 
-        if not hasattr(self, "_roughness"):
-            measure = self.parameters.RoughnessMeasure
-            if measure == DistanceMeasure.DTW:
-                dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
-                mat = acm(dist)
-                path = owp(mat)
-                roughness = mat[-1, -1] / len(path)
-            elif measure == DistanceMeasure.SDTW:
-                dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
-                mat = acm(dist**2)
-                path = owp(mat)
-                roughness = np.sqrt(mat[-1, -1] / len(path))
-            else:
-                raise TypeError(f"Unknown measure: {measure}")
-            self._roughness = (float(roughness), path)
+        measure = self.parameters.RoughnessMeasure
+        if measure == DistanceMeasure.DTW:
+            dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
+            mat = acm(dist)
+            path = owp(mat)
+            roughness = mat[-1, -1] / len(path)
+        elif measure == DistanceMeasure.SDTW:
+            dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
+            mat = acm(dist**2)
+            path = owp(mat)
+            roughness = np.sqrt(mat[-1, -1] / len(path))
+        else:
+            raise TypeError(f"Unknown measure: {measure}")
+        return (float(roughness), path)
 
-        return self._roughness
-
+    @attrcache("_max_thickness")
     def max_thickness(self) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
         """Maximum thickness on each side (left, bottom, right) and their points."""
-        if not hasattr(self, "_max_thickness"):
-            corners = self.substrate.sideline_intersections() + self.substrate_point()
-            surface = self.surface()
-            thicknesses, points = [], []
-            for A, B in zip(corners[:-1], corners[1:]):
-                AB = B - A
-                mask = np.cross(AB, surface - A) >= 0
-                pts = surface[mask]
-                if pts.size == 0:
-                    thicknesses.append(np.float64(0))
-                    points.append(np.array([[-1, -1], [-1, -1]], np.float64))
-                else:
-                    Ap = pts - A
-                    Proj = A + AB * (np.dot(Ap, AB) / np.dot(AB, AB))[..., np.newaxis]
-                    dist = np.linalg.norm(Proj - pts, axis=-1)
-                    max_idx = np.argmax(dist)
-                    thicknesses.append(dist[max_idx])
-                    points.append(np.stack([pts[max_idx], Proj[max_idx]]))
-            self._max_thickness = (np.array(thicknesses), np.array(points))
-        return self._max_thickness
+        corners = self.substrate.sideline_intersections() + self.substrate_point()
+        surface = self.surface()
+        thicknesses, points = [], []
+        for A, B in zip(corners[:-1], corners[1:]):
+            AB = B - A
+            mask = np.cross(AB, surface - A) >= 0
+            pts = surface[mask]
+            if pts.size == 0:
+                thicknesses.append(np.float64(0))
+                points.append(np.array([[-1, -1], [-1, -1]], np.float64))
+            else:
+                Ap = pts - A
+                Proj = A + AB * (np.dot(Ap, AB) / np.dot(AB, AB))[..., np.newaxis]
+                dist = np.linalg.norm(Proj - pts, axis=-1)
+                max_idx = np.argmax(dist)
+                thicknesses.append(dist[max_idx])
+                points.append(np.stack([pts[max_idx], Proj[max_idx]]))
+        return (np.array(thicknesses), np.array(points))
 
     def draw(self) -> npt.NDArray[np.uint8]:
         """Return visualized image."""
@@ -666,7 +644,7 @@ class RectLayerShape(
 
         return image
 
-    def analyze_layer(self):
+    def analyze(self):
         """Return analysis data."""
         _, B, C, _ = self.substrate.sideline_intersections() + self.substrate_point()
 
@@ -690,7 +668,7 @@ class RectLayerShape(
 
         _, ERR = self.tempmatch
 
-        return (
+        return self.Data(
             LEN_L,
             LEN_R,
             C,

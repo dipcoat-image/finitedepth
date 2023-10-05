@@ -1,7 +1,6 @@
 """Rectangular substrate."""
 import dataclasses
 import enum
-from typing import Tuple
 
 import cv2
 import numpy as np
@@ -9,6 +8,7 @@ import numpy.typing as npt
 
 from .parameters import LineOptions, MarkerOptions
 from .polysubstrate import Parameters, PolySubstrateBase
+from .reference import ReferenceBase
 
 __all__ = [
     "RectSubstrate",
@@ -60,7 +60,7 @@ class Data:
     Width: np.float32
 
 
-class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):
+class RectSubstrate(PolySubstrateBase[ReferenceBase, Parameters, DrawOptions, Data]):
     """Simplest implementation of `RectSubstrateBase`.
 
     Examples
@@ -151,7 +151,7 @@ class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):
 
         return ret
 
-    def analyze_substrate(self) -> Tuple[np.float64]:
+    def analyze(self):
         """Return analysis data."""
         _, B, C, _ = self.sideline_intersections()
-        return (np.linalg.norm(B - C),)
+        return self.Data(np.linalg.norm(B - C))

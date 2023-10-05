@@ -41,14 +41,6 @@ DataType = TypeVar("DataType", bound="DataclassInstance")
 class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType]):
     """Abstract base class for substrate reference."""
 
-    __slots__ = (
-        "_image",
-        "_templateROI",
-        "_substrateROI",
-        "_parameters",
-        "_draw_options",
-    )
-
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
     Data: Type[DataType]
@@ -143,12 +135,11 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         """Decorate and return the reference image as RGB format."""
 
     @abc.abstractmethod
-    def analyze_reference(self) -> Tuple:
-        """Analyze the reference image and return the data in tuple."""
-
     def analyze(self) -> DataType:
-        """Return the result of :meth:`analyze_reference` as dataclass instance."""
-        return self.Data(*self.analyze_reference())
+        """Analyze the reference image and return the data.
+
+        May raise error if the instance is not valid.
+        """
 
 
 @dataclasses.dataclass(frozen=True)
@@ -239,9 +230,9 @@ class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
             cv2.rectangle(ret, (x0, y0), (x1, y1), color, linewidth)
         return ret
 
-    def analyze_reference(self) -> Tuple[()]:
+    def analyze(self):
         """Return analysis data."""
-        return ()
+        return self.Data()
 
 
 def sanitize_ROI(roi: OptionalROI, h: int, w: int) -> IntROI:
