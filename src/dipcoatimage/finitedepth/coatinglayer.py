@@ -19,7 +19,6 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "CoatingLayerError",
     "CoatingLayerBase",
     "CoatingLayer",
     "images_XOR",
@@ -32,12 +31,6 @@ ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
 DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
 DecoOptionsType = TypeVar("DecoOptionsType", bound="DataclassInstance")
 DataType = TypeVar("DataType", bound="DataclassInstance")
-
-
-class CoatingLayerError(Exception):
-    """Base class for error from `CoatingLayerBase`."""
-
-    pass
 
 
 class CoatingLayerBase(

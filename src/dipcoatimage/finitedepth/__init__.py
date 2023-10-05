@@ -20,7 +20,6 @@ command line prompt:
 .. code-block:: bash
 
     finitedepth analyze file [file ...]
-
 """
 
 import argparse
@@ -31,36 +30,30 @@ import sys
 import yaml
 from importlib_resources import files
 
-from .analysis import Analysis, AnalysisBase, AnalysisError
-from .coatinglayer import CoatingLayer, CoatingLayerBase, CoatingLayerError
-from .experiment import Experiment, ExperimentBase, ExperimentError
-from .polysubstrate import PolySubstrateBase, PolySubstrateError
+from .analysis import Analysis, AnalysisBase
+from .coatinglayer import CoatingLayer, CoatingLayerBase
+from .experiment import Experiment, ExperimentBase
+from .polysubstrate import PolySubstrateBase
 from .rectcoatinglayer import RectCoatingLayerBase, RectLayerShape
 from .rectsubstrate import RectSubstrate
-from .reference import Reference, ReferenceBase, ReferenceError
+from .reference import Reference, ReferenceBase
 from .serialize import Config, ConfigBase, data_converter
-from .substrate import Substrate, SubstrateBase, SubstrateError
+from .substrate import Substrate, SubstrateBase
 from .version import __version__  # noqa
 
 __all__ = [
-    "ReferenceError",
     "ReferenceBase",
     "Reference",
-    "SubstrateError",
     "SubstrateBase",
     "Substrate",
-    "PolySubstrateError",
     "PolySubstrateBase",
     "RectSubstrate",
-    "CoatingLayerError",
     "CoatingLayerBase",
     "CoatingLayer",
     "RectCoatingLayerBase",
     "RectLayerShape",
-    "ExperimentError",
     "ExperimentBase",
     "Experiment",
-    "AnalysisError",
     "AnalysisBase",
     "Analysis",
     "data_converter",

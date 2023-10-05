@@ -10,16 +10,9 @@ from scipy.ndimage import gaussian_filter1d  # type: ignore
 from scipy.signal import find_peaks, peak_prominences  # type: ignore
 
 from .cache import attrcache
-from .substrate import (
-    DataType,
-    DrawOptionsType,
-    ReferenceType,
-    SubstrateBase,
-    SubstrateError,
-)
+from .substrate import DataType, DrawOptionsType, ReferenceType, SubstrateBase
 
 __all__ = [
-    "PolySubstrateError",
     "PolySubstrateBase",
     "houghline_accum",
 ]
@@ -46,12 +39,6 @@ class Parameters:
     Rho: float
     Theta: float
     Step: int = 1
-
-
-class PolySubstrateError(SubstrateError):
-    """Base class for the errors from `PolySubstrate`."""
-
-    pass
 
 
 ROTATION_MATRIX = np.array([[0, 1], [-1, 0]])
@@ -257,7 +244,7 @@ class PolySubstrateBase(
         try:
             self.sideline_intersections()
         except LinAlgError:
-            raise PolySubstrateError("Cannot find sideline intersections.")
+            raise ValueError("Cannot find sideline intersections.")
 
 
 @njit(cache=True)

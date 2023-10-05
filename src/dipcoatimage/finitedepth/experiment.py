@@ -16,7 +16,6 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "ExperimentError",
     "ExperimentBase",
     "Experiment",
 ]
@@ -24,12 +23,6 @@ __all__ = [
 
 CoatingLayerType = TypeVar("CoatingLayerType", bound=CoatingLayerBase)
 ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
-
-
-class ExperimentError(Exception):
-    """Base class for error from `ExperimentBase`."""
-
-    pass
 
 
 class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):

@@ -18,18 +18,11 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "AnalysisError",
     "AnalysisBase",
     "ImageWriter",
     "CSVWriter",
     "Analysis",
 ]
-
-
-class AnalysisError(Exception):
-    """Base class for error from `AnalysisBase`."""
-
-    pass
 
 
 ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
@@ -228,7 +221,7 @@ class Analysis(AnalysisBase[Parameters]):
             if path:
                 _, ext = os.path.splitext(path)
                 if ext.lstrip(os.path.extsep).lower() not in self.DataWriters:
-                    raise AnalysisError(f"{path} has unsupported extension.")
+                    raise ValueError(f"{path} has unsupported extension.")
         for path in [
             os.path.expandvars(self.parameters.ref_visual),
             os.path.expandvars(self.parameters.subst_visual),
@@ -237,7 +230,7 @@ class Analysis(AnalysisBase[Parameters]):
                 mtype, _ = mimetypes.guess_type(path)
                 file_type, _ = mtype.split("/")
                 if file_type != "image":
-                    raise AnalysisError(f"{path} is not image.")
+                    raise ValueError(f"{path} is not image.")
         if os.path.expandvars(self.parameters.layer_visual):
             mtype, _ = mimetypes.guess_type(
                 os.path.expandvars(self.parameters.layer_visual)
@@ -247,13 +240,13 @@ class Analysis(AnalysisBase[Parameters]):
                 pass
             elif file_type == "video":
                 if self.fps is None or self.fps < 0:
-                    raise AnalysisError(
+                    raise ValueError(
                         "fps must be a nonnegative number to write a video."
                     )
             else:
-                raise AnalysisError(f"{path} is not image nor video.")
+                raise ValueError(f"{path} is not image nor video.")
         if self.fps is not None and self.fps < 0:
-            raise AnalysisError("fps must be None or a nonnegative number.")
+            raise ValueError("fps must be None or a nonnegative number.")
 
     def __await__(self):
         """Analyze reference and substrate, then each sent coating layer."""

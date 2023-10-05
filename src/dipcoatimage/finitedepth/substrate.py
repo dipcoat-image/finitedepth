@@ -16,16 +16,9 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "SubstrateError",
     "SubstrateBase",
     "Substrate",
 ]
-
-
-class SubstrateError(Exception):
-    """Base class for error from `SubstrateBase`."""
-
-    pass
 
 
 ReferenceType = TypeVar("ReferenceType", bound=ReferenceBase)

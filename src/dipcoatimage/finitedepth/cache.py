@@ -1,4 +1,4 @@
-"""Caching function."""
+"""Caching helper."""
 
 import functools
 
@@ -8,7 +8,7 @@ __all__ = [
 
 
 def attrcache(attrname: str):
-    """Cache the method into attribute.
+    """Decorate a nullary method to cache the result with attribute.
 
     Method must not have any argument.
 

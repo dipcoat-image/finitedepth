@@ -12,12 +12,7 @@ from scipy.optimize import root  # type: ignore
 from scipy.spatial.distance import cdist  # type: ignore
 
 from .cache import attrcache
-from .coatinglayer import (
-    CoatingLayerBase,
-    CoatingLayerError,
-    SubtractionMode,
-    images_XOR,
-)
+from .coatinglayer import CoatingLayerBase, SubtractionMode, images_XOR
 from .parameters import LineOptions, PatchOptions
 from .rectsubstrate import RectSubstrate
 
@@ -383,9 +378,9 @@ class RectLayerShape(
         """Check error."""
         ksize = self.parameters.KernelSize
         if not all(i == 0 or i % 2 == 1 for i in ksize):
-            raise CoatingLayerError("Kernel size must be odd.")
+            raise ValueError("Kernel size must be odd.")
         if not self.capbridge_broken():
-            raise CoatingLayerError("Capillary bridge is not broken.")
+            raise ValueError("Capillary bridge is not broken.")
 
     @attrcache("_extracted_layer")
     def extract_layer(self) -> npt.NDArray[np.bool_]:

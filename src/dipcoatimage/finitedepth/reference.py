@@ -1,4 +1,7 @@
-"""Substrate reference."""
+"""Reference class.
+
+Reference class is a concrete subclass of :class:`ReferenceBase`.
+"""
 
 
 import abc
@@ -16,30 +19,24 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "ReferenceError",
-    "ReferenceBase",
-    "Reference",
     "OptionalROI",
     "IntROI",
+    "ReferenceBase",
+    "Reference",
     "sanitize_ROI",
 ]
 
 
-class ReferenceError(Exception):
-    """Base class for error from `ReferenceBase`."""
-
-    pass
-
-
 ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
-OptionalROI = Tuple[int, int, Optional[int], Optional[int]]
-IntROI = Tuple[int, int, int, int]
 DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
 DataType = TypeVar("DataType", bound="DataclassInstance")
 
+OptionalROI = Tuple[int, int, Optional[int], Optional[int]]
+IntROI = Tuple[int, int, int, int]
+
 
 class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType]):
-    """Abstract base class for substrate reference."""
+    """Abstract base class for reference instance."""
 
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
@@ -175,7 +172,7 @@ class Data:
 
 
 class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
-    """Substrate reference class with customizable binarization.
+    """Basic implementation of reference class.
 
     Examples
     --------
