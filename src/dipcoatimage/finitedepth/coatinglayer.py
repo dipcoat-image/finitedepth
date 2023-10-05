@@ -10,6 +10,7 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 
+from .cache import attrcache
 from .parameters import PatchOptions
 from .substrate import SubstrateBase
 
@@ -166,24 +167,22 @@ class CoatingLayerBase(
         temp2subst = self.substrate.reference.temp2subst()
         return temp_point + temp2subst
 
+    @attrcache("_coated_substrate")
     def coated_substrate(self) -> npt.NDArray[np.bool_]:
         """Remove image artifacts, e.g., bath surface."""
-        if not hasattr(self, "_coated_substrate"):
-            _, img = cv2.connectedComponents(cv2.bitwise_not(self.image))
-            x, y = (self.substrate_point() + self.substrate.region_points()).T
-            self._coated_substrate = np.isin(img, img[y, x])
-        return self._coated_substrate
+        _, img = cv2.connectedComponents(cv2.bitwise_not(self.image))
+        x, y = (self.substrate_point() + self.substrate.region_points()).T
+        return np.isin(img, img[y, x])
 
+    @attrcache("_extracted_layer")
     def extract_layer(self) -> npt.NDArray[np.bool_]:
         """Extract the coating layer as binary array from *self.image*."""
-        if not hasattr(self, "_extracted_layer"):
-            # remove the substrate
-            x0, y0 = self.substrate_point()
-            subst_mask = self.substrate.regions() >= 0
-            ret = images_ANDXOR(self.coated_substrate(), subst_mask, (x0, y0))
-            ret[:y0, :] = False
-            self._extracted_layer = ret
-        return self._extracted_layer
+        # remove the substrate
+        x0, y0 = self.substrate_point()
+        subst_mask = self.substrate.regions() >= 0
+        ret = images_ANDXOR(self.coated_substrate(), subst_mask, (x0, y0))
+        ret[:y0, :] = False
+        return ret
 
     @abc.abstractmethod
     def verify(self):

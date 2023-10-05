@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 
+from .cache import attrcache
 from .reference import ReferenceBase
 
 if TYPE_CHECKING:
@@ -163,6 +164,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         s.t. the center point falls on the substrate region)
         """
 
+    @attrcache("_regions")
     def regions(self) -> npt.NDArray[np.int8]:
         """Return image labelled by each discrete substrate regions.
 
@@ -180,12 +182,11 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         --------
         region_points
         """
-        if not hasattr(self, "_regions"):
-            self._regions = np.full(self.image().shape[:2], -1, dtype=np.int8)
-            _, labels = cv2.connectedComponents(cv2.bitwise_not(self.image()))
-            for i, pt in enumerate(self.region_points()):
-                self._regions[labels == labels[pt[1], pt[0]]] = i
-        return self._regions
+        ret = np.full(self.image().shape[:2], -1, dtype=np.int8)
+        _, labels = cv2.connectedComponents(cv2.bitwise_not(self.image()))
+        for i, pt in enumerate(self.region_points()):
+            ret[labels == labels[pt[1], pt[0]]] = i
+        return ret
 
     def contours(
         self, region: int

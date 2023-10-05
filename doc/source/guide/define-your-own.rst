@@ -94,7 +94,8 @@ need to cache your method, which is explained in the following section.
 Cache by attribute
 ^^^^^^^^^^^^^^^^^^
 
-Caching of methods **MUST** be done by private attribute.
+Caching of methods **MUST** be done in the instance itself, not in
+an external container.
 
 **DO:**
 
@@ -109,11 +110,25 @@ Caching of methods **MUST** be done by private attribute.
                 self._foo = "bar"
             return self._foo
 
+or equivalently,
+
+.. code-block:: python
+
+    from dipcoatimage.finitedepth.cache import attrcache
+
+    class MySubstrate(SubstrateBase[...]):
+        ...
+        __slots__ = ("_foo",)
+
+        @attrcache("_foo")
+        def foo_good(self):
+            return "bar"
+
 **DON'T:**
 
 .. code-block:: python
 
-    from functools import cache
+    from functools import cache  # stores cache in external container
 
     class MySubstrate(SubstrateBase[...]):
         ...
