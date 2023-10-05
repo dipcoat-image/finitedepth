@@ -190,8 +190,8 @@ to the constructor of coating layer class.
 
 :class:`AnalysisBase` may be implemented to for different file IO API.
 Instead of relying on :mod:`cv2` and :mod:`PIL` libraries as :class:`Analysis`
-do, your implementation can perhaps directly open ``ffmpeg`` subprocess to write
-video.
+do, your implementation can perhaps directly open ``ffmpeg`` subprocess to
+write video.
 
 If you design multiple classes to cooperate, you may want to assign one class
 as the type variable of another. For example, :class:`RectSubstrate` is
