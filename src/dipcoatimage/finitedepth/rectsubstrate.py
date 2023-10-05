@@ -8,6 +8,7 @@ import numpy.typing as npt
 
 from .parameters import LineOptions, MarkerOptions
 from .polysubstrate import Parameters, PolySubstrateBase
+from .reference import ReferenceBase
 
 __all__ = [
     "RectSubstrate",
@@ -59,7 +60,7 @@ class Data:
     Width: np.float32
 
 
-class RectSubstrate(PolySubstrateBase[Parameters, DrawOptions, Data]):
+class RectSubstrate(PolySubstrateBase[ReferenceBase, Parameters, DrawOptions, Data]):
     """Simplest implementation of `RectSubstrateBase`.
 
     Examples

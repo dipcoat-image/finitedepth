@@ -28,12 +28,15 @@ class SubstrateError(Exception):
     pass
 
 
+ReferenceType = TypeVar("ReferenceType", bound=ReferenceBase)
 ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
 DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
 DataType = TypeVar("DataType", bound="DataclassInstance")
 
 
-class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType]):
+class SubstrateBase(
+    abc.ABC, Generic[ReferenceType, ParametersType, DrawOptionsType, DataType]
+):
     """Abstract base class for substrate.
 
     Substrate class recognizes the geometry of substrate image from
@@ -80,7 +83,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
 
     def __init__(
         self,
-        reference: ReferenceBase,
+        reference: ReferenceType,
         parameters: Optional[ParametersType] = None,
         *,
         draw_options: Optional[DrawOptionsType] = None,
@@ -104,7 +107,7 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
             self._draw_options = dataclasses.replace(draw_options)
 
     @property
-    def reference(self) -> ReferenceBase:
+    def reference(self) -> ReferenceType:
         """Substrate reference instance passed to constructor."""
         return self._ref
 
@@ -249,7 +252,7 @@ class Data:
     pass
 
 
-class Substrate(SubstrateBase[Parameters, DrawOptions, Data]):
+class Substrate(SubstrateBase[ReferenceBase, Parameters, DrawOptions, Data]):
     """Simplest substrate class with no geometric information.
 
     Examples

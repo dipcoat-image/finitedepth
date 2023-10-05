@@ -1,6 +1,6 @@
 """Polygonal substrate."""
 import dataclasses
-from typing import TYPE_CHECKING, Tuple, Type, TypeVar
+from typing import Tuple, Type, TypeVar
 
 import numpy as np
 import numpy.typing as npt
@@ -10,11 +10,13 @@ from scipy.ndimage import gaussian_filter1d  # type: ignore
 from scipy.signal import find_peaks, peak_prominences  # type: ignore
 
 from .cache import attrcache
-from .substrate import SubstrateBase, SubstrateError
-
-if TYPE_CHECKING:
-    from _typeshed import DataclassInstance
-
+from .substrate import (
+    DataType,
+    DrawOptionsType,
+    ReferenceType,
+    SubstrateBase,
+    SubstrateError,
+)
 
 __all__ = [
     "PolySubstrateError",
@@ -56,11 +58,11 @@ ROTATION_MATRIX = np.array([[0, 1], [-1, 0]])
 
 
 ParametersType = TypeVar("ParametersType", bound=Parameters)
-DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
-DataType = TypeVar("DataType", bound="DataclassInstance")
 
 
-class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]):
+class PolySubstrateBase(
+    SubstrateBase[ReferenceType, ParametersType, DrawOptionsType, DataType]
+):
     """Abstract base class for substrates whose cross section is a simple polygon.
 
     A simple polygon does not have intersection nor hole [#simple-polygon]_.

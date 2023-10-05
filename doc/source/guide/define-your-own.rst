@@ -40,13 +40,15 @@ The abstract base classes are generic types whose type variables must
 be set in concrete classes.
 
 Each class defines different type variables. For example,
-:class:`SubstrateBase` needs three type variables, each assigned to
+:class:`SubstrateBase` has four type variables, each specifying
+the type of the reference instance it takes, its parameters, its drawing
+options, and its analysis data. The latter three are assigned to
 :attr:`~SubstrateBase.Parameters`, :attr:`~SubstrateBase.DrawOptions`,
 and :attr:`~SubstrateBase.Data`. On the other hand,
-:class:`CoatingLayerBase` needs four type variables, each assigned to
-:attr:`~CoatingLayerBase.Parameters`, :attr:`~CoatingLayerBase.DrawOptions`,
-:attr:`~CoatingLayerBase.DecoOptions`, and :attr:`~CoatingLayerBase.Data`.
-Concrete class must have all of its type variables assigned.
+:class:`CoatingLayerBase` has five type variables; the substrate type
+and the four types assigned to :attr:`~CoatingLayerBase.Parameters`,
+:attr:`~CoatingLayerBase.DrawOptions`, :attr:`~CoatingLayerBase.DecoOptions`,
+and :attr:`~CoatingLayerBase.Data`.
 
 All type variables are dataclasses. To set the type variable,
 take the following step:
@@ -72,7 +74,7 @@ substrate class.
     class MyData:
         ...
 
-    class MySubstrate(SubstrateBase[MyParameters, MyDrawOptions, MyData]):
+    class MySubstrate(SubstrateBase[ReferenceBase, MyParameters, MyDrawOptions, MyData]):
         Parameters = MyParameter
         DrawOptions = MyDrawOptions
         Data = MyData
@@ -166,11 +168,35 @@ methods that deserve mentioning here, though.
     If analysis fails and cannot be visualized, it must at least return
     original image in RGB.
 
-Examples
---------
+When and which to implement?
+----------------------------
 
-Which class should I implement?
--------------------------------
+:class:`ReferenceBase` is not something that you usually want to implement.
+As it is merely a wrapper, :class:`Reference` will almost always be enough.
+That being said, a possible scenario is that you want to apply machine learning
+to automatically determine optimal ROIs.
+
+:class:`SubstrateBase` and :class:`CoatingLayerBaseBase` are the APIs you will
+frequently implement. If you want to acquire geometry-specific data, you need
+to define both the substrate class and the coating layer class. For example,
+:class:`RectSubstrate` and :class:`RectLayerShape` are designed to analyze the
+coating layer over rectangular substrate.
+
+:class:`ExperimentBase` is again unlikely to be implemented. If you need
+specific way to construct the coating layer instances, define your experiment
+class. For example, you may have ground truth data of the substrate location in
+target image, so you need your experiment instance to read the data and pass it
+to the constructor of coating layer class.
+
+:class:`AnalysisBase` may be implemented to for different file IO API.
+Instead of :mod:`cv2` and :mod:`Pillow` library that :class:`Analysis` relies
+on, your implementation can perhaps directly open ``ffmpeg`` subprocess.
+
+If you design multiple classes to cooperate, you may want to assign one class
+as the type variable of another. For example, :class:`RectSubstrate` is
+assigned to the ``SubstrateType`` variable of :class:`RectLayerShape`,
+informing type checkers(e.g., :mod:`mypy`) that any other substrate should not
+be passed.
 
 Defining configuration class
 ----------------------------
