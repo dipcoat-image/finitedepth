@@ -8,6 +8,7 @@ Explanations
 
    install
    generic-typing
+   slots
    caching
    testing
    documentation

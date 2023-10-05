@@ -81,11 +81,6 @@ class PolySubstrateBase(SubstrateBase[ParametersType, DrawOptionsType, DataType]
     .. [#simple-polygon] https://en.wikipedia.org/wiki/Simple_polygon
     """
 
-    __slots__ = (
-        "_vertices",
-        "_sidelines",
-    )
-
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
     Data: Type[DataType]

@@ -46,18 +46,6 @@ class CoatingLayerBase(
 ):
     """Abstract base class for coating layer."""
 
-    __slots__ = (
-        "_image",
-        "_substrate",
-        "_parameters",
-        "_draw_options",
-        "_deco_options",
-        "_tempmatch",
-        "_coated_substrate",
-        "_extracted_layer",
-        "_layer_contours",
-    )
-
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
     DecoOptions: Type[DecoOptionsType]

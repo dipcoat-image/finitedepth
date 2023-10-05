@@ -61,11 +61,6 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
     Validity of the parameters can be checked by :meth:`verify`.
     """
 
-    __slots__ = (
-        "_parameters",
-        "_iterator",
-    )
-
     Parameters: Type[ParametersType]
 
     def __init__(

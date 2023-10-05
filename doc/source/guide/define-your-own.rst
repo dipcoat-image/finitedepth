@@ -81,16 +81,6 @@ See :ref:`api` of each abstract base class for the list of type
 variables it defines. Read :ref:`howto-define-dataclass` to learn good
 practices to define dataclass.
 
-Set slots
-^^^^^^^^^
-
-Abstract base classes define class attribute :obj:`~object.__slots__`
-to save memory space.
-
-When your concrete instance needs to define new attributes, you must
-declare them in ``__slots__``. This is especially important when you
-need to cache your method, which is explained in the following section.
-
 Cache by attribute
 ^^^^^^^^^^^^^^^^^^
 
@@ -103,7 +93,6 @@ an external container.
 
     class MySubstrate(SubstrateBase[...]):
         ...
-        __slots__ = ("_foo",)
 
         def foo_good(self):
             if not hasattr(self, "_foo"):
@@ -118,7 +107,6 @@ or equivalently,
 
     class MySubstrate(SubstrateBase[...]):
         ...
-        __slots__ = ("_foo",)
 
         @attrcache("_foo")
         def foo_good(self):

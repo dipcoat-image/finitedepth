@@ -51,12 +51,6 @@ class RectCoatingLayerBase(
 ):
     """Abstract base class for coating layer over rectangular substrate."""
 
-    __slots__ = (
-        "_interfaces",
-        "_contour",
-        "_surface_indices",
-    )
-
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
     DecoOptions: Type[DecoOptionsType]
@@ -375,13 +369,6 @@ class RectLayerShape(
        >>> coat = RectLayerShape(img, subst, param)
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
     """
-
-    __slots__ = (
-        "_uniform_layer",
-        "_conformality",
-        "_roughness",
-        "_max_thickness",
-    )
 
     Parameters = Parameters
     DrawOptions = DrawOptions

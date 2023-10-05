@@ -65,8 +65,6 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
     data (e.g., actuator log).
     """
 
-    __slots__ = ("_parameters",)
-
     Parameters: Type[ParametersType]
 
     def __init__(self, *, parameters: Optional[ParametersType] = None):
@@ -126,8 +124,6 @@ class Experiment(ExperimentBase[Parameters]):
 
     Specifying the window can significantly boost the evaluation.
     """
-
-    __slots__ = ("_prev",)
 
     Parameters = Parameters
 

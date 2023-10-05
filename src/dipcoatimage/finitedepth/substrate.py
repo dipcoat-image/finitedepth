@@ -74,14 +74,6 @@ class SubstrateBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
     :meth:`analyze` is the API for analysis result.
     """
 
-    __slots__ = (
-        "_ref",
-        "_parameters",
-        "_draw_options",
-        "_regions",
-        "_contours",
-    )
-
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
     Data: Type[DataType]

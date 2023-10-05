@@ -41,14 +41,6 @@ DataType = TypeVar("DataType", bound="DataclassInstance")
 class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType]):
     """Abstract base class for substrate reference."""
 
-    __slots__ = (
-        "_image",
-        "_templateROI",
-        "_substrateROI",
-        "_parameters",
-        "_draw_options",
-    )
-
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
     Data: Type[DataType]
