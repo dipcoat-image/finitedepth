@@ -68,3 +68,16 @@ ignore-path = [
     "src",
     "doc/build",
 ]
+
+[tool.mypy]
+namespace_packages = true
+explicit_package_bases = true
+exclude = ["build"]
+
+[tool.pytest.ini_options]
+doctest_optionflags = [
+    "NORMALIZE_WHITESPACE",
+    "IGNORE_EXCEPTION_DETAIL",
+    "ELLIPSIS",
+]
+addopts = "--doctest-glob=*.rst --doctest-modules --ignore=doc/source/conf.py"
