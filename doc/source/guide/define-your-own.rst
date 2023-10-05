@@ -128,15 +128,7 @@ or equivalently,
             """DON'T DO THIS!"""
             return "bar"
 
-This is because external caching increases the reference count
-of *self*, preventing it from being garbage collected on time.
-Our objects usually consume large memory space because of image
-arrays; if the objects stacks up in external cache, the program will
-soon crash.
-
-It is generally OK to use external caching in experiment class and analysis
-class, as they need relatively small memory space. Of course, this does not
-hold if your implementations require large memory space.
+Read :ref:`caching` page for explanation.
 
 Implement abstract methods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
