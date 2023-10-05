@@ -9,6 +9,7 @@ from collections.abc import Coroutine
 from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar
 
 import cv2
+import PIL.Image
 
 from .coatinglayer import CoatingLayerBase
 
@@ -67,7 +68,7 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
         self,
         parameters: Optional[ParametersType] = None,
         *,
-        fps: Optional[float] = None,
+        fps: float = 0.0,
     ):
         """Initialize the instance."""
         if parameters is None:
@@ -110,7 +111,10 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
 
 
 def ImageWriter(path: str, fourcc: int, fps: float):
-    """Write images to image files or a video file."""
+    """Write images to image files or a video file.
+
+    Multipage image support: TIFF, GIF
+    """
     try:
         path % 0
         formattable = True
@@ -120,32 +124,46 @@ def ImageWriter(path: str, fourcc: int, fps: float):
     mtype, _ = mimetypes.guess_type(path)
     if mtype is None:
         raise TypeError(f"Invalid path: {path}.")
-    ftype, _ = mtype.split("/")
+    ftype, subtype = mtype.split("/")
+    multipage = subtype in ["tiff", "gif"]
 
-    if ftype == "image" and not formattable:
-        img = yield
-        try:
+    if ftype == "image":
+        if formattable:
+            i = 0
             while True:
                 img = yield
-        finally:
-            cv2.imwrite(path, img)
-    else:
-        if ftype == "video":
-            pass
-        elif ftype == "image":
-            fourcc = 0
-            fps = 0.0
+                PIL.Image.fromarray(img).save(path % i)
+                i += 1
+        elif multipage and fps != 0.0:
+            images = []
+            img = yield
+            try:
+                while True:
+                    images.append(PIL.Image.fromarray(img))
+                    img = yield
+            finally:
+                images[0].save(
+                    path, save_all=True, append_images=images[1:], duration=1000 / fps
+                )
         else:
-            raise TypeError(f"Unsupported mimetype: {mtype}.")
+            try:
+                while True:
+                    img = yield
+            finally:
+                PIL.Image.fromarray(img).save(path)
+    elif ftype == "video":
         img = yield
         h, w = img.shape[:2]
         writer = cv2.VideoWriter(path, fourcc, fps, (w, h))
         try:
             while True:
+                img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
                 writer.write(img)
                 img = yield
         finally:
             writer.release()
+    else:
+        raise TypeError(f"Unsupported mimetype: {mtype}.")
 
 
 def CSVWriter(path: str):
@@ -188,6 +206,8 @@ class Analysis(AnalysisBase[Parameters]):
 
     Every coating layer instance sent to the coroutine is assumed to have same type and
     same substrate instance.
+
+    Multipage image support: TIFF, GIF
     """
 
     Parameters = Parameters
@@ -305,8 +325,7 @@ class Analysis(AnalysisBase[Parameters]):
                 rd_writer.send(data)
 
             if ref_visual:
-                img = cv2.cvtColor(layer.substrate.reference.draw(), cv2.COLOR_RGB2BGR)
-                rv_writer.send(img)
+                rv_writer.send(layer.substrate.reference.draw())
 
             if subst_data:
                 headers = [f.name for f in dataclasses.fields(layer.substrate.Data)]
@@ -315,8 +334,7 @@ class Analysis(AnalysisBase[Parameters]):
                 sd_writer.send(data)
 
             if subst_visual:
-                img = cv2.cvtColor(layer.substrate.draw(), cv2.COLOR_RGB2BGR)
-                sv_writer.send(img)
+                sv_writer.send(layer.substrate.draw())
 
             if layer_data:
                 headers = [f.name for f in dataclasses.fields(layer.Data)]
@@ -342,8 +360,7 @@ class Analysis(AnalysisBase[Parameters]):
                     ld_writer.send(data)
 
                 if layer_visual:
-                    img = cv2.cvtColor(layer.draw(), cv2.COLOR_RGB2BGR)
-                    lv_writer.send(img)
+                    lv_writer.send(layer.draw())
 
                 layer = yield
                 i += 1
