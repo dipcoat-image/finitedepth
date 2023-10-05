@@ -1,16 +1,26 @@
-"""Image analysis for finit-depth dip coating.
+"""Image analysis for finite depth dip coating.
 
-DipCoatImage-FiniteDepth is an image analysis package for the coating layer
-shape in finite-depth dip coating process. Analysis is done by locating the
-bare substrate from coated substrate image, and extracting the coating layer
-region.
+DipCoatImage-FiniteDepth provides an extensible framework to quantify the coating
+layer shape in finite depth dip coating process. Using reference image of bare
+substrate, coating layer region is acquired from target image of coated substrate
+and analyzed.
 
-This package provides
+The following abstract base classes constitute analysis workflow:
 
-1. Handling substrate reference image and coated substrate image
-2. Detecting bare substrate geometry
-3. Extracting and analyzing coating layer
-4. Saving analysis result
+1. :class:`ReferenceBase`
+2. :class:`SubstrateBase`
+3. :class:`CoatingLayerBase`
+4. :class:`ExperimentBase`
+5. :class:`AnalysisBase`
+
+Analysis parameters can be structured as :class:`Config` instance for
+serialization. The serialized configuration file can be analyzed using
+command line prompt:
+
+.. code-block:: bash
+
+    finitedepth analyze file [file ...]
+
 """
 
 import argparse
