@@ -63,6 +63,8 @@ intersphinx_mapping = {
     "python": ("http://docs.python.org/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "cattrs": ("https://cattrs.readthedocs.io/en/latest/", None),
+    "mypy": ("https://mypy.readthedocs.io/en/stable/", None),
+    "PIL": ("https://pillow.readthedocs.io/en/stable/", None),
 }
 
 numpydoc_show_class_members = False
