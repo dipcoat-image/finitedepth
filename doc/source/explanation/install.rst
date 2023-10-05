@@ -1,23 +1,12 @@
-============
+.. _install:
+
 Installation
 ============
 
-This document explains how to install DipCoatImage-FiniteDepth.
-
-If you just want quick installation, run the following command and forget about
-the rest of this document.
-
-.. code-block:: bash
-
-   $ pip install git+ssh://git@github.com/dipcoat-image/finitedepth.git
-
-This will install ``dipcoatimage-finitedepth`` package in your environment.
-
-Developers are encouraged to :ref:`download the source <download-source>` and
-:ref:`install from the source <install-from-source>`.
+This document provides detailed explanation about installation.
 
 Downloading the source (Optional)
-=================================
+---------------------------------
 
 .. _download-source:
 
@@ -29,7 +18,7 @@ its repository.
    $ git clone git@github.com:dipcoat-image/dipcoat-image/finitedepth.git
 
 Installing
-==========
+----------
 
 The package can be installed by
 
@@ -65,7 +54,7 @@ With commas without trailing whitespaces, i.e. ``[A,B]``, you can pass multiple
 specifications.
 
 Installing from repository
---------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 By passing the vcs url, ``pip`` command automatically clones the source code
 and installs the package.
@@ -88,7 +77,7 @@ development dependencies.
    your current location.
 
 Installing from source
-----------------------
+^^^^^^^^^^^^^^^^^^^^^^
 
 .. _install-from-source:
 

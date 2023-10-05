@@ -1,21 +1,17 @@
-=======
+.. _caching:
+
 Caching
 =======
 
-When caching the methods of classes which stores image data, do not memoize it
-in external container.
-It will increase the reference counter of the instance, resulting huge memory
-loss. Instead, cache the result in private attributes.
+Caching of methods **MUST** be done in the instance itself, not in
+an external container.
 
-Caching the entire array is generally discouraged. In many cases, array is a
-raw data which is processed to return expensive results with small sizes.
-A good example is a binary image (raw data) and its contours (processed data).
-Cache the processed data, not the raw one.
+This is because external caching increases the reference count
+of *self*, preventing it from being garbage collected on time.
+Our objects usually consume large memory space because of image
+arrays; if the objects stacks up in external cache, the program will
+soon crash.
 
-Abstract base classes cache the method only when its method is used by other
-base classes (or itself). API methods that are used by the concrete
-implementations are not cached by the base class. If the result needs to be
-cached, it should be implemented in the concrete class itself. For example,
-:meth:`SubstrateBase.contours` is cached because it is used by
-`CoatingLayerBase`. However :meth:`CoatingLayerBase.interfaces` is not
-cached because no other base class needs access to it.
+It is generally OK to use external caching in experiment class and analysis
+class, as they need relatively small memory space. Of course, this does not
+hold if your implementations require large memory space.

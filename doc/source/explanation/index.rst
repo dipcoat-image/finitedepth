@@ -7,9 +7,8 @@ Explanations
    :maxdepth: 1
 
    install
-   generic-typing
+   documentation
+   testing
    slots
    caching
-   testing
-   documentation
    error-notes
