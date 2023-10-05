@@ -32,7 +32,16 @@ DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
 DataType = TypeVar("DataType", bound="DataclassInstance")
 
 OptionalROI = Tuple[int, int, Optional[int], Optional[int]]
+"""Type annotation for ROI whose upper limits of x and y can be :obj:`None`.
+
+:obj:`None` should be interpreted as a maximum value in the image.
+"""
 IntROI = Tuple[int, int, int, int]
+"""Type annotation for ROI whose items are all integer.
+
+:obj:`OptionalROI` can be converted to :obj:`IntROI` if the shape of the image
+is given.
+"""
 
 
 class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType]):
@@ -233,7 +242,7 @@ class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
 
 
 def sanitize_ROI(roi: OptionalROI, h: int, w: int) -> IntROI:
-    """Convert `OptionalROI` to `IntROI`."""
+    """Convert :obj:`OptionalROI` to :obj:`IntROI`."""
     full_roi = (0, 0, w, h)
     max_vars = (w, h, w, h)
 
