@@ -111,10 +111,7 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
 
 
 def ImageWriter(path: str, fourcc: int, fps: float):
-    """Write images to image files or a video file.
-
-    Multipage image support: TIFF, GIF
-    """
+    """Write images to image files or a video file."""
     try:
         path % 0
         formattable = True
@@ -124,8 +121,7 @@ def ImageWriter(path: str, fourcc: int, fps: float):
     mtype, _ = mimetypes.guess_type(path)
     if mtype is None:
         raise TypeError(f"Invalid path: {path}.")
-    ftype, subtype = mtype.split("/")
-    multipage = subtype in ["tiff", "gif"]
+    ftype, _ = mtype.split("/")
 
     if ftype == "image":
         if formattable:
@@ -134,7 +130,7 @@ def ImageWriter(path: str, fourcc: int, fps: float):
                 img = yield
                 PIL.Image.fromarray(img).save(path % i)
                 i += 1
-        elif multipage and fps != 0.0:
+        else:
             images = []
             img = yield
             try:
@@ -142,15 +138,25 @@ def ImageWriter(path: str, fourcc: int, fps: float):
                     images.append(PIL.Image.fromarray(img))
                     img = yield
             finally:
-                images[0].save(
-                    path, save_all=True, append_images=images[1:], duration=1000 / fps
-                )
-        else:
-            try:
-                while True:
-                    img = yield
-            finally:
-                PIL.Image.fromarray(img).save(path)
+                if fps == 0.0:
+                    try:
+                        images[0].save(
+                            path,
+                            save_all=True,
+                            append_images=images[1:],
+                        )
+                    except Exception:
+                        images[-1].save(path)
+                else:
+                    try:
+                        images[0].save(
+                            path,
+                            save_all=True,
+                            append_images=images[1:],
+                            duration=1000 / fps,
+                        )
+                    except Exception:
+                        images[-1].save(path)
     elif ftype == "video":
         img = yield
         h, w = img.shape[:2]
@@ -206,8 +212,6 @@ class Analysis(AnalysisBase[Parameters]):
 
     Every coating layer instance sent to the coroutine is assumed to have same type and
     same substrate instance.
-
-    Multipage image support: TIFF, GIF
     """
 
     Parameters = Parameters
