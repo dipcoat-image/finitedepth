@@ -6,7 +6,7 @@ import glob
 import importlib
 import mimetypes
 import os
-from typing import TYPE_CHECKING, Any, Generator, Optional, Tuple, Type
+from typing import TYPE_CHECKING, Any, Generator, Tuple, Type
 
 import cattrs
 import cv2
@@ -270,11 +270,11 @@ class AnalysisArgs:
         default_factory=lambda: ImportArgs(name="Analysis")
     )
     parameters: dict = dataclasses.field(default_factory=dict)
-    fps: Optional[float] = None
+    fps: float = 0.0
 
     def as_structured_args(
         self,
-    ) -> Tuple[Type[AnalysisBase], "DataclassInstance", Optional[float]]:
+    ) -> Tuple[Type[AnalysisBase], "DataclassInstance", float]:
         """Structure the primitive data."""
         cls = self.type.import_variable()
         if not (isinstance(cls, type) and issubclass(cls, AnalysisBase)):
@@ -300,7 +300,7 @@ class ConfigBase(abc.ABC):
     -----
     Environment variables are allowed in *ref_path* and *coat_path* fields.
 
-    If *fps* is not passed to AnalysisArgs, try to determine it from input files.
+    If *fps* is 0, try to determine it from input files.
     """
 
     ref_path: str
@@ -324,7 +324,7 @@ class ConfigBase(abc.ABC):
         """Yield binarized images from :attr:`coat_path`."""
 
     @abc.abstractmethod
-    def fps(self) -> Optional[float]:
+    def fps(self) -> float:
         """Find fps."""
 
     def construct_reference(self) -> ReferenceBase:
@@ -469,10 +469,10 @@ class Config(ConfigBase):
             else:
                 continue
 
-    def fps(self) -> Optional[float]:
+    def fps(self) -> float:
         """Find fps."""
         fps = self.analysis.fps
-        if fps is None:
+        if fps == 0.0:
             files = glob.glob(os.path.expandvars(self.coat_path))
             for f in files:
                 mtype, _ = mimetypes.guess_type(f)
