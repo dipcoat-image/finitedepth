@@ -32,7 +32,7 @@ class ExperimentError(Exception):
     pass
 
 
-class ExperimentBase(abc.ABC, Generic[ParametersType]):
+class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
     """Abstract base class for coating layer factory.
 
     Experiment is an act of transforming incoming coated substrate images to
@@ -95,7 +95,7 @@ class ExperimentBase(abc.ABC, Generic[ParametersType]):
         layer_parameters: Optional["DataclassInstance"] = None,
         layer_drawoptions: Optional["DataclassInstance"] = None,
         layer_decooptions: Optional["DataclassInstance"] = None,
-    ) -> CoatingLayerBase:
+    ) -> CoatingLayerType:
         """Create coating layer.
 
         Implementation may define custom way to create new instance. For example,
@@ -119,7 +119,7 @@ class Parameters:
     window: Tuple[int, int] = (-1, -1)
 
 
-class Experiment(ExperimentBase[Parameters]):
+class Experiment(ExperimentBase[CoatingLayerBase, Parameters]):
     """Experiment class with adjustable template matching window.
 
     Specifying the window can significantly boost the evaluation.
