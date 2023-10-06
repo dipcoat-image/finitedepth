@@ -55,37 +55,61 @@ This is a tuple of ``(x0, y0, x1, y1)``, where every item is :class:`int`.
 class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType]):
     """Abstract base class for reference instance.
 
-    Reference instance stores reference image in :attr:`image`, template ROI in
-    :attr:`templateROI` and substrate ROI in :attr:`substrateROI`. Additional
-    parameters and visualization options are stored in :attr:`parameters` amd
-    :attr:`draw_options`.
+    Reference instance stores a reference image, which is a binary image of
+    uncoated substrate. It also stores ROIs for template region and substrate
+    region in the image.
 
-    :meth:`draw` and :meth:`analyze` return visual and numerical results of
-    reference image analysis . Use :meth:`verify` for sanity check before
-    the analysis.
+    Reference instance can visualize its data and analyze the reference image.
+    Use the following methods:
 
-    Concrete subclass must implement class attributes :attr:`Parameters`,
-    :attr:`DrawOptions`, and :attr:`Data`. Each is return type of
-    :attr:`parameters`, :attr:`draw_options`, and :meth:`analyze`.
+    * :meth:`verify`: Sanity check before the analysis.
+    * :meth:`draw`: Returns visualized result.
+    * :meth:`analyze`: Returns analysis result data.
+
+    Concrete subclass must implement the following class attributes:
+
+    * :attr:`Parameters`: Type of :attr:`parameters`.
+    * :attr:`DrawOptions`: Type of :attr:`draw_options`.
+    * :attr:`Data`: Type of :meth:`analyze`.
 
     Arguments:
         image: Binary reference image.
-            Sets :attr:`image`.
         templateROI: ROI for template region.
-            Sets :attr:`templateROI`.
         substrateROI: ROI for substrate region.
-            Sets :attr:`substrateROI`.
         parameters: Analysis parameters.
-            Sets :attr:`parameters`. If not passed, attempts to be
-            an instance of :attr:`Parameters` with empty arguments.
+            If not passed, attempts to construct :attr:`Parameters`
+            instance without argument.
         draw_options: Visualization options.
-            Sets :attr:`draw_options`. If not passed, attempts to be
-            an instance of :attr:`DrawOptions` with empty arguments.
+            If not passed, attempts to construct :attr:`DrawOptions`
+            instance without argument.
     """
 
     Parameters: Type[ParametersType]
+    """Type of :attr:`parameters.`
+
+    This class attribute is defined but not set in :class:`ReferenceBase`.
+    Concrete subclass must assign this attribute with dataclass type.
+    Once assigned, the :attr:`parameters` attribute is also set to
+    this type.
+
+    Note:
+        This dataclass must be frozen.
+    """
     DrawOptions: Type[DrawOptionsType]
+    """Type of :attr:`draw_options.`
+
+    This class attribute is defined but not set in :class:`ReferenceBase`.
+    Concrete subclass must assign this attribute with dataclass type.
+    Once assigned, the :attr:`draw_options` attribute is also set to
+    this type.
+    """
     Data: Type[DataType]
+    """Type of return value of :attr:`analyze.`
+
+    This class attribute is defined but not set in :class:`ReferenceBase`.
+    Concrete subclass must assign this attribute with dataclass type.
+    Once assigned, the result of :meth:`analyze` is also set to this type.
+    """
 
     def __init__(
         self,
@@ -96,7 +120,6 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         *,
         draw_options: Optional[DrawOptionsType] = None,
     ):
-        """Initialize the instance."""
         super().__init__()
         self._image = image
         self._image.setflags(write=False)
@@ -121,20 +144,21 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
 
     @property
     def image(self) -> npt.NDArray[np.uint8]:
-        """Reference image. Must be binary.
+        """Binary reference image.
 
-        This array is not writable to be immutable for caching.
+        Note:
+            This array is immutable.
         """
         return self._image
 
     @property
     def templateROI(self) -> StaticROI:
-        """Slice indices in ``(x0, y0, x1, y1)`` for template region."""
+        """ROI for template region."""
         return self._templateROI
 
     @property
     def substrateROI(self) -> StaticROI:
-        """Slice indices in ``(x0, y0, x1, y1)`` for substrate region."""
+        """ROI for substrate region."""
         return self._substrateROI
 
     @property
