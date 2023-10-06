@@ -1,6 +1,7 @@
-"""Reference class.
+"""Manage reference image and ROIs.
 
-Reference class is a concrete subclass of :class:`ReferenceBase`.
+This module defines abstract class :class:`ReferenceBase` and its
+implementation, :class:`Reference`.
 """
 
 
@@ -19,8 +20,11 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "OptionalROI",
-    "IntROI",
+    "ParametersType",
+    "DrawOptionsType",
+    "DataType",
+    "DynamicROI",
+    "StaticROI",
     "ReferenceBase",
     "Reference",
     "sanitize_ROI",
@@ -28,24 +32,56 @@ __all__ = [
 
 
 ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
+"""Type variable for :attr:`ReferenceBase.Parameters`."""
 DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
+"""Type variable for :attr:`ReferenceBase.DrawOptions`."""
 DataType = TypeVar("DataType", bound="DataclassInstance")
+"""Type variable for :attr:`ReferenceBase.Data`."""
 
-OptionalROI = Tuple[int, int, Optional[int], Optional[int]]
-"""Type annotation for ROI whose upper limits of x and y can be :obj:`None`.
+DynamicROI = Tuple[int, int, Optional[int], Optional[int]]
+"""Type annotation for ROI whose upper limits can be dynamically determined.
 
-:obj:`None` should be interpreted as a maximum value in the image.
+This is a tuple of ``(x0, y0, x1, y1)``, where ``x1`` and ``y1`` can be
+:obj:`None`. The value of ``None`` should be interpreted as a maximum
+value allowed by image size.
 """
-IntROI = Tuple[int, int, int, int]
-"""Type annotation for ROI whose items are all integer.
+StaticROI = Tuple[int, int, int, int]
+"""Type annotation for ROI whose items are all static.
 
-:obj:`OptionalROI` can be converted to :obj:`IntROI` if the shape of the image
-is given.
+This is a tuple of ``(x0, y0, x1, y1)``, where every item is :class:`int`.
 """
 
 
 class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType]):
-    """Abstract base class for reference instance."""
+    """Abstract base class for reference instance.
+
+    Reference instance stores reference image in :attr:`image`, template ROI in
+    :attr:`templateROI` and substrate ROI in :attr:`substrateROI`. Additional
+    parameters and visualization options are stored in :attr:`parameters` amd
+    :attr:`draw_options`.
+
+    :meth:`draw` and :meth:`analyze` return visual and numerical results of
+    reference image analysis . Use :meth:`verify` for sanity check before
+    the analysis.
+
+    Concrete subclass must implement class attributes :attr:`Parameters`,
+    :attr:`DrawOptions`, and :attr:`Data`. Each is return type of
+    :attr:`parameters`, :attr:`draw_options`, and :meth:`analyze`.
+
+    Arguments:
+        image: Binary reference image.
+            Sets :attr:`image`.
+        templateROI: ROI for template region.
+            Sets :attr:`templateROI`.
+        substrateROI: ROI for substrate region.
+            Sets :attr:`substrateROI`.
+        parameters: Analysis parameters.
+            Sets :attr:`parameters`. If not passed, attempts to be
+            an instance of :attr:`Parameters` with empty arguments.
+        draw_options: Visualization options.
+            Sets :attr:`draw_options`. If not passed, attempts to be
+            an instance of :attr:`DrawOptions` with empty arguments.
+    """
 
     Parameters: Type[ParametersType]
     DrawOptions: Type[DrawOptionsType]
@@ -54,8 +90,8 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
     def __init__(
         self,
         image: npt.NDArray[np.uint8],
-        templateROI: OptionalROI = (0, 0, None, None),
-        substrateROI: OptionalROI = (0, 0, None, None),
+        templateROI: DynamicROI = (0, 0, None, None),
+        substrateROI: DynamicROI = (0, 0, None, None),
         parameters: Optional[ParametersType] = None,
         *,
         draw_options: Optional[DrawOptionsType] = None,
@@ -92,12 +128,12 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         return self._image
 
     @property
-    def templateROI(self) -> IntROI:
+    def templateROI(self) -> StaticROI:
         """Slice indices in ``(x0, y0, x1, y1)`` for template region."""
         return self._templateROI
 
     @property
-    def substrateROI(self) -> IntROI:
+    def substrateROI(self) -> StaticROI:
         """Slice indices in ``(x0, y0, x1, y1)`` for substrate region."""
         return self._substrateROI
 
@@ -241,8 +277,8 @@ class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
         return self.Data()
 
 
-def sanitize_ROI(roi: OptionalROI, h: int, w: int) -> IntROI:
-    """Convert :obj:`OptionalROI` to :obj:`IntROI`."""
+def sanitize_ROI(roi: DynamicROI, h: int, w: int) -> StaticROI:
+    """Convert :obj:`DynamicROI` to :obj:`StaticROI`."""
     full_roi = (0, 0, w, h)
     max_vars = (w, h, w, h)
 

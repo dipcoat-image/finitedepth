@@ -19,7 +19,7 @@ import tqdm  # type: ignore
 from .analysis import AnalysisBase
 from .coatinglayer import CoatingLayerBase
 from .experiment import ExperimentBase
-from .reference import OptionalROI, ReferenceBase
+from .reference import DynamicROI, ReferenceBase
 from .substrate import SubstrateBase
 
 if TYPE_CHECKING:
@@ -97,8 +97,8 @@ class ReferenceArgs:
     type: ImportArgs = dataclasses.field(
         default_factory=lambda: ImportArgs(name="Reference")
     )
-    templateROI: OptionalROI = (0, 0, None, None)
-    substrateROI: OptionalROI = (0, 0, None, None)
+    templateROI: DynamicROI = (0, 0, None, None)
+    substrateROI: DynamicROI = (0, 0, None, None)
     parameters: dict = dataclasses.field(default_factory=dict)
     draw_options: dict = dataclasses.field(default_factory=dict)
 

@@ -14,40 +14,26 @@ __all__ = [
 
 @dataclasses.dataclass
 class LineOptions:
-    """Parameters to draw a line in the image.
-
-    Attributes
-    ----------
-    color : tuple
-        Color of the line in RGB.
-    linewidth : int
-        Width of the line.
-        Zero value is the flag to not draw the line.
-    """
+    """Parameters to draw a line in the image."""
 
     color: Tuple[int, int, int] = (0, 0, 0)
+    """Color of the line in RGB."""
     linewidth: int = 1
+    """Width of the line."""
 
 
 @dataclasses.dataclass
 class PatchOptions:
-    """Parameters to draw a patch in the image.
-
-    Attributes
-    ----------
-    fill : bool
-        Whether to fill the patch with facecolor.
-    edgecolor, facecolor : tuple
-        Color in RGB.
-    linewidth : int
-        Width of the edge.
-        Zero value is the flag to not draw the edge.
-    """
+    """Parameters to draw a patch in the image."""
 
     fill: bool = True
+    """Whether to fill the patch with facecolor."""
     edgecolor: Tuple[int, int, int] = (0, 0, 0)
+    """Color of the edge in RGB."""
     facecolor: Tuple[int, int, int] = (0, 0, 0)
+    """Color of the face in RGB."""
     linewidth: int = 1
+    """Width of the edge."""
 
 
 class MarkerTypes(enum.Enum):
@@ -64,18 +50,12 @@ class MarkerTypes(enum.Enum):
 
 @dataclasses.dataclass
 class MarkerOptions:
-    """Parameters to draw a marker in the image.
-
-    Attributes
-    ----------
-    color : tuple
-        Color of the marker in RGB
-    marker : MarkerTypes
-    linewidth : int
-    markersize : int
-    """
+    """Parameters to draw a marker in the image."""
 
     color: Tuple[int, int, int] = (0, 0, 0)
+    """Color of the marker in RGB."""
     marker: MarkerTypes = MarkerTypes.CROSS
     linewidth: int = 1
+    """Width of the marker line."""
     markersize: int = 20
+    """Size of the marker in pts."""

@@ -38,11 +38,12 @@ author = "Jisoo Song"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "sphinx.ext.intersphinx",
-    "matplotlib.sphinxext.plot_directive",
-    "numpydoc",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.autodoc",
     "autoapi.extension",
+    "sphinx.ext.intersphinx",
     "sphinx_tabs.tabs",
+    "matplotlib.sphinxext.plot_directive",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -53,16 +54,7 @@ templates_path = ["_templates"]
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []  # type: ignore
 
-intersphinx_mapping = {
-    "python": ("http://docs.python.org/", None),
-    "numpy": ("https://numpy.org/doc/stable/", None),
-    "cattrs": ("https://cattrs.readthedocs.io/en/latest/", None),
-    "mypy": ("https://mypy.readthedocs.io/en/stable/", None),
-    "PIL": ("https://pillow.readthedocs.io/en/stable/", None),
-}
-
-numpydoc_show_class_members = False
-
+autodoc_typehints = "description"
 autoapi_python_use_implicit_namespaces = True
 autoapi_dirs = ["../../src/dipcoatimage/finitedepth"]
 autoapi_template_dir = "_templates/autoapi"
@@ -80,6 +72,15 @@ def skip_submodules(app, what, name, obj, skip, options):
 
 def setup(sphinx):
     sphinx.connect("autoapi-skip-member", skip_submodules)
+
+
+intersphinx_mapping = {
+    "python": ("http://docs.python.org/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "cattrs": ("https://cattrs.readthedocs.io/en/latest/", None),
+    "mypy": ("https://mypy.readthedocs.io/en/stable/", None),
+    "PIL": ("https://pillow.readthedocs.io/en/stable/", None),
+}
 
 
 # -- Options for HTML output -------------------------------------------------

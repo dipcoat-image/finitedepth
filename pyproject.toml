@@ -73,6 +73,7 @@ ignore-path = [
 namespace_packages = true
 explicit_package_bases = true
 exclude = ["build"]
+plugins = ["numpy.typing.mypy_plugin"]
 
 [tool.pytest.ini_options]
 doctest_optionflags = [

@@ -707,7 +707,7 @@ def equidistant_interpolate(points, n) -> npt.NDArray[np.float64]:
 
 
 def polyline_parallel_area(line: npt.NDArray, t: float) -> np.float64:
-    """Calculate the area formed by convex polyline [1]_ and its parallel curve [2]_.
+    """Calculate the area between convex polyline and its parallel curve.
 
     Parameters
     ----------
@@ -724,8 +724,8 @@ def polyline_parallel_area(line: npt.NDArray, t: float) -> np.float64:
 
     References
     ----------
-    .. [1] https://en.wikipedia.org/wiki/Polygonal_chain
-    .. [2] https://en.wikipedia.org/wiki/Parallel_curve
+    .. [#polyline] https://en.wikipedia.org/wiki/Polygonal_chain
+    .. [#parallel] https://en.wikipedia.org/wiki/Parallel_curve
     """
     vec = np.diff(line, axis=0)
     d_l = np.linalg.norm(vec, axis=-1)
@@ -737,7 +737,7 @@ def polyline_parallel_area(line: npt.NDArray, t: float) -> np.float64:
 def acm(cm: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     """Compute accumulated cost matrix from local cost matrix.
 
-    Implements the algorithm from [1]_, with modification from [2]_.
+    Implements the algorithm from [#dtw1_, with modification from [#dtw2]_.
 
     Parameters
     ----------
@@ -753,11 +753,11 @@ def acm(cm: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
 
     References
     ----------
-    .. [1] Senin, Pavel. "Dynamic time warping algorithm review." Information and
+    .. [#dtw1] Senin, Pavel. "Dynamic time warping algorithm review." Information and
        Computer Science Department University of Hawaii at Manoa Honolulu,
        USA 855.1-23 (2008): 40.
 
-    .. [2] https://pypi.org/project/similaritymeasures/
+    .. [#dtw2] https://pypi.org/project/similaritymeasures/
 
     See Also
     --------
@@ -787,7 +787,7 @@ def acm(cm: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
 def owp(acm: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
     """Compute optimal warping path from accumulated cost matrix.
 
-    Implements the algorithm from [1]_, with modification from [2]_.
+    Implements the algorithm from [#dtw1_, with modification from [#dtw2]_.
 
     Parameters
     ----------
@@ -798,14 +798,6 @@ def owp(acm: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
     -------
     ndarray
         Indices for the two series to get the optimal warping path.
-
-    References
-    ----------
-    .. [1] Senin, Pavel. "Dynamic time warping algorithm review." Information and
-       Computer Science Department University of Hawaii at Manoa Honolulu,
-       USA 855.1-23 (2008): 40.
-
-    .. [2] https://pypi.org/project/similaritymeasures/
 
     See Also
     --------
