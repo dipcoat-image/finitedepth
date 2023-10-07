@@ -127,7 +127,8 @@ class SubstrateBase(
     def image(self) -> npt.NDArray[np.uint8]:
         """Substrate image from :meth:`reference`."""
         # not property since it's not directly from the argument
-        return self.reference.substrate_image()
+        x0, y0, x1, y1 = self.reference.substrateROI
+        return self.reference.image[y0:y1, x0:x1]
 
     @abc.abstractmethod
     def region_points(self) -> npt.NDArray[np.int32]:

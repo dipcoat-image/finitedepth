@@ -145,8 +145,9 @@ class CoatingLayerBase(
     def substrate_point(self) -> npt.NDArray[np.int32]:
         """Upper left point in ``(x, y)`` where the substrate is located."""
         temp_point, _ = self.tempmatch
-        temp2subst = self.substrate.reference.temp2subst()
-        return temp_point + temp2subst
+        t = self.substrate.reference.templateROI[:2]
+        s = self.substrate.reference.substrateROI[:2]
+        return np.array(temp_point, dtype=np.int32) - t + s
 
     @attrcache("_coated_substrate")
     def coated_substrate(self) -> npt.NDArray[np.bool_]:

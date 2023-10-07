@@ -812,7 +812,7 @@ def owp(acm: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
 
     i, j = p - 1, q - 1
     path[path_len] = [i, j]
-    path_len += 1
+    path_len += np.int32(1)
 
     while i > 0 or j > 0:
         if i == 0:
@@ -830,6 +830,6 @@ def owp(acm: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
                 j -= 1
 
         path[path_len] = [i, j]
-        path_len += 1
+        path_len += np.int32(1)
 
     return path[-(len(path) - path_len + 1) :: -1, :]

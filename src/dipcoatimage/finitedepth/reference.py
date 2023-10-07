@@ -56,17 +56,18 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
     """Abstract base class for reference instance.
 
     Reference instance stores a reference image, which is a binary image of
-    uncoated substrate. It also stores ROIs for template region and substrate
-    region in the image.
+    uncoated substrate. It also contains ROIs for template region and
+    substrate region in the image.
 
     Reference instance can visualize its data and analyze the reference image.
     Use the following methods:
 
     * :meth:`verify`: Sanity check before the analysis.
     * :meth:`draw`: Returns visualized result.
-    * :meth:`analyze`: Returns analysis result data.
+    * :meth:`analyze`: Returns analysis result.
 
-    Concrete subclass must implement the following class attributes:
+    Concrete subclass must assign dataclasses types to the
+    following class attributes:
 
     * :attr:`Parameters`: Type of :attr:`parameters`.
     * :attr:`DrawOptions`: Type of :attr:`draw_options`.
@@ -77,9 +78,11 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         templateROI: ROI for template region.
         substrateROI: ROI for substrate region.
         parameters: Analysis parameters.
+            If passed, must be an instance of :attr:`Parameters`.
             If not passed, attempts to construct :attr:`Parameters`
             instance without argument.
         draw_options: Visualization options.
+            If passed, must be an instance of :attr:`DrawOptions`.
             If not passed, attempts to construct :attr:`DrawOptions`
             instance without argument.
     """
@@ -88,27 +91,19 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
     """Type of :attr:`parameters.`
 
     This class attribute is defined but not set in :class:`ReferenceBase`.
-    Concrete subclass must assign this attribute with dataclass type.
-    Once assigned, the :attr:`parameters` attribute is also set to
-    this type.
-
-    Note:
-        This dataclass must be frozen.
+    Concrete subclass must assign this attribute with frozen dataclass type.
     """
     DrawOptions: Type[DrawOptionsType]
     """Type of :attr:`draw_options.`
 
     This class attribute is defined but not set in :class:`ReferenceBase`.
     Concrete subclass must assign this attribute with dataclass type.
-    Once assigned, the :attr:`draw_options` attribute is also set to
-    this type.
     """
     Data: Type[DataType]
     """Type of return value of :attr:`analyze.`
 
     This class attribute is defined but not set in :class:`ReferenceBase`.
     Concrete subclass must assign this attribute with dataclass type.
-    Once assigned, the result of :meth:`analyze` is also set to this type.
     """
 
     def __init__(
@@ -147,7 +142,7 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         """Binary reference image.
 
         Note:
-            This array is immutable.
+            This array is immutable to allow caching.
         """
         return self._image
 
@@ -163,17 +158,22 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
 
     @property
     def parameters(self) -> ParametersType:
-        """Additional parameters for concrete class.
+        """Analysis parameters.
 
-        Instance of :attr:`Parameters`, which must be a frozen dataclass.
+        This property returns a frozen dataclass instance.
+        Its type is :attr:`Parameters`.
+
+        Note:
+            This dataclass must be frozen to allow caching.
         """
         return self._parameters
 
     @property
     def draw_options(self) -> DrawOptionsType:
-        """Options to visualize the image.
+        """Visualization options.
 
-        Instance of :attr:`DrawOptions` dataclass.
+        This property returns a mutable dataclass instance.
+        Its type is :attr:`DrawOptions`.
         """
         return self._draw_options
 
@@ -181,30 +181,34 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
     def draw_options(self, options: DrawOptionsType):
         self._draw_options = options
 
-    def substrate_image(self) -> npt.NDArray[np.uint8]:
-        """:meth:`image` cropped by :meth:`substrateROI`."""
-        x0, y0, x1, y1 = self.substrateROI
-        return self.image[y0:y1, x0:x1]
-
-    def temp2subst(self) -> npt.NDArray[np.int32]:
-        """Vector from template region to substrate region."""
-        x0, y0 = self.templateROI[:2]
-        x1, y1 = self.substrateROI[:2]
-        return np.array([x1 - x0, y1 - y0], dtype=np.int32)
-
     @abc.abstractmethod
     def verify(self):
-        """Check to detect error and raise before analysis."""
+        """Sanity check before analysis.
+
+        This method checks every intermediate step for analysis
+        and raises error if anything is wrong. Passing this
+        check should guarantee that :meth:`draw` and
+        :meth:`analyze` returns without exception.
+        """
 
     @abc.abstractmethod
     def draw(self) -> npt.NDArray[np.uint8]:
-        """Decorate and return the reference image as RGB format."""
+        """Return visualization result in RGB format.
+
+        This method must always return without error. If
+        visualization cannot be done, it should at least
+        return original image.
+        """
 
     @abc.abstractmethod
     def analyze(self) -> DataType:
-        """Analyze the reference image and return the data.
+        """Return analysis data of the reference image.
 
-        May raise error if the instance is not valid.
+        This method returns analysis result as a dataclass
+        instance. Its type is :meth:`Data`.
+
+        If analysis is impossible, this method may raise
+        error.
         """
 
 
