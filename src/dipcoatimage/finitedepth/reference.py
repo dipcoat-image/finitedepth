@@ -26,6 +26,9 @@ __all__ = [
     "DynamicROI",
     "StaticROI",
     "ReferenceBase",
+    "ReferenceParameters",
+    "ReferenceDrawOptions",
+    "ReferenceData",
     "Reference",
     "sanitize_ROI",
 ]
@@ -128,7 +131,7 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         else:
             if not isinstance(parameters, self.Parameters):
                 raise TypeError(f"{parameters} is not instance of {self.Parameters}")
-            self._parameters = dataclasses.replace(parameters)
+            self._parameters = parameters
 
         if draw_options is None:
             self._draw_options = self.DrawOptions()
@@ -195,9 +198,8 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
     def draw(self) -> npt.NDArray[np.uint8]:
         """Return visualization result in RGB format.
 
-        This method must always return without error. If
-        visualization cannot be done, it should at least
-        return original image.
+        This method must always return without error. If visualization cannot be done,
+        it should at least return original image.
         """
 
     @abc.abstractmethod
@@ -205,7 +207,7 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         """Return analysis data of the reference image.
 
         This method returns analysis result as a dataclass
-        instance. Its type is :meth:`Data`.
+        instance. Its type is :attr:`Data`.
 
         If analysis is impossible, this method may raise
         error.
@@ -213,20 +215,22 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
 
 
 @dataclasses.dataclass(frozen=True)
-class Parameters:
-    """Additional parameters for `Reference` instance."""
+class ReferenceParameters:
+    """Analysis parameters for :class:`Reference`.
+
+    This is an empty dataclass.
+    """
 
     pass
 
 
 @dataclasses.dataclass
-class DrawOptions:
-    """Drawing options for `Reference`.
+class ReferenceDrawOptions:
+    """Visualization options for :class:`Reference`.
 
-    Attributes
-    ----------
-    templateROI, substrateROI : LineOptions
-        Determines how the ROIs are drawn.
+    Parameters:
+        templateROI: Options to visualize template ROI.
+        substrateROI: Options to visualize substrate ROI.
     """
 
     templateROI: LineOptions = dataclasses.field(
@@ -238,51 +242,54 @@ class DrawOptions:
 
 
 @dataclasses.dataclass
-class Data:
-    """Analysis data for `Reference`."""
+class ReferenceData:
+    """Analysis data for :class:`Reference`.
+
+    This is an empty dataclass.
+    """
 
     pass
 
 
-class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
+class Reference(
+    ReferenceBase[ReferenceParameters, ReferenceDrawOptions, ReferenceData]
+):
     """Basic implementation of reference class.
 
-    Examples
-    --------
-    .. plot::
-       :include-source:
-       :context: reset
+    Examples:
+        .. plot::
+            :include-source:
+            :context: reset
 
-       >>> import cv2
-       >>> from dipcoatimage.finitedepth import Reference, get_data_path
-       >>> gray = cv2.imread(get_data_path("ref1.png"), cv2.IMREAD_GRAYSCALE)
-       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-       >>> tempROI = (200, 50, 1200, 200)
-       >>> substROI = (400, 175, 1000, 500)
-       >>> ref = Reference(img, tempROI, substROI)
-       >>> import matplotlib.pyplot as plt #doctest: +SKIP
-       >>> plt.imshow(ref.draw()) #doctest: +SKIP
+            >>> import cv2
+            >>> from dipcoatimage.finitedepth import Reference, get_data_path
+            >>> gray = cv2.imread(get_data_path("ref1.png"), cv2.IMREAD_GRAYSCALE)
+            >>> _, im = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+            >>> tempROI = (200, 50, 1200, 200)
+            >>> substROI = (400, 175, 1000, 500)
+            >>> ref = Reference(im, tempROI, substROI)
+            >>> import matplotlib.pyplot as plt #doctest: +SKIP
+            >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
-    Visualization can be controlled by modifying :attr:`draw_options`.
+        Visualization can be controlled by modifying :attr:`draw_options` and
+        drawing again.
 
-    .. plot::
-       :include-source:
-       :context: close-figs
+        .. plot::
+            :include-source:
+            :context: close-figs
 
-       >>> ref.draw_options.substrateROI.color = (0, 255, 255)
-       >>> plt.imshow(ref.draw()) #doctest: +SKIP
+            >>> ref.draw_options.substrateROI.linewidth = 3
+            >>> plt.imshow(ref.draw()) #doctest: +SKIP
     """
 
-    Parameters = Parameters
-    DrawOptions = DrawOptions
-    Data = Data
+    Parameters = ReferenceParameters
+    DrawOptions = ReferenceDrawOptions
+    Data = ReferenceData
 
     def verify(self):
-        """Check error."""
         pass
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        """Return visualized result."""
         ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
 
         substROI_opts = self.draw_options.substrateROI
@@ -301,7 +308,6 @@ class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
         return ret
 
     def analyze(self):
-        """Return analysis data."""
         return self.Data()
 
 
