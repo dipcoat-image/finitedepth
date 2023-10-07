@@ -41,17 +41,17 @@ DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
 DataType = TypeVar("DataType", bound="DataclassInstance")
 """Type variable for :attr:`ReferenceBase.Data`."""
 
-DynamicROI = Tuple[int, int, Optional[int], Optional[int]]
+DynamicROI = Tuple[Optional[int], Optional[int], Optional[int], Optional[int]]
 """Type annotation for ROI whose upper limits can be dynamically determined.
 
-This is a tuple of ``(x0, y0, x1, y1)``, where ``x1`` and ``y1`` can be
-:obj:`None`. The value of ``None`` should be interpreted as a maximum
-value allowed by image size.
+This is a tuple of ``(x0, y0, x1, y1)``, where items can be integer of
+:obj:`None`. The values follow Python's slicing convention.
 """
 StaticROI = Tuple[int, int, int, int]
 """Type annotation for ROI whose items are all static.
 
-This is a tuple of ``(x0, y0, x1, y1)``, where every item is :class:`int`.
+This is a tuple of ``(x0, y0, x1, y1)``, where every item is
+nonnegative :class:`int`.
 """
 
 
@@ -118,6 +118,13 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         *,
         draw_options: Optional[DrawOptionsType] = None,
     ):
+        """Initialize the instance.
+
+        - *image* is set to be immutable.
+        - *templateROI* and *substrateROI* are converted with
+          :func:`sanitize_ROI`.
+        - *draw_options* is copied.
+        """
         super().__init__()
         self._image = image
         self._image.setflags(write=False)
@@ -189,9 +196,9 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         """Sanity check before analysis.
 
         This method checks every intermediate step for analysis
-        and raises error if anything is wrong. Passing this
-        check should guarantee that :meth:`draw` and
-        :meth:`analyze` returns without exception.
+        and raises error if anything is wrong. Passing this check
+        should guarantee that :meth:`draw` and :meth:`analyze`
+        returns without exception.
         """
 
     @abc.abstractmethod
@@ -206,11 +213,9 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
     def analyze(self) -> DataType:
         """Return analysis data of the reference image.
 
-        This method returns analysis result as a dataclass
-        instance. Its type is :attr:`Data`.
-
-        If analysis is impossible, this method may raise
-        error.
+        This method returns analysis result as a dataclass instance
+        whose type is :attr:`Data`. If analysis is impossible,
+        error may be raised.
         """
 
 
@@ -228,7 +233,7 @@ class ReferenceParameters:
 class ReferenceDrawOptions:
     """Visualization options for :class:`Reference`.
 
-    Parameters:
+    Arguments:
         templateROI: Options to visualize template ROI.
         substrateROI: Options to visualize substrate ROI.
     """
@@ -256,6 +261,13 @@ class Reference(
 ):
     """Basic implementation of reference class.
 
+    Arguments:
+        image
+        templateROI
+        substrateROI
+        parameters (ReferenceParameters, optional)
+        draw_options (ReferenceDrawOptions, optional)
+
     Examples:
         .. plot::
             :include-source:
@@ -271,8 +283,7 @@ class Reference(
             >>> import matplotlib.pyplot as plt #doctest: +SKIP
             >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
-        Visualization can be controlled by modifying :attr:`draw_options` and
-        drawing again.
+        Visualization can be controlled by modifying :attr:`draw_options`.
 
         .. plot::
             :include-source:
@@ -283,13 +294,18 @@ class Reference(
     """
 
     Parameters = ReferenceParameters
+    """Assigned with :class:`ReferenceParameters`."""
     DrawOptions = ReferenceDrawOptions
+    """Assigned with :class:`ReferenceDrawOptions`."""
     Data = ReferenceData
+    """Assigned with :class:`ReferenceData`."""
 
     def verify(self):
+        """Implements :meth:`ReferenceBase.verify`."""
         pass
 
     def draw(self) -> npt.NDArray[np.uint8]:
+        """Implements :meth:`ReferenceBase.draw`."""
         ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
 
         substROI_opts = self.draw_options.substrateROI
@@ -308,11 +324,23 @@ class Reference(
         return ret
 
     def analyze(self):
+        """Implements :meth:`ReferenceBase.analyze`."""
         return self.Data()
 
 
 def sanitize_ROI(roi: DynamicROI, h: int, w: int) -> StaticROI:
-    """Convert :obj:`DynamicROI` to :obj:`StaticROI`."""
+    """Convert dynamic ROI to static ROI.
+
+    Arguments:
+        roi: Tuple in ``(x0, y0, x1, y1)``.
+            Slicing indices for ROI, following Python convention.
+        h, w: int
+            Height and width of the image.
+
+    Returns:
+        Tuple in ``(x0, y0, x1, y1)``. Values are converted to
+        positive integers.
+    """
     full_roi = (0, 0, w, h)
     max_vars = (w, h, w, h)
 

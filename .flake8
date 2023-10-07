@@ -7,8 +7,6 @@ exclude =
 max-line-length = 88
 extend-ignore =
     E203,
-    D102,
-    D107,
 # flake-docstrings
 per-file-ignores =
     src/dipcoatimage/finitedepth/version.py:D

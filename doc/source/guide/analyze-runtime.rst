@@ -126,7 +126,7 @@ The following returns empty data because :class:`Reference`
 does not define any numerical analysis:
 
 >>> ref.analyze()
-Data()
+ReferenceData()
 
 .. _howto-substrate:
 
