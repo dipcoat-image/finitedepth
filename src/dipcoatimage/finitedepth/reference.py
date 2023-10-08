@@ -26,9 +26,9 @@ __all__ = [
     "DynamicROI",
     "StaticROI",
     "ReferenceBase",
-    "ReferenceParameters",
-    "ReferenceDrawOptions",
-    "ReferenceData",
+    "Parameters",
+    "DrawOptions",
+    "Data",
     "Reference",
     "sanitize_ROI",
 ]
@@ -44,8 +44,8 @@ DataTypeVar = TypeVar("DataTypeVar", bound="DataclassInstance")
 DynamicROI = Tuple[Optional[int], Optional[int], Optional[int], Optional[int]]
 """Type annotation for ROI whose upper limits can be dynamically determined.
 
-This is a tuple of ``(x0, y0, x1, y1)``, where items can be integer of
-:obj:`None`. The values follow Python's slicing convention.
+This is a tuple of ``(x0, y0, x1, y1)``, where items can be integer or
+:obj:`None` by Python's slicing convention.
 """
 StaticROI = Tuple[int, int, int, int]
 """Type annotation for ROI whose items are all static.
@@ -62,8 +62,8 @@ class ReferenceBase(abc.ABC, Generic[ParamTypeVar, DrawOptTypeVar, DataTypeVar])
     uncoated substrate. It also contains ROIs for template region and
     substrate region in the image.
 
-    Reference instance can visualize its data and analyze the reference image.
-    Use the following methods:
+    Reference instance can visualize its data and analyze the reference image
+    by the following methods:
 
     * :meth:`verify`: Sanity check before the analysis.
     * :meth:`draw`: Returns visualized result.
@@ -220,7 +220,7 @@ class ReferenceBase(abc.ABC, Generic[ParamTypeVar, DrawOptTypeVar, DataTypeVar])
 
 
 @dataclasses.dataclass(frozen=True)
-class ReferenceParameters:
+class Parameters:
     """Analysis parameters for :class:`Reference`.
 
     This is an empty dataclass.
@@ -230,7 +230,7 @@ class ReferenceParameters:
 
 
 @dataclasses.dataclass
-class ReferenceDrawOptions:
+class DrawOptions:
     """Visualization options for :class:`Reference`.
 
     Arguments:
@@ -247,7 +247,7 @@ class ReferenceDrawOptions:
 
 
 @dataclasses.dataclass
-class ReferenceData:
+class Data:
     """Analysis data for :class:`Reference`.
 
     This is an empty dataclass.
@@ -257,16 +257,16 @@ class ReferenceData:
 
 
 class Reference(
-    ReferenceBase[ReferenceParameters, ReferenceDrawOptions, ReferenceData]
+    ReferenceBase[Parameters, DrawOptions, Data]
 ):
-    """Basic implementation of reference class.
+    """Basic implementation of :class:`ReferenceBase`.
 
     Arguments:
         image
         templateROI
         substrateROI
-        parameters (ReferenceParameters, optional)
-        draw_options (ReferenceDrawOptions, optional)
+        parameters (Parameters, optional)
+        draw_options (DrawOptions, optional)
 
     Examples:
         .. plot::
@@ -293,12 +293,12 @@ class Reference(
             >>> plt.imshow(ref.draw()) #doctest: +SKIP
     """
 
-    ParamType = ReferenceParameters
-    """Assigned with :class:`ReferenceParameters`."""
-    DrawOptType = ReferenceDrawOptions
-    """Assigned with :class:`ReferenceDrawOptions`."""
-    DataType = ReferenceData
-    """Assigned with :class:`ReferenceData`."""
+    ParamType = Parameters
+    """Assigned with :class:`Parameters`."""
+    DrawOptType = DrawOptions
+    """Assigned with :class:`DrawOptions`."""
+    DataType = Data
+    """Assigned with :class:`Data`."""
 
     def verify(self):
         """Implements :meth:`ReferenceBase.verify`."""
@@ -333,9 +333,9 @@ def sanitize_ROI(roi: DynamicROI, h: int, w: int) -> StaticROI:
 
     Arguments:
         roi: Tuple in ``(x0, y0, x1, y1)``.
-            Slicing indices for ROI, following Python convention.
-        h, w: int
-            Height and width of the image.
+            Items can be integer or :obj:`None` by Python's
+            slicing convention.
+        h, w: Height and width of the image.
 
     Returns:
         Tuple in ``(x0, y0, x1, y1)``. Values are converted to
