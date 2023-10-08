@@ -111,10 +111,10 @@ class ReferenceArgs:
             raise TypeError(f"{refcls} is not substrate reference class.")
 
         params = data_converter.structure(
-            self.parameters, refcls.Parameters  # type: ignore
+            self.parameters, refcls.ParamType  # type: ignore
         )
         drawopts = data_converter.structure(
-            self.draw_options, refcls.DrawOptions  # type: ignore
+            self.draw_options, refcls.DrawOptType  # type: ignore
         )
         return (refcls, params, drawopts)
 
@@ -161,10 +161,10 @@ class SubstrateArgs:
             raise TypeError(f"{substcls} is not substrate class.")
 
         params = data_converter.structure(
-            self.parameters, substcls.Parameters  # type: ignore
+            self.parameters, substcls.ParamType  # type: ignore
         )
         drawopts = data_converter.structure(
-            self.draw_options, substcls.DrawOptions  # type: ignore
+            self.draw_options, substcls.DrawOptType  # type: ignore
         )
         return (substcls, params, drawopts)
 
@@ -214,13 +214,13 @@ class CoatingLayerArgs:
             raise TypeError(f"{layercls} is not coating layer class.")
 
         params = data_converter.structure(
-            self.parameters, layercls.Parameters  # type: ignore
+            self.parameters, layercls.ParamType  # type: ignore
         )
         drawopts = data_converter.structure(
-            self.draw_options, layercls.DrawOptions  # type: ignore
+            self.draw_options, layercls.DrawOptType  # type: ignore
         )
         decoopts = data_converter.structure(
-            self.deco_options, layercls.DecoOptions  # type: ignore
+            self.deco_options, layercls.DecoOptType  # type: ignore
         )
         return (layercls, params, drawopts, decoopts)
 
@@ -251,7 +251,7 @@ class ExperimentArgs:
             raise TypeError(f"{exptcls} is not experiment class.")
 
         params = data_converter.structure(
-            self.parameters, exptcls.Parameters  # type: ignore
+            self.parameters, exptcls.ParamType  # type: ignore
         )
         return (exptcls, params)
 
@@ -281,7 +281,7 @@ class AnalysisArgs:
             raise TypeError(f"{cls} is not coating layer class.")
 
         params = data_converter.structure(
-            self.parameters, cls.Parameters  # type: ignore
+            self.parameters, cls.ParamType  # type: ignore
         )
         return (cls, params, self.fps)
 

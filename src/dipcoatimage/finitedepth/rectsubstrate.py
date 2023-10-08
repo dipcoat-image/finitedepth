@@ -89,7 +89,7 @@ class RectSubstrate(PolySubstrateBase[ReferenceBase, Parameters, DrawOptions, Da
 
        >>> from dipcoatimage.finitedepth import RectSubstrate, data_converter
        >>> param_val = dict(Sigma=3.0, Rho=1.0, Theta=0.01)
-       >>> param = data_converter.structure(param_val, RectSubstrate.Parameters)
+       >>> param = data_converter.structure(param_val, RectSubstrate.ParamType)
        >>> subst = RectSubstrate(ref, param)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
@@ -104,9 +104,9 @@ class RectSubstrate(PolySubstrateBase[ReferenceBase, Parameters, DrawOptions, Da
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
     """
 
-    Parameters = Parameters
-    DrawOptions = DrawOptions
-    Data = Data
+    ParamType = Parameters
+    DrawOptType = DrawOptions
+    DataType = Data
     SidesNum = 4
 
     PaintMode = PaintMode
@@ -154,4 +154,4 @@ class RectSubstrate(PolySubstrateBase[ReferenceBase, Parameters, DrawOptions, Da
     def analyze(self):
         """Return analysis data."""
         _, B, C, _ = self.sideline_intersections()
-        return self.Data(np.linalg.norm(B - C))
+        return self.DataType(np.linalg.norm(B - C))

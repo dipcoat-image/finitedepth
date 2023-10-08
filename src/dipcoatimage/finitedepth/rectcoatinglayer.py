@@ -2,7 +2,7 @@
 
 import dataclasses
 import enum
-from typing import TYPE_CHECKING, Tuple, Type, TypeVar
+from typing import Tuple
 
 import cv2
 import numpy as np
@@ -12,13 +12,17 @@ from scipy.optimize import root  # type: ignore
 from scipy.spatial.distance import cdist  # type: ignore
 
 from .cache import attrcache
-from .coatinglayer import CoatingLayerBase, SubtractionMode, images_XOR
+from .coatinglayer import (
+    CoatingLayerBase,
+    DataTypeVar,
+    DecoOptTypeVar,
+    DrawOptTypeVar,
+    ParamTypeVar,
+    SubtractionMode,
+    images_XOR,
+)
 from .parameters import LineOptions, PatchOptions
 from .rectsubstrate import RectSubstrate
-
-if TYPE_CHECKING:
-    from _typeshed import DataclassInstance
-
 
 __all__ = [
     "RectCoatingLayerBase",
@@ -30,26 +34,15 @@ __all__ = [
 ]
 
 
-ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
-DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
-DecoOptionsType = TypeVar("DecoOptionsType", bound="DataclassInstance")
-DataType = TypeVar("DataType", bound="DataclassInstance")
-
-
 ROTATION_MATRIX = np.array([[0, 1], [-1, 0]])
 
 
 class RectCoatingLayerBase(
     CoatingLayerBase[
-        RectSubstrate, ParametersType, DrawOptionsType, DecoOptionsType, DataType
+        RectSubstrate, ParamTypeVar, DrawOptTypeVar, DecoOptTypeVar, DataTypeVar
     ]
 ):
     """Abstract base class for coating layer over rectangular substrate."""
-
-    Parameters: Type[ParametersType]
-    DrawOptions: Type[DrawOptionsType]
-    DecoOptions: Type[DecoOptionsType]
-    Data: Type[DataType]
 
     @attrcache("_layer_contours")
     def layer_contours(self) -> Tuple[npt.NDArray[np.int32], ...]:
@@ -342,7 +335,7 @@ class RectLayerShape(
        :context: close-figs
 
        >>> from dipcoatimage.finitedepth import RectSubstrate
-       >>> param = RectSubstrate.Parameters(Sigma=3.0, Rho=1.0, Theta=0.01)
+       >>> param = RectSubstrate.ParamType(Sigma=3.0, Rho=1.0, Theta=0.01)
        >>> subst = RectSubstrate(ref, param)
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
@@ -356,7 +349,7 @@ class RectLayerShape(
        >>> from dipcoatimage.finitedepth import RectLayerShape
        >>> gray = cv2.imread(get_data_path("coat3.png"), cv2.IMREAD_GRAYSCALE)
        >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-       >>> param = RectLayerShape.Parameters(
+       >>> param = RectLayerShape.ParamType(
        ...     KernelSize=(1, 1),
        ...     ReconstructRadius=50,
        ...     RoughnessMeasure=RectLayerShape.DistanceMeasure.SDTW,
@@ -365,10 +358,10 @@ class RectLayerShape(
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
     """
 
-    Parameters = Parameters
-    DrawOptions = DrawOptions
-    DecoOptions = DecoOptions
-    Data = Data
+    ParamType = Parameters
+    DrawOptType = DrawOptions
+    DecoOptType = DecoOptions
+    DataType = Data
 
     DistanceMeasure = DistanceMeasure
     PaintMode = PaintMode
@@ -663,7 +656,7 @@ class RectLayerShape(
 
         _, ERR = self.tempmatch
 
-        return self.Data(
+        return self.DataType(
             LEN_L,
             LEN_R,
             C,

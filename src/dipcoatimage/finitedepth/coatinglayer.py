@@ -26,32 +26,32 @@ __all__ = [
 ]
 
 
-SubstrateType = TypeVar("SubstrateType", bound=SubstrateBase)
-ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
-DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
-DecoOptionsType = TypeVar("DecoOptionsType", bound="DataclassInstance")
-DataType = TypeVar("DataType", bound="DataclassInstance")
+SubstTypeVar = TypeVar("SubstTypeVar", bound=SubstrateBase)
+ParamTypeVar = TypeVar("ParamTypeVar", bound="DataclassInstance")
+DrawOptTypeVar = TypeVar("DrawOptTypeVar", bound="DataclassInstance")
+DecoOptTypeVar = TypeVar("DecoOptTypeVar", bound="DataclassInstance")
+DataTypeVar = TypeVar("DataTypeVar", bound="DataclassInstance")
 
 
 class CoatingLayerBase(
     abc.ABC,
-    Generic[SubstrateType, ParametersType, DrawOptionsType, DecoOptionsType, DataType],
+    Generic[SubstTypeVar, ParamTypeVar, DrawOptTypeVar, DecoOptTypeVar, DataTypeVar],
 ):
     """Abstract base class for coating layer."""
 
-    Parameters: Type[ParametersType]
-    DrawOptions: Type[DrawOptionsType]
-    DecoOptions: Type[DecoOptionsType]
-    Data: Type[DataType]
+    ParamType: Type[ParamTypeVar]
+    DrawOptType: Type[DrawOptTypeVar]
+    DecoOptType: Type[DecoOptTypeVar]
+    DataType: Type[DataTypeVar]
 
     def __init__(
         self,
         image: npt.NDArray[np.uint8],
-        substrate: SubstrateType,
-        parameters: Optional[ParametersType] = None,
+        substrate: SubstTypeVar,
+        parameters: Optional[ParamTypeVar] = None,
         *,
-        draw_options: Optional[DrawOptionsType] = None,
-        deco_options: Optional[DecoOptionsType] = None,
+        draw_options: Optional[DrawOptTypeVar] = None,
+        deco_options: Optional[DecoOptTypeVar] = None,
         tempmatch: Optional[Tuple[Tuple[int, int], float]] = None,
     ):
         """Initialize the instance."""
@@ -62,24 +62,24 @@ class CoatingLayerBase(
         self._substrate = substrate
 
         if parameters is None:
-            self._parameters = self.Parameters()
+            self._parameters = self.ParamType()
         else:
-            if not isinstance(parameters, self.Parameters):
-                raise TypeError(f"{parameters} is not instance of {self.Parameters}")
+            if not isinstance(parameters, self.ParamType):
+                raise TypeError(f"{parameters} is not instance of {self.ParamType}")
             self._parameters = dataclasses.replace(parameters)
 
         if draw_options is None:
-            self._draw_options = self.DrawOptions()
+            self._draw_options = self.DrawOptType()
         else:
-            if not isinstance(draw_options, self.DrawOptions):
-                raise TypeError(f"{draw_options} is not instance of {self.DrawOptions}")
+            if not isinstance(draw_options, self.DrawOptType):
+                raise TypeError(f"{draw_options} is not instance of {self.DrawOptType}")
             self._draw_options = dataclasses.replace(draw_options)
 
         if deco_options is None:
-            self._deco_options = self.DecoOptions()
+            self._deco_options = self.DecoOptType()
         else:
-            if not isinstance(deco_options, self.DecoOptions):
-                raise TypeError(f"{deco_options} is not instance of {self.DecoOptions}")
+            if not isinstance(deco_options, self.DecoOptType):
+                raise TypeError(f"{deco_options} is not instance of {self.DecoOptType}")
             self._deco_options = dataclasses.replace(deco_options)
 
         if tempmatch is None:
@@ -101,40 +101,40 @@ class CoatingLayerBase(
         return self._image
 
     @property
-    def substrate(self) -> SubstrateType:
+    def substrate(self) -> SubstTypeVar:
         """Substrate instance passed to the constructor."""
         return self._substrate
 
     @property
-    def parameters(self) -> ParametersType:
+    def parameters(self) -> ParamTypeVar:
         """Additional parameters for concrete class.
 
-        Instance of :attr:`Parameters`, which must be a frozen dataclass.
+        Instance of :attr:`ParamType`, which must be a frozen dataclass.
         """
         return self._parameters
 
     @property
-    def draw_options(self) -> DrawOptionsType:
+    def draw_options(self) -> DrawOptTypeVar:
         """Options to visualize the coated substrate image.
 
-        Instance of :attr:`DrawOptions` dataclass.
+        Instance of :attr:`DrawOptType` dataclass.
         """
         return self._draw_options
 
     @draw_options.setter
-    def draw_options(self, options: DrawOptionsType):
+    def draw_options(self, options: DrawOptTypeVar):
         self._draw_options = options
 
     @property
-    def deco_options(self) -> DecoOptionsType:
+    def deco_options(self) -> DecoOptTypeVar:
         """Options to decorate the coating layer region.
 
-        Instance of :attr:`DecoOptions` dataclass.
+        Instance of :attr:`DecoOptType` dataclass.
         """
         return self._deco_options
 
     @deco_options.setter
-    def deco_options(self, options: DecoOptionsType):
+    def deco_options(self, options: DecoOptTypeVar):
         self._deco_options = options
 
     @property
@@ -180,7 +180,7 @@ class CoatingLayerBase(
         """
 
     @abc.abstractmethod
-    def analyze(self) -> DataType:
+    def analyze(self) -> DataTypeVar:
         """Analyze the coated substrate image and return the data.
 
         May raise error if the instance is not valid.
@@ -327,10 +327,10 @@ class CoatingLayer(
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
     """
 
-    Parameters = Parameters
-    DrawOptions = DrawOptions
-    DecoOptions = DecoOptions
-    Data = Data
+    ParamType = Parameters
+    DrawOptType = DrawOptions
+    DecoOptType = DecoOptions
+    DataType = Data
 
     SubtractionMode = SubtractionMode
 
@@ -387,7 +387,7 @@ class CoatingLayer(
 
     def analyze(self):
         """Return analysis data."""
-        return self.Data()
+        return self.DataType()
 
 
 def images_XOR(

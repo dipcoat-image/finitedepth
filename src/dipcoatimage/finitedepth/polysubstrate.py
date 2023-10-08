@@ -1,6 +1,6 @@
 """Polygonal substrate."""
 import dataclasses
-from typing import Tuple, Type, TypeVar
+from typing import Tuple, TypeVar
 
 import numpy as np
 import numpy.typing as npt
@@ -10,7 +10,7 @@ from scipy.ndimage import gaussian_filter1d  # type: ignore
 from scipy.signal import find_peaks, peak_prominences  # type: ignore
 
 from .cache import attrcache
-from .substrate import DataType, DrawOptionsType, ReferenceType, SubstrateBase
+from .substrate import DataTypeVar, DrawOptTypeVar, RefTypeVar, SubstrateBase
 
 __all__ = [
     "PolySubstrateBase",
@@ -44,11 +44,11 @@ class Parameters:
 ROTATION_MATRIX = np.array([[0, 1], [-1, 0]])
 
 
-ParametersType = TypeVar("ParametersType", bound=Parameters)
+ParamTypeVar = TypeVar("ParamTypeVar", bound=Parameters)
 
 
 class PolySubstrateBase(
-    SubstrateBase[ReferenceType, ParametersType, DrawOptionsType, DataType]
+    SubstrateBase[RefTypeVar, ParamTypeVar, DrawOptTypeVar, DataTypeVar]
 ):
     """Abstract base class for substrates whose cross section is a simple polygon.
 
@@ -70,9 +70,6 @@ class PolySubstrateBase(
     .. [#simple-polygon] https://en.wikipedia.org/wiki/Simple_polygon
     """
 
-    Parameters: Type[ParametersType]
-    DrawOptions: Type[DrawOptionsType]
-    Data: Type[DataType]
     SidesNum: int
 
     def region_points(self) -> npt.NDArray[np.int32]:

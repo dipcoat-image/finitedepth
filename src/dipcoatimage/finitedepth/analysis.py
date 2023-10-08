@@ -25,10 +25,10 @@ __all__ = [
 ]
 
 
-ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
+ParamTypeVar = TypeVar("ParamTypeVar", bound="DataclassInstance")
 
 
-class AnalysisBase(Coroutine, Generic[ParametersType]):
+class AnalysisBase(Coroutine, Generic[ParamTypeVar]):
     """Class to save the analysis result.
 
     Subclass must implement :meth:`__await__` which saves the analysis result.
@@ -38,11 +38,11 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
 
     Constructor signature must not be modified because high-level API use factory
     to generate experiment instances. Additional parameters can be introduced
-    by definig class attribute :attr:`Parameters``.
+    by definig class attribute :attr:`ParamType``.
 
-    .. rubric:: Parameters
+    .. rubric:: ParamType
 
-    Concrete class must have :attr:`Parameters` which returns dataclass type.
+    Concrete class must have :attr:`ParamType` which returns dataclass type.
     Its instance is passed to the constructor at instance initialization, and can
     be accessed by :attr:`parameters`.
 
@@ -55,26 +55,26 @@ class AnalysisBase(Coroutine, Generic[ParametersType]):
     Validity of the parameters can be checked by :meth:`verify`.
     """
 
-    Parameters: Type[ParametersType]
+    ParamType: Type[ParamTypeVar]
 
     def __init__(
         self,
-        parameters: Optional[ParametersType] = None,
+        parameters: Optional[ParamTypeVar] = None,
         *,
         fps: float = 0.0,
     ):
         """Initialize the instance."""
         if parameters is None:
-            self._parameters = self.Parameters()
+            self._parameters = self.ParamType()
         else:
-            if not isinstance(parameters, self.Parameters):
-                raise TypeError(f"{parameters} is not instance of {self.Parameters}")
+            if not isinstance(parameters, self.ParamType):
+                raise TypeError(f"{parameters} is not instance of {self.ParamType}")
             self._parameters = dataclasses.replace(parameters)
         self._fps = fps
         self._iterator = self.__await__()
 
     @property
-    def parameters(self) -> ParametersType:
+    def parameters(self) -> ParamTypeVar:
         """Analysis parameters."""
         return self._parameters
 
@@ -207,7 +207,7 @@ class Analysis(AnalysisBase[Parameters]):
     same substrate instance.
     """
 
-    Parameters = Parameters
+    ParamType = Parameters
 
     DataWriters = dict(csv=CSVWriter)
 
@@ -315,7 +315,7 @@ class Analysis(AnalysisBase[Parameters]):
 
             if ref_data:
                 headers = [
-                    f.name for f in dataclasses.fields(layer.substrate.reference.Data)
+                    f.name for f in dataclasses.fields(layer.substrate.reference.DataType)
                 ]
                 rd_writer.send(headers)
                 data = list(dataclasses.astuple(layer.substrate.reference.analyze()))
@@ -325,7 +325,7 @@ class Analysis(AnalysisBase[Parameters]):
                 rv_writer.send(layer.substrate.reference.draw())
 
             if subst_data:
-                headers = [f.name for f in dataclasses.fields(layer.substrate.Data)]
+                headers = [f.name for f in dataclasses.fields(layer.substrate.DataType)]
                 sd_writer.send(headers)
                 data = list(dataclasses.astuple(layer.substrate.analyze()))
                 sd_writer.send(data)
@@ -334,7 +334,7 @@ class Analysis(AnalysisBase[Parameters]):
                 sv_writer.send(layer.substrate.draw())
 
             if layer_data:
-                headers = [f.name for f in dataclasses.fields(layer.Data)]
+                headers = [f.name for f in dataclasses.fields(layer.DataType)]
                 if fps:
                     headers = ["time (s)"] + headers
                 ld_writer.send(headers)

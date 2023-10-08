@@ -21,14 +21,14 @@ __all__ = [
 ]
 
 
-ReferenceType = TypeVar("ReferenceType", bound=ReferenceBase)
-ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
-DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
-DataType = TypeVar("DataType", bound="DataclassInstance")
+RefTypeVar = TypeVar("RefTypeVar", bound=ReferenceBase)
+ParamTypeVar = TypeVar("ParamTypeVar", bound="DataclassInstance")
+DrawOptTypeVar = TypeVar("DrawOptTypeVar", bound="DataclassInstance")
+DataTypeVar = TypeVar("DataTypeVar", bound="DataclassInstance")
 
 
 class SubstrateBase(
-    abc.ABC, Generic[ReferenceType, ParametersType, DrawOptionsType, DataType]
+    abc.ABC, Generic[RefTypeVar, ParamTypeVar, DrawOptTypeVar, DataTypeVar]
 ):
     """Abstract base class for substrate.
 
@@ -39,17 +39,17 @@ class SubstrateBase(
 
     Constructor signature must not be modified because high-level API use factory
     to generate substrate instances. Additional parameters can be introduced by
-    definig class attribute :attr:`Parameters` and :attr:`DrawOptions`.
+    definig class attribute :attr:`ParamType` and :attr:`DrawOptType`.
 
-    .. rubric:: Parameters and DrawOptions
+    .. rubric:: ParamType and DrawOptType
 
-    Concrete class must have :attr:`Parameters` and :attr:`DrawOptions` which
+    Concrete class must have :attr:`ParamType` and :attr:`DrawOptType` which
     return dataclass types. Their instances are passed to the constructor at
     instance initialization, and can be accessed by :attr:`parameters` and
     :attr:`draw_options`.
 
     :attr:`Parameter` must be frozen to ensure immtability for caching. However,
-    :attr:`DrawOptions` need not be frozen since visualization does not affect
+    :attr:`DrawOptType` need not be frozen since visualization does not affect
     the identity of instance. Therefore methods affected by draw options must
     not be cached.
 
@@ -64,64 +64,65 @@ class SubstrateBase(
 
     .. rubric:: Analysis
 
-    Concrete class must have :attr:`Data` which returns dataclass type and
+    Concrete class must have :attr:`DataType` which returns dataclass type and
     implement :meth:`analyze_substrate` which returns data tuple compatible with
-    :attr:`Data`.
+    :attr:`DataType`.
     :meth:`analyze` is the API for analysis result.
     """
 
-    Parameters: Type[ParametersType]
-    DrawOptions: Type[DrawOptionsType]
-    Data: Type[DataType]
+    ParamType: Type[ParamTypeVar]
+    DrawOptType: Type[DrawOptTypeVar]
+    DataType: Type[DataTypeVar]
 
     def __init__(
         self,
-        reference: ReferenceType,
-        parameters: Optional[ParametersType] = None,
+        reference: RefTypeVar,
+        parameters: Optional[ParamTypeVar] = None,
         *,
-        draw_options: Optional[DrawOptionsType] = None,
+        draw_options: Optional[DrawOptTypeVar] = None,
     ):
         """Initialize the instance."""
         super().__init__()
+        # Do not type check reference (can be protocol)
         self._ref = reference
 
         if parameters is None:
-            self._parameters = self.Parameters()
+            self._parameters = self.ParamType()
         else:
-            if not isinstance(parameters, self.Parameters):
-                raise TypeError(f"{parameters} is not instance of {self.Parameters}")
+            if not isinstance(parameters, self.ParamType):
+                raise TypeError(f"{parameters} is not instance of {self.ParamType}")
             self._parameters = dataclasses.replace(parameters)
 
         if draw_options is None:
-            self._draw_options = self.DrawOptions()
+            self._draw_options = self.DrawOptType()
         else:
-            if not isinstance(draw_options, self.DrawOptions):
-                raise TypeError(f"{draw_options} is not instance of {self.DrawOptions}")
+            if not isinstance(draw_options, self.DrawOptType):
+                raise TypeError(f"{draw_options} is not instance of {self.DrawOptType}")
             self._draw_options = dataclasses.replace(draw_options)
 
     @property
-    def reference(self) -> ReferenceType:
+    def reference(self) -> RefTypeVar:
         """Substrate reference instance passed to constructor."""
         return self._ref
 
     @property
-    def parameters(self) -> ParametersType:
+    def parameters(self) -> ParamTypeVar:
         """Additional parameters for concrete class.
 
-        Instance of :attr:`Parameters`, which must be a frozen dataclass.
+        Instance of :attr:`ParamType`, which must be a frozen dataclass.
         """
         return self._parameters
 
     @property
-    def draw_options(self) -> DrawOptionsType:
+    def draw_options(self) -> DrawOptTypeVar:
         """Options to visualize the image.
 
-        Instance of :attr:`DrawOptions` dataclass.
+        Instance of :attr:`DrawOptType` dataclass.
         """
         return self._draw_options
 
     @draw_options.setter
-    def draw_options(self, options: DrawOptionsType):
+    def draw_options(self, options: DrawOptTypeVar):
         self._draw_options = options
 
     def image(self) -> npt.NDArray[np.uint8]:
@@ -218,7 +219,7 @@ class SubstrateBase(
         """Decorate and return the substrate image as RGB format."""
 
     @abc.abstractmethod
-    def analyze(self) -> DataType:
+    def analyze(self) -> DataTypeVar:
         """Analyze the substrate image and return the data.
 
         May raise error if the instance is not valid.
@@ -278,9 +279,9 @@ class Substrate(SubstrateBase[ReferenceBase, Parameters, DrawOptions, Data]):
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
     """
 
-    Parameters = Parameters
-    DrawOptions = DrawOptions
-    Data = Data
+    ParamType = Parameters
+    DrawOptType = DrawOptions
+    DataType = Data
 
     def region_points(self) -> npt.NDArray[np.int32]:
         """Return a point in substrate region."""
@@ -297,4 +298,4 @@ class Substrate(SubstrateBase[ReferenceBase, Parameters, DrawOptions, Data]):
 
     def analyze(self):
         """Return analysis data."""
-        return self.Data()
+        return self.DataType()

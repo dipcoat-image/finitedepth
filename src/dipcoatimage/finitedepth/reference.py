@@ -20,9 +20,9 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "ParametersType",
-    "DrawOptionsType",
-    "DataType",
+    "ParamTypeVar",
+    "DrawOptTypeVar",
+    "DataTypeVar",
     "DynamicROI",
     "StaticROI",
     "ReferenceBase",
@@ -34,12 +34,12 @@ __all__ = [
 ]
 
 
-ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
-"""Type variable for :attr:`ReferenceBase.Parameters`."""
-DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
-"""Type variable for :attr:`ReferenceBase.DrawOptions`."""
-DataType = TypeVar("DataType", bound="DataclassInstance")
-"""Type variable for :attr:`ReferenceBase.Data`."""
+ParamTypeVar = TypeVar("ParamTypeVar", bound="DataclassInstance")
+"""Type variable for :attr:`ReferenceBase.ParamType`."""
+DrawOptTypeVar = TypeVar("DrawOptTypeVar", bound="DataclassInstance")
+"""Type variable for :attr:`ReferenceBase.DrawOptType`."""
+DataTypeVar = TypeVar("DataTypeVar", bound="DataclassInstance")
+"""Type variable for :attr:`ReferenceBase.DataType`."""
 
 DynamicROI = Tuple[Optional[int], Optional[int], Optional[int], Optional[int]]
 """Type annotation for ROI whose upper limits can be dynamically determined.
@@ -55,7 +55,7 @@ nonnegative :class:`int`.
 """
 
 
-class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType]):
+class ReferenceBase(abc.ABC, Generic[ParamTypeVar, DrawOptTypeVar, DataTypeVar]):
     """Abstract base class for reference instance.
 
     Reference instance stores a reference image, which is a binary image of
@@ -72,37 +72,37 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
     Concrete subclass must assign dataclasses types to the
     following class attributes:
 
-    * :attr:`Parameters`: Type of :attr:`parameters`.
-    * :attr:`DrawOptions`: Type of :attr:`draw_options`.
-    * :attr:`Data`: Type of :meth:`analyze`.
+    * :attr:`ParamType`: Type of :attr:`parameters`.
+    * :attr:`DrawOptType`: Type of :attr:`draw_options`.
+    * :attr:`DataType`: Type of :meth:`analyze`.
 
     Arguments:
         image: Binary reference image.
         templateROI: ROI for template region.
         substrateROI: ROI for substrate region.
         parameters: Analysis parameters.
-            If passed, must be an instance of :attr:`Parameters`.
-            If not passed, attempts to construct :attr:`Parameters`
+            If passed, must be an instance of :attr:`ParamType`.
+            If not passed, attempts to construct :attr:`ParamType`
             instance without argument.
         draw_options: Visualization options.
-            If passed, must be an instance of :attr:`DrawOptions`.
-            If not passed, attempts to construct :attr:`DrawOptions`
+            If passed, must be an instance of :attr:`DrawOptType`.
+            If not passed, attempts to construct :attr:`DrawOptType`
             instance without argument.
     """
 
-    Parameters: Type[ParametersType]
+    ParamType: Type[ParamTypeVar]
     """Type of :attr:`parameters.`
 
     This class attribute is defined but not set in :class:`ReferenceBase`.
     Concrete subclass must assign this attribute with frozen dataclass type.
     """
-    DrawOptions: Type[DrawOptionsType]
+    DrawOptType: Type[DrawOptTypeVar]
     """Type of :attr:`draw_options.`
 
     This class attribute is defined but not set in :class:`ReferenceBase`.
     Concrete subclass must assign this attribute with dataclass type.
     """
-    Data: Type[DataType]
+    DataType: Type[DataTypeVar]
     """Type of return value of :attr:`analyze.`
 
     This class attribute is defined but not set in :class:`ReferenceBase`.
@@ -114,9 +114,9 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         image: npt.NDArray[np.uint8],
         templateROI: DynamicROI = (0, 0, None, None),
         substrateROI: DynamicROI = (0, 0, None, None),
-        parameters: Optional[ParametersType] = None,
+        parameters: Optional[ParamTypeVar] = None,
         *,
-        draw_options: Optional[DrawOptionsType] = None,
+        draw_options: Optional[DrawOptTypeVar] = None,
     ):
         """Initialize the instance.
 
@@ -134,17 +134,17 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         self._substrateROI = sanitize_ROI(substrateROI, h, w)
 
         if parameters is None:
-            self._parameters = self.Parameters()
+            self._parameters = self.ParamType()
         else:
-            if not isinstance(parameters, self.Parameters):
-                raise TypeError(f"{parameters} is not instance of {self.Parameters}")
+            if not isinstance(parameters, self.ParamType):
+                raise TypeError(f"{parameters} is not instance of {self.ParamType}")
             self._parameters = parameters
 
         if draw_options is None:
-            self._draw_options = self.DrawOptions()
+            self._draw_options = self.DrawOptType()
         else:
-            if not isinstance(draw_options, self.DrawOptions):
-                raise TypeError(f"{draw_options} is not instance of {self.DrawOptions}")
+            if not isinstance(draw_options, self.DrawOptType):
+                raise TypeError(f"{draw_options} is not instance of {self.DrawOptType}")
             self._draw_options = dataclasses.replace(draw_options)
 
     @property
@@ -167,11 +167,11 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         return self._substrateROI
 
     @property
-    def parameters(self) -> ParametersType:
+    def parameters(self) -> ParamTypeVar:
         """Analysis parameters.
 
         This property returns a frozen dataclass instance.
-        Its type is :attr:`Parameters`.
+        Its type is :attr:`ParamType`.
 
         Note:
             This dataclass must be frozen to allow caching.
@@ -179,16 +179,16 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         return self._parameters
 
     @property
-    def draw_options(self) -> DrawOptionsType:
+    def draw_options(self) -> DrawOptTypeVar:
         """Visualization options.
 
         This property returns a mutable dataclass instance.
-        Its type is :attr:`DrawOptions`.
+        Its type is :attr:`DrawOptType`.
         """
         return self._draw_options
 
     @draw_options.setter
-    def draw_options(self, options: DrawOptionsType):
+    def draw_options(self, options: DrawOptTypeVar):
         self._draw_options = options
 
     @abc.abstractmethod
@@ -210,11 +210,11 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         """
 
     @abc.abstractmethod
-    def analyze(self) -> DataType:
+    def analyze(self) -> DataTypeVar:
         """Return analysis data of the reference image.
 
         This method returns analysis result as a dataclass instance
-        whose type is :attr:`Data`. If analysis is impossible,
+        whose type is :attr:`DataType`. If analysis is impossible,
         error may be raised.
         """
 
@@ -293,11 +293,11 @@ class Reference(
             >>> plt.imshow(ref.draw()) #doctest: +SKIP
     """
 
-    Parameters = ReferenceParameters
+    ParamType = ReferenceParameters
     """Assigned with :class:`ReferenceParameters`."""
-    DrawOptions = ReferenceDrawOptions
+    DrawOptType = ReferenceDrawOptions
     """Assigned with :class:`ReferenceDrawOptions`."""
-    Data = ReferenceData
+    DataType = ReferenceData
     """Assigned with :class:`ReferenceData`."""
 
     def verify(self):
@@ -325,7 +325,7 @@ class Reference(
 
     def analyze(self):
         """Implements :meth:`ReferenceBase.analyze`."""
-        return self.Data()
+        return self.DataType()
 
 
 def sanitize_ROI(roi: DynamicROI, h: int, w: int) -> StaticROI:

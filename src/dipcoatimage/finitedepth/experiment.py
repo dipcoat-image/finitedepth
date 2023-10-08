@@ -21,11 +21,11 @@ __all__ = [
 ]
 
 
-CoatingLayerType = TypeVar("CoatingLayerType", bound=CoatingLayerBase)
-ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
+LayerTypeVar = TypeVar("LayerTypeVar", bound=CoatingLayerBase)
+ParamTypeVar = TypeVar("ParamTypeVar", bound="DataclassInstance")
 
 
-class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
+class ExperimentBase(abc.ABC, Generic[LayerTypeVar, ParamTypeVar]):
     """Abstract base class for coating layer factory.
 
     Experiment is an act of transforming incoming coated substrate images to
@@ -37,11 +37,11 @@ class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
 
     Constructor signature must not be modified because high-level API use factory
     to generate experiment instances. Additional parameters can be introduced
-    by definig class attribute :attr:`Parameters``.
+    by definig class attribute :attr:`ParamType``.
 
-    .. rubric:: Parameters
+    .. rubric:: ParamType
 
-    Concrete class must have :attr:`Parameters` which returns dataclass type.
+    Concrete class must have :attr:`ParamType` which returns dataclass type.
     Its instance is passed to the constructor at instance initialization, and can
     be accessed by :attr:`parameters`.
 
@@ -58,19 +58,19 @@ class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
     data (e.g., actuator log).
     """
 
-    Parameters: Type[ParametersType]
+    ParamType: Type[ParamTypeVar]
 
-    def __init__(self, *, parameters: Optional[ParametersType] = None):
+    def __init__(self, *, parameters: Optional[ParamTypeVar] = None):
         """Initialize the instance."""
         if parameters is None:
-            self._parameters = self.Parameters()
+            self._parameters = self.ParamType()
         else:
-            if not isinstance(parameters, self.Parameters):
-                raise TypeError(f"{parameters} is not instance of {self.Parameters}")
+            if not isinstance(parameters, self.ParamType):
+                raise TypeError(f"{parameters} is not instance of {self.ParamType}")
             self._parameters = dataclasses.replace(parameters)
 
     @property
-    def parameters(self) -> ParametersType:
+    def parameters(self) -> ParamTypeVar:
         """Coating layer construction parameters."""
         return self._parameters
 
@@ -84,11 +84,11 @@ class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
         image: npt.NDArray[np.uint8],
         substrate: SubstrateBase,
         *,
-        layer_type: Type[CoatingLayerType],
+        layer_type: Type[LayerTypeVar],
         layer_parameters: Optional["DataclassInstance"] = None,
         layer_drawoptions: Optional["DataclassInstance"] = None,
         layer_decooptions: Optional["DataclassInstance"] = None,
-    ) -> CoatingLayerType:
+    ) -> LayerTypeVar:
         """Create coating layer.
 
         Implementation may define custom way to create new instance. For example,
@@ -118,7 +118,7 @@ class Experiment(ExperimentBase[CoatingLayerBase, Parameters]):
     Specifying the window can significantly boost the evaluation.
     """
 
-    Parameters = Parameters
+    ParamType = Parameters
 
     def verify(self):
         """Check error."""
