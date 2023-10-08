@@ -315,7 +315,8 @@ class Analysis(AnalysisBase[Parameters]):
 
             if ref_data:
                 headers = [
-                    f.name for f in dataclasses.fields(layer.substrate.reference.DataType)
+                    f.name
+                    for f in dataclasses.fields(layer.substrate.reference.DataType)
                 ]
                 rd_writer.send(headers)
                 data = list(dataclasses.astuple(layer.substrate.reference.analyze()))
