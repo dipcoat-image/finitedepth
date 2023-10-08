@@ -212,7 +212,7 @@ class SubstrateBase(
     ) -> Tuple[Tuple[npt.NDArray[np.int32], ...], npt.NDArray[np.int32]]:
         """Find contours of a discrete substrate region.
 
-        Parameters:
+        Arguments:
             region: Label of the discrete region from :meth:`regions`.
 
         Returns:
@@ -220,7 +220,6 @@ class SubstrateBase(
 
         Note:
             Contours are dense, i.e., no approximation is made.
-
         """
         if not hasattr(self, "_contours"):
             contours = []
