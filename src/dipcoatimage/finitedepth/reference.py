@@ -121,9 +121,12 @@ class ReferenceBase(abc.ABC, Generic[ParamTypeVar, DrawOptTypeVar, DataTypeVar])
         """Initialize the instance.
 
         - *image* is set to be immutable.
-        - *templateROI* and *substrateROI* are converted with
-          :func:`sanitize_ROI`.
-        - *draw_options* is copied.
+        - *templateROI* and *substrateROI* are converted using :func:`sanitize_ROI`.
+        - *parameters* must be instance of :attr:`ParamType` or :obj:`None`.
+          If :obj:`None`, a :attr:`ParamType` is attempted to be constructed.
+        - *draw_options* must be instance of :attr:`DrawOptType` or :obj:`None`.
+          If :obj:`None`, a :attr:`DrawOptType` is attempted to be constructed.
+          If :attr:`DrawOptType`, the values are copied.
         """
         super().__init__()
         self._image = image
@@ -205,8 +208,8 @@ class ReferenceBase(abc.ABC, Generic[ParamTypeVar, DrawOptTypeVar, DataTypeVar])
     def draw(self) -> npt.NDArray[np.uint8]:
         """Return visualization result in RGB format.
 
-        This method must always return without error. If visualization cannot be done,
-        it should at least return original image.
+        This method must always return without error. If visualization
+        cannot be done, it should at least return original image.
         """
 
     @abc.abstractmethod
@@ -256,9 +259,7 @@ class Data:
     pass
 
 
-class Reference(
-    ReferenceBase[Parameters, DrawOptions, Data]
-):
+class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
     """Basic implementation of :class:`ReferenceBase`.
 
     Arguments:
