@@ -310,8 +310,6 @@ class Substrate(SubstrateBase[ReferenceBase, SubstParam, SubstDrawOpt, SubstData
             >>> tempROI = (200, 50, 1200, 200)
             >>> substROI = (400, 175, 1000, 500)
             >>> ref = Reference(im, tempROI, substROI)
-            >>> import matplotlib.pyplot as plt #doctest: +SKIP
-            >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
         Construct `Substrate` instance from reference instance.
 
@@ -321,6 +319,7 @@ class Substrate(SubstrateBase[ReferenceBase, SubstParam, SubstDrawOpt, SubstData
 
             >>> from dipcoatimage.finitedepth import Substrate
             >>> subst = Substrate(ref)
+            >>> import matplotlib.pyplot as plt #doctest: +SKIP
             >>> plt.imshow(subst.draw()) #doctest: +SKIP
     """
 
