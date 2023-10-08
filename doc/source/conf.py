@@ -38,6 +38,7 @@ author = "Jisoo Song"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "sphinx.ext.autodoc",
     "autoapi.extension",
@@ -53,6 +54,8 @@ templates_path = ["_templates"]
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []  # type: ignore
+
+mathjax_path = "scipy-mathjax/MathJax.js?config=scipy-mathjax"
 
 autodoc_typehints = "description"
 autoapi_python_use_implicit_namespaces = True

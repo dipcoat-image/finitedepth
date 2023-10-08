@@ -175,13 +175,15 @@ class PolySubstrateBase(
         by :attr:`parameters`.
 
         Returns:
-            Vector of line parameters in $(\rho, \theta)$.
-            $\rho$ is the distance from the coordinate origin.
-            $\theta$ is the angle of normal vector from the origin to the line.
+            Vector of line parameters in :math:`(\rho, \theta)`.
+            :math:`\rho` is the distance from the coordinate origin.
+            :math:`\theta` is the angle of normal vector from the origin to the line.
 
         Note:
-            Range of angle is $\theta \in (-\frac{3 \pi}{2}, \frac{\pi}{2}]$.
-            Arctangent direction can be acquired by $\theta + \frac{\pi}{2}$.
+            Range of angle is
+            :math:`\theta \in (-\frac{3 \pi}{2}, \frac{\pi}{2}]`.
+            Arctangent direction can be acquired by
+            :math:`\theta + \frac{\pi}{2}`.
 
         References:
             .. [#extended-side] https://en.wikipedia.org/wiki/Extended_side
