@@ -59,8 +59,8 @@ class ReferenceBase(abc.ABC, Generic[ParamTypeVar, DrawOptTypeVar, DataTypeVar])
     """Abstract base class for reference instance.
 
     Reference instance stores a reference image, which is a binary image of
-    uncoated substrate. It also contains ROIs for template region and
-    substrate region in the image.
+    uncoated substrate. It also contains ROIs for template image and
+    substrate image in the reference image.
 
     Reference instance can visualize its data and analyze the reference image
     by the following methods:
@@ -78,8 +78,8 @@ class ReferenceBase(abc.ABC, Generic[ParamTypeVar, DrawOptTypeVar, DataTypeVar])
 
     Arguments:
         image: Binary reference image.
-        templateROI: ROI for template region.
-        substrateROI: ROI for substrate region.
+        templateROI: ROI for template image.
+        substrateROI: ROI for substrate image.
         parameters: Analysis parameters.
             If passed, must be an instance of :attr:`ParamType`.
             If not passed, attempts to construct :attr:`ParamType`
@@ -161,12 +161,12 @@ class ReferenceBase(abc.ABC, Generic[ParamTypeVar, DrawOptTypeVar, DataTypeVar])
 
     @property
     def templateROI(self) -> StaticROI:
-        """ROI for template region."""
+        """ROI for template image."""
         return self._templateROI
 
     @property
     def substrateROI(self) -> StaticROI:
-        """ROI for substrate region."""
+        """ROI for substrate image."""
         return self._substrateROI
 
     @property

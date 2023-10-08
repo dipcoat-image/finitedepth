@@ -48,8 +48,8 @@ class SubstrateBase(
     """Abstract base class for substrate instance.
 
     Substrate instance stores a substrate image, which is a binary image of
-    substrate region from reference instance. The role of substrate instance
-    is to analyze the shape of the bare substrate.
+    bare substrate acquired from reference instance. The role of substrate
+    instance is to analyze the shape of the bare substrate.
 
     Substrate instance can visualize its data and analyze the substrate image
     by the following methods:
@@ -168,44 +168,38 @@ class SubstrateBase(
 
     @abc.abstractmethod
     def region_points(self) -> npt.NDArray[np.int32]:
-        """Points in `[x, y]` in each discrete substrate region.
+        """Coordinates of points in each discrete substrate region.
 
-        Returns
-        -------
-        ndarray
+        Substrate image can have multiple discrete substrate regions.
+        Subclass should implement this method to return coordinates of points,
+        one for each region.
+
+        Returns:
             `(N, 2)`-shaped array, where `N` is the number of discrete substrate
-            regions.
+            regions. Column should be the coordinates of points in ``(x, y)``.
 
-        Notes
-        -----
-        These points are used to locate and distinguish each substrate region
-        from foreground pixels. Every image analysis implementation is based on
-        these points.
+        Note:
+            These points are used to distinguish substrate regions from other
+            foreground pixels, and give indices to each region.
 
-        Subclass should implement this method to return robust points. The
-        implementation must be simple and non-dynamic. Returning just the center
-        point of the image is a good example; selection of the substrate region
-        from the reference image must be done to obey this rule (e.g., select
-        s.t. the center point falls on the substrate region)
+            As higher-level methods are expected to rely on this method,
+            implementation must be simple and non-dynamic.
+            See :meth:`Substrate.region_points` for example.
         """
 
     @attrcache("_regions")
     def regions(self) -> npt.NDArray[np.int8]:
-        """Return image labelled by each discrete substrate regions.
+        """Labelled image of discrete substrate regions.
 
-        Returns
-        -------
-        ndarray
-            Labelled image. `i`-th region in :meth:`region_points` is labelled
-            with `i`. `-1` denotes background.
+        Substrate regions are determined as connected component including
+        a point in :meth:`region_points`.
 
-        Notes
-        -----
-        Maximum number of regions is 128.
+        Returns:
+            Labelled image. Value of ``i`` represents ``i``-th region in
+            :meth:`region_points. ``-1`` represents background.
 
-        See Also
-        --------
-        region_points
+        Note:
+            Maximum number of regions is 128.
         """
         ret = np.full(self.image().shape[:2], -1, dtype=np.int8)
         _, labels = cv2.connectedComponents(cv2.bitwise_not(self.image()))
@@ -216,25 +210,17 @@ class SubstrateBase(
     def contours(
         self, region: int
     ) -> Tuple[Tuple[npt.NDArray[np.int32], ...], npt.NDArray[np.int32]]:
-        """Find contours of a substrate region identified by *region*.
+        """Find contours of a discrete substrate region.
 
-        Parameters
-        ----------
-        region : int
-            Label in :meth:`regions`.
+        Parameters:
+            region: Label of the discrete region from :meth:`regions`.
 
-        Returns
-        -------
-        tuple
+        Returns:
             Tuple of the result of :func:`cv2.findContours`.
 
-        Notes
-        -----
-        Contours are dense, i.e., no approximation is made.
+        Note:
+            Contours are dense, i.e., no approximation is made.
 
-        See Also
-        --------
-        regions
         """
         if not hasattr(self, "_contours"):
             contours = []
@@ -347,7 +333,33 @@ class Substrate(SubstrateBase[ReferenceBase, SubstParam, SubstDrawOpt, SubstData
     """Assigned with :class:`SubstData`."""
 
     def region_points(self) -> npt.NDArray[np.int32]:
-        """Return a point in substrate region."""
+        """Implements :meth:`SubstrateBase.region_points`.
+
+        This method returns an upper center point of the substrate image.
+        Substrate ROI in reference image must be selected so that
+        this point falls into substrate region.
+
+        Examples:
+            .. plot::
+                :include-source:
+                :context: reset
+
+                >>> import cv2
+                >>> from dipcoatimage.finitedepth import get_data_path, Reference
+                >>> ref_path = get_data_path("ref1.png")
+                >>> gray = cv2.imread(ref_path, cv2.IMREAD_GRAYSCALE)
+                >>> _, im = cv2.threshold(
+                ...     gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
+                ... )
+                >>> tempROI = (200, 50, 1200, 200)
+                >>> substROI = (400, 175, 1000, 500)
+                >>> ref = Reference(im, tempROI, substROI)
+                >>> from dipcoatimage.finitedepth import Substrate
+                >>> subst = Substrate(ref)
+                >>> import matplotlib.pyplot as plt #doctest: +SKIP
+                >>> plt.imshow(subst.draw())  #doctest: +SKIP
+                >>> plt.plot(*subst.region_points().T, "o")  #doctest: +SKIP
+        """
         w = self.image().shape[1]
         return np.array([[w / 2, 0]], dtype=np.int32)
 
