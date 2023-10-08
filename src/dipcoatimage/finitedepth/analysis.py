@@ -175,7 +175,7 @@ def CSVWriter(path: str):
 
 
 @dataclasses.dataclass(frozen=True)
-class Parameters:
+class AnalysisParam:
     """Parameters for `Analysis`.
 
     Attributes
@@ -200,14 +200,14 @@ class Parameters:
     layer_fourcc: str = ""
 
 
-class Analysis(AnalysisBase[Parameters]):
+class Analysis(AnalysisBase[AnalysisParam]):
     """Basic analysis class.
 
     Every coating layer instance sent to the coroutine is assumed to have same type and
     same substrate instance.
     """
 
-    ParamType = Parameters
+    ParamType = AnalysisParam
 
     DataWriters = dict(csv=CSVWriter)
 

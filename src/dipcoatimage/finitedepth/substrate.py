@@ -25,9 +25,9 @@ __all__ = [
     "DrawOptTypeVar",
     "DataTypeVar",
     "SubstrateBase",
-    "Parameters",
-    "DrawOptions",
-    "Data",
+    "SubstParam",
+    "SubstDrawOpt",
+    "SubstData",
     "Substrate",
 ]
 
@@ -259,8 +259,8 @@ class SubstrateBase(
     def draw(self) -> npt.NDArray[np.uint8]:
         """Return visualization result in RGB format.
 
-        This method must always return without error. If visualization
-        cannot be done, it should at least return original image.
+        This method must always return without error. If visualization cannot be done,
+        it should at least return original image.
         """
 
     @abc.abstractmethod
@@ -274,7 +274,7 @@ class SubstrateBase(
 
 
 @dataclasses.dataclass(frozen=True)
-class Parameters:
+class SubstParam:
     """Analysis parameters for :class:`Substrate`.
 
     This is an empty dataclass.
@@ -284,7 +284,7 @@ class Parameters:
 
 
 @dataclasses.dataclass
-class DrawOptions:
+class SubstDrawOpt:
     """Visualization options for :class:`Reference`.
 
     This is an empty dataclass.
@@ -294,7 +294,7 @@ class DrawOptions:
 
 
 @dataclasses.dataclass
-class Data:
+class SubstData:
     """Analysis data for :class:`Substrate`.
 
     This is an empty dataclass.
@@ -303,13 +303,13 @@ class Data:
     pass
 
 
-class Substrate(SubstrateBase[ReferenceBase, Parameters, DrawOptions, Data]):
+class Substrate(SubstrateBase[ReferenceBase, SubstParam, SubstDrawOpt, SubstData]):
     """Basic implementation of :class:`SubstrateBase`.
 
     Arguments:
         reference
-        parameters (Parameters, optional)
-        draw_options (DrawOptions, optional)
+        parameters (SubstParam, optional)
+        draw_options (SubstDrawOpt, optional)
 
     Examples:
         Construct substrate reference instance first.
@@ -339,12 +339,12 @@ class Substrate(SubstrateBase[ReferenceBase, Parameters, DrawOptions, Data]):
             >>> plt.imshow(subst.draw()) #doctest: +SKIP
     """
 
-    ParamType = Parameters
-    """Assigned with :class:`Parameters`."""
-    DrawOptType = DrawOptions
-    """Assigned with :class:`DrawOptions`."""
-    DataType = Data
-    """Assigned with :class:`Data`."""
+    ParamType = SubstParam
+    """Assigned with :class:`SubstParam`."""
+    DrawOptType = SubstDrawOpt
+    """Assigned with :class:`SubstDrawOpt`."""
+    DataType = SubstData
+    """Assigned with :class:`SubstData`."""
 
     def region_points(self) -> npt.NDArray[np.int32]:
         """Return a point in substrate region."""

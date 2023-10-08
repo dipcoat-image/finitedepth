@@ -188,7 +188,7 @@ class CoatingLayerBase(
 
 
 @dataclasses.dataclass(frozen=True)
-class Parameters:
+class LayerParam:
     """Additional parameters for `CoatingLayer` instance."""
 
     pass
@@ -219,7 +219,7 @@ class SubtractionMode(enum.Enum):
 
 
 @dataclasses.dataclass
-class DrawOptions:
+class LayerDrawOpt:
     """Drawing options for `CoatingLayer` instance.
 
     Attributes
@@ -231,7 +231,7 @@ class DrawOptions:
 
 
 @dataclasses.dataclass
-class DecoOptions:
+class LayerDecoOpt:
     """Options to show the coating layer of `CoatingLayer`.
 
     Attributes
@@ -250,7 +250,7 @@ class DecoOptions:
 
 
 @dataclasses.dataclass
-class Data:
+class LayerData:
     """Analysis data for `CoatingLayer`."""
 
     pass
@@ -259,10 +259,10 @@ class Data:
 class CoatingLayer(
     CoatingLayerBase[
         SubstrateBase,
-        Parameters,
-        DrawOptions,
-        DecoOptions,
-        Data,
+        LayerParam,
+        LayerDrawOpt,
+        LayerDecoOpt,
+        LayerData,
     ]
 ):
     """Basic implementation of coating layer.
@@ -327,10 +327,10 @@ class CoatingLayer(
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
     """
 
-    ParamType = Parameters
-    DrawOptType = DrawOptions
-    DecoOptType = DecoOptions
-    DataType = Data
+    ParamType = LayerParam
+    DrawOptType = LayerDrawOpt
+    DecoOptType = LayerDecoOpt
+    DataType = LayerData
 
     SubtractionMode = SubtractionMode
 

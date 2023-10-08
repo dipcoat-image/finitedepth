@@ -26,9 +26,9 @@ __all__ = [
     "DynamicROI",
     "StaticROI",
     "ReferenceBase",
-    "Parameters",
-    "DrawOptions",
-    "Data",
+    "RefParam",
+    "RefDrawOpt",
+    "RefData",
     "Reference",
     "sanitize_ROI",
 ]
@@ -208,8 +208,8 @@ class ReferenceBase(abc.ABC, Generic[ParamTypeVar, DrawOptTypeVar, DataTypeVar])
     def draw(self) -> npt.NDArray[np.uint8]:
         """Return visualization result in RGB format.
 
-        This method must always return without error. If visualization
-        cannot be done, it should at least return original image.
+        This method must always return without error. If visualization cannot be done,
+        it should at least return original image.
         """
 
     @abc.abstractmethod
@@ -223,7 +223,7 @@ class ReferenceBase(abc.ABC, Generic[ParamTypeVar, DrawOptTypeVar, DataTypeVar])
 
 
 @dataclasses.dataclass(frozen=True)
-class Parameters:
+class RefParam:
     """Analysis parameters for :class:`Reference`.
 
     This is an empty dataclass.
@@ -233,7 +233,7 @@ class Parameters:
 
 
 @dataclasses.dataclass
-class DrawOptions:
+class RefDrawOpt:
     """Visualization options for :class:`Reference`.
 
     Arguments:
@@ -250,7 +250,7 @@ class DrawOptions:
 
 
 @dataclasses.dataclass
-class Data:
+class RefData:
     """Analysis data for :class:`Reference`.
 
     This is an empty dataclass.
@@ -259,15 +259,15 @@ class Data:
     pass
 
 
-class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
+class Reference(ReferenceBase[RefParam, RefDrawOpt, RefData]):
     """Basic implementation of :class:`ReferenceBase`.
 
     Arguments:
         image
         templateROI
         substrateROI
-        parameters (Parameters, optional)
-        draw_options (DrawOptions, optional)
+        parameters (RefParam, optional)
+        draw_options (RefDrawOpt, optional)
 
     Examples:
         .. plot::
@@ -294,12 +294,12 @@ class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
             >>> plt.imshow(ref.draw()) #doctest: +SKIP
     """
 
-    ParamType = Parameters
-    """Assigned with :class:`Parameters`."""
-    DrawOptType = DrawOptions
-    """Assigned with :class:`DrawOptions`."""
-    DataType = Data
-    """Assigned with :class:`Data`."""
+    ParamType = RefParam
+    """Assigned with :class:`RefParam`."""
+    DrawOptType = RefDrawOpt
+    """Assigned with :class:`RefDrawOpt`."""
+    DataType = RefData
+    """Assigned with :class:`RefData`."""
 
     def verify(self):
         """Implements :meth:`ReferenceBase.verify`."""

@@ -165,7 +165,7 @@ class DistanceMeasure(enum.Enum):
 
 
 @dataclasses.dataclass(frozen=True)
-class Parameters:
+class RectLayerShapeParam:
     """Analysis parameters for `RectLayerShape` instance.
 
     Attributes
@@ -200,7 +200,7 @@ class PaintMode(enum.Enum):
 
 
 @dataclasses.dataclass
-class DrawOptions:
+class RectLayerShapeDrawOpt:
     """Drawing options for `RectLayerShape` instance.
 
     Attributes
@@ -234,7 +234,7 @@ class LinesOptions:
 
 
 @dataclasses.dataclass
-class DecoOptions:
+class RectLayerShapeDecoOptions:
     """Options to show the analysis result on `RectLayerShape`.
 
     Attributes
@@ -270,7 +270,7 @@ class DecoOptions:
 
 
 @dataclasses.dataclass
-class Data:
+class RectLayerShapeData:
     """Analysis data for `RectLayerShape` instance.
 
     - LayerLength_{Left, Right}: Distance between the bottom sideline of the
@@ -302,10 +302,10 @@ class Data:
 
 class RectLayerShape(
     RectCoatingLayerBase[
-        Parameters,
-        DrawOptions,
-        DecoOptions,
-        Data,
+        RectLayerShapeParam,
+        RectLayerShapeDrawOpt,
+        RectLayerShapeDecoOptions,
+        RectLayerShapeData,
     ]
 ):
     """Coating layer over rectangular substrate.
@@ -358,10 +358,10 @@ class RectLayerShape(
        >>> plt.imshow(coat.draw()) #doctest: +SKIP
     """
 
-    ParamType = Parameters
-    DrawOptType = DrawOptions
-    DecoOptType = DecoOptions
-    DataType = Data
+    ParamType = RectLayerShapeParam
+    DrawOptType = RectLayerShapeDrawOpt
+    DecoOptType = RectLayerShapeDecoOptions
+    DataType = RectLayerShapeData
 
     DistanceMeasure = DistanceMeasure
     PaintMode = PaintMode

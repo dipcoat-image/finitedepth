@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 
 from .parameters import LineOptions, MarkerOptions
-from .polysubstrate import Parameters, PolySubstrateBase
+from .polysubstrate import PolySubstParam, PolySubstrateBase
 from .reference import ReferenceBase
 
 __all__ = [
@@ -31,7 +31,7 @@ class PaintMode(enum.Enum):
 
 
 @dataclasses.dataclass
-class DrawOptions:
+class RectSubstDrawOpt:
     """Drawing options for `RectSubstrate`.
 
     Attributes
@@ -51,7 +51,7 @@ class DrawOptions:
 
 
 @dataclasses.dataclass
-class Data:
+class RectSubstData:
     """Analysis data for `RectSubstrate`.
 
     - Width: Number of the pixels between lower vertices of the substrate.
@@ -60,7 +60,9 @@ class Data:
     Width: np.float32
 
 
-class RectSubstrate(PolySubstrateBase[ReferenceBase, Parameters, DrawOptions, Data]):
+class RectSubstrate(
+    PolySubstrateBase[ReferenceBase, PolySubstParam, RectSubstDrawOpt, RectSubstData]
+):
     """Simplest implementation of `RectSubstrateBase`.
 
     Examples
@@ -104,9 +106,9 @@ class RectSubstrate(PolySubstrateBase[ReferenceBase, Parameters, DrawOptions, Da
        >>> plt.imshow(subst.draw()) #doctest: +SKIP
     """
 
-    ParamType = Parameters
-    DrawOptType = DrawOptions
-    DataType = Data
+    ParamType = PolySubstParam
+    DrawOptType = RectSubstDrawOpt
+    DataType = RectSubstData
     SidesNum = 4
 
     PaintMode = PaintMode

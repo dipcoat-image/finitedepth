@@ -19,7 +19,7 @@ __all__ = [
 
 
 @dataclasses.dataclass(frozen=True)
-class Parameters:
+class PolySubstParam:
     """Parameters for `PolySubstrate`.
 
     Attributes
@@ -44,7 +44,7 @@ class Parameters:
 ROTATION_MATRIX = np.array([[0, 1], [-1, 0]])
 
 
-ParamTypeVar = TypeVar("ParamTypeVar", bound=Parameters)
+ParamTypeVar = TypeVar("ParamTypeVar", bound=PolySubstParam)
 
 
 class PolySubstrateBase(

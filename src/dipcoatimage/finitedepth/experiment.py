@@ -99,7 +99,7 @@ class ExperimentBase(abc.ABC, Generic[LayerTypeVar, ParamTypeVar]):
 
 
 @dataclasses.dataclass(frozen=True)
-class Parameters:
+class ExptParam:
     """Additional parameters for `Experiment` instance.
 
     Attributes
@@ -112,13 +112,13 @@ class Parameters:
     window: Tuple[int, int] = (-1, -1)
 
 
-class Experiment(ExperimentBase[CoatingLayerBase, Parameters]):
+class Experiment(ExperimentBase[CoatingLayerBase, ExptParam]):
     """Experiment class with adjustable template matching window.
 
     Specifying the window can significantly boost the evaluation.
     """
 
-    ParamType = Parameters
+    ParamType = ExptParam
 
     def verify(self):
         """Check error."""

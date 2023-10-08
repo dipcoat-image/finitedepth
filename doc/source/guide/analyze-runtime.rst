@@ -125,7 +125,7 @@ The following returns empty data because :class:`Reference`
 does not define any numerical analysis:
 
 >>> ref.analyze()
-ReferenceData()
+RefData()
 
 .. _howto-substrate:
 
@@ -183,7 +183,7 @@ Now you might be starting to see the repeating design pattern.
     :context: close-figs
 
     >>> subst.analyze()
-    Data(Width=525.98883)
+    RectSubstData(Width=525.98883)
     >>> subst.draw_options.vertices.linewidth = 3
     >>> plt.imshow(subst.draw())  #doctest: +SKIP
 
@@ -277,7 +277,7 @@ method returns numerical data.
     :context: close-figs
 
     >>> coat.analyze()
-    Data(LayerLength_Left=236.6932474452997, ...)
+    RectLayerShapeData(LayerLength_Left=236.69...)
     >>> coat.draw_options.subtraction = coat.SubtractionMode.TEMPLATE
     >>> coat.deco_options.roughness.linewidth = 0
     >>> plt.imshow(coat.draw())  #doctest: +SKIP
