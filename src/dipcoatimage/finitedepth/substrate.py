@@ -297,7 +297,7 @@ class Substrate(SubstrateBase[ReferenceBase, SubstParam, SubstDrawOpt, SubstData
         draw_options (SubstDrawOpt, optional)
 
     Examples:
-        Construct substrate reference instance first.
+        Construct reference instance first.
 
         .. plot::
             :include-source:
@@ -311,7 +311,7 @@ class Substrate(SubstrateBase[ReferenceBase, SubstParam, SubstDrawOpt, SubstData
             >>> substROI = (400, 175, 1000, 500)
             >>> ref = Reference(im, tempROI, substROI)
 
-        Construct `Substrate` instance from reference instance.
+        Construct substrate instance from the reference instance.
 
         .. plot::
             :include-source:

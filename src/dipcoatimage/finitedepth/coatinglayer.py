@@ -317,7 +317,10 @@ class CoatingLayerBase(
 
 @dataclasses.dataclass(frozen=True)
 class LayerParam:
-    """Additional parameters for `CoatingLayer` instance."""
+    """Analysis parameters for :class:`CoatingLayer`.
+
+    This is an empty dataclass.
+    """
 
     pass
 
@@ -328,16 +331,12 @@ class SubtractionMode(enum.Enum):
     Template matching result is shown by subtracting the pixels from the
     background.
 
-    Members
-    -------
-    NONE
-        Do not show the template matching result.
-    TEMPLATE
-        Subtract the template ROI.
-    SUBSTRRATE
-        Subtract the substrate ROI.
-    FULL
-        Subtract both template and substrate ROIs.
+    .. rubric:: **Members**
+
+    - NONE: Do not show the template matching result.
+    - TEMPLATE: Subtract the template ROI.
+    - SUBSTRRATE: Subtract the substrate ROI.
+    - FULL: Subtract both template and substrate ROIs.
     """
 
     NONE = "NONE"
@@ -348,23 +347,17 @@ class SubtractionMode(enum.Enum):
 
 @dataclasses.dataclass
 class LayerDrawOpt:
-    """Drawing options for `CoatingLayer` instance.
-
-    Attributes
-    ----------
-    subtraction : SubtractionMode
-    """
+    """Drawing options for :class:`CoatingLayer`."""
 
     subtraction: SubtractionMode = SubtractionMode.NONE
 
 
 @dataclasses.dataclass
 class LayerDecoOpt:
-    """Options to show the coating layer of `CoatingLayer`.
+    """Decorating options for :class:`CoatingLayer`.
 
-    Attributes
-    ----------
-    layer : PatchOptions
+    Arguments:
+        layer: Determine how the coating layer is painted.
     """
 
     layer: PatchOptions = dataclasses.field(
@@ -379,7 +372,10 @@ class LayerDecoOpt:
 
 @dataclasses.dataclass
 class LayerData:
-    """Analysis data for `CoatingLayer`."""
+    """Analysis data for :class:`CoatingLayer`.
+
+    This is an empty dataclass.
+    """
 
     pass
 
@@ -393,81 +389,87 @@ class CoatingLayer(
         LayerData,
     ]
 ):
-    """Basic implementation of coating layer.
+    """Basic implementation of :class:`CoatingLayerBase`.
 
-    Examples
-    --------
-    Construct substrate reference instance first.
+    Arguments:
+        image
+        substrate
+        parameters (LayerParam, optional)
+        draw_options (LayerDrawOpt, optional)
+        deco_options (LayerDecoOpt, optional)
+        tempmatch
 
-    .. plot::
-       :include-source:
-       :context: reset
+    Examples:
+        Construct substrate instance first.
 
-       >>> import cv2
-       >>> from dipcoatimage.finitedepth import Reference, get_data_path
-       >>> gray = cv2.imread(get_data_path("ref1.png"), cv2.IMREAD_GRAYSCALE)
-       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-       >>> tempROI = (200, 50, 1200, 200)
-       >>> substROI = (400, 175, 1000, 500)
-       >>> ref = Reference(img, tempROI, substROI)
-       >>> import matplotlib.pyplot as plt #doctest: +SKIP
-       >>> plt.imshow(ref.draw()) #doctest: +SKIP
+        .. plot::
+            :include-source:
+            :context: reset
 
-    Construct substrate instance from reference instance.
+            >>> import cv2
+            >>> from dipcoatimage.finitedepth import Reference, get_data_path
+            >>> gray = cv2.imread(get_data_path("ref1.png"), cv2.IMREAD_GRAYSCALE)
+            >>> _, im = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+            >>> tempROI = (200, 50, 1200, 200)
+            >>> substROI = (400, 175, 1000, 500)
+            >>> ref = Reference(im, tempROI, substROI)
+            >>> from dipcoatimage.finitedepth import Substrate
+            >>> subst = Substrate(ref)
 
-    .. plot::
-       :include-source:
-       :context: close-figs
+        Construct coating layer instance from target image and the substrate instance.
 
-       >>> from dipcoatimage.finitedepth import Substrate
-       >>> subst = Substrate(ref)
-       >>> plt.imshow(subst.draw()) #doctest: +SKIP
+        .. plot::
+            :include-source:
+            :context: close-figs
 
-    Construct `CoatingLayer` from substrate instance. :meth:`analyze` returns
-    the number of pixels in coating area region.
+            >>> from dipcoatimage.finitedepth import CoatingLayer
+            >>> gray = cv2.imread(get_data_path("coat1.png"), cv2.IMREAD_GRAYSCALE)
+            >>> _, im = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+            >>> coat = CoatingLayer(im, subst)
+            >>> import matplotlib.pyplot as plt #doctest: +SKIP
+            >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
-    .. plot::
-       :include-source:
-       :context: close-figs
+        :attr:`draw_options` controls visualization of the substrate region.
 
-       >>> from dipcoatimage.finitedepth import CoatingLayer
-       >>> gray = cv2.imread(get_data_path("coat1.png"), cv2.IMREAD_GRAYSCALE)
-       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-       >>> coat = CoatingLayer(img, subst)
-       >>> plt.imshow(coat.draw()) #doctest: +SKIP
+        .. plot::
+            :include-source:
+            :context: close-figs
 
-    :attr:`draw_options` controls the overall visualization.
+            >>> coat.draw_options.subtraction = coat.SubtractionMode.FULL
+            >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
-    .. plot::
-       :include-source:
-       :context: close-figs
+        :attr:`deco_options` controls visualization of the coating layer region.
 
-       >>> coat.draw_options.subtraction = coat.SubtractionMode.FULL
-       >>> plt.imshow(coat.draw()) #doctest: +SKIP
+        .. plot::
+            :include-source:
+            :context: close-figs
 
-    :attr:`deco_options` controls the decoration of coating layer reigon.
-
-    .. plot::
-       :include-source:
-       :context: close-figs
-
-       >>> coat.deco_options.layer.facecolor = (255, 0, 255)
-       >>> plt.imshow(coat.draw()) #doctest: +SKIP
+            >>> coat.deco_options.layer.facecolor = (255, 0, 255)
+            >>> plt.imshow(coat.draw()) #doctest: +SKIP
     """
 
     ParamType = LayerParam
+    """Assigned with :class:`LayerParam`."""
     DrawOptType = LayerDrawOpt
+    """Assigned with :class:`LayerDrawOpt`."""
     DecoOptType = LayerDecoOpt
+    """Assigned with :class:`LayerDecoOpt`."""
     DataType = LayerData
+    """Assigned with :class:`LayerData`."""
 
     SubtractionMode = SubtractionMode
+    """Assigned with :class:`SubtractionMode`."""
 
     def verify(self):
-        """Check error."""
+        """Implements :meth:`CoatingLayerBase.verify`."""
         pass
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        """Return visualized image."""
+        """Implements :meth:`CoatingLayerBase.draw`.
+
+        #. Display the template matching result with :class:`SubtractionMode`.
+        #. Draw the coating layer with :class:`PatchOptions`.
+        """
         image = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
 
         subtraction = self.draw_options.subtraction
@@ -523,14 +525,12 @@ def images_XOR(
     img2: npt.NDArray[np.bool_],
     point: Tuple[int, int] = (0, 0),
 ) -> npt.NDArray[np.bool_]:
-    """Subtract *img2* from *img1* at *point* by XOR operation.
+    """Perform subtraction between two images by XOR operation.
 
-    This function leaves the pixels that exist either in *img1* or *img2*. It
-    can be used to visualize the template matching error.
-
-    See Also
-    --------
-    images_ANDXOR
+    Arguments:
+        img1: Image from which *img2* is subtracted.
+        img2: Image patch which is subtracted from *img1*.
+        point: Location in *img1* where *img2* is subtracted.
     """
     H, W = img1.shape
     h, w = img2.shape
@@ -549,14 +549,12 @@ def images_ANDXOR(
     img2: npt.NDArray[np.bool_],
     point: Tuple[int, int] = (0, 0),
 ) -> npt.NDArray[np.bool_]:
-    """Subtract *img2* from *img1* at *point* by AND and XOR operation.
+    """Perform subtraction between two images by AND and XOR operations.
 
-    This function leaves the pixels that exist in *img1* but not in *img2*. It
-    can be used to extract the coating layer pixels.
-
-    See Also
-    --------
-    images_XOR
+    Arguments:
+        img1: Image from which *img2* is subtracted.
+        img2: Image patch which is subtracted from *img1*.
+        point: Location in *img1* where *img2* is subtracted.
     """
     H, W = img1.shape
     h, w = img2.shape

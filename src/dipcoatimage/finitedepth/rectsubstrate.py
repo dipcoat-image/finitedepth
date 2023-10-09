@@ -71,7 +71,7 @@ class RectSubstrate(
     """Simplest implementation of :class:`RectSubstrateBase`.
 
     Examples:
-        Construct substrate reference instance first.
+        Construct reference instance first.
 
         .. plot::
             :include-source:
@@ -85,7 +85,7 @@ class RectSubstrate(
             >>> substROI = (100, 100, 1200, 500)
             >>> ref = Reference(im, tempROI, substROI)
 
-        Construct the parameters and substrate instance from reference instance.
+        Construct substrate instance from the reference instance.
 
         .. plot::
             :include-source:
