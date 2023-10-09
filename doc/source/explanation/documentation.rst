@@ -46,6 +46,10 @@ Therefore docstrings are meticulously written with the following rule:
 #. Classes/modules must have documentation for its attributes.
     This way, ``help(Foo)`` will explain ``Foo.bar``.
     Similary, ``foo`` will be explained by its module docstring.
+#. However, module does not need to document type annotation.
+    For example, :obj:`reference.DynamicROI` does not need to be documented in
+    docstring of :mod:`reference`.
+    This is because interactive user does not need to access typing system.
 #. Docstrings only for :mod:`autoapi` should be kept to minimum.
     We don't want to remove them because they provide useful links.
     For example, we keep docstring for ``Foo.bar`` but it is mainly documented
@@ -54,6 +58,12 @@ Therefore docstrings are meticulously written with the following rule:
     For example, :attr:`RectSubstrate.SidesNum` has value ``4``, which is
     automatically shown in documentation. We don't need to write something like
     ``"SidesNum has value 4"`` anywhere.
+#. Documentation must look good.
+    For example, :attr:`Reference.ParamType` has value :class:`reference.RefParam`
+    but it is not automatically shown in documentation. Therefore we write an
+    attribute docstring indicating its value.
+    Since interactive user can easily find out the attribute value,
+    this information does not need to be written in class docstring.
 
 Class constructors
 ------------------
