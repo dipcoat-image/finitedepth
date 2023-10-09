@@ -1,5 +1,10 @@
-"""Coating layer over rectangular substrate."""
+"""Analyze coating layer over rectangular substrate.
 
+This module defines :class:`RectCoatingLayerBase`, which is an
+abstract base class for coating layer over rectangular substrate.
+Also, its implementation :class:`RectLayerShape` is defined, which quantifies
+several measures for the layer shape.
+"""
 import dataclasses
 import enum
 from typing import Tuple
@@ -26,6 +31,13 @@ from .rectsubstrate import RectSubstrate
 
 __all__ = [
     "RectCoatingLayerBase",
+    "DistanceMeasure",
+    "RectLayerShapeParam",
+    "PaintMode",
+    "RectLayerShapeDrawOpt",
+    "LinesOptions",
+    "RectLayerShapeDecoOptions",
+    "RectLayerShapeData",
     "RectLayerShape",
     "equidistant_interpolate",
     "polyline_parallel_area",
@@ -152,12 +164,10 @@ class RectCoatingLayerBase(
 class DistanceMeasure(enum.Enum):
     """Distance measures to compute the curve similarity.
 
-    Members
-    -------
-    DTW
-        Dynamic time warping.
-    SDTW
-        Squared dynamic time warping.
+    .. rubric:: **Members**
+
+    - DTW: Dynamic time warping.
+    - SDTW: Squared dynamic time warping.
     """
 
     DTW = "DTW"
@@ -166,17 +176,15 @@ class DistanceMeasure(enum.Enum):
 
 @dataclasses.dataclass(frozen=True)
 class RectLayerShapeParam:
-    """Analysis parameters for `RectLayerShape` instance.
+    """Analysis parameters for :class:`RectLayerShape`.
 
-    Attributes
-    ----------
-    KernelSize : tuple
-        Size of the kernel for morphological operation to remove noises.
-    ReconstructRadius : int
-        Connected components outside of this radius from bottom corners of the
-        substrate are regarded as image artifacts.
-    RoughnessMeasure : DistanceMeasure
-        Measure to compute layer roughness.
+    Arguments:
+        KernelSize: Size of the kernel for morphological operation.
+        ReconstructRadius: Radius of the "safe zone" for noise removal.
+            Draws imagniary circles having this radius on bottom corners of the
+            substrate. Connected components not passing these circles are
+            regarded as image artifacts.
+        RoughnessMeasure: Measure to compute layer roughness.
     """
 
     KernelSize: Tuple[int, int]
@@ -187,12 +195,10 @@ class RectLayerShapeParam:
 class PaintMode(enum.Enum):
     """Option to determine how the coating layer image is painted.
 
-    Members
-    -------
-    ORIGINAL
-        Show the original image.
-    EMPTY
-        Show empty image. Only the layer will be drawn.
+    .. rubric:: **Members**
+
+    ORIGINAL: Show the original image.
+    EMPTY: Show empty image. Only the layer will be drawn.
     """
 
     ORIGINAL = "ORIGINAL"
@@ -201,13 +207,7 @@ class PaintMode(enum.Enum):
 
 @dataclasses.dataclass
 class RectLayerShapeDrawOpt:
-    """Drawing options for `RectLayerShape` instance.
-
-    Attributes
-    ----------
-    paint : PaintMode
-    subtraction : SubtractionMode
-    """
+    """Drawing options for :class:`RectLayerShape`."""
 
     paint: PaintMode = PaintMode.ORIGINAL
     subtraction: SubtractionMode = SubtractionMode.NONE
@@ -217,15 +217,12 @@ class RectLayerShapeDrawOpt:
 class LinesOptions:
     """Parameters to draw lines in the image.
 
-    Attributes
-    ----------
-    color : tuple
-        Color of the lines in RGB
-    linewidth : int
-        Width of the line.
-        Zero value is the flag to not draw the line.
-    step : int
-        Steps to jump the lines. `1` draws every line.
+    Arguments:
+        color: Color of the lines in RGB
+        linewidth: Width of the line.
+            If ``0``, lines are not drawn.
+        step: Steps to jump the lines.
+            `1` draws every line.
     """
 
     color: Tuple[int, int, int] = (0, 0, 0)
@@ -235,13 +232,14 @@ class LinesOptions:
 
 @dataclasses.dataclass
 class RectLayerShapeDecoOptions:
-    """Options to show the analysis result on `RectLayerShape`.
+    """Decorating options for :class:`RectLayerShape`.
 
-    Attributes
-    ----------
-    layer : PatchOptions
-    contact_line, thickness, uniform_layer : LineOptions
-    conformality, roughness : LinesOptions
+    Arguments:
+        layer: Determine how the coating layer is painted.
+        contact_line: Determine how the contact line is drawn.
+        thickness: Determine how the regional maximum thicknesses are drawn.
+        uniform_layer: Determine how the imaginary uniform layer is drawn.
+        conformality, roughness: Determine how the optimal pairs are drawn.
     """
 
     layer: PatchOptions = dataclasses.field(
@@ -271,19 +269,17 @@ class RectLayerShapeDecoOptions:
 
 @dataclasses.dataclass
 class RectLayerShapeData:
-    """Analysis data for `RectLayerShape` instance.
+    """Analysis data for :class:`RectLayerShape`.
 
-    - LayerLength_{Left, Right}: Distance between the bottom sideline of the
-      substrate and the upper limit of the coating layer.
-    - Conformality: Conformality of the coating layer.
-    - AverageThickness: Average thickness of the coating layer.
-    - Roughness: Roughness of the coating layer.
-    - MaxThickness_{Left, Bottom, Right}: Number of the pixels for the maximum
-      thickness on each region.
-
-    The following data are the metadata for the analysis.
-
-    - MatchError: Template matching error between 0 to 1. 0 means perfect match.
+    Arguments:
+        LayerLength_Left, LayerLength_Right: Length of the layer on each wall.
+        Conformality: Conformality of the coating layer.
+        AverageThickness: Average thickness of the coating layer.
+        Roughness: Roughness of the coating layer.
+        MaxThickness_Left, MaxThickness_Bottom, MaxThickness_Right: Regional maximum
+            thicknesses.
+        MatchError: Template matching error between ``0`` to ``1``.
+            ``0`` means perfect match.
     """
 
     LayerLength_Left: np.float64

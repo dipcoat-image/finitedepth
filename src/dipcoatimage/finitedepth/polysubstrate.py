@@ -26,7 +26,7 @@ __all__ = [
 
 @dataclasses.dataclass(frozen=True)
 class PolySubstParam:
-    """Analysis parameters for `PolySubstrate`.
+    """Analysis parameters for :class:`PolySubstrate`.
 
     Arguments:
         Sigma: Standard deviation of Gaussian kernel to smooth the noise.
