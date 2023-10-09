@@ -55,6 +55,8 @@ class PolySubstrateBase(
     """Abstract base class for substrate whose cross section is a simple polygon.
 
     A simple polygon does not have intersection nor hole [#simple-polygon]_.
+    Smooth corners are allowed.
+
     The following substrate images are not supported:
 
     * Multiple substrates in one image

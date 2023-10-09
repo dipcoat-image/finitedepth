@@ -54,11 +54,15 @@ class RectCoatingLayerBase(
         RectSubstrate, ParamTypeVar, DrawOptTypeVar, DecoOptTypeVar, DataTypeVar
     ]
 ):
-    """Abstract base class for coating layer over rectangular substrate."""
+    """Abstract base class for coating layer over :class:`RectSubstrate`."""
 
     @attrcache("_layer_contours")
     def layer_contours(self) -> Tuple[npt.NDArray[np.int32], ...]:
-        """Return contours of :meth:`extract_layer`."""
+        """Find contours of coating layer region.
+
+        This method finds external contours of :meth:`CoatingLayerBase.extract_layer`.
+        Each contour encloses each discrete region of coating layer.
+        """
         layer_cnts, _ = cv2.findContours(
             self.extract_layer().astype(np.uint8),
             cv2.RETR_EXTERNAL,
@@ -68,25 +72,28 @@ class RectCoatingLayerBase(
 
     @attrcache("_interfaces")
     def interfaces(self) -> Tuple[npt.NDArray[np.int64], ...]:
-        """Find indices of solid-liquid interfaces on :meth:`SubstrateBase.contour`.
+        """Find solid-liquid interfaces.
 
-        Returns
-        -------
-        tuple
+        This method returnss indices in :meth:`SubstrateBase.contour` where
+        solid-liquid interfaces start and stop.
+
+        A substrate can have contact with multiple discrete coating layer regions,
+        and a single coating layer region can have multiple contacts to the substrate.
+        The interfaces are detected by points in :meth:`SubstrateBase.contour`
+        adjacent to any of the point in :meth:`layer_contours`.
+
+        Returns:
             Tuple of arrays.
-            - Each array represents layer contours.
-            - Array contains indices of the interface intervals of layer contour.
+            - ``i``-th array represents ``i``-th coating layer region in
+              :meth:`layer_contours`.
+            - Shape of the array is ``(N, 2)``. ``N`` is the number of contacts the
+              coating layer region makes. Each column represents starting and
+              ending indices for the interface interval in substrate contour.
 
-        Notes
-        -----
-        A substrate can be covered by multiple blobs of coating layer, and a
-        single blob can make multiple contacts to a substrate. Each array in a
-        tuple represents each blob. The shape of the array is `(N, 2)`, where
-        `N` is the number of interface intervals.
-
-        Each interval describes continuous patch on the substrate contour covered
-        by the layer. To acquire the interface points, slice the substrate
-        contour with the indices.
+        Note:
+            Each interval describes continuous patch on the substrate contour covered
+            by the layer. To acquire the interface points, slice the substrate contour
+            with the indices.
         """
         subst_cnt = self.substrate.contour() + self.substrate_point()
         ret = []
