@@ -132,7 +132,7 @@ class SubstrateBase(
 
     @property
     def reference(self) -> RefTypeVar:
-        """Reference instance which defines the substrate image."""
+        """Reference instance for substrate image."""
         return self._ref
 
     @property
