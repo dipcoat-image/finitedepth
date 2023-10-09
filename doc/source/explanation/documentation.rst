@@ -59,7 +59,7 @@ Therefore docstrings are meticulously written with the following rule:
     automatically shown in documentation. We don't need to write something like
     ``"SidesNum has value 4"`` anywhere.
 #. Documentation must look good.
-    For example, :attr:`Reference.ParamType` has value :class:`reference.RefParam`
+    For example, :attr:`Reference.ParamType` is :class:`reference.RefParam`
     but it is not automatically shown in documentation. Therefore we write an
     attribute docstring indicating its value.
     Since interactive user can easily find out the attribute value,
