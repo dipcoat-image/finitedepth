@@ -64,7 +64,8 @@ autoapi_template_dir = "_templates/autoapi"
 autoapi_root = "reference"
 
 
-def skip_submodules(app, what, name, obj, skip, options):
+def autoapi_skip(app, what, name, obj, skip, options):
+    # Skip unnecessary submodules
     if what == "module" and name in [
         "finitedepth.version",
         "finitedepth.__main__",
@@ -74,7 +75,7 @@ def skip_submodules(app, what, name, obj, skip, options):
 
 
 def setup(sphinx):
-    sphinx.connect("autoapi-skip-member", skip_submodules)
+    sphinx.connect("autoapi-skip-member", autoapi_skip)
 
 
 intersphinx_mapping = {

@@ -115,7 +115,6 @@ class RectSubstrate(
     DataType = RectSubstData
     """Assigned with :class:`RectSubstData`."""
     SidesNum = 4
-    """Assigned with ``4``."""
 
     PaintMode = PaintMode
     """Shortcut to :class:`PaintMode`."""
