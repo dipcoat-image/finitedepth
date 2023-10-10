@@ -9,6 +9,9 @@ In this document, you will learn how to implement your own analysis program
 by defining custom classes.
 
 DipcoatImage-FiniteDepth provides extensible API with abstract base classes.
+As described in :ref:`howto-runtime`, five abstract base classes consistitute
+the analysis; :class:`ReferenceBase`, :class:`SubstrateBase`,
+:class:`CoatingLayerBase`, :class:`ExperimentBase` and :class:`AnalysisBase`.
 Classes such as :class:`Reference` or :class:`RectSubstrate` are their
 concrete subclasses. By following the same API, you can implement your
 own classes which seamlessly bind with the framework.
@@ -29,13 +32,22 @@ We first define a substrate class which analyzes the substrate geometry.
 Our class will take parameters of :func:`cv2.HoughCircles` and detect the circle from
 substrate image. For simplicity, we do not implement visualization options.
 
+Download :download:`circsubstrate.py`. Its contents are:
+
 .. literalinclude:: circsubstrate.py
     :language: python
 
-Our class can be easily constructed.
+Our class can then be easily constructed.
+Run the following code at where you downloaded ``circsubstrate.py``:
 
 .. plot:: guide/circsubstrate-plot.py
     :include-source:
+
+If any circle is detected, visualization shows the best match with green edge.
+Analysis returns radius of the circle:
+
+>>> subst.analyze()  #doctest: +SKIP
+Data(r=133.4)
 
 Defining coating layer class
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

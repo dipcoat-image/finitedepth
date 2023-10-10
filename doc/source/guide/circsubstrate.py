@@ -23,7 +23,7 @@ class Data:
 
 class CircSubst(SubstrateBase[ReferenceBase, Param, SubstDrawOpt, Data]):
     ParamType = Param
-    DrawOptType = SubstDrawOpt
+    DrawOptType = SubstDrawOpt  # assign dummy dataclass
     DataType = Data
 
     @attrcache("_hough")
@@ -53,3 +53,4 @@ class CircSubst(SubstrateBase[ReferenceBase, Param, SubstDrawOpt, Data]):
 
     def analyze(self):
         return self.DataType(self.hough_circles()[0, 0, 2])
+    
