@@ -27,7 +27,7 @@ class CircSubst(SubstrateBase[ReferenceBase, Param, SubstDrawOpt, Data]):
     DataType = Data
 
     @attrcache("_hough")
-    def houghCircles(self):
+    def hough_circles(self):
         return cv2.HoughCircles(
             self.image(),
             cv2.HOUGH_GRADIENT,
@@ -38,19 +38,18 @@ class CircSubst(SubstrateBase[ReferenceBase, Param, SubstDrawOpt, Data]):
         )
 
     def verify(self):
-        assert self.houghCircles() is not None, "No circle detected"
+        assert self.hough_circles() is not None, "No circle detected"
 
     def region_points(self):
-        x, y, r = np.round(self.houghCircles()[0, 0, :]).astype(np.int32)
+        x, y, _ = np.round(self.hough_circles()[0, 0, :]).astype(np.int32)
         return np.array([[x, y]])
 
     def draw(self):
         img = cv2.cvtColor(self.image(), cv2.COLOR_GRAY2RGB)
-        if self.houghCircles() is not None:
-            x, y, r = np.round(self.houghCircles()[0, 0, :]).astype(np.uint16)
+        if self.hough_circles() is not None:
+            x, y, r = self.hough_circles()[0, 0, :].astype(np.int32)
             cv2.circle(img, (x, y), r, (0, 255, 0), 3)
         return img
 
     def analyze(self):
-        _, _, r = self.houghCircles()[0, 0, :]
-        return self.DataType(r)
+        return self.DataType(self.hough_circles()[0, 0, 2])
