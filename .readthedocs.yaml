@@ -10,7 +10,3 @@ python:
     - path: .
       extra_requirements:
         - doc
-
-submodules:
-  include: all
-  recursive: true
