@@ -37,6 +37,15 @@ Our class can be easily constructed.
 .. plot:: guide/circsubstrate-plot.py
     :include-source:
 
+Defining coating layer class
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. literalinclude:: circlayer.py
+    :language: python
+
+.. plot:: guide/circlayer-plot.py
+    :include-source:
+
 Basic rules
 -----------
 

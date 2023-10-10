@@ -9,7 +9,7 @@ from dipcoatimage.finitedepth.substrate import SubstDrawOpt
 
 
 @dataclasses.dataclass(frozen=True)
-class CircParam:
+class Param:
     dp: float
     minDist: float
     param1: float
@@ -17,14 +17,14 @@ class CircParam:
 
 
 @dataclasses.dataclass(frozen=True)
-class CircleData:
+class Data:
     r: float
 
 
-class CircSubstrate(SubstrateBase[ReferenceBase, CircParam, SubstDrawOpt, CircleData]):
-    ParamType = CircParam
+class CircSubst(SubstrateBase[ReferenceBase, Param, SubstDrawOpt, Data]):
+    ParamType = Param
     DrawOptType = SubstDrawOpt
-    DataType = CircleData
+    DataType = Data
 
     @attrcache("_hough")
     def houghCircles(self):
