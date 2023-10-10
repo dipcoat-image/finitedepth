@@ -144,7 +144,7 @@ class AnalysisBase(Coroutine, Generic[ParamTypeVar]):
 
 def ImageWriter(
     path: str, fourcc: int, fps: float
-) -> Generator[None, Optional[npt.NDArray[np.uint8]], None]:
+) -> Generator[None, npt.NDArray[np.uint8], None]:
     """Coroutine to write incoming RGB images into image file(s) or video file.
 
     This function supports several ways to write image data:
