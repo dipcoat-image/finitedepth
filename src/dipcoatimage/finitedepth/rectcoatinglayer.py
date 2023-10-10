@@ -855,7 +855,7 @@ def acm(cm: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     Returns:
         Accumulated cost matrix.
             The element at `[-1, -1]` is the total sum along the optimal path.
-            If *P* or *Q* is empty, return value is an empty array.
+            If *cm* is empty, return value is an empty array.
 
     References:
         .. [#dtw1] Senin, Pavel. "Dynamic time warping algorithm review."
