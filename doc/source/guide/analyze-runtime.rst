@@ -6,7 +6,7 @@ How to analyze in runtime
 .. currentmodule:: finitedepth
 
 When :ref:`command-line analysis <basic-example>` is invoked, instances of
-the following classes are constructed for the analysis:
+the following classes are constructed:
 
 #. :ref:`Reference class <howto-reference>`
 #. :ref:`Substrate class <howto-substrate>`
@@ -25,9 +25,9 @@ Reference instance
 Reference instance wraps *reference image*, which is a binary image of
 a bare substrate.
 
-The role of the reference instance is to specify regions in the
-reference image which are used by substrate instance and
-coating layer instance.
+The role of the reference instance is to store template region and
+substrate region in the reference image, which are used by substrate instance
+and coating layer instance.
 
 To construct reference instance, we must first read reference image.
 :func:`get_data_path` is a handy function to access the sample data:
@@ -55,8 +55,8 @@ this example, we use :class:`Reference`.
     ...     refimg,
     ...     templateROI=(200, 50, 1200, 200),
     ...     substrateROI=(350, 175, 1000, 500),
-    ...     parameters=Reference.Parameters(),
-    ...     draw_options=Reference.DrawOptions(),
+    ...     parameters=Reference.ParamType(),
+    ...     draw_options=Reference.DrawOptType(),
     ... )
     >>> plt.imshow(ref.draw())  #doctest: +SKIP
 
@@ -75,21 +75,20 @@ subclass.
     reference instance.
 
     The type of the dataclass is defined in
-    :attr:`~ReferenceBase.Parameters` attribute,
+    :attr:`~ReferenceBase.ParamType` attribute,
     which varies by each concrete subclass.
 #. *draw_options* (:obj:`dataclass <dataclasses.dataclass>`)
     Options to visualize the reference instance.
 
     The type of the dataclass is defined in
-    :attr:`~ReferenceBase.DrawOptions` attribute,
+    :attr:`~ReferenceBase.DrawOptType` attribute,
     which varies by each concrete subclass.
 
 .. note::
 
-    In order to use default values, no argument is passed to
-    :attr:`~Reference.Parameters` and
-    :attr:`~Reference.DrawOptions` in this
-    example. Not passing the *parameters* and *draw_options*
+    In this example, we passed :attr:`~Reference.ParamType` and
+    :attr:`~Reference.DrawOptType` with default arguments.
+    Not passing the *parameters* and *draw_options*
     to :class:`Reference` at all has the same effect.
 
     .. code-block:: python
@@ -101,8 +100,8 @@ subclass.
         )
 
     This will try to construct
-    :attr:`~Reference.Parameters` and
-    :attr:`~Reference.DrawOptions` with default
+    :attr:`~Reference.ParamType` and
+    :attr:`~Reference.DrawOptType` with default
     values. Note that this will fail if the dataclasses
     themselves define required fields.
 
@@ -119,14 +118,14 @@ The options can be modified:
 
 :meth:`~ReferenceBase.analyze` method returns numerical analysis
 results wrapped in a dataclass. Its type is defined in
-:attr:`~ReferenceBase.Data` attribute, which varies by each
+:attr:`~ReferenceBase.DataType` attribute, which varies by each
 concrete subclass.
 
 The following returns empty data because :class:`Reference`
 does not define any numerical analysis:
 
 >>> ref.analyze()
-Data()
+RefData()
 
 .. _howto-substrate:
 
@@ -151,8 +150,8 @@ which detects the corners and edges of rectangular substrate.
     >>> from dipcoatimage.finitedepth import RectSubstrate
     >>> subst = RectSubstrate(
     ...     ref,
-    ...     parameters=RectSubstrate.Parameters(Sigma=3.0, Rho=1.0, Theta=0.01),
-    ...     draw_options=RectSubstrate.DrawOptions(),
+    ...     parameters=RectSubstrate.ParamType(Sigma=3.0, Rho=1.0, Theta=0.01),
+    ...     draw_options=RectSubstrate.DrawOptType(),
     ... )
     >>> plt.imshow(subst.draw())  #doctest: +SKIP
 
@@ -165,13 +164,13 @@ more arguments:
     substrate instance.
 
     The type of the dataclass is defined in
-    :attr:`~SubstrateBase.Parameters` attribute,
+    :attr:`~SubstrateBase.ParamType` attribute,
     which varies by each concrete subclass.
 #. *draw_options* (:obj:`dataclass <dataclasses.dataclass>`)
     Options to visualize the substrate instance.
 
     The type of the dataclass is defined in
-    :attr:`~SubstrateBase.DrawOptions` attribute,
+    :attr:`~SubstrateBase.DrawOptType` attribute,
     which varies by each concrete subclass.
 
 :meth:`~SubstrateBase.draw` method returns visualized result which
@@ -184,17 +183,9 @@ Now you might be starting to see the repeating design pattern.
     :context: close-figs
 
     >>> subst.analyze()
-    Data(Width=525.98883)
+    RectSubstData(Width=525.98883)
     >>> subst.draw_options.vertices.linewidth = 3
     >>> plt.imshow(subst.draw())  #doctest: +SKIP
-
-.. note::
-
-    Unlike visualization result, the numerical result is strictly
-    determined by immutable :attr:`SubstrateBase.parameters` and
-    is never changed. This design allows caching of expensive
-    intermediate steps, and applies to reference instance and
-    coating layer instance as well.
 
 .. _howto-coatinglayer:
 
@@ -230,7 +221,7 @@ over :class:`RectSubstrate`.
     :context: close-figs
 
     >>> from dipcoatimage.finitedepth import RectLayerShape
-    >>> layer_param=RectLayerShape.Parameters(
+    >>> layer_param=RectLayerShape.ParamType(
     ...     KernelSize=(1, 1),
     ...     ReconstructRadius=50,
     ...     RoughnessMeasure=RectLayerShape.DistanceMeasure.DTW,
@@ -239,8 +230,8 @@ over :class:`RectSubstrate`.
     ...     coatimg,
     ...     subst,
     ...     parameters=layer_param,
-    ...     draw_options=RectLayerShape.DrawOptions(),
-    ...     deco_options=RectLayerShape.DecoOptions(),
+    ...     draw_options=RectLayerShape.DrawOptType(),
+    ...     deco_options=RectLayerShape.DecoOptType(),
     ... )
     >>> plt.imshow(coat.draw())  #doctest: +SKIP
 
@@ -253,24 +244,24 @@ more arguments:
     coating layer instance.
 
     The type of the dataclass is defined in
-    :attr:`~CoatingLayerBase.Parameters` attribute,
+    :attr:`~CoatingLayerBase.ParamType` attribute,
     which varies by each concrete subclass.
 #. *draw_options* (:obj:`dataclass <dataclasses.dataclass>`)
     Options to visualize the coated substrate.
 
     The type of the dataclass is defined in
-    :attr:`~CoatingLayerBase.DrawOptions` attribute,
+    :attr:`~CoatingLayerBase.DrawOptType` attribute,
     which varies by each concrete subclass.
 #. *deco_options* (:obj:`dataclass <dataclasses.dataclass>`)
     Options to visualize the coating layer.
 
     The type of the dataclass is defined in
-    :attr:`~CoatingLayerBase.DecoOptions` attribute,
+    :attr:`~CoatingLayerBase.DecoOptType` attribute,
     which varies by each concrete subclass.
 #. *tempmatch* (tuple)
     Location of the template region in the target image.
 
-    **NOT FOR DIRECT USE.** This argument is for experiment
+    **NOT FOR DIRECT USE.** This argument is for :class:`ExperimentBase`
     instance to quickly construct coating layer instances,
     which is described in the next section. If not passed,
     the coating layer instance automatically finds the template
@@ -286,16 +277,17 @@ method returns numerical data.
     :context: close-figs
 
     >>> coat.analyze()
-    Data(LayerLength_Left=236.6932474452997, ...)
+    RectLayerShapeData(LayerLength_Left=236.69...)
     >>> coat.draw_options.subtraction = coat.SubtractionMode.TEMPLATE
     >>> coat.deco_options.roughness.linewidth = 0
     >>> plt.imshow(coat.draw())  #doctest: +SKIP
 
 .. note::
 
-    *draw_options* and *deco_options* are designed to cover different scopes.
-    In general, *draw_options* controls how the substrate body is drawn,
-    while *deco_options* controls how the analysis result is displayed.
+    :attr:`~CoatingLayerBase.draw_options` and :attr:`~CoatingLayerBase.deco_options`
+    are designed to cover different scopes. In general, *draw_options* controls how
+    the substrate body is drawn, while *deco_options* controls how analysis
+    result is visualized.
 
 Typically, multiple coating layer instances are constructed from consecutive
 target images for temporal evaluation. Experiment instance facilitates the
@@ -324,11 +316,11 @@ speeding up the construction.
 
     >>> from dipcoatimage.finitedepth import Experiment
     >>> expt = Experiment(
-    ...     parameters=Experiment.Parameters(window=(5, 5))
+    ...     parameters=Experiment.ParamType(window=(5, 5))
     ... )
 
 :class:`ExperimentBase` has only one argument *parameters*, whose type is
-defined in :attr:`~ExperimentBase.Parameters` attribute.
+defined in :attr:`~ExperimentBase.ParamType` attribute.
 
 Now, we sequentially construct two :class:`RectLayerShape` instances using same
 arguments. The result is identical, but the second construction is several
@@ -358,7 +350,7 @@ Type of the analysis instance must be a concrete subclass of
 
 >>> from dipcoatimage.finitedepth import Analysis
 >>> analysis = Analysis(
-...     parameters=Analysis.Parameters(
+...     parameters=Analysis.ParamType(
 ...         layer_visual="result%d.jpg",
 ...         layer_data="result.csv",
 ... ),
@@ -369,7 +361,7 @@ Type of the analysis instance must be a concrete subclass of
     Any additional parameters which affect the resulting file
 
     The type of the dataclass is defined in
-    :attr:`~AnalysisBase.Parameters` attribute,
+    :attr:`~AnalysisBase.ParamType` attribute,
     which varies by each concrete subclass.
 #. *fps* (float, optional)
     Frame rate per second of the target images.

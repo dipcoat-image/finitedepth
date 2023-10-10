@@ -1,4 +1,8 @@
-"""Analysis result writer."""
+"""Analysis result writer.
+
+This module defines abstract class :class:`AnalysisBase` and its
+implementation, :class:`Analysis`.
+"""
 
 import abc
 import csv
@@ -6,9 +10,11 @@ import dataclasses
 import mimetypes
 import os
 from collections.abc import Coroutine
-from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar
+from typing import TYPE_CHECKING, Generator, Generic, Optional, Type, TypeVar
 
 import cv2
+import numpy as np
+import numpy.typing as npt
 import PIL.Image
 
 from .coatinglayer import CoatingLayerBase
@@ -18,7 +24,6 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "AnalysisError",
     "AnalysisBase",
     "ImageWriter",
     "CSVWriter",
@@ -26,92 +31,161 @@ __all__ = [
 ]
 
 
-class AnalysisError(Exception):
-    """Base class for error from `AnalysisBase`."""
-
-    pass
+ParamTypeVar = TypeVar("ParamTypeVar", bound="DataclassInstance")
+"""Type variable for :attr:`AnalysisBase.ParamType`."""
 
 
-ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
+class AnalysisBase(Coroutine, Generic[ParamTypeVar]):
+    """Abstract base class for analysis instance.
 
+    Analysis instance saves analysis results from multiple coating layer instances
+    into file. It defines which data will be saved to which file with which format.
 
-class AnalysisBase(Coroutine, Generic[ParametersType]):
-    """Class to save the analysis result.
+    To save the data, use the following methods:
 
-    Subclass must implement :meth:`__await__` which saves the analysis result.
-    See `Analyzer` for example.
+    * :meth:`send`: Write the data into files.
+        First call must pass :obj:`None`, which prepares the files.
+        Subsequent calls must pass coating layer instances.
+    * :meth:`close`: Close the files
 
-    .. rubric:: Constructor
+    Concrete subclass must implement :meth:`object.__await__` which returns the
+    file writing coroutine. Also, dataclass type must be assigned to class attribute
+    :attr:`ParamType` which defines type of :attr:`parameters`.
 
-    Constructor signature must not be modified because high-level API use factory
-    to generate experiment instances. Additional parameters can be introduced
-    by definig class attribute :attr:`Parameters``.
-
-    .. rubric:: Parameters
-
-    Concrete class must have :attr:`Parameters` which returns dataclass type.
-    Its instance is passed to the constructor at instance initialization, and can
-    be accessed by :attr:`parameters`.
-
-    .. rubric:: FPS
-
-    *FPS* can be set to tell the time interval between each coating layer image.
-
-    .. rubric:: Sanity check
-
-    Validity of the parameters can be checked by :meth:`verify`.
+    Arguments:
+        parameters: File writing parameters.
+            If passed, must be an instance of :attr:`ParamType`.
+            If not passed, attempts to construct :attr:`ParamType`
+            instance without argument.
+        fps: Frame rate of multiple target images.
+            If passed, resulting files can specify temporal data.
+            For example, this value can be used for video file FPS and timestamps for
+            numerical result.
     """
 
-    Parameters: Type[ParametersType]
+    ParamType: Type[ParamTypeVar]
+    """Type of :attr:`parameters.`
+
+    This class attribute is defined but not set in :class:`AnalysisBase`.
+    Concrete subclass must assign this attribute with frozen dataclass type.
+    """
 
     def __init__(
         self,
-        parameters: Optional[ParametersType] = None,
+        parameters: Optional[ParamTypeVar] = None,
         *,
         fps: float = 0.0,
     ):
-        """Initialize the instance."""
+        """Initialize the instance.
+
+        - *parameters* must be instance of :attr:`ParamType` or :obj:`None`.
+          If :obj:`None`, a :attr:`ParamType` is attempted to be constructed.
+        - *fps* must be positive.
+        - Generator from :meth:`object.__await__` is internally saved to implement
+          :meth:`send`, :meth:`throw` and :meth:`stop`.
+        """
         if parameters is None:
-            self._parameters = self.Parameters()
+            self._parameters = self.ParamType()
         else:
-            if not isinstance(parameters, self.Parameters):
-                raise TypeError(f"{parameters} is not instance of {self.Parameters}")
-            self._parameters = dataclasses.replace(parameters)
+            if not isinstance(parameters, self.ParamType):
+                raise TypeError(f"{parameters} is not instance of {self.ParamType}")
+            self._parameters = parameters
+        if fps < 0:
+            raise ValueError("fps must not be negative.")
         self._fps = fps
         self._iterator = self.__await__()
 
     @property
-    def parameters(self) -> ParametersType:
-        """Analysis parameters."""
+    def parameters(self) -> ParamTypeVar:
+        """File writing parameters.
+
+        This property returns a frozen dataclass instance.
+        Its type is :attr:`ParamType`.
+
+        Note:
+            This dataclass must be frozen to ensure reproducible results.
+        """
         return self._parameters
 
     @property
-    def fps(self) -> Optional[float]:
-        """Time interval between each coating layer image."""
+    def fps(self) -> float:
+        """FPS of the target images for incoming coating layer instances.
+
+        This value is used by file writing implementation to determine the time interval
+        between each coating layer instance. ``0.0`` indicates that FPS is unknown.
+        """
         return self._fps
 
     def send(self, value: Optional[CoatingLayerBase]):
-        """Analyze the coating layer."""
+        """Write the coating layer data to file.
+
+        Sends *value* to internal generator constructed from :meth:`object.__await__`.
+        """
         if value is None:
             next(self._iterator)
         else:
             self._iterator.send(value)  # type: ignore[arg-type]
 
     def throw(self, type, value, traceback):
-        """Throw exception into the analysis event loop."""
+        """Throw exception into file writing coroutine."""
         self._iterator.throw(type, value, traceback)
 
     def close(self):
-        """Terminate the analysis."""
+        """Terminate file writing coroutine."""
         self._iterator.close()
 
     @abc.abstractmethod
     def verify(self):
-        """Check to detect error and raise before analysis."""
+        """Sanity check before file writing.
+
+        This method checks :attr:`parameters` and raises error if anything is wrong.
+        """
 
 
-def ImageWriter(path: str, fourcc: int, fps: float):
-    """Write images to image files or a video file."""
+def ImageWriter(
+    path: str, fourcc: int, fps: float
+) -> Generator[None, npt.NDArray[np.uint8], None]:
+    """Coroutine to write incoming RGB images into image file(s) or video file.
+
+    This function supports several ways to write image data:
+
+    #. Multiple single-page image files
+        *path* is formattable path with image format (e.g., ``img%02d.jpg``).
+    #. Single image file
+        *path* is non-formattable path with image format (e.g., ``img.gif``).
+        If the format supports multipage image, *fps* is used.
+        If the format does not support multipage image, only the first image is written.
+    #. Single video file
+        *path* is non-formattable path with video format (e.g., ``img.mp4``).
+        *fourcc* and *fps* is used to encode the video.
+
+    Warning:
+        When writing into a single image file, sending too many images will cause
+        memory issue.
+
+    Arguments:
+        path: Resulting file path.
+            Can have either image extension or video extension.
+        fourcc: Result of :func:`cv2.VideoWriter_fourcc`.
+            Specifies encoder to write the video. Ignored if *path* is not video.
+        fps: Frame rate of incoming images.
+            Specifies frame rate to write multipage image file or video file.
+            Ignored if *path* is single-page image file(s).
+
+    Note:
+        Type of *path* (image vs video) is detected by :mod:`mimetypes`.
+        Image file is written by :meth:`PIL`, and video file is written by
+        :obj:`cv2.VideoWriter`.
+
+    Examples:
+        .. code-block:: python
+
+            gen = ImageWriter(...)
+            next(gen)  # Initialize the coroutine
+            gen.send(img1)
+            gen.send(img2)
+            gen.close()  # Close the file
+    """
     try:
         path % 0
         formattable = True
@@ -173,7 +247,20 @@ def ImageWriter(path: str, fourcc: int, fps: float):
 
 
 def CSVWriter(path: str):
-    """Write data to a csv file."""
+    """Coroutine to write incoming data to CSV file.
+
+    Arguments:
+        path: Resulting file path.
+
+    Examples:
+        .. code-block:: python
+
+            gen = CSVWriter("result.csv")
+            next(gen)  # Initialize the coroutine
+            gen.send([1, 2, 3])
+            gen.send(["foo", "bar", "baz"])
+            gen.close()  # Close the file
+    """
     with open(path, "w", newline="") as f:
         writer = csv.writer(f)
         while True:
@@ -182,20 +269,17 @@ def CSVWriter(path: str):
 
 
 @dataclasses.dataclass(frozen=True)
-class Parameters:
-    """Parameters for `Analysis`.
+class AnalysisParam:
+    """File writing parameters for :class:`Analysis`.
 
-    Attributes
-    ----------
-    ref_data, ref_visual : str
-        Paths for data file and visualized file of reference image.
-    subst_data, subst_visual : str
-        Paths for data file and visualized file of substrate image.
-    layer_data, layer_visual : str
-        Paths for data file and visualized file of coating layer image(s).
-        Pass formattable string (e.g. `img_%02d.jpg`) to save multiple images.
-    layer_fourcc : str
-        FourCC of codec to record analyzed layer video.
+    Arguments:
+        ref_data: Path for numerical data file of reference instance.
+        ref_visual: Path for visualized file of reference instance.
+        subst_data: Path for numerical data file of substrate instance.
+        subst_visual: Path for visualized file of substrate instance.
+        layer_data: Path for numerical data file of coating layer instances.
+        layer_visual: Path for visualized file of coating layer instances.
+        layer_fourcc: FourCC code to encode video file.
     """
 
     ref_data: str = ""
@@ -207,19 +291,40 @@ class Parameters:
     layer_fourcc: str = ""
 
 
-class Analysis(AnalysisBase[Parameters]):
-    """Basic analysis class.
+class Analysis(AnalysisBase[AnalysisParam]):
+    """Implementation of :class:`Analysis`.
 
-    Every coating layer instance sent to the coroutine is assumed to have same type and
-    same substrate instance.
+    Analysis data are stored in the following fashion:
+
+    #. Reference instance of the first passed coating layer instance is analyzed.
+    #. Substrate instance of the first passed coating layer instance is analyzed.
+    #. All the passed coating layer instances are analyzed. If :attr:`fps` is not zero,
+       timestamps are automatically prepended to the coating layer data.
+
+    Image files are written using :func:`ImageWriter`. Data files are written using
+    writers registered to class attribute :attr:`DataWriters`.
+
+    Arguments:
+        parameters (AnalysisParam)
+        fps
     """
 
-    Parameters = Parameters
+    ParamType = AnalysisParam
+    """Assigned with :class:`AnalysisParam`."""
 
     DataWriters = dict(csv=CSVWriter)
+    """Dictionary containing data writers.
+
+    Keys are the file formats and values are the writers.
+    """
 
     def verify(self):
-        """Check file paths and fps in :meth:`parameters`."""
+        """Implement :meth:`AnalysisBase.verify`.
+
+        #. If data paths are given in :attr:`parameters`, their extensions should be
+           registered in :attr:`DataWriters`.
+        #. MIME type of the visual files must be ``image`` or ``video``.
+        """
         for path in [
             os.path.expandvars(self.parameters.ref_data),
             os.path.expandvars(self.parameters.subst_data),
@@ -228,7 +333,7 @@ class Analysis(AnalysisBase[Parameters]):
             if path:
                 _, ext = os.path.splitext(path)
                 if ext.lstrip(os.path.extsep).lower() not in self.DataWriters:
-                    raise AnalysisError(f"{path} has unsupported extension.")
+                    raise ValueError(f"{path} has unsupported extension.")
         for path in [
             os.path.expandvars(self.parameters.ref_visual),
             os.path.expandvars(self.parameters.subst_visual),
@@ -237,26 +342,22 @@ class Analysis(AnalysisBase[Parameters]):
                 mtype, _ = mimetypes.guess_type(path)
                 file_type, _ = mtype.split("/")
                 if file_type != "image":
-                    raise AnalysisError(f"{path} is not image.")
+                    raise ValueError(f"{path} is not image.")
         if os.path.expandvars(self.parameters.layer_visual):
             mtype, _ = mimetypes.guess_type(
                 os.path.expandvars(self.parameters.layer_visual)
             )
             file_type, _ = mtype.split("/")
-            if file_type == "image":
-                pass
-            elif file_type == "video":
-                if self.fps is None or self.fps < 0:
-                    raise AnalysisError(
-                        "fps must be a nonnegative number to write a video."
-                    )
-            else:
-                raise AnalysisError(f"{path} is not image nor video.")
-        if self.fps is not None and self.fps < 0:
-            raise AnalysisError("fps must be None or a nonnegative number.")
+            if file_type not in ("image", "video"):
+                raise ValueError(f"{path} is not image nor video.")
 
     def __await__(self):
-        """Analyze reference and substrate, then each sent coating layer."""
+        """Save the analysis result using incoming coating layer instances.
+
+        If the directories of the files do not exist, they will be created.
+        If FourCC string is empty, the FourCC value will be ``0``.
+        Type and substrate instance of the coating layer instances must be homogeneous.
+        """
 
         def makedir(path):
             dirname, _ = os.path.split(path)
@@ -322,7 +423,8 @@ class Analysis(AnalysisBase[Parameters]):
 
             if ref_data:
                 headers = [
-                    f.name for f in dataclasses.fields(layer.substrate.reference.Data)
+                    f.name
+                    for f in dataclasses.fields(layer.substrate.reference.DataType)
                 ]
                 rd_writer.send(headers)
                 data = list(dataclasses.astuple(layer.substrate.reference.analyze()))
@@ -332,7 +434,7 @@ class Analysis(AnalysisBase[Parameters]):
                 rv_writer.send(layer.substrate.reference.draw())
 
             if subst_data:
-                headers = [f.name for f in dataclasses.fields(layer.substrate.Data)]
+                headers = [f.name for f in dataclasses.fields(layer.substrate.DataType)]
                 sd_writer.send(headers)
                 data = list(dataclasses.astuple(layer.substrate.analyze()))
                 sd_writer.send(data)
@@ -341,7 +443,7 @@ class Analysis(AnalysisBase[Parameters]):
                 sv_writer.send(layer.substrate.draw())
 
             if layer_data:
-                headers = [f.name for f in dataclasses.fields(layer.Data)]
+                headers = [f.name for f in dataclasses.fields(layer.DataType)]
                 if fps:
                     headers = ["time (s)"] + headers
                 ld_writer.send(headers)

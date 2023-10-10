@@ -1,4 +1,8 @@
-"""Coating layer factory."""
+"""Coating layer factory.
+
+This module defines abstract class :class:`ExperimentBase` and its
+implementation, :class:`Experiment`.
+"""
 
 import abc
 import dataclasses
@@ -16,74 +20,76 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "ExperimentError",
+    "LayerTypeVar",
+    "ParamTypeVar",
     "ExperimentBase",
+    "ExptParam",
     "Experiment",
 ]
 
 
-CoatingLayerType = TypeVar("CoatingLayerType", bound=CoatingLayerBase)
-ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
+LayerTypeVar = TypeVar("LayerTypeVar", bound=CoatingLayerBase)
+"""Type variable for the coating layer type of :class:`ExperimentBase`."""
+ParamTypeVar = TypeVar("ParamTypeVar", bound="DataclassInstance")
+"""Type variable for :attr:`ExperimentBase.ParamType`."""
 
 
-class ExperimentError(Exception):
-    """Base class for error from `ExperimentBase`."""
+class ExperimentBase(abc.ABC, Generic[LayerTypeVar, ParamTypeVar]):
+    """Abstract base class for experiment instance.
 
-    pass
+    Experiment is an act of acquiring useful data from coated substrate images.
+    Experiment instance is a coating layer factory which achieves this by constructing
+    coating layer instances, which provide the layer data. Sequential construction of
+    coating layer instances can be done by :meth:`coatinglayer`.
 
+    Concrete subclass must assign dataclasses types to class attribute :attr:`ParamType`
+    which defines type of :attr:`parameters`.
 
-class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
-    """Abstract base class for coating layer factory.
-
-    Experiment is an act of transforming incoming coated substrate images to
-    coating layer data by processing them agains the bare substrate.
-    `ExperimentBase` provides structured way to define transformation of
-    a series of images.
-
-    .. rubric:: Constructor
-
-    Constructor signature must not be modified because high-level API use factory
-    to generate experiment instances. Additional parameters can be introduced
-    by definig class attribute :attr:`Parameters``.
-
-    .. rubric:: Parameters
-
-    Concrete class must have :attr:`Parameters` which returns dataclass type.
-    Its instance is passed to the constructor at instance initialization, and can
-    be accessed by :attr:`parameters`.
-
-    .. rubric:: Sanity check
-
-    Validity of the parameters can be checked by :meth:`verify`.
-
-    .. rubric:: Coating layer construction
-
-    :meth:`coatinglayer` method is responsible for transforming each coated
-    substrate image into a coating layer instance. Finding the location of the
-    substrate can be implemented in this method. Standard implementation use
-    template matching, but another possible way is to use physically measured
-    data (e.g., actuator log).
+    Arguments:
+        parameters: Coating layer construction parameters.
+            If passed, must be an instance of :attr:`ParamType`.
+            If not passed, attempts to construct :attr:`ParamType`
+            instance without argument.
     """
 
-    Parameters: Type[ParametersType]
+    ParamType: Type[ParamTypeVar]
+    """Type of :attr:`parameters.`
 
-    def __init__(self, *, parameters: Optional[ParametersType] = None):
-        """Initialize the instance."""
+    This class attribute is defined but not set in :class:`ExperimentBase`.
+    Concrete subclass must assign this attribute with frozen dataclass type.
+    """
+
+    def __init__(self, *, parameters: Optional[ParamTypeVar] = None):
+        """Initialize the instance.
+
+        *parameters* must be instance of :attr:`ParamType` or :obj:`None`.
+        If :obj:`None`, a :attr:`ParamType` is attempted to be constructed.
+        """
         if parameters is None:
-            self._parameters = self.Parameters()
+            self._parameters = self.ParamType()
         else:
-            if not isinstance(parameters, self.Parameters):
-                raise TypeError(f"{parameters} is not instance of {self.Parameters}")
-            self._parameters = dataclasses.replace(parameters)
+            if not isinstance(parameters, self.ParamType):
+                raise TypeError(f"{parameters} is not instance of {self.ParamType}")
+            self._parameters = parameters
 
     @property
-    def parameters(self) -> ParametersType:
-        """Coating layer construction parameters."""
+    def parameters(self) -> ParamTypeVar:
+        """Coating layer construction parameters.
+
+        This property returns a frozen dataclass instance.
+        Its type is :attr:`ParamType`.
+
+        Note:
+            This dataclass must be frozen to ensure reproducible results.
+        """
         return self._parameters
 
     @abc.abstractmethod
     def verify(self):
-        """Check to detect error and raise before analysis."""
+        """Sanity check before coating layer construction.
+
+        This method checks :attr:`parameters` and raises error if anything is wrong.
+        """
 
     @abc.abstractmethod
     def coatinglayer(
@@ -91,44 +97,49 @@ class ExperimentBase(abc.ABC, Generic[CoatingLayerType, ParametersType]):
         image: npt.NDArray[np.uint8],
         substrate: SubstrateBase,
         *,
-        layer_type: Type[CoatingLayerType],
+        layer_type: Type[LayerTypeVar],
         layer_parameters: Optional["DataclassInstance"] = None,
         layer_drawoptions: Optional["DataclassInstance"] = None,
         layer_decooptions: Optional["DataclassInstance"] = None,
-    ) -> CoatingLayerType:
-        """Create coating layer.
+    ) -> LayerTypeVar:
+        """Construct coating layer instance.
 
-        Implementation may define custom way to create new instance. For example,
-        substrate location in previous image can be stored to boost template
-        matching of incoming images. If required, :meth:`parameters` can be
-        used to controll consecutive creation.
+        Concrete class should implement this method. Especially, sequential construction
+        can use data from the previous instance to affect the next instance.
+        If required, :meth:`parameters` can be used to controll consecutive creation.
+
+        A possible implementation of this method is to read the location of substrate
+        from external source and pass it to *tempmatch* argument of the coating layer.
         """
 
 
 @dataclasses.dataclass(frozen=True)
-class Parameters:
-    """Additional parameters for `Experiment` instance.
+class ExptParam:
+    """Coating layer construction parameters for :class:`Experiment` instance.
 
-    Attributes
-    ----------
-    window : tuple
-        Restricts the possible location of template to boost speed.
-        Negative value means no restriction in corresponding axis.
+    Arguments:
+        window: Restricts the possible location of template to boost speed.
+            Negative value means no restriction in corresponding axis.
     """
 
     window: Tuple[int, int] = (-1, -1)
 
 
-class Experiment(ExperimentBase[CoatingLayerBase, Parameters]):
+class Experiment(ExperimentBase[CoatingLayerBase, ExptParam]):
     """Experiment class with adjustable template matching window.
 
-    Specifying the window can significantly boost the evaluation.
+    Sequential construction of coating layer instances is boosted by restricting the
+    template matching window.
+
+    Arguments:
+        parameters (ExptParam, optional)
     """
 
-    Parameters = Parameters
+    ParamType = ExptParam
+    """Assigned with :class:`ExptParam`."""
 
     def verify(self):
-        """Check error."""
+        """Implement :meth:`ExperimentBase.verify`."""
         pass
 
     def coatinglayer(
@@ -140,9 +151,11 @@ class Experiment(ExperimentBase[CoatingLayerBase, Parameters]):
         layer_drawoptions=None,
         layer_decooptions=None,
     ):
-        """Create coating layer.
+        """Implement :meth:`ExperimentBase.coatinglayer`.
 
-        If *window* parameter has positive axis, template matching is boosted.
+        Using the previous template location and :attr:`parameters`, this method
+        performs fast template matching with reduced window and pass the result to
+        the new coating layer instance.
         """
         prev = getattr(self, "_prev", None)
         x0, y0, x1, y1 = substrate.reference.templateROI

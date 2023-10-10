@@ -1,4 +1,8 @@
-"""Substrate reference."""
+"""Manage reference image and ROIs.
+
+This module defines abstract class :class:`ReferenceBase` and its
+implementation, :class:`Reference`.
+"""
 
 
 import abc
@@ -16,45 +20,114 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "ReferenceError",
+    "ParamTypeVar",
+    "DrawOptTypeVar",
+    "DataTypeVar",
+    "DynamicROI",
+    "StaticROI",
     "ReferenceBase",
+    "RefParam",
+    "RefDrawOpt",
+    "RefData",
     "Reference",
-    "OptionalROI",
-    "IntROI",
     "sanitize_ROI",
 ]
 
 
-class ReferenceError(Exception):
-    """Base class for error from `ReferenceBase`."""
+ParamTypeVar = TypeVar("ParamTypeVar", bound="DataclassInstance")
+"""Type variable for :attr:`ReferenceBase.ParamType`."""
+DrawOptTypeVar = TypeVar("DrawOptTypeVar", bound="DataclassInstance")
+"""Type variable for :attr:`ReferenceBase.DrawOptType`."""
+DataTypeVar = TypeVar("DataTypeVar", bound="DataclassInstance")
+"""Type variable for :attr:`ReferenceBase.DataType`."""
 
-    pass
+DynamicROI = Tuple[Optional[int], Optional[int], Optional[int], Optional[int]]
+"""Type annotation for ROI whose upper limits can be dynamically determined.
+
+This is a tuple of ``(x0, y0, x1, y1)``, where items can be integer or
+:obj:`None` by Python's slicing convention.
+"""
+StaticROI = Tuple[int, int, int, int]
+"""Type annotation for ROI whose items are all static.
+
+This is a tuple of ``(x0, y0, x1, y1)``, where every item is
+nonnegative :class:`int`.
+"""
 
 
-ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
-OptionalROI = Tuple[int, int, Optional[int], Optional[int]]
-IntROI = Tuple[int, int, int, int]
-DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
-DataType = TypeVar("DataType", bound="DataclassInstance")
+class ReferenceBase(abc.ABC, Generic[ParamTypeVar, DrawOptTypeVar, DataTypeVar]):
+    """Abstract base class for reference instance.
 
+    Reference instance stores a reference image, which is a binary image of
+    uncoated substrate. It also contains ROIs for template image and
+    substrate image in the reference image.
 
-class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType]):
-    """Abstract base class for substrate reference."""
+    Reference instance can visualize its data and analyze the reference image
+    by the following methods:
 
-    Parameters: Type[ParametersType]
-    DrawOptions: Type[DrawOptionsType]
-    Data: Type[DataType]
+    * :meth:`verify`: Sanity check before the analysis.
+    * :meth:`draw`: Returns visualized result.
+    * :meth:`analyze`: Returns analysis result.
+
+    Concrete subclass must assign dataclasses types to the
+    following class attributes:
+
+    * :attr:`ParamType`: Type of :attr:`parameters`.
+    * :attr:`DrawOptType`: Type of :attr:`draw_options`.
+    * :attr:`DataType`: Type of :meth:`analyze`.
+
+    Arguments:
+        image: Binary reference image.
+        templateROI: ROI for template image.
+        substrateROI: ROI for substrate image.
+        parameters: Analysis parameters.
+            If passed, must be an instance of :attr:`ParamType`.
+            If not passed, attempts to construct :attr:`ParamType`
+            instance without argument.
+        draw_options: Visualization options.
+            If passed, must be an instance of :attr:`DrawOptType`.
+            If not passed, attempts to construct :attr:`DrawOptType`
+            instance without argument.
+    """
+
+    ParamType: Type[ParamTypeVar]
+    """Type of :attr:`parameters.`
+
+    This class attribute is defined but not set in :class:`ReferenceBase`.
+    Concrete subclass must assign this attribute with frozen dataclass type.
+    """
+    DrawOptType: Type[DrawOptTypeVar]
+    """Type of :attr:`draw_options.`
+
+    This class attribute is defined but not set in :class:`ReferenceBase`.
+    Concrete subclass must assign this attribute with dataclass type.
+    """
+    DataType: Type[DataTypeVar]
+    """Type of return value of :attr:`analyze.`
+
+    This class attribute is defined but not set in :class:`ReferenceBase`.
+    Concrete subclass must assign this attribute with dataclass type.
+    """
 
     def __init__(
         self,
         image: npt.NDArray[np.uint8],
-        templateROI: OptionalROI = (0, 0, None, None),
-        substrateROI: OptionalROI = (0, 0, None, None),
-        parameters: Optional[ParametersType] = None,
+        templateROI: DynamicROI = (0, 0, None, None),
+        substrateROI: DynamicROI = (0, 0, None, None),
+        parameters: Optional[ParamTypeVar] = None,
         *,
-        draw_options: Optional[DrawOptionsType] = None,
+        draw_options: Optional[DrawOptTypeVar] = None,
     ):
-        """Initialize the instance."""
+        """Initialize the instance.
+
+        - *image* is set to be immutable.
+        - *templateROI* and *substrateROI* are converted using :func:`sanitize_ROI`.
+        - *parameters* must be instance of :attr:`ParamType` or :obj:`None`.
+          If :obj:`None`, a :attr:`ParamType` is attempted to be constructed.
+        - *draw_options* must be instance of :attr:`DrawOptType` or :obj:`None`.
+          If :obj:`None`, a :attr:`DrawOptType` is attempted to be constructed.
+          If :attr:`DrawOptType`, the values are copied.
+        """
         super().__init__()
         self._image = image
         self._image.setflags(write=False)
@@ -64,99 +137,108 @@ class ReferenceBase(abc.ABC, Generic[ParametersType, DrawOptionsType, DataType])
         self._substrateROI = sanitize_ROI(substrateROI, h, w)
 
         if parameters is None:
-            self._parameters = self.Parameters()
+            self._parameters = self.ParamType()
         else:
-            if not isinstance(parameters, self.Parameters):
-                raise TypeError(f"{parameters} is not instance of {self.Parameters}")
-            self._parameters = dataclasses.replace(parameters)
+            if not isinstance(parameters, self.ParamType):
+                raise TypeError(f"{parameters} is not instance of {self.ParamType}")
+            self._parameters = parameters
 
         if draw_options is None:
-            self._draw_options = self.DrawOptions()
+            self._draw_options = self.DrawOptType()
         else:
-            if not isinstance(draw_options, self.DrawOptions):
-                raise TypeError(f"{draw_options} is not instance of {self.DrawOptions}")
+            if not isinstance(draw_options, self.DrawOptType):
+                raise TypeError(f"{draw_options} is not instance of {self.DrawOptType}")
             self._draw_options = dataclasses.replace(draw_options)
 
     @property
     def image(self) -> npt.NDArray[np.uint8]:
-        """Reference image. Must be binary.
+        """Binary reference image.
 
-        This array is not writable to be immutable for caching.
+        Note:
+            This array is immutable to allow caching.
         """
         return self._image
 
     @property
-    def templateROI(self) -> IntROI:
-        """Slice indices in ``(x0, y0, x1, y1)`` for template region."""
+    def templateROI(self) -> StaticROI:
+        """ROI for template image."""
         return self._templateROI
 
     @property
-    def substrateROI(self) -> IntROI:
-        """Slice indices in ``(x0, y0, x1, y1)`` for substrate region."""
+    def substrateROI(self) -> StaticROI:
+        """ROI for substrate image."""
         return self._substrateROI
 
     @property
-    def parameters(self) -> ParametersType:
-        """Additional parameters for concrete class.
+    def parameters(self) -> ParamTypeVar:
+        """Analysis parameters.
 
-        Instance of :attr:`Parameters`, which must be a frozen dataclass.
+        This property returns a frozen dataclass instance.
+        Its type is :attr:`ParamType`.
+
+        Note:
+            This dataclass must be frozen to allow caching.
         """
         return self._parameters
 
     @property
-    def draw_options(self) -> DrawOptionsType:
-        """Options to visualize the image.
+    def draw_options(self) -> DrawOptTypeVar:
+        """Visualization options.
 
-        Instance of :attr:`DrawOptions` dataclass.
+        This property returns a mutable dataclass instance.
+        Its type is :attr:`DrawOptType`.
         """
         return self._draw_options
 
     @draw_options.setter
-    def draw_options(self, options: DrawOptionsType):
+    def draw_options(self, options: DrawOptTypeVar):
         self._draw_options = options
-
-    def substrate_image(self) -> npt.NDArray[np.uint8]:
-        """:meth:`image` cropped by :meth:`substrateROI`."""
-        x0, y0, x1, y1 = self.substrateROI
-        return self.image[y0:y1, x0:x1]
-
-    def temp2subst(self) -> npt.NDArray[np.int32]:
-        """Vector from template region to substrate region."""
-        x0, y0 = self.templateROI[:2]
-        x1, y1 = self.substrateROI[:2]
-        return np.array([x1 - x0, y1 - y0], dtype=np.int32)
 
     @abc.abstractmethod
     def verify(self):
-        """Check to detect error and raise before analysis."""
+        """Sanity check before analysis.
+
+        This method checks every intermediate step for analysis
+        and raises error if anything is wrong. Passing this check
+        should guarantee that :meth:`draw` and :meth:`analyze`
+        returns without exception.
+        """
 
     @abc.abstractmethod
     def draw(self) -> npt.NDArray[np.uint8]:
-        """Decorate and return the reference image as RGB format."""
+        """Return visualization result in RGB format.
+
+        This method must always return without error. If visualization cannot be done,
+        it should at least return original image.
+        """
 
     @abc.abstractmethod
-    def analyze(self) -> DataType:
-        """Analyze the reference image and return the data.
+    def analyze(self) -> DataTypeVar:
+        """Return analysis data of the reference image.
 
-        May raise error if the instance is not valid.
+        This method returns analysis result as a dataclass instance
+        whose type is :attr:`DataType`. If analysis is impossible,
+        error may be raised.
         """
 
 
 @dataclasses.dataclass(frozen=True)
-class Parameters:
-    """Additional parameters for `Reference` instance."""
+class RefParam:
+    """Analysis parameters for :class:`Reference`.
+
+    This is an empty dataclass.
+    """
 
     pass
 
 
 @dataclasses.dataclass
-class DrawOptions:
-    """Drawing options for `Reference`.
+class RefDrawOpt:
+    """Visualization options for :class:`Reference`.
 
-    Attributes
-    ----------
-    templateROI, substrateROI : LineOptions
-        Determines how the ROIs are drawn.
+    Arguments:
+        templateROI: Options to visualize template ROI.
+        substrateROI: Options to visualize substrate ROI.
     """
 
     templateROI: LineOptions = dataclasses.field(
@@ -168,51 +250,63 @@ class DrawOptions:
 
 
 @dataclasses.dataclass
-class Data:
-    """Analysis data for `Reference`."""
+class RefData:
+    """Analysis data for :class:`Reference`.
+
+    This is an empty dataclass.
+    """
 
     pass
 
 
-class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
-    """Substrate reference class with customizable binarization.
+class Reference(ReferenceBase[RefParam, RefDrawOpt, RefData]):
+    """Basic implementation of :class:`ReferenceBase`.
 
-    Examples
-    --------
-    .. plot::
-       :include-source:
-       :context: reset
+    Arguments:
+        image
+        templateROI
+        substrateROI
+        parameters (RefParam, optional)
+        draw_options (RefDrawOpt, optional)
 
-       >>> import cv2
-       >>> from dipcoatimage.finitedepth import Reference, get_data_path
-       >>> gray = cv2.imread(get_data_path("ref1.png"), cv2.IMREAD_GRAYSCALE)
-       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-       >>> tempROI = (200, 50, 1200, 200)
-       >>> substROI = (400, 175, 1000, 500)
-       >>> ref = Reference(img, tempROI, substROI)
-       >>> import matplotlib.pyplot as plt #doctest: +SKIP
-       >>> plt.imshow(ref.draw()) #doctest: +SKIP
+    Examples:
+        .. plot::
+            :include-source:
+            :context: reset
 
-    Visualization can be controlled by modifying :attr:`draw_options`.
+            >>> import cv2
+            >>> from dipcoatimage.finitedepth import Reference, get_data_path
+            >>> gray = cv2.imread(get_data_path("ref1.png"), cv2.IMREAD_GRAYSCALE)
+            >>> _, im = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+            >>> tempROI = (200, 50, 1200, 200)
+            >>> substROI = (400, 175, 1000, 500)
+            >>> ref = Reference(im, tempROI, substROI)
+            >>> import matplotlib.pyplot as plt #doctest: +SKIP
+            >>> plt.imshow(ref.draw()) #doctest: +SKIP
 
-    .. plot::
-       :include-source:
-       :context: close-figs
+        Visualization can be controlled by modifying :attr:`draw_options`.
 
-       >>> ref.draw_options.substrateROI.color = (0, 255, 255)
-       >>> plt.imshow(ref.draw()) #doctest: +SKIP
+        .. plot::
+            :include-source:
+            :context: close-figs
+
+            >>> ref.draw_options.substrateROI.linewidth = 3
+            >>> plt.imshow(ref.draw()) #doctest: +SKIP
     """
 
-    Parameters = Parameters
-    DrawOptions = DrawOptions
-    Data = Data
+    ParamType = RefParam
+    """Assigned with :class:`RefParam`."""
+    DrawOptType = RefDrawOpt
+    """Assigned with :class:`RefDrawOpt`."""
+    DataType = RefData
+    """Assigned with :class:`RefData`."""
 
     def verify(self):
-        """Check error."""
+        """Implement :meth:`ReferenceBase.verify`."""
         pass
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        """Return visualized result."""
+        """Implement :meth:`ReferenceBase.draw`."""
         ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
 
         substROI_opts = self.draw_options.substrateROI
@@ -231,12 +325,23 @@ class Reference(ReferenceBase[Parameters, DrawOptions, Data]):
         return ret
 
     def analyze(self):
-        """Return analysis data."""
-        return self.Data()
+        """Implement :meth:`ReferenceBase.analyze`."""
+        return self.DataType()
 
 
-def sanitize_ROI(roi: OptionalROI, h: int, w: int) -> IntROI:
-    """Convert `OptionalROI` to `IntROI`."""
+def sanitize_ROI(roi: DynamicROI, h: int, w: int) -> StaticROI:
+    """Convert dynamic ROI to static ROI.
+
+    Arguments:
+        roi: Tuple in ``(x0, y0, x1, y1)``.
+            Items can be integer or :obj:`None` by Python's
+            slicing convention.
+        h, w: Height and width of the image.
+
+    Returns:
+        Tuple in ``(x0, y0, x1, y1)``. Values are converted to
+        positive integers.
+    """
     full_roi = (0, 0, w, h)
     max_vars = (w, h, w, h)
 

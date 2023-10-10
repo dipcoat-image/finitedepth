@@ -16,13 +16,9 @@ __all__ = [
 class LineOptions:
     """Parameters to draw a line in the image.
 
-    Attributes
-    ----------
-    color : tuple
-        Color of the line in RGB.
-    linewidth : int
-        Width of the line.
-        Zero value is the flag to not draw the line.
+    Arguments:
+        color: Color of the line in RGB.
+        linewidth: Width of the line.
     """
 
     color: Tuple[int, int, int] = (0, 0, 0)
@@ -33,15 +29,11 @@ class LineOptions:
 class PatchOptions:
     """Parameters to draw a patch in the image.
 
-    Attributes
-    ----------
-    fill : bool
-        Whether to fill the patch with facecolor.
-    edgecolor, facecolor : tuple
-        Color in RGB.
-    linewidth : int
-        Width of the edge.
-        Zero value is the flag to not draw the edge.
+    Arguments:
+        fill: Whether to fill the patch with facecolor.
+        edgecolor: Color of the edge in RGB.
+        facecolor: Color of the face in RGB.
+        linewidth: Width of the edge.
     """
 
     fill: bool = True
@@ -51,7 +43,18 @@ class PatchOptions:
 
 
 class MarkerTypes(enum.Enum):
-    """Marker types for :func:`cv2.drawMarker`."""
+    """Marker types for :func:`cv2.drawMarker`.
+
+    .. rubric:: **Members**
+
+    - CROSS: Use :obj:`cv2.MARKER_CROSS`.
+    - TILTED_CROSS: Use :obj:`cv2.MARKER_TILTED_CROSS`.
+    - STAR: Use :obj:`cv2.MARKER_STAR`.
+    - DIAMOND: Use :obj:`cv2.MARKER_DIAMOND`.
+    - SQUARE: Use :obj:`cv2.MARKER_SQUARE`.
+    - TRIANGLE_UP: Use :obj:`cv2.MARKER_TRIANGLE_UP`.
+    - TRIANGLE_DOWN: Use :obj:`cv2.TRIANGLE_DOWN`.
+    """
 
     CROSS = "CROSS"
     TILTED_CROSS = "TILTED_CROSS"
@@ -66,13 +69,11 @@ class MarkerTypes(enum.Enum):
 class MarkerOptions:
     """Parameters to draw a marker in the image.
 
-    Attributes
-    ----------
-    color : tuple
-        Color of the marker in RGB
-    marker : MarkerTypes
-    linewidth : int
-    markersize : int
+    Arguments:
+        color: Color of the marker in RGB.
+        marker: Marker shape.
+        linewidth: Width of the marker line.
+        markersize: Size of the marker in pts.
     """
 
     color: Tuple[int, int, int] = (0, 0, 0)

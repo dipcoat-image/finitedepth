@@ -1,4 +1,8 @@
-"""Bare substrate."""
+"""Analyze substrate geometry.
+
+This module defines abstract class :class:`SubstrateBase` and its
+implementation, :class:`Substrate`.
+"""
 
 import abc
 import dataclasses
@@ -16,166 +20,186 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "SubstrateError",
+    "RefTypeVar",
+    "ParamTypeVar",
+    "DrawOptTypeVar",
+    "DataTypeVar",
     "SubstrateBase",
+    "SubstParam",
+    "SubstDrawOpt",
+    "SubstData",
     "Substrate",
 ]
 
 
-class SubstrateError(Exception):
-    """Base class for error from `SubstrateBase`."""
-
-    pass
-
-
-ReferenceType = TypeVar("ReferenceType", bound=ReferenceBase)
-ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
-DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
-DataType = TypeVar("DataType", bound="DataclassInstance")
+RefTypeVar = TypeVar("RefTypeVar", bound=ReferenceBase)
+"""Type variable for the reference type of :class:`SubstrateBase`."""
+ParamTypeVar = TypeVar("ParamTypeVar", bound="DataclassInstance")
+"""Type variable for :attr:`SubstrateBase.ParamType`."""
+DrawOptTypeVar = TypeVar("DrawOptTypeVar", bound="DataclassInstance")
+"""Type variable for :attr:`SubstrateBase.DrawOptType`."""
+DataTypeVar = TypeVar("DataTypeVar", bound="DataclassInstance")
+"""Type variable for :attr:`SubstrateBase.DataType`."""
 
 
 class SubstrateBase(
-    abc.ABC, Generic[ReferenceType, ParametersType, DrawOptionsType, DataType]
+    abc.ABC, Generic[RefTypeVar, ParamTypeVar, DrawOptTypeVar, DataTypeVar]
 ):
-    """Abstract base class for substrate.
+    """Abstract base class for substrate instance.
 
-    Substrate class recognizes the geometry of substrate image from
-    `.ReferenceBase`.
+    Substrate instance stores a substrate image, which is a binary image of
+    bare substrate acquired from reference instance. The role of substrate
+    instance is to analyze the shape of the bare substrate.
 
-    .. rubric:: Constructor
+    Substrate instance can visualize its data and analyze the substrate image
+    by the following methods:
 
-    Constructor signature must not be modified because high-level API use factory
-    to generate substrate instances. Additional parameters can be introduced by
-    definig class attribute :attr:`Parameters` and :attr:`DrawOptions`.
+    * :meth:`verify`: Sanity check before the analysis.
+    * :meth:`draw`: Returns visualized result.
+    * :meth:`analyze`: Returns analysis result.
 
-    .. rubric:: Parameters and DrawOptions
+    Concrete subclass must assign dataclasses types to the
+    following class attributes:
 
-    Concrete class must have :attr:`Parameters` and :attr:`DrawOptions` which
-    return dataclass types. Their instances are passed to the constructor at
-    instance initialization, and can be accessed by :attr:`parameters` and
-    :attr:`draw_options`.
+    * :attr:`ParamType`: Type of :attr:`parameters`.
+    * :attr:`DrawOptType`: Type of :attr:`draw_options`.
+    * :attr:`DataType`: Type of :meth:`analyze`.
 
-    :attr:`Parameter` must be frozen to ensure immtability for caching. However,
-    :attr:`DrawOptions` need not be frozen since visualization does not affect
-    the identity of instance. Therefore methods affected by draw options must
-    not be cached.
-
-    .. rubric:: Sanity check
-
-    Validity of the parameters can be checked by :meth:`verify`.
-
-    .. rubric:: Visualization
-
-    :meth:`draw` defines the visualization logic for concrete class.
-    Modifying :attr:`draw_options` changes the visualization result.
-
-    .. rubric:: Analysis
-
-    Concrete class must have :attr:`Data` which returns dataclass type and
-    implement :meth:`analyze_substrate` which returns data tuple compatible with
-    :attr:`Data`.
-    :meth:`analyze` is the API for analysis result.
+    Arguments:
+        reference: Reference instance.
+        parameters: Analysis parameters.
+            If passed, must be an instance of :attr:`ParamType`.
+            If not passed, attempts to construct :attr:`ParamType`
+            instance without argument.
+        draw_options: Visualization options.
+            If passed, must be an instance of :attr:`DrawOptType`.
+            If not passed, attempts to construct :attr:`DrawOptType`
+            instance without argument.
     """
 
-    Parameters: Type[ParametersType]
-    DrawOptions: Type[DrawOptionsType]
-    Data: Type[DataType]
+    ParamType: Type[ParamTypeVar]
+    """Type of :attr:`parameters.`
+
+    This class attribute is defined but not set in :class:`SubstrateBase`.
+    Concrete subclass must assign this attribute with frozen dataclass type.
+    """
+    DrawOptType: Type[DrawOptTypeVar]
+    """Type of :attr:`draw_options.`
+
+    This class attribute is defined but not set in :class:`SubstrateBase`.
+    Concrete subclass must assign this attribute with dataclass type.
+    """
+    DataType: Type[DataTypeVar]
+    """Type of return value of :attr:`analyze.`
+
+    This class attribute is defined but not set in :class:`SubstrateBase`.
+    Concrete subclass must assign this attribute with dataclass type.
+    """
 
     def __init__(
         self,
-        reference: ReferenceType,
-        parameters: Optional[ParametersType] = None,
+        reference: RefTypeVar,
+        parameters: Optional[ParamTypeVar] = None,
         *,
-        draw_options: Optional[DrawOptionsType] = None,
+        draw_options: Optional[DrawOptTypeVar] = None,
     ):
-        """Initialize the instance."""
+        """Initialize the instance.
+
+        - *reference* is not type-checked in runtime.
+        - *parameters* must be instance of :attr:`ParamType` or :obj:`None`.
+          If :obj:`None`, a :attr:`ParamType` is attempted to be constructed.
+        - *draw_options* must be instance of :attr:`DrawOptType` or :obj:`None`.
+          If :obj:`None`, a :attr:`DrawOptType` is attempted to be constructed.
+          If :attr:`DrawOptType`, the values are copied.
+        """
         super().__init__()
+        # Do not type check reference (can be protocol)
         self._ref = reference
 
         if parameters is None:
-            self._parameters = self.Parameters()
+            self._parameters = self.ParamType()
         else:
-            if not isinstance(parameters, self.Parameters):
-                raise TypeError(f"{parameters} is not instance of {self.Parameters}")
-            self._parameters = dataclasses.replace(parameters)
+            if not isinstance(parameters, self.ParamType):
+                raise TypeError(f"{parameters} is not instance of {self.ParamType}")
+            self._parameters = parameters
 
         if draw_options is None:
-            self._draw_options = self.DrawOptions()
+            self._draw_options = self.DrawOptType()
         else:
-            if not isinstance(draw_options, self.DrawOptions):
-                raise TypeError(f"{draw_options} is not instance of {self.DrawOptions}")
+            if not isinstance(draw_options, self.DrawOptType):
+                raise TypeError(f"{draw_options} is not instance of {self.DrawOptType}")
             self._draw_options = dataclasses.replace(draw_options)
 
     @property
-    def reference(self) -> ReferenceType:
-        """Substrate reference instance passed to constructor."""
+    def reference(self) -> RefTypeVar:
+        """Reference instance for substrate image."""
         return self._ref
 
     @property
-    def parameters(self) -> ParametersType:
-        """Additional parameters for concrete class.
+    def parameters(self) -> ParamTypeVar:
+        """Analysis parameters.
 
-        Instance of :attr:`Parameters`, which must be a frozen dataclass.
+        This property returns a frozen dataclass instance.
+        Its type is :attr:`ParamType`.
+
+        Note:
+            This dataclass must be frozen to allow caching.
         """
         return self._parameters
 
     @property
-    def draw_options(self) -> DrawOptionsType:
-        """Options to visualize the image.
+    def draw_options(self) -> DrawOptTypeVar:
+        """Visualization options.
 
-        Instance of :attr:`DrawOptions` dataclass.
+        This property returns a mutable dataclass instance.
+        Its type is :attr:`DrawOptType`.
         """
         return self._draw_options
 
     @draw_options.setter
-    def draw_options(self, options: DrawOptionsType):
+    def draw_options(self, options: DrawOptTypeVar):
         self._draw_options = options
 
     def image(self) -> npt.NDArray[np.uint8]:
         """Substrate image from :meth:`reference`."""
         # not property since it's not directly from the argument
-        return self.reference.substrate_image()
+        x0, y0, x1, y1 = self.reference.substrateROI
+        return self.reference.image[y0:y1, x0:x1]
 
     @abc.abstractmethod
     def region_points(self) -> npt.NDArray[np.int32]:
-        """Points in `[x, y]` in each discrete substrate region.
+        """Coordinates of points in each discrete substrate region.
 
-        Returns
-        -------
-        ndarray
+        Substrate image can have multiple discrete substrate regions.
+        Concrete class should implement this method to return coordinates of points,
+        one for each region.
+
+        Returns:
             `(N, 2)`-shaped array, where `N` is the number of discrete substrate
-            regions.
+            regions. Column should be the coordinates of points in ``(x, y)``.
 
-        Notes
-        -----
-        These points are used to locate and distinguish each substrate region
-        from foreground pixels. Every image analysis implementation is based on
-        these points.
+        Note:
+            These points are used to distinguish substrate regions from other
+            foreground pixels, and give indices to each region.
 
-        Subclass should implement this method to return robust points. The
-        implementation must be simple and non-dynamic. Returning just the center
-        point of the image is a good example; selection of the substrate region
-        from the reference image must be done to obey this rule (e.g., select
-        s.t. the center point falls on the substrate region)
+            As higher-level methods are expected to rely on this method,
+            implementation must be simple and non-dynamic.
+            See :meth:`Substrate.region_points` for example.
         """
 
     @attrcache("_regions")
     def regions(self) -> npt.NDArray[np.int8]:
-        """Return image labelled by each discrete substrate regions.
+        """Labelled image of discrete substrate regions.
 
-        Returns
-        -------
-        ndarray
-            Labelled image. `i`-th region in :meth:`region_points` is labelled
-            with `i`. `-1` denotes background.
+        Substrate regions are determined as connected component including
+        a point in :meth:`region_points`.
 
-        Notes
-        -----
-        Maximum number of regions is 128.
+        Returns:
+            Labelled image. Value of ``i`` represents ``i``-th region in
+            :meth:`region_points. ``-1`` represents background.
 
-        See Also
-        --------
-        region_points
+        Note:
+            Maximum number of regions is 128.
         """
         ret = np.full(self.image().shape[:2], -1, dtype=np.int8)
         _, labels = cv2.connectedComponents(cv2.bitwise_not(self.image()))
@@ -186,25 +210,16 @@ class SubstrateBase(
     def contours(
         self, region: int
     ) -> Tuple[Tuple[npt.NDArray[np.int32], ...], npt.NDArray[np.int32]]:
-        """Find contours of a substrate region identified by *region*.
+        """Find contours of a discrete substrate region.
 
-        Parameters
-        ----------
-        region : int
-            Label in :meth:`regions`.
+        Arguments:
+            region: Label of the discrete region from :meth:`regions`.
 
-        Returns
-        -------
-        tuple
+        Returns:
             Tuple of the result of :func:`cv2.findContours`.
 
-        Notes
-        -----
-        Contours are dense, i.e., no approximation is made.
-
-        See Also
-        --------
-        regions
+        Note:
+            Contours are dense, i.e., no approximation is made.
         """
         if not hasattr(self, "_contours"):
             contours = []
@@ -217,90 +232,143 @@ class SubstrateBase(
 
     @abc.abstractmethod
     def verify(self):
-        """Check to detect error and raise before analysis."""
+        """Sanity check before analysis.
+
+        This method checks every intermediate step for analysis
+        and raises error if anything is wrong. Passing this check
+        should guarantee that :meth:`draw` and :meth:`analyze`
+        returns without exception.
+        """
 
     @abc.abstractmethod
     def draw(self) -> npt.NDArray[np.uint8]:
-        """Decorate and return the substrate image as RGB format."""
+        """Return visualization result in RGB format.
+
+        This method must always return without error. If visualization cannot be done,
+        it should at least return original image.
+        """
 
     @abc.abstractmethod
-    def analyze(self) -> DataType:
-        """Analyze the substrate image and return the data.
+    def analyze(self) -> DataTypeVar:
+        """Return analysis data of the reference image.
 
-        May raise error if the instance is not valid.
+        This method returns analysis result as a dataclass instance
+        whose type is :attr:`DataType`. If analysis is impossible,
+        error may be raised.
         """
 
 
 @dataclasses.dataclass(frozen=True)
-class Parameters:
-    """Additional parameters for `Substrate` instance."""
+class SubstParam:
+    """Analysis parameters for :class:`Substrate`.
 
-    pass
-
-
-@dataclasses.dataclass
-class DrawOptions:
-    """Drawing options for `Substrate`."""
-
-    pass
-
-
-@dataclasses.dataclass
-class Data:
-    """Analysis data for `Substrate`."""
-
-    pass
-
-
-class Substrate(SubstrateBase[ReferenceBase, Parameters, DrawOptions, Data]):
-    """Simplest substrate class with no geometric information.
-
-    Examples
-    --------
-    Construct substrate reference instance first.
-
-    .. plot::
-       :include-source:
-       :context: reset
-
-       >>> import cv2
-       >>> from dipcoatimage.finitedepth import Reference, get_data_path
-       >>> gray = cv2.imread(get_data_path("ref1.png"), cv2.IMREAD_GRAYSCALE)
-       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-       >>> tempROI = (200, 50, 1200, 200)
-       >>> substROI = (400, 175, 1000, 500)
-       >>> ref = Reference(img, tempROI, substROI)
-       >>> import matplotlib.pyplot as plt #doctest: +SKIP
-       >>> plt.imshow(ref.draw()) #doctest: +SKIP
-
-    Construct `Substrate` instance from reference instance.
-
-    .. plot::
-       :include-source:
-       :context: close-figs
-
-       >>> from dipcoatimage.finitedepth import Substrate
-       >>> subst = Substrate(ref)
-       >>> plt.imshow(subst.draw()) #doctest: +SKIP
+    This is an empty dataclass.
     """
 
-    Parameters = Parameters
-    DrawOptions = DrawOptions
-    Data = Data
+    pass
+
+
+@dataclasses.dataclass
+class SubstDrawOpt:
+    """Visualization options for :class:`Reference`.
+
+    This is an empty dataclass.
+    """
+
+    pass
+
+
+@dataclasses.dataclass
+class SubstData:
+    """Analysis data for :class:`Substrate`.
+
+    This is an empty dataclass.
+    """
+
+    pass
+
+
+class Substrate(SubstrateBase[ReferenceBase, SubstParam, SubstDrawOpt, SubstData]):
+    """Basic implementation of :class:`SubstrateBase`.
+
+    Arguments:
+        reference
+        parameters (SubstParam, optional)
+        draw_options (SubstDrawOpt, optional)
+
+    Examples:
+        Construct reference instance first.
+
+        .. plot::
+            :include-source:
+            :context: reset
+
+            >>> import cv2
+            >>> from dipcoatimage.finitedepth import Reference, get_data_path
+            >>> gray = cv2.imread(get_data_path("ref1.png"), cv2.IMREAD_GRAYSCALE)
+            >>> _, im = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+            >>> tempROI = (200, 50, 1200, 200)
+            >>> substROI = (400, 175, 1000, 500)
+            >>> ref = Reference(im, tempROI, substROI)
+
+        Construct substrate instance from the reference instance.
+
+        .. plot::
+            :include-source:
+            :context: close-figs
+
+            >>> from dipcoatimage.finitedepth import Substrate
+            >>> subst = Substrate(ref)
+            >>> import matplotlib.pyplot as plt #doctest: +SKIP
+            >>> plt.imshow(subst.draw()) #doctest: +SKIP
+    """
+
+    ParamType = SubstParam
+    """Assigned with :class:`SubstParam`."""
+    DrawOptType = SubstDrawOpt
+    """Assigned with :class:`SubstDrawOpt`."""
+    DataType = SubstData
+    """Assigned with :class:`SubstData`."""
 
     def region_points(self) -> npt.NDArray[np.int32]:
-        """Return a point in substrate region."""
+        """Implement :meth:`SubstrateBase.region_points`.
+
+        This method returns an upper center point of the substrate image.
+        Substrate ROI in reference image must be selected so that
+        this point falls into substrate region.
+
+        Examples:
+            .. plot::
+                :include-source:
+                :context: reset
+
+                >>> import cv2
+                >>> from dipcoatimage.finitedepth import get_data_path, Reference
+                >>> ref_path = get_data_path("ref1.png")
+                >>> gray = cv2.imread(ref_path, cv2.IMREAD_GRAYSCALE)
+                >>> _, im = cv2.threshold(
+                ...     gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
+                ... )
+                >>> tempROI = (200, 50, 1200, 200)
+                >>> substROI = (400, 175, 1000, 500)
+                >>> ref = Reference(im, tempROI, substROI)
+                >>> from dipcoatimage.finitedepth import Substrate
+                >>> subst = Substrate(ref)
+                >>> import matplotlib.pyplot as plt #doctest: +SKIP
+                >>> plt.imshow(subst.draw())  #doctest: +SKIP
+                >>> plt.plot(*subst.region_points().T, "o")  #doctest: +SKIP
+        """
         w = self.image().shape[1]
         return np.array([[w / 2, 0]], dtype=np.int32)
 
     def verify(self):
-        """Check error."""
+        """Implement :meth:`ReferenceBase.verify`."""
         pass
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        """Return visualized image."""
+        """Implement :meth:`ReferenceBase.draw`."""
         return cv2.cvtColor(self.image(), cv2.COLOR_GRAY2RGB)
 
     def analyze(self):
-        """Return analysis data."""
-        return self.Data()
+        """Implement :meth:`ReferenceBase.analyze`."""
+        return self.DataType()

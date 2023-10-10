@@ -1,6 +1,10 @@
-"""Polygonal substrate."""
+"""Analyze polygonal substrate.
+
+This module defines :class:`PolySubstrateBase`, which is an abstract base class
+for substrate with polygonal shape.
+"""
 import dataclasses
-from typing import Tuple, Type, TypeVar
+from typing import Tuple, TypeVar
 
 import numpy as np
 import numpy.typing as npt
@@ -10,36 +14,26 @@ from scipy.ndimage import gaussian_filter1d  # type: ignore
 from scipy.signal import find_peaks, peak_prominences  # type: ignore
 
 from .cache import attrcache
-from .substrate import (
-    DataType,
-    DrawOptionsType,
-    ReferenceType,
-    SubstrateBase,
-    SubstrateError,
-)
+from .substrate import DataTypeVar, DrawOptTypeVar, RefTypeVar, SubstrateBase
 
 __all__ = [
-    "PolySubstrateError",
+    "PolySubstParam",
+    "ParamTypeVar",
     "PolySubstrateBase",
     "houghline_accum",
 ]
 
 
 @dataclasses.dataclass(frozen=True)
-class Parameters:
-    """Parameters for `PolySubstrate`.
+class PolySubstParam:
+    """Analysis parameters for :class:`PolySubstrate`.
 
-    Attributes
-    ----------
-    Sigma: positive float
-        Standard deviation of Gaussian kernel to smooth the noise.
-    Rho: positive float
-        Radian resolution for Hough transformation to detect the sidelines.
-    Theta: positive float
-        Angle resolution for Hough transformation to detect the sidelines.
-    Step: positive int
-        Sampling rate of points for Hough transformation. Larger step makes
-        evaluation faster.
+    Arguments:
+        Sigma: Standard deviation of Gaussian kernel to smooth the noise.
+        Rho: Radian resolution for Hough transformation to detect the sidelines.
+        Theta: Angle resolution for Hough transformation to detect the sidelines.
+        Step: Sampling rate of points for Hough transformation.
+            Larger step makes evaluation faster.
     """
 
     Sigma: float
@@ -48,48 +42,57 @@ class Parameters:
     Step: int = 1
 
 
-class PolySubstrateError(SubstrateError):
-    """Base class for the errors from `PolySubstrate`."""
-
-    pass
-
-
 ROTATION_MATRIX = np.array([[0, 1], [-1, 0]])
 
 
-ParametersType = TypeVar("ParametersType", bound=Parameters)
+ParamTypeVar = TypeVar("ParamTypeVar", bound=PolySubstParam)
+"""Type variable for :attr:`PolySubstrate.ParamType`."""
 
 
 class PolySubstrateBase(
-    SubstrateBase[ReferenceType, ParametersType, DrawOptionsType, DataType]
+    SubstrateBase[RefTypeVar, ParamTypeVar, DrawOptTypeVar, DataTypeVar]
 ):
-    """Abstract base class for substrates whose cross section is a simple polygon.
+    """Abstract base class for substrate whose cross section is a simple polygon.
 
     A simple polygon does not have intersection nor hole [#simple-polygon]_.
-
-    `PolySubstrateBase` provides method to detect the sides of the
-    a polygonal substrate. The sides are expected to be mostly linear. Smooth
-    corners are allowed.
-
-    Concrete class must define `SidesNum` class attribute, which is the
-    number of the sides of the polygon.
+    Smooth corners are allowed.
 
     The following substrate images are not supported:
-    - Multiple substrates in one image
-    - Multiple contours (e.g. substrate with holes)
 
-    References
-    ----------
-    .. [#simple-polygon] https://en.wikipedia.org/wiki/Simple_polygon
+    * Multiple substrates in one image
+    * Multiple contours (e.g. substrate with holes)
+
+    Concrete subclass must assign the following class attributes:
+
+    * :attr:`SidesNum`: Number of sides of the polygon.
+        For example, this should be ``4`` if cross section of the substrate is
+        tetragon.
+
+    Arguments:
+        image
+        templateROI
+        substrateROI
+        parameters (PolySubstParam, optional)
+        draw_options
+
+    References:
+        .. [#simple-polygon] https://en.wikipedia.org/wiki/Simple_polygon
     """
 
-    Parameters: Type[ParametersType]
-    DrawOptions: Type[DrawOptionsType]
-    Data: Type[DataType]
     SidesNum: int
+    """Number of sides of polygon.
+
+    This class attribute is defined but not set in :class:`PolySubstrateBase`.
+    Concrete subclass must assign this attribute with integer.
+    """
 
     def region_points(self) -> npt.NDArray[np.int32]:
-        """Points in `[x, y]` in each discrete substrate region."""
+        """Implement :meth:`SubstrateBase.region_points`.
+
+        This method returns an upper center point of the substrate image. Substrate ROI
+        in reference image must be selected so that this point falls into substrate
+        region.
+        """
         w = self.image().shape[1]
         return np.array([[w / 2, 0]], dtype=np.int32)
 
@@ -99,29 +102,24 @@ class PolySubstrateBase(
         return cnt
 
     def vertices(self) -> npt.NDArray[np.int32]:
-        """Find the polygon vertices from dense contour.
+        """Find vertices of the polygon from its contour.
 
-        Returns
-        -------
-        ndarray
+        A vertex is a point where two sides of a polygon meet[#vertex-geom]_.
+        The sides can be curves, where the vertices can be defined as local
+        extrema of curvature [#vertex-curve]_.
+
+        Returns:
             Indices of the vertex points in :meth:`contour`.
+            The number of the vertices is defined by :attr:`SidesNum`.
 
-        Notes
-        -----
-        A vertex is a point where two or more sides of a polygon meet
-        [#vertex-geom]_. The sides can be curves, where the vertices can be
-        defined as local extrema of curvature [#vertex-curve]_. This method finds
-        the vertices by locating a certain number (defined by `SidesNum`) of the
-        extrema.
+        Note:
+            Contour is Gaussian-filtered to reduce noise[#so-curvature]_.
+            Sigma value of the kernel is determined from :attr:`parameters`.
 
-        Gaussian filter was used to reduce noise from contour [#so-curvature]_.
-        Sigma value is determined from :meth:`parameters`.
-
-        References
-        ----------
-        .. [#vertex-geom] https://en.wikipedia.org/wiki/Vertex_(geometry)
-        .. [#vertex-curve] https://en.wikipedia.org/wiki/Vertex_(curve)
-        .. [#so-curvature] https://stackoverflow.com/q/32629806
+        References:
+            .. [#vertex-geom] https://en.wikipedia.org/wiki/Vertex_(geometry)
+            .. [#vertex-curve] https://en.wikipedia.org/wiki/Vertex_(curve)
+            .. [#so-curvature] https://stackoverflow.com/q/32629806
         """
         cnt = self.contour().astype(np.float64)
 
@@ -145,27 +143,21 @@ class PolySubstrateBase(
         return np.sort((prom_peaks - (L // 2)) % L)
 
     def sides(self) -> Tuple[npt.NDArray[np.int32], ...]:
-        """Return the points of each side of the polygon.
-
-        Returns
-        -------
-        tuple_of_points: tuple
-
-        Notes
-        -----
-        Sides are sorted so that the one containing the first point of the
-        contour comes first.
+        """Find each side of the polygon.
 
         Side can be curved and can have noises. Use :meth:`sidelines` to get the
         linear models for each side.
 
-        The term "side" is used instead of "edge" to avoid confusion from other
-        image processing methods (e.g. Canny edge detection).
+        Returns:
+            Tuple of array. Each array contains points on each side of the
+            polygon contour.
 
-        See Also
-        --------
-        sidelines
-            Linear model of sides.
+        Note:
+            Result is sorted so that the side containing the first point of the
+            contour comes first.
+
+            The term "side" is used instead of "edge" to avoid confusion from
+            other image processing methods (e.g. Canny edge detection).
         """
         cnt = self.contour()
         vert = self.vertices()
@@ -180,30 +172,23 @@ class PolySubstrateBase(
     def sidelines(self) -> npt.NDArray[np.float32]:
         r"""Find linear model of polygon sides.
 
-        Sides of the polygon can be curves and can have noises. This method finds
-        straight sidelines [#extended-side]_ using Hough line transformation.
+        This method finds straight sidelines [#extended-side]_ using
+        Hough line transformation. Radian and angle resolutions are determined
+        by :attr:`parameters`.
 
-        Returns
-        -------
-        lines
-            Vector of line parameters in $(\rho, \theta)$. $\rho$ is the distance
-            from the coordinate origin. $\theta$ is the angle of normal vector
-            from the origin to the line.
+        Returns:
+            Vector of line parameters in :math:`(\rho, \theta)`.
+            :math:`\rho` is the distance from the coordinate origin.
+            :math:`\theta` is the angle of normal vector from the origin to the line.
 
-        Notes
-        -----
-        The ranges of parameters are $\rho \in (-\infty, \infty)$ and
-        $\theta \in (-\frac{3 \pi}{2}, \frac{\pi}{2}]$. Arctan direction of the
-        side vector can be acquired by $\theta + \frac{\pi}{2}$.
+        Note:
+            Range of angle is
+            :math:`\theta \in (-\frac{3 \pi}{2}, \frac{\pi}{2}]`.
+            Arctangent direction can be acquired by
+            :math:`\theta + \frac{\pi}{2}`.
 
-        See Also
-        --------
-        sideline_intersections
-            Return coordinates of intersections of sidelines.
-
-        References
-        ----------
-        .. [#extended-side] https://en.wikipedia.org/wiki/Extended_side
+        References:
+            .. [#extended-side] https://en.wikipedia.org/wiki/Extended_side
         """
         # Do not find the line from smoothed contour. Noise is removed anyway
         # without smoothing by Hough transformation. In fact, smoothing
@@ -233,15 +218,11 @@ class PolySubstrateBase(
         return np.array(lines, dtype=np.float32)
 
     def sideline_intersections(self) -> npt.NDArray[np.float32]:
-        """Return the coordinates of intersections of polygon sidelines.
+        """Return the intersections of :meth:`sidelines`.
 
-        If the polygon has smooth corner, the vertex points are different from
-        the corner points on the contour.
-
-        See Also
-        --------
-        vertices
-            Return indices of the corner points on contour.
+        Note:
+            If the polygon has smooth corner, the vertex points are different
+            from the corner points on the contour.
         """
         ((r1, t1),) = self.sidelines().transpose(1, 2, 0)
         ((r2, t2),) = np.roll(self.sidelines(), 1, axis=0).transpose(1, 2, 0)
@@ -253,11 +234,14 @@ class PolySubstrateBase(
         return ret
 
     def verify(self):
-        """Check error."""
+        """Implement :meth:`SubstrateBase.verify`.
+
+        Check if :meth:`sideline_intersections` returns without error.
+        """
         try:
             self.sideline_intersections()
         except LinAlgError:
-            raise PolySubstrateError("Cannot find sideline intersections.")
+            raise ValueError("Cannot find sideline intersections.")
 
 
 @njit(cache=True)
@@ -266,23 +250,13 @@ def houghline_accum(
 ) -> Tuple[npt.NDArray[np.int32], Tuple[float, int]]:
     """Perform hough line accumulation.
 
-    Parameters
-    ----------
-    rho_array: ndarray
-        Array which contains rho and theta values for every points.
-        The shape must be `(P, T)`, where `P` is the number of points and `T` is
-        the length of digitized theta ranges.
-        If an element at index `(p, t)` has value `r`, it indicates that a line:
-        * Passing `p`-th point
-        * Angle is `t`-th element in digitized theta range.
-        * Distance from the origin is `r`.
+    Arguments:
+        rho_array: Array containing rho and theta values for every points.
+            The shape must be ``(P, T)``, where ``P`` is the number of points
+            and ``T`` is the numbers of digitized theta intervals.
 
-    Returns
-    -------
-    accum: ndarray
-        Accumulation matrix.
-    rho_theta: tuple
-        `(rho, theta_idx)` value for the detected line.
+    Returns:
+        Tuple of accumulation matrix and detected ``(rho, theta_idx)`` value.
     """
     rho_min = np.min(rho_array)
     n_rho = np.max(rho_array) - rho_min + 1

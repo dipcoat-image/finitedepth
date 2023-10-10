@@ -1,4 +1,8 @@
-"""Rectangular substrate."""
+"""Analyze rectangular substrate.
+
+This module defines :class:`RectSubstrate`, which is an implementation of
+:class:`PolySubstrateBase`.
+"""
 import dataclasses
 import enum
 
@@ -7,10 +11,13 @@ import numpy as np
 import numpy.typing as npt
 
 from .parameters import LineOptions, MarkerOptions
-from .polysubstrate import Parameters, PolySubstrateBase
+from .polysubstrate import PolySubstParam, PolySubstrateBase
 from .reference import ReferenceBase
 
 __all__ = [
+    "PaintMode",
+    "RectSubstDrawOpt",
+    "RectSubstData",
     "RectSubstrate",
 ]
 
@@ -18,12 +25,10 @@ __all__ = [
 class PaintMode(enum.Enum):
     """Option to determine how the substrate image is painted.
 
-    Members
-    -------
-    ORIGINAL
-        Show the original substrate image.
-    CONTOUR
-        Show the contour of the substrate.
+    .. rubric:: **Members**
+
+    - ORIGINAL: Show the original substrate image.
+    - CONTOUR: Show the contour of the substrate.
     """
 
     ORIGINAL = "ORIGINAL"
@@ -31,14 +36,13 @@ class PaintMode(enum.Enum):
 
 
 @dataclasses.dataclass
-class DrawOptions:
-    """Drawing options for `RectSubstrate`.
+class RectSubstDrawOpt:
+    """Drawing options for :class:`RectSubstrate`.
 
-    Attributes
-    ----------
-    paint : PaintMode
-    vertices : MarkerOptions
-    sidelines : LineOptions
+    Arguments:
+        paint: Determine how the substrate image is painted
+        vertices: Determine how the vertex points is be marked.
+        sidelines: Determine how the side lines are drawn.
     """
 
     paint: PaintMode = PaintMode.ORIGINAL
@@ -51,68 +55,77 @@ class DrawOptions:
 
 
 @dataclasses.dataclass
-class Data:
-    """Analysis data for `RectSubstrate`.
+class RectSubstData:
+    """Analysis data for :class:`RectSubstrate`.
 
-    - Width: Number of the pixels between lower vertices of the substrate.
+    Arguments:
+        Width: Width of the rectangular cross section in pixels.
     """
 
     Width: np.float32
 
 
-class RectSubstrate(PolySubstrateBase[ReferenceBase, Parameters, DrawOptions, Data]):
-    """Simplest implementation of `RectSubstrateBase`.
+class RectSubstrate(
+    PolySubstrateBase[ReferenceBase, PolySubstParam, RectSubstDrawOpt, RectSubstData]
+):
+    """Basic implementation of :class:`RectSubstrateBase`.
 
-    Examples
-    --------
-    Construct substrate reference instance first.
+    Examples:
+        Construct reference instance first.
 
-    .. plot::
-       :include-source:
-       :context: reset
+        .. plot::
+            :include-source:
+            :context: reset
 
-       >>> import cv2
-       >>> from dipcoatimage.finitedepth import Reference, get_data_path
-       >>> gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
-       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-       >>> tempROI = (13, 10, 1246, 200)
-       >>> substROI = (100, 100, 1200, 500)
-       >>> ref = Reference(img, tempROI, substROI)
-       >>> import matplotlib.pyplot as plt #doctest: +SKIP
-       >>> plt.imshow(ref.draw()) #doctest: +SKIP
+            >>> import cv2
+            >>> from dipcoatimage.finitedepth import Reference, get_data_path
+            >>> gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
+            >>> _, im = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+            >>> tempROI = (13, 10, 1246, 200)
+            >>> substROI = (100, 100, 1200, 500)
+            >>> ref = Reference(im, tempROI, substROI)
 
-    Construct the parameters and substrate instance from reference instance.
+        Construct substrate instance from the reference instance.
 
-    .. plot::
-       :include-source:
-       :context: close-figs
+        .. plot::
+            :include-source:
+            :context: close-figs
 
-       >>> from dipcoatimage.finitedepth import RectSubstrate, data_converter
-       >>> param_val = dict(Sigma=3.0, Rho=1.0, Theta=0.01)
-       >>> param = data_converter.structure(param_val, RectSubstrate.Parameters)
-       >>> subst = RectSubstrate(ref, param)
-       >>> plt.imshow(subst.draw()) #doctest: +SKIP
+            >>> from dipcoatimage.finitedepth import RectSubstrate
+            >>> subst = RectSubstrate(
+            ...     ref, RectSubstrate.ParamType(Sigma=3.0, Rho=1.0, Theta=0.01)
+            ... )
+            >>> import matplotlib.pyplot as plt #doctest: +SKIP
+            >>> plt.imshow(subst.draw()) #doctest: +SKIP
 
-    Visualization can be controlled by modifying :attr:`draw_options`.
+        Visualization can be controlled by modifying :attr:`draw_options`.
 
-    .. plot::
-       :include-source:
-       :context: close-figs
+        .. plot::
+            :include-source:
+            :context: close-figs
 
-       >>> subst.draw_options.sidelines.linewidth = 3
-       >>> subst.draw_options.sidelines.color = (255, 0, 255)
-       >>> plt.imshow(subst.draw()) #doctest: +SKIP
+            >>> subst.draw_options.sidelines.linewidth = 3
+            >>> plt.imshow(subst.draw()) #doctest: +SKIP
     """
 
-    Parameters = Parameters
-    DrawOptions = DrawOptions
-    Data = Data
+    ParamType = PolySubstParam
+    """Assigned with :class:`PolySubstParam`."""
+    DrawOptType = RectSubstDrawOpt
+    """Assigned with :class:`RectSubstDrawOpt`."""
+    DataType = RectSubstData
+    """Assigned with :class:`RectSubstData`."""
     SidesNum = 4
 
     PaintMode = PaintMode
+    """Shortcut to :class:`PaintMode`."""
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        """Return visualized image."""
+        """Implement :meth:`SubstrateBase.draw`.
+
+        #. Draw the substrate with by :class:`PaintMode`.
+        #. Draw markers on vertices.
+        #. Draw sidelines.
+        """
         paint = self.draw_options.paint
         if paint is self.PaintMode.ORIGINAL:
             image = self.image()
@@ -140,18 +153,21 @@ class RectSubstrate(PolySubstrateBase[ReferenceBase, Parameters, DrawOptions, Da
 
         side_opts = self.draw_options.sidelines
         if side_opts.linewidth > 0:
-            tl, bl, br, tr = self.sideline_intersections().astype(np.int32)
+            try:
+                tl, bl, br, tr = self.sideline_intersections().astype(np.int32)
 
-            color = side_opts.color
-            linewidth = side_opts.linewidth
-            cv2.line(ret, tl, tr, color, linewidth)
-            cv2.line(ret, tr, br, color, linewidth)
-            cv2.line(ret, br, bl, color, linewidth)
-            cv2.line(ret, bl, tl, color, linewidth)
+                color = side_opts.color
+                linewidth = side_opts.linewidth
+                cv2.line(ret, tl, tr, color, linewidth)
+                cv2.line(ret, tr, br, color, linewidth)
+                cv2.line(ret, br, bl, color, linewidth)
+                cv2.line(ret, bl, tl, color, linewidth)
+            except ValueError:
+                pass
 
         return ret
 
     def analyze(self):
-        """Return analysis data."""
+        """Implement :meth:`SubstrateBase.analyze`."""
         _, B, C, _ = self.sideline_intersections()
-        return self.Data(np.linalg.norm(B - C))
+        return self.DataType(np.linalg.norm(B - C))

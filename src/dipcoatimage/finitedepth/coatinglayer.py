@@ -1,4 +1,8 @@
-"""Detect coating layer from coated substrate image."""
+"""Analyze coating layer shape.
+
+This module defines abstract class :class:`CoatingLayerBase` and its
+implementation, :class:`CoatingLayer`.
+"""
 
 
 import abc
@@ -19,49 +23,134 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "CoatingLayerError",
+    "SubstTypeVar",
+    "ParamTypeVar",
+    "DrawOptTypeVar",
+    "DecoOptTypeVar",
+    "DataTypeVar",
     "CoatingLayerBase",
+    "LayerParam",
+    "SubtractionMode",
+    "LayerDrawOpt",
+    "LayerDecoOpt",
+    "LayerData",
     "CoatingLayer",
     "images_XOR",
     "images_ANDXOR",
 ]
 
 
-SubstrateType = TypeVar("SubstrateType", bound=SubstrateBase)
-ParametersType = TypeVar("ParametersType", bound="DataclassInstance")
-DrawOptionsType = TypeVar("DrawOptionsType", bound="DataclassInstance")
-DecoOptionsType = TypeVar("DecoOptionsType", bound="DataclassInstance")
-DataType = TypeVar("DataType", bound="DataclassInstance")
-
-
-class CoatingLayerError(Exception):
-    """Base class for error from `CoatingLayerBase`."""
-
-    pass
+SubstTypeVar = TypeVar("SubstTypeVar", bound=SubstrateBase)
+"""Type variable for the substrate type of :class:`CoatingLayerBase`."""
+ParamTypeVar = TypeVar("ParamTypeVar", bound="DataclassInstance")
+"""Type variable for :attr:`CoatingLayerBase.ParamType`."""
+DrawOptTypeVar = TypeVar("DrawOptTypeVar", bound="DataclassInstance")
+"""Type variable for :attr:`CoatingLayerBase.DrawOptType`."""
+DecoOptTypeVar = TypeVar("DecoOptTypeVar", bound="DataclassInstance")
+"""Type variable for :attr:`CoatingLayerBase.DecoOptType`."""
+DataTypeVar = TypeVar("DataTypeVar", bound="DataclassInstance")
+"""Type variable for :attr:`CoatingLayerBase.DataType`."""
 
 
 class CoatingLayerBase(
     abc.ABC,
-    Generic[SubstrateType, ParametersType, DrawOptionsType, DecoOptionsType, DataType],
+    Generic[SubstTypeVar, ParamTypeVar, DrawOptTypeVar, DecoOptTypeVar, DataTypeVar],
 ):
-    """Abstract base class for coating layer."""
+    """Abstract base class for coating layer instance.
 
-    Parameters: Type[ParametersType]
-    DrawOptions: Type[DrawOptionsType]
-    DecoOptions: Type[DecoOptionsType]
-    Data: Type[DataType]
+    Coating layer instance stores a substrate instance and a target image, which is
+    a binary image of coated substrate. The role of coating layer instance is to
+    acquire coating layer region and analyze its shape.
+
+    Coating layer instance can visualize its data and analyze the substrate image
+    by the following methods:
+
+    * :meth:`verify`: Sanity check before the analysis.
+    * :meth:`draw`: Returns visualized result.
+    * :meth:`analyze`: Returns analysis result.
+
+    Concrete subclass must assign dataclasses types to the
+    following class attributes:
+
+    * :attr:`ParamType`: Type of :attr:`parameters`.
+    * :attr:`DrawOptType`: Type of :attr:`draw_options`.
+    * :attr:`DecoOptType`: Type of :attr:`deco_options`.
+    * :attr:`DataType`: Type of :meth:`analyze`.
+
+    Arguments:
+        image: Binary target image.
+        substrate: Substrate instance.
+        parameters: Analysis parameters.
+            If passed, must be an instance of :attr:`ParamType`.
+            If not passed, attempts to construct :attr:`ParamType`
+            instance without argument.
+        draw_options: Visualization options to draw the target image.
+            If passed, must be an instance of :attr:`DrawOptType`.
+            If not passed, attempts to construct :attr:`DrawOptType`
+            instance without argument.
+        deco_options: Visualization options to draw the analysis result.
+            If passed, must be an instance of :attr:`DecoOptType`.
+            If not passed, attempts to construct :attr:`DecoOptType`
+            instance without argument.
+        tempmatch: Template matching result.
+            Consists of template location in ``(x, y)`` and matching score.
+            If passed, must be a template matching result betwen the
+            template image from *substrate*'s reference instance and
+            the target image.
+            If not passed, template matching is automatically performed.
+    """
+
+    ParamType: Type[ParamTypeVar]
+    """Type of :attr:`parameters.`
+
+    This class attribute is defined but not set in :class:`CoatingLayerBase`.
+    Concrete subclass must assign this attribute with frozen dataclass type.
+    """
+    DrawOptType: Type[DrawOptTypeVar]
+    """Type of :attr:`draw_options.`
+
+    This class attribute is defined but not set in :class:`CoatingLayerBase`.
+    Concrete subclass must assign this attribute with dataclass type.
+    """
+    DecoOptType: Type[DecoOptTypeVar]
+    """Type of :attr:`eco_options.`
+
+    This class attribute is defined but not set in :class:`CoatingLayerBase`.
+    Concrete subclass must assign this attribute with dataclass type.
+    """
+    DataType: Type[DataTypeVar]
+    """Type of return value of :attr:`analyze.`
+
+    This class attribute is defined but not set in :class:`CoatingLayerBase`.
+    Concrete subclass must assign this attribute with dataclass type.
+    """
 
     def __init__(
         self,
         image: npt.NDArray[np.uint8],
-        substrate: SubstrateType,
-        parameters: Optional[ParametersType] = None,
+        substrate: SubstTypeVar,
+        parameters: Optional[ParamTypeVar] = None,
         *,
-        draw_options: Optional[DrawOptionsType] = None,
-        deco_options: Optional[DecoOptionsType] = None,
+        draw_options: Optional[DrawOptTypeVar] = None,
+        deco_options: Optional[DecoOptTypeVar] = None,
         tempmatch: Optional[Tuple[Tuple[int, int], float]] = None,
     ):
-        """Initialize the instance."""
+        """Initialize the instance.
+
+        - *image* is set to be immutable.
+        - *substrate* is not type-checked in runtime.
+        - *parameters* must be instance of :attr:`ParamType` or :obj:`None`.
+          If :obj:`None`, a :attr:`ParamType` is attempted to be constructed.
+        - *draw_options* must be instance of :attr:`DrawOptType` or :obj:`None`.
+          If :obj:`None`, a :attr:`DrawOptType` is attempted to be constructed.
+          If :attr:`DrawOptType`, the values are copied.
+        - *deco_options* must be instance of :attr:`DecoOptType` or :obj:`None`.
+          If :obj:`None`, a :attr:`DecoOptType` is attempted to be constructed.
+          If :attr:`DecoOptType`, the values are copied.
+        - *tempmatch* is expected to be passed by external constructor.
+          If :obj:`None`, template matching is performed using
+          :func:`cv2.matchTemplate` with :obj:`cv2.TM_SQDIFF_NORMED`.
+        """
         super().__init__()
         self._image = image
         self._image.setflags(write=False)
@@ -69,24 +158,24 @@ class CoatingLayerBase(
         self._substrate = substrate
 
         if parameters is None:
-            self._parameters = self.Parameters()
+            self._parameters = self.ParamType()
         else:
-            if not isinstance(parameters, self.Parameters):
-                raise TypeError(f"{parameters} is not instance of {self.Parameters}")
-            self._parameters = dataclasses.replace(parameters)
+            if not isinstance(parameters, self.ParamType):
+                raise TypeError(f"{parameters} is not instance of {self.ParamType}")
+            self._parameters = parameters
 
         if draw_options is None:
-            self._draw_options = self.DrawOptions()
+            self._draw_options = self.DrawOptType()
         else:
-            if not isinstance(draw_options, self.DrawOptions):
-                raise TypeError(f"{draw_options} is not instance of {self.DrawOptions}")
+            if not isinstance(draw_options, self.DrawOptType):
+                raise TypeError(f"{draw_options} is not instance of {self.DrawOptType}")
             self._draw_options = dataclasses.replace(draw_options)
 
         if deco_options is None:
-            self._deco_options = self.DecoOptions()
+            self._deco_options = self.DecoOptType()
         else:
-            if not isinstance(deco_options, self.DecoOptions):
-                raise TypeError(f"{deco_options} is not instance of {self.DecoOptions}")
+            if not isinstance(deco_options, self.DecoOptType):
+                raise TypeError(f"{deco_options} is not instance of {self.DecoOptType}")
             self._deco_options = dataclasses.replace(deco_options)
 
         if tempmatch is None:
@@ -101,70 +190,96 @@ class CoatingLayerBase(
 
     @property
     def image(self) -> npt.NDArray[np.uint8]:
-        """Coated substrate image.
+        """Binary target image.
 
-        This array is not writable to enable caching which requires immutability.
+        Note:
+            This array is immutable to allow caching.
         """
         return self._image
 
     @property
-    def substrate(self) -> SubstrateType:
-        """Substrate instance passed to the constructor."""
+    def substrate(self) -> SubstTypeVar:
+        """Substrate instance for substrate and template images."""
         return self._substrate
 
     @property
-    def parameters(self) -> ParametersType:
-        """Additional parameters for concrete class.
+    def parameters(self) -> ParamTypeVar:
+        """Analysis parameters.
 
-        Instance of :attr:`Parameters`, which must be a frozen dataclass.
+        This property returns a frozen dataclass instance.
+        Its type is :attr:`ParamType`.
+
+        Note:
+            This dataclass must be frozen to allow caching.
         """
         return self._parameters
 
     @property
-    def draw_options(self) -> DrawOptionsType:
-        """Options to visualize the coated substrate image.
+    def draw_options(self) -> DrawOptTypeVar:
+        """Visualization options for targe image.
 
-        Instance of :attr:`DrawOptions` dataclass.
+        This property returns a mutable dataclass instance.
+        Its type is :attr:`DrawOptType`.
+
+        Note:
+            These options control how the target image itself is drawn
+            in the visualization result. :meth:`deco_options` control
+            how the analysis result is shown.
         """
         return self._draw_options
 
     @draw_options.setter
-    def draw_options(self, options: DrawOptionsType):
+    def draw_options(self, options: DrawOptTypeVar):
         self._draw_options = options
 
     @property
-    def deco_options(self) -> DecoOptionsType:
-        """Options to decorate the coating layer region.
+    def deco_options(self) -> DecoOptTypeVar:
+        """Visualization options for analysis result.
 
-        Instance of :attr:`DecoOptions` dataclass.
+        This property returns a mutable dataclass instance.
+        Its type is :attr:`DecpOptType`.
+
+        Note:
+            These options control how the analysis result is shown
+            in the visualization result. :meth:`draw_options` control
+            how the other features are drawn.
         """
         return self._deco_options
 
     @deco_options.setter
-    def deco_options(self, options: DecoOptionsType):
+    def deco_options(self, options: DecoOptTypeVar):
         self._deco_options = options
 
     @property
     def tempmatch(self) -> Tuple[Tuple[int, int], float]:
-        """Return template location and its objective function value."""
+        """Template location and matching score."""
         return self._tempmatch
 
     def substrate_point(self) -> npt.NDArray[np.int32]:
-        """Upper left point in ``(x, y)`` where the substrate is located."""
+        """Upper left point of the substrate image in target image.
+
+        Returns:
+            Coordinates in ``(x, y)``.
+        """
         temp_point, _ = self.tempmatch
-        temp2subst = self.substrate.reference.temp2subst()
-        return temp_point + temp2subst
+        t = self.substrate.reference.templateROI[:2]
+        s = self.substrate.reference.substrateROI[:2]
+        return np.array(temp_point, dtype=np.int32) - t + s
 
     @attrcache("_coated_substrate")
     def coated_substrate(self) -> npt.NDArray[np.bool_]:
-        """Remove image artifacts, e.g., bath surface."""
+        """Coated substrate region.
+
+        Returns:
+            Target image without artifacts, e.g., bath surface.
+        """
         _, img = cv2.connectedComponents(cv2.bitwise_not(self.image))
         x, y = (self.substrate_point() + self.substrate.region_points()).T
         return np.isin(img, img[y, x])
 
     @attrcache("_extracted_layer")
     def extract_layer(self) -> npt.NDArray[np.bool_]:
-        """Extract the coating layer as binary array from *self.image*."""
+        """Coating layer region extracted from target image."""
         # remove the substrate
         x0, y0 = self.substrate_point()
         subst_mask = self.substrate.regions() >= 0
@@ -174,28 +289,38 @@ class CoatingLayerBase(
 
     @abc.abstractmethod
     def verify(self):
-        """Check to detect error and raise before analysis."""
+        """Sanity check before analysis.
 
-    @abc.abstractmethod
-    def draw(self) -> npt.NDArray[np.uint8]:
-        """Decorate and return the coated substrate image.
-
-        Result is in RGB format.
-
-        Must return an image even if the instance is not valid.
+        This method checks every intermediate step for analysis
+        and raises error if anything is wrong. Passing this check
+        should guarantee that :meth:`draw` and :meth:`analyze`
+        returns without exception.
         """
 
     @abc.abstractmethod
-    def analyze(self) -> DataType:
-        """Analyze the coated substrate image and return the data.
+    def draw(self) -> npt.NDArray[np.uint8]:
+        """Return visualization result in RGB format.
 
-        May raise error if the instance is not valid.
+        This method must always return without error. If visualization cannot be done,
+        it should at least return original image.
+        """
+
+    @abc.abstractmethod
+    def analyze(self) -> DataTypeVar:
+        """Return analysis data of the reference image.
+
+        This method returns analysis result as a dataclass instance
+        whose type is :attr:`DataType`. If analysis is impossible,
+        error may be raised.
         """
 
 
 @dataclasses.dataclass(frozen=True)
-class Parameters:
-    """Additional parameters for `CoatingLayer` instance."""
+class LayerParam:
+    """Analysis parameters for :class:`CoatingLayer`.
+
+    This is an empty dataclass.
+    """
 
     pass
 
@@ -206,16 +331,12 @@ class SubtractionMode(enum.Enum):
     Template matching result is shown by subtracting the pixels from the
     background.
 
-    Members
-    -------
-    NONE
-        Do not show the template matching result.
-    TEMPLATE
-        Subtract the template ROI.
-    SUBSTRRATE
-        Subtract the substrate ROI.
-    FULL
-        Subtract both template and substrate ROIs.
+    .. rubric:: **Members**
+
+    - NONE: Do not show the template matching result.
+    - TEMPLATE: Subtract the template ROI.
+    - SUBSTRRATE: Subtract the substrate ROI.
+    - FULL: Subtract both template and substrate ROIs.
     """
 
     NONE = "NONE"
@@ -225,24 +346,18 @@ class SubtractionMode(enum.Enum):
 
 
 @dataclasses.dataclass
-class DrawOptions:
-    """Drawing options for `CoatingLayer` instance.
-
-    Attributes
-    ----------
-    subtraction : SubtractionMode
-    """
+class LayerDrawOpt:
+    """Drawing options for :class:`CoatingLayer`."""
 
     subtraction: SubtractionMode = SubtractionMode.NONE
 
 
 @dataclasses.dataclass
-class DecoOptions:
-    """Options to show the coating layer of `CoatingLayer`.
+class LayerDecoOpt:
+    """Decorating options for :class:`CoatingLayer`.
 
-    Attributes
-    ----------
-    layer : PatchOptions
+    Arguments:
+        layer: Determine how the coating layer is painted.
     """
 
     layer: PatchOptions = dataclasses.field(
@@ -256,8 +371,11 @@ class DecoOptions:
 
 
 @dataclasses.dataclass
-class Data:
-    """Analysis data for `CoatingLayer`."""
+class LayerData:
+    """Analysis data for :class:`CoatingLayer`.
+
+    This is an empty dataclass.
+    """
 
     pass
 
@@ -265,87 +383,93 @@ class Data:
 class CoatingLayer(
     CoatingLayerBase[
         SubstrateBase,
-        Parameters,
-        DrawOptions,
-        DecoOptions,
-        Data,
+        LayerParam,
+        LayerDrawOpt,
+        LayerDecoOpt,
+        LayerData,
     ]
 ):
-    """Basic implementation of coating layer.
+    """Basic implementation of :class:`CoatingLayerBase`.
 
-    Examples
-    --------
-    Construct substrate reference instance first.
+    Arguments:
+        image
+        substrate
+        parameters (LayerParam, optional)
+        draw_options (LayerDrawOpt, optional)
+        deco_options (LayerDecoOpt, optional)
+        tempmatch
 
-    .. plot::
-       :include-source:
-       :context: reset
+    Examples:
+        Construct substrate instance first.
 
-       >>> import cv2
-       >>> from dipcoatimage.finitedepth import Reference, get_data_path
-       >>> gray = cv2.imread(get_data_path("ref1.png"), cv2.IMREAD_GRAYSCALE)
-       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-       >>> tempROI = (200, 50, 1200, 200)
-       >>> substROI = (400, 175, 1000, 500)
-       >>> ref = Reference(img, tempROI, substROI)
-       >>> import matplotlib.pyplot as plt #doctest: +SKIP
-       >>> plt.imshow(ref.draw()) #doctest: +SKIP
+        .. plot::
+            :include-source:
+            :context: reset
 
-    Construct substrate instance from reference instance.
+            >>> import cv2
+            >>> from dipcoatimage.finitedepth import Reference, get_data_path
+            >>> gray = cv2.imread(get_data_path("ref1.png"), cv2.IMREAD_GRAYSCALE)
+            >>> _, im = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+            >>> tempROI = (200, 50, 1200, 200)
+            >>> substROI = (400, 175, 1000, 500)
+            >>> ref = Reference(im, tempROI, substROI)
+            >>> from dipcoatimage.finitedepth import Substrate
+            >>> subst = Substrate(ref)
 
-    .. plot::
-       :include-source:
-       :context: close-figs
+        Construct coating layer instance from target image and the substrate instance.
 
-       >>> from dipcoatimage.finitedepth import Substrate
-       >>> subst = Substrate(ref)
-       >>> plt.imshow(subst.draw()) #doctest: +SKIP
+        .. plot::
+            :include-source:
+            :context: close-figs
 
-    Construct `CoatingLayer` from substrate instance. :meth:`analyze` returns
-    the number of pixels in coating area region.
+            >>> from dipcoatimage.finitedepth import CoatingLayer
+            >>> gray = cv2.imread(get_data_path("coat1.png"), cv2.IMREAD_GRAYSCALE)
+            >>> _, im = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+            >>> coat = CoatingLayer(im, subst)
+            >>> import matplotlib.pyplot as plt #doctest: +SKIP
+            >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
-    .. plot::
-       :include-source:
-       :context: close-figs
+        :attr:`draw_options` controls visualization of the substrate region.
 
-       >>> from dipcoatimage.finitedepth import CoatingLayer
-       >>> gray = cv2.imread(get_data_path("coat1.png"), cv2.IMREAD_GRAYSCALE)
-       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-       >>> coat = CoatingLayer(img, subst)
-       >>> plt.imshow(coat.draw()) #doctest: +SKIP
+        .. plot::
+            :include-source:
+            :context: close-figs
 
-    :attr:`draw_options` controls the overall visualization.
+            >>> coat.draw_options.subtraction = coat.SubtractionMode.FULL
+            >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
-    .. plot::
-       :include-source:
-       :context: close-figs
+        :attr:`deco_options` controls visualization of the coating layer region.
 
-       >>> coat.draw_options.subtraction = coat.SubtractionMode.FULL
-       >>> plt.imshow(coat.draw()) #doctest: +SKIP
+        .. plot::
+            :include-source:
+            :context: close-figs
 
-    :attr:`deco_options` controls the decoration of coating layer reigon.
-
-    .. plot::
-       :include-source:
-       :context: close-figs
-
-       >>> coat.deco_options.layer.facecolor = (255, 0, 255)
-       >>> plt.imshow(coat.draw()) #doctest: +SKIP
+            >>> coat.deco_options.layer.facecolor = (255, 0, 255)
+            >>> plt.imshow(coat.draw()) #doctest: +SKIP
     """
 
-    Parameters = Parameters
-    DrawOptions = DrawOptions
-    DecoOptions = DecoOptions
-    Data = Data
+    ParamType = LayerParam
+    """Assigned with :class:`LayerParam`."""
+    DrawOptType = LayerDrawOpt
+    """Assigned with :class:`LayerDrawOpt`."""
+    DecoOptType = LayerDecoOpt
+    """Assigned with :class:`LayerDecoOpt`."""
+    DataType = LayerData
+    """Assigned with :class:`LayerData`."""
 
     SubtractionMode = SubtractionMode
+    """Assigned with :class:`SubtractionMode`."""
 
     def verify(self):
-        """Check error."""
+        """Implement :meth:`CoatingLayerBase.verify`."""
         pass
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        """Return visualized image."""
+        """Implement :meth:`CoatingLayerBase.draw`.
+
+        #. Display the template matching result with :class:`SubtractionMode`.
+        #. Draw the coating layer with :class:`PatchOptions`.
+        """
         image = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
 
         subtraction = self.draw_options.subtraction
@@ -393,7 +517,7 @@ class CoatingLayer(
 
     def analyze(self):
         """Return analysis data."""
-        return self.Data()
+        return self.DataType()
 
 
 def images_XOR(
@@ -401,14 +525,12 @@ def images_XOR(
     img2: npt.NDArray[np.bool_],
     point: Tuple[int, int] = (0, 0),
 ) -> npt.NDArray[np.bool_]:
-    """Subtract *img2* from *img1* at *point* by XOR operation.
+    """Perform subtraction between two images by XOR operation.
 
-    This function leaves the pixels that exist either in *img1* or *img2*. It
-    can be used to visualize the template matching error.
-
-    See Also
-    --------
-    images_ANDXOR
+    Arguments:
+        img1: Image from which *img2* is subtracted.
+        img2: Image patch which is subtracted from *img1*.
+        point: Location in *img1* where *img2* is subtracted.
     """
     H, W = img1.shape
     h, w = img2.shape
@@ -427,14 +549,12 @@ def images_ANDXOR(
     img2: npt.NDArray[np.bool_],
     point: Tuple[int, int] = (0, 0),
 ) -> npt.NDArray[np.bool_]:
-    """Subtract *img2* from *img1* at *point* by AND and XOR operation.
+    """Perform subtraction between two images by AND and XOR operations.
 
-    This function leaves the pixels that exist in *img1* but not in *img2*. It
-    can be used to extract the coating layer pixels.
-
-    See Also
-    --------
-    images_XOR
+    Arguments:
+        img1: Image from which *img2* is subtracted.
+        img2: Image patch which is subtracted from *img1*.
+        point: Location in *img1* where *img2* is subtracted.
     """
     H, W = img1.shape
     h, w = img2.shape

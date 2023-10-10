@@ -39,24 +39,15 @@ Set type variables
 The abstract base classes are generic types whose type variables must
 be set in concrete classes.
 
-Each class defines different type variables. For example,
-:class:`SubstrateBase` has four type variables, each specifying
-the type of the reference instance it takes, its parameters, its drawing
-options, and its analysis data. The latter three are assigned to
-:attr:`~SubstrateBase.Parameters`, :attr:`~SubstrateBase.DrawOptions`,
-and :attr:`~SubstrateBase.Data`. On the other hand,
-:class:`CoatingLayerBase` has five type variables; the substrate type
-and the four types assigned to :attr:`~CoatingLayerBase.Parameters`,
-:attr:`~CoatingLayerBase.DrawOptions`, :attr:`~CoatingLayerBase.DecoOptions`,
-and :attr:`~CoatingLayerBase.Data`.
+Each class defines different type variables.
+For example, a concrete subclass of :class:`SubstrateBase` must define
+:attr:`~SubstrateBase.ParamType`, :attr:`~SubstrateBase.DrawOptType`,
+and :attr:`~SubstrateBase.DataType`.
+On the other hand, a concret subclass of :class:`CoatingLayerBase` must define
+:attr:`~CoatingLayerBase.ParamType`, :attr:`~CoatingLayerBase.DrawOptType`,
+:attr:`~CoatingLayerBase.DecoOptType`, and :attr:`~CoatingLayerBase.DataType`.
 
-All type variables are dataclasses. To set the type variable,
-take the following step:
-
-#. Define dataclasses.
-#. Set type variable of base class with the dataclasses.
-#. Assign the dataclasses as the type variable attribute.
-
+All type variables are dataclasses.
 The following is the example of setting type variable for custom
 substrate class.
 
@@ -75,9 +66,9 @@ substrate class.
         ...
 
     class MySubstrate(SubstrateBase[ReferenceBase, MyParameters, MyDrawOptions, MyData]):
-        Parameters = MyParameter
-        DrawOptions = MyDrawOptions
-        Data = MyData
+        ParamType = MyParameter
+        DrawOptType = MyDrawOptions
+        DataType = MyData
 
 See :ref:`api` of each abstract base class for the list of type
 variables it defines. Read :ref:`howto-define-dataclass` to learn good
@@ -150,7 +141,8 @@ methods that deserve mentioning here, though.
     :class:`CoatingLayerBase`.
 
     Return a dataclass which contains analysis result. Type of the dataclass
-    must be ``Data`` attribute. Analysis algorithm should be implemented here.
+    must be ``DataType`` attribute. Analysis algorithm should be implemented
+    here.
 
 #. ``draw()``
     Defined in: :class:`ReferenceBase`, :class:`SubstrateBase`,
