@@ -171,7 +171,7 @@ class SubstrateBase(
         """Coordinates of points in each discrete substrate region.
 
         Substrate image can have multiple discrete substrate regions.
-        Subclass should implement this method to return coordinates of points,
+        Concrete class should implement this method to return coordinates of points,
         one for each region.
 
         Returns:
