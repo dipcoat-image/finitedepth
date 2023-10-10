@@ -14,15 +14,11 @@ Analysis can be done by passing configuration files.
 $ finitedepth analyze config1.yml conf2.yml ...
 ```
 
-For advanced usage, refer to [reference](https://dipcoatimage-finitedepth.readthedocs.io/en/latest/) document.
-
 ## Installation
 
 ```
 $ pip install git+ssh://git@github.com/dipcoat-image/finitedepth.git
 ```
-
-To install with additional options, refer to [Installation](https://dipcoatimage-finitedepth.readthedocs.io/en/latest/install.html) document.
 
 # Documentation
 
