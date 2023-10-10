@@ -1,8 +1,5 @@
 [flake8]
 doctests = True
-exclude =
-    build,
-    doc,
 # compatibility with black
 max-line-length = 88
 extend-ignore =
@@ -11,5 +8,5 @@ extend-ignore =
 per-file-ignores =
     src/dipcoatimage/finitedepth/version.py:D
     tests/**:D
-    doc/source/conf.py:D
+    doc/**:D
 docstring-convention = google

@@ -183,8 +183,7 @@ class SubstrateBase(
             foreground pixels, and give indices to each region.
 
             As higher-level methods are expected to rely on this method,
-            implementation must be simple and non-dynamic.
-            See :meth:`Substrate.region_points` for example.
+            it is best to keep this method simple and independent.
         """
 
     @attrcache("_regions")

@@ -16,10 +16,26 @@ own classes which seamlessly bind with the framework.
 Examples
 --------
 
+Let's start with basic examples.
+
+Here, we will define classes to analyze the coating layer covering circular substrate.
+The background logics will be covered in the next section.
+
+Defining substrate class
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+We first define a substrate class which analyzes the substrate geometry.
+
+Our class will take parameters of :func:`cv2.HoughCircles` and detect the circle from
+substrate image. For simplicity, we do not implement visualization options.
+
 .. literalinclude:: circsubstrate.py
     :language: python
 
-.. plot:: guide/circsubstrate-plot.py plot
+Our class can be easily constructed.
+
+.. plot:: guide/circsubstrate-plot.py
+    :include-source:
 
 Basic rules
 -----------
