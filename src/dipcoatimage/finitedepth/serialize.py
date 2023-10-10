@@ -1,4 +1,8 @@
-"""Read analysis configuration from file."""
+"""Manage configuration for the analysis.
+
+This module defines abstract class :class:`ConfigBase` and its
+implementation, :class:`Config`.
+"""
 
 import abc
 import dataclasses
@@ -58,7 +62,14 @@ Examples:
 
 @dataclasses.dataclass
 class ImportArgs:
-    """Arguments to import the variable from module."""
+    """Arguments to import variable from module.
+
+    ``from foo import bar`` is represented by ``ImportArgs("bar", "foo")``.
+
+    Arguments:
+        name: Name of the variable.
+        module: Module specification.
+    """
 
     name: str = ""
     module: str = "dipcoatimage.finitedepth"
@@ -82,16 +93,15 @@ class ImportArgs:
 
 @dataclasses.dataclass
 class ReferenceArgs:
-    """Data for the concrete instance of `ReferenceBase`.
+    """Data to construct concrete instance of :class:`ReferenceBase`.
 
-    Parameters
-    ----------
-    type
-        Information to import reference class.
-        Class name defaults to ``Reference``.
+    Reference image is not specified in this dataclass.
 
-    templateROI, substrateROI, parameters, draw_options
-        Data for arguments of reference class.
+    Arguments:
+        type: Reference type.
+        templateROI, substrateROI: ROIs for reference instance.
+        parameters: Unstructured :attr:`ReferenceBase.parameters`.
+        draw_options: Unstructured :attr:`ReferenceBase.draw_options`.
     """
 
     type: ImportArgs = dataclasses.field(
@@ -102,10 +112,20 @@ class ReferenceArgs:
     parameters: dict = dataclasses.field(default_factory=dict)
     draw_options: dict = dataclasses.field(default_factory=dict)
 
-    def as_structured_args(
+    def as_objects(
         self,
     ) -> Tuple[Type[ReferenceBase], "DataclassInstance", "DataclassInstance"]:
-        """Structure the primitive data."""
+        """Convert the data to Python objects.
+
+        Returns:
+            Type, parameters, and drawing options of reference instance.
+                - Type is imported from :attr:`type`.
+                - Parameters are structured from :attr:`parameters` to reference type's
+                  :attr:`ReferenceBase.ParamType`, using :obj:`data_converter`.
+                - Drawing options are structured from :attr:`draw_options` to
+                  reference type's :attr:`ReferenceBase.DrawOptType`, using
+                  :obj:`data_converter`.
+        """
         refcls = self.type.import_variable()
         if not (isinstance(refcls, type) and issubclass(refcls, ReferenceBase)):
             raise TypeError(f"{refcls} is not substrate reference class.")
@@ -119,8 +139,15 @@ class ReferenceArgs:
         return (refcls, params, drawopts)
 
     def as_reference(self, img: npt.NDArray[np.uint8]) -> ReferenceBase:
-        """Construct the substrate reference instance."""
-        refcls, params, drawopts = self.as_structured_args()
+        """Construct the reference instance.
+
+        Arguments:
+            img: Reference image.
+
+        Returns:
+            Reference instance. Type and arguments are acquired from :meth:`as_objects`.
+        """
+        refcls, params, drawopts = self.as_objects()
 
         ref = refcls(  # type: ignore
             img,
@@ -134,16 +161,14 @@ class ReferenceArgs:
 
 @dataclasses.dataclass
 class SubstrateArgs:
-    """Data for the concrete instance of `SubstrateBase`.
+    """Data to construct concrete instance of :class:`SubstrateBase`.
 
-    Parameters
-    ----------
-    type
-        Information to import substrate class.
-        Class name defaults to ``Substrate``.
+    Reference instance is not specified in this dataclass.
 
-    parameters, draw_options
-        Data for arguments of substrate class.
+    Arguments:
+        type: Substrate type.
+        parameters: Unstructured :attr:`SubstrateBase.parameters`.
+        draw_options: Unstructured :attr:`SubstrateBase.draw_options`.
     """
 
     type: ImportArgs = dataclasses.field(
@@ -152,10 +177,20 @@ class SubstrateArgs:
     parameters: dict = dataclasses.field(default_factory=dict)
     draw_options: dict = dataclasses.field(default_factory=dict)
 
-    def as_structured_args(
+    def as_objects(
         self,
     ) -> Tuple[Type[SubstrateBase], "DataclassInstance", "DataclassInstance"]:
-        """Structure the primitive data."""
+        """Convert the data to Python objects.
+
+        Returns:
+            Type, parameters, and drawing options of substrate instance.
+                - Type is imported from :attr:`type`.
+                - Parameters are structured from :attr:`parameters` to substrate type's
+                  :attr:`SubstrateBase.ParamType`, using :obj:`data_converter`.
+                - Drawing options are structured from :attr:`draw_options` to
+                  substrate type's :attr:`SubstrateBase.DrawOptType`, using
+                  :obj:`data_converter`.
+        """
         substcls = self.type.import_variable()
         if not (isinstance(substcls, type) and issubclass(substcls, SubstrateBase)):
             raise TypeError(f"{substcls} is not substrate class.")
@@ -169,8 +204,15 @@ class SubstrateArgs:
         return (substcls, params, drawopts)
 
     def as_substrate(self, ref: ReferenceBase) -> SubstrateBase:
-        """Construct the substrate instance."""
-        substcls, params, drawopts = self.as_structured_args()
+        """Construct the substrate instance.
+
+        Arguments:
+            ref: Reference instance.
+
+        Returns:
+            Substrate instance. Type and arguments are acquired from :meth:`as_objects`.
+        """
+        substcls, params, drawopts = self.as_objects()
         subst = substcls(  # type: ignore
             ref,
             parameters=params,
@@ -181,16 +223,15 @@ class SubstrateArgs:
 
 @dataclasses.dataclass
 class CoatingLayerArgs:
-    """Data for the concrete instance of `CoatingLayerBase`.
+    """Data to construct concrete instance of :class:`CoatingLayerBase`.
 
-    Parameters
-    ----------
-    type
-        Information to import substrate class.
-        Class name defaults to ``CoatingLayer``.
+    Target image and substrate instance are not specified in this dataclass.
 
-    parameters, draw_options, deco_options
-        Data for arguments of coating layer class.
+    Arguments:
+        type: Coating layer type.
+        parameters: Unstructured :attr:`CoatingLayerBase.parameters`.
+        draw_options: Unstructured :attr:`CoatingLayerBase.draw_options`.
+        deco_options: Unstructured :attr:`CoatingLayerBase.deco_options`.
     """
 
     type: ImportArgs = dataclasses.field(
@@ -200,7 +241,7 @@ class CoatingLayerArgs:
     draw_options: dict = dataclasses.field(default_factory=dict)
     deco_options: dict = dataclasses.field(default_factory=dict)
 
-    def as_structured_args(
+    def as_objects(
         self,
     ) -> Tuple[
         Type[CoatingLayerBase],
@@ -208,7 +249,21 @@ class CoatingLayerArgs:
         "DataclassInstance",
         "DataclassInstance",
     ]:
-        """Structure the primitive data."""
+        """Convert the data to Python objects.
+
+        Returns:
+            Type, parameters, drawing and deco options of coating layer instance.
+                - Type is imported from :attr:`type`.
+                - Parameters are structured from :attr:`parameters` to coating layer
+                  type's :attr:`CoatingLayerBase.ParamType`, using
+                  :obj:`data_converter`.
+                - Drawing options are structured from :attr:`draw_options` to
+                  coating layer type's :attr:`CoatingLayerBase.DrawOptType`, using
+                  :obj:`data_converter`.
+                - Deco options are structured from :attr:`deco_options` to
+                  coating layer type's :attr:`CoatingLayerBase.DecoOptType`, using
+                  :obj:`data_converter`.
+        """
         layercls = self.type.import_variable()
         if not (isinstance(layercls, type) and issubclass(layercls, CoatingLayerBase)):
             raise TypeError(f"{layercls} is not coating layer class.")
@@ -227,8 +282,17 @@ class CoatingLayerArgs:
     def as_coatinglayer(
         self, img: npt.NDArray[np.uint8], subst: SubstrateBase
     ) -> CoatingLayerBase:
-        """Construct the coating layer instance."""
-        layercls, params, drawopts, decoopts = self.as_structured_args()
+        """Construct the coating layer instance.
+
+        Arguments:
+            img: Target image.
+            subst: Substrate instance.
+
+        Returns:
+            Coating layer instance. Type and arguments are acquired from
+            :meth:`as_objects`.
+        """
+        layercls, params, drawopts, decoopts = self.as_objects()
         layer = layercls(  # type: ignore
             img, subst, parameters=params, draw_options=drawopts, deco_options=decoopts
         )
@@ -237,15 +301,27 @@ class CoatingLayerArgs:
 
 @dataclasses.dataclass
 class ExperimentArgs:
-    """Data for the concrete instance of `ExperimentBase`."""
+    """Data to construct concrete instance of :class:`ExperimentBase`.
+
+    Arguments:
+        type: Experiment type.
+        parameters: Unstructured :attr:`ExperimentBase.parameters`.
+    """
 
     type: ImportArgs = dataclasses.field(
         default_factory=lambda: ImportArgs(name="Experiment")
     )
     parameters: dict = dataclasses.field(default_factory=dict)
 
-    def as_structured_args(self) -> Tuple[Type[ExperimentBase], "DataclassInstance"]:
-        """Structure the primitive data."""
+    def as_objects(self) -> Tuple[Type[ExperimentBase], "DataclassInstance"]:
+        """Convert the data to Python objects.
+
+        Returns:
+            Type and parameters of experiment instance.
+                - Type is imported from :attr:`type`.
+                - Parameters are structured from :attr:`parameters` to experiment type's
+                  :attr:`ExperimentBase.ParamType`, using :obj:`data_converter`.
+        """
         exptcls = self.type.import_variable()
         if not (isinstance(exptcls, type) and issubclass(exptcls, ExperimentBase)):
             raise TypeError(f"{exptcls} is not experiment class.")
@@ -256,15 +332,25 @@ class ExperimentArgs:
         return (exptcls, params)
 
     def as_experiment(self) -> ExperimentBase:
-        """Construct the experiment instance."""
-        exptcls, params = self.as_structured_args()
+        """Construct the experiment instance.
+
+        Returns:
+            Experiment instance. Type and arguments are acquired from
+            :meth:`as_objects`.
+        """
+        exptcls, params = self.as_objects()
         expt = exptcls(parameters=params)
         return expt
 
 
 @dataclasses.dataclass
 class AnalysisArgs:
-    """Data for the concrete instance of `AnalysisBase`."""
+    """Data to construct concrete instance of :class:`AnalysisBase`.
+
+    Arguments:
+        type: Analysis type.
+        parameters: Unstructured :attr:`AnalysisBase.parameters`.
+    """
 
     type: ImportArgs = dataclasses.field(
         default_factory=lambda: ImportArgs(name="Analysis")
@@ -272,10 +358,17 @@ class AnalysisArgs:
     parameters: dict = dataclasses.field(default_factory=dict)
     fps: float = 0.0
 
-    def as_structured_args(
+    def as_objects(
         self,
-    ) -> Tuple[Type[AnalysisBase], "DataclassInstance", float]:
-        """Structure the primitive data."""
+    ) -> Tuple[Type[AnalysisBase], "DataclassInstance"]:
+        """Convert the data to Python objects.
+
+        Returns:
+            Type and parameters of analysis instance.
+                - Type is imported from :attr:`type`.
+                - Parameters are structured from :attr:`parameters` to analysis type's
+                  :attr:`AnalysisBase.ParamType`, using :obj:`data_converter`.
+        """
         cls = self.type.import_variable()
         if not (isinstance(cls, type) and issubclass(cls, AnalysisBase)):
             raise TypeError(f"{cls} is not coating layer class.")
@@ -283,24 +376,38 @@ class AnalysisArgs:
         params = data_converter.structure(
             self.parameters, cls.ParamType  # type: ignore
         )
-        return (cls, params, self.fps)
+        return (cls, params)
 
     def as_analysis(self) -> AnalysisBase:
-        """Construct the analysis instance."""
-        cls, params, fps = self.as_structured_args()
-        analysis = cls(parameters=params, fps=fps)
+        """Construct the analysis instance.
+
+        Returns:
+            Analysis instance. Type and arguments are acquired from :meth:`as_objects`.
+        """
+        cls, params = self.as_objects()
+        analysis = cls(parameters=params, fps=self.fps)
         return analysis
 
 
 @dataclasses.dataclass(frozen=True)
 class ConfigBase(abc.ABC):
-    """Class which wraps every information to construct and analyze the experiment.
+    """Abstract base class for configuration instance.
 
-    Notes
-    -----
-    Environment variables are allowed in *ref_path* and *coat_path* fields.
+    Configuration instance wraps all the data required for analysis; path to source
+    images, analysis parameters, visualization options, and path to result files.
+    It also implements methods to load reference and targe images from files, and
+    provides methods to perform the analysis.
 
-    If *fps* is 0, try to determine it from input files.
+    To perform analysis, use :meth:`analyze`.
+
+    Attributes
+        ref_path: Path to reference image files.
+        coat_path: Path to target image files or video file.
+        reference: Arguments to construct reference instance.
+        substrate: Arguments to construct substrate instance.
+        coatinglayer: Arguments to construct coating layer instance.
+        experiment: Arguments to construct experiment instance.
+        analysis: Arguments to construct analysis instance.
     """
 
     ref_path: str
@@ -313,7 +420,7 @@ class ConfigBase(abc.ABC):
 
     @abc.abstractmethod
     def frame_count(self) -> int:
-        """Return total number of images from *coat_paths*."""
+        """Return total number of images from :attr:`coat_paths`."""
 
     @abc.abstractmethod
     def reference_image(self) -> npt.NDArray[np.uint8]:
@@ -325,35 +432,40 @@ class ConfigBase(abc.ABC):
 
     @abc.abstractmethod
     def fps(self) -> float:
-        """Find fps."""
+        """Find fps from :attr:`coat_path` and :attr:`analysis`."""
 
     def construct_reference(self) -> ReferenceBase:
-        """Construct reference instance."""
+        """Construct reference instance.
+
+        This method provides quick construction for debugging.
+        """
         return self.reference.as_reference(self.reference_image())
 
     def construct_substrate(self) -> SubstrateBase:
-        """Construct substrate instance."""
+        """Construct substrate instance.
+
+        This method provides quick construction for debugging.
+        """
         return self.substrate.as_substrate(self.construct_reference())
 
     def construct_coatinglayer(self, i: int, sequential=True):
         """Construct *i*-th coating layer instance.
 
         If *sequential* is *True*, coating layer is sequentially constructed
-        using `ExperimentBase` factory. Else, `CoatingLayerBase`
-        object is directly constructed.
+        using experiment instance from :meth:`construct_experiment`.
+        Else, the coating layer object is directly constructed.
 
-        Parameters
-        ----------
-        i : int
-            Index of the frame from *coat_path*
-        sequential : bool, default=True
-            Controls sequential construction.
+        This method provides quick construction for debugging.
+
+        Arguments:
+            i: Index of the frame from *coat_path*
+            sequential: Controls sequential construction.
         """
         if i + 1 > self.frame_count():
             raise ValueError("Index out of range.")
         img_gen = self.image_generator()
         subst = self.construct_substrate()
-        layercls, params, drawopts, decoopts = self.coatinglayer.as_structured_args()
+        layercls, params, drawopts, decoopts = self.coatinglayer.as_objects()
         if sequential:
             expt = self.construct_experiment()
             for _ in range(i + 1):
@@ -375,27 +487,30 @@ class ConfigBase(abc.ABC):
         return layer
 
     def construct_experiment(self) -> ExperimentBase:
-        """Construct experiment instance."""
+        """Construct experiment instance.
+
+        This method provides quick construction for debugging.
+        """
         return self.experiment.as_experiment()
 
     def construct_analysis(self) -> AnalysisBase:
         """Construct analysis instance.
 
-        :meth:`fps` is used for *fps* parameter.
+        This method provides quick construction for debugging.
+
+        :meth:`fps` is used for *fps* argument.
         """
         return dataclasses.replace(self.analysis, fps=self.fps()).as_analysis()
 
     def analyze(self, name: str = ""):
         """Analyze and save the data. Progress bar is shown.
 
-        Parameters
-        ----------
-        name : str
-            Description for progress bar.
+        Arguments:
+            name: Description for progress bar.
         """
         # Let Analyzer verify ref, subst, and layer to do whatever it wants.
         subst = self.construct_substrate()
-        layercls, params, drawopts, decoopts = self.coatinglayer.as_structured_args()
+        layercls, params, drawopts, decoopts = self.coatinglayer.as_objects()
         expt = self.construct_experiment()
         expt.verify()
         analysis = self.construct_analysis()
@@ -419,10 +534,14 @@ class ConfigBase(abc.ABC):
 
 
 class Config(ConfigBase):
-    """Analyze using cv2."""
+    """Basic implementation of :class:`ConfigBase`.
+
+    This class implements abstract methods using :mod:`cv2` and :mod:`PIL`.
+    Also, environment variables in :attr:`ref_path` and :attr:`coat_path` are expanded.
+    """
 
     def frame_count(self) -> int:
-        """Return total number of images from *coat_paths*."""
+        """Implement :meth:`ConfigBase.frame_count`."""
         i = 0
         files = glob.glob(os.path.expandvars(self.coat_path))
         for f in files:
@@ -442,13 +561,13 @@ class Config(ConfigBase):
         return i
 
     def reference_image(self) -> npt.NDArray[np.uint8]:
-        """Return binarized image from :attr:`ref_path`."""
+        """Implement :meth:`ConfigBase.reference_image`."""
         with PIL.Image.open(os.path.expandvars(self.ref_path)) as img:
             ret = binarize(np.array(img.convert("L")), "rgb")
         return ret
 
     def image_generator(self) -> Generator[npt.NDArray[np.uint8], None, None]:
-        """Yield binarized images from :attr:`coat_path`."""
+        """Implement :meth:`ConfigBase.image_generator`."""
         files = glob.glob(os.path.expandvars(self.coat_path))
         for f in files:
             mtype, _ = mimetypes.guess_type(f)
@@ -470,7 +589,11 @@ class Config(ConfigBase):
                 continue
 
     def fps(self) -> float:
-        """Find fps."""
+        """Implement :meth:`ConfigBase.fps`.
+
+        This method first checks :attr:`analysis` to get *fps*. If the value is ``0.0``,
+        it then tries to read the frame rate from :attr:`coat_path`.
+        """
         fps = self.analysis.fps
         if fps == 0.0:
             files = glob.glob(os.path.expandvars(self.coat_path))
@@ -499,22 +622,19 @@ def binarize(
     image: npt.NDArray[np.uint8],
     color: str,
 ) -> npt.NDArray[np.uint8]:
-    """Binarize *image* with Otsu's thresholding.
+    """Binarize the image with Otsu's thresholding.
 
-    Parameters
-    ----------
-    image : ndarray
-        Input image.
-    color : {"rgb", "bgr"}
-        Color convention. For example, "rgb" indicates that 3-channel image should be
-        interpreted as "RGB" and 4-channel be "RGBA".
+    Arguments:
+        image: Input image.
+        color ({"rgb", "bgr"}): Color convention. "rgb" indicates that 3-channel image
+            should be interpreted as "RGB" and 4-channel be "RGBA". "bgr" indicates
+            "BGR" and "BGRA".
 
-    Notes
-    -----
-    Shape of *image* can be:
-    - (H, W) or (H, W, 1) : grayscale image.
-    - (H, W, 3) : RGB or BGR image.
-    - (H, W, 4) : RGBA or BGRA image.
+    Note:
+        Shape of *image* can be:
+            - (H, W) or (H, W, 1) : grayscale image.
+            - (H, W, 3) : RGB or BGR image.
+            - (H, W, 4) : RGBA or BGRA image.
     """
     if color not in ["rgb", "bgr"]:
         raise TypeError(f"Invalid color convention: {color}")

@@ -68,7 +68,7 @@ class RectSubstData:
 class RectSubstrate(
     PolySubstrateBase[ReferenceBase, PolySubstParam, RectSubstDrawOpt, RectSubstData]
 ):
-    """Simplest implementation of :class:`RectSubstrateBase`.
+    """Basic implementation of :class:`RectSubstrateBase`.
 
     Examples:
         Construct reference instance first.

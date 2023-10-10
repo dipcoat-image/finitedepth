@@ -5,9 +5,6 @@ Documentation
 
 .. currentmodule:: finitedepth
 
-Documentation are used to be in numpy-style, but it is now being transitioned
-into google-style as it binds better with sphinx-autoapi.
-
 To generate document, go to ``doc`` directory and build html files.
 
 .. code-block:: bash
@@ -20,6 +17,8 @@ Documents will be generated in ``doc/build/html`` directory.
 
 Docstring policy
 ----------------
+
+Docstring follow Google style.
 
 Docstrings are designed to show optimum result for both :func:`help` and
 :mod:`autoapi`.
