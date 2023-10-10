@@ -5,6 +5,7 @@ abstract base class for coating layer over rectangular substrate.
 Also, its implementation :class:`RectLayerShape` is defined, which quantifies
 several measures for the layer shape.
 """
+import abc
 import dataclasses
 import enum
 from typing import Tuple
@@ -74,7 +75,7 @@ class RectCoatingLayerBase(
     def interfaces(self) -> Tuple[npt.NDArray[np.int64], ...]:
         """Find solid-liquid interfaces.
 
-        This method returnss indices in :meth:`SubstrateBase.contour` where
+        This method returns indices for :meth:`SubstrateBase.contour` where
         solid-liquid interfaces start and stop.
 
         A substrate can have contact with multiple discrete coating layer regions,
@@ -84,16 +85,17 @@ class RectCoatingLayerBase(
 
         Returns:
             Tuple of arrays.
-            - ``i``-th array represents ``i``-th coating layer region in
-              :meth:`layer_contours`.
-            - Shape of the array is ``(N, 2)``. ``N`` is the number of contacts the
-              coating layer region makes. Each column represents starting and
-              ending indices for the interface interval in substrate contour.
+                - ``i``-th array represents ``i``-th coating layer region in
+                  :meth:`layer_contours`.
+                - Shape of the array is ``(N, 2)``, where ``N`` is the number of
+                  contacts the coating layer region makes. Each column represents
+                  starting and ending indices for the interface interval in
+                  substrate contour.
 
         Note:
             Each interval describes continuous patch on the substrate contour covered
-            by the layer. To acquire the interface points, slice the substrate contour
-            with the indices.
+            by the layer. To acquire the interface points, slice :attr:`substrate`'s
+            :meth:`~SubstrateBase.contour` with the indices.
         """
         subst_cnt = self.substrate.contour() + self.substrate_point()
         ret = []
@@ -115,7 +117,11 @@ class RectCoatingLayerBase(
 
     @attrcache("_contour")
     def contour(self) -> npt.NDArray[np.int32]:
-        """Contour of the entire coated substrate."""
+        """Contour of the entire coated substrate.
+
+        This method finds external contour of :meth:`CoatingLayerBase.coated_substrate`.
+        Only one contour must exist.
+        """
         (cnt,), _ = cv2.findContours(
             self.coated_substrate().astype(np.uint8),
             cv2.RETR_EXTERNAL,
@@ -123,36 +129,47 @@ class RectCoatingLayerBase(
         )
         return cnt
 
-    def surface(self) -> npt.NDArray[np.int32]:
-        """Return the surface of the entire coated region.
+    @abc.abstractmethod
+    def surface(self) -> Tuple[np.int64, np.int64]:
+        """Find liquid-gas interface of the coating layer.
 
-        Returns
-        -------
-        ndarray
-            Points in :meth:`contour` which comprises the coating layer surface.
-            Surface is continuous, i.e., if multiple discrete blobs of layer
-            exist, the surface includes the points on the exposed substrate
-            between them.
+        This method returns indices for :meth:`contour` where liquid-gas interface
+        starts and stops.
 
-        See Also
-        --------
-        contour
+        Here, the term "coating layer" has **conceptual meaning**. The interval
+        defined by this method can include solid-gas interface of the exposed substrate,
+        which is considered as coating layer with zero thickness.
+
+        Concrete class can implement this method either dynamically or statically,
+        depending on the interest of analysis.
+        For example, suppose a coating layer was applied with a length of 1 mm on
+        substrate. If a desired coating length was 2 mm, then this is a wetting failure
+        and indicates "bad" coating. In this case, this method should statically return
+        the desired range. On the other hand, if the wetting length is expected to vary,
+        this method can dynamically return the range for wetted region.
+
+        Returns:
+            Starting and ending indices for the surface interval in coated substrate
+            contour.
+
+        Note:
+            To acquire the surface points, slice :meth:`contour` with the indices.
         """
-        if not self.interfaces():
-            return np.empty((0, 1, 2), np.int32)
-
-        if not hasattr(self, "_surface_indices"):
-            (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
-            subst_cnt = self.substrate.contour() + self.substrate_point()
-            endpoints = subst_cnt[[i0, i1]]
-
-            vec = self.contour() - endpoints.transpose(1, 0, 2)
-            self._surface_indices = np.argmin(np.linalg.norm(vec, axis=-1), axis=0)
-        (I0, I1) = self._surface_indices
-        return self.contour()[I0 : I1 + 1]
 
     def capbridge_broken(self) -> bool:
-        """Check if capillary bridge is ruptured."""
+        """Check if capillary bridge is ruptured.
+
+        As substrate is withdrawn from fluid bath, capillary bridge forms between the
+        coating layer and bulk fluid, and ruptures.
+
+        An image patch beneath the substrate location is inspected. If any row is
+        all-background, the capillary bridge is considered to be broken.
+        If the substrate region extends beyond the frame, the substrate is considered
+        to be still immersed in the bath and capillary bridge not broken.
+
+        Note:
+            This method cannot distinguish uncoated substrate and coated substrate.
+        """
         p0 = self.substrate_point()
         _, bl, br, _ = self.substrate.contour()[self.substrate.vertices()]
         (B,) = p0 + bl
@@ -416,6 +433,24 @@ class RectLayerShape(
 
         return layer_mask
 
+    @attrcache("_surface")
+    def surface(self) -> Tuple[np.int64, np.int64]:
+        """Implement :meth:`RectCoatingLayerBase.surface`.
+
+        The coating layer is dynamically defined, ranging between the heighest wetting
+        points on substrate walls.
+        """
+        if not self.interfaces():
+            return (np.int64(-1), np.int64(0))
+
+        (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
+        subst_cnt = self.substrate.contour() + self.substrate_point()
+        endpoints = subst_cnt[[i0, i1]]
+
+        vec = self.contour() - endpoints.transpose(1, 0, 2)
+        (I0, I1) = np.argmin(np.linalg.norm(vec, axis=-1), axis=0)
+        return (I0, I1 + 1)
+
     @attrcache("_uniform_layer")
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """Return thickness and points for uniform layer."""
@@ -455,7 +490,8 @@ class RectLayerShape(
         subst_cnt = self.substrate.contour() + self.substrate_point()
         intf = subst_cnt[i0:i1]
 
-        surf = self.surface()
+        I0, I1 = self.surface()
+        surf = self.contour()[I0:I1]
 
         dist = cdist(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))
         mat = acm(dist)
@@ -468,7 +504,8 @@ class RectLayerShape(
     @attrcache("_roughness")
     def roughness(self) -> Tuple[float, npt.NDArray[np.int32]]:
         """Roughness of the coating layer and its optimal path."""
-        surf = self.surface()
+        I0, I1 = self.surface()
+        surf = self.contour()[I0:I1]
         _, ul = self.uniform_layer()
 
         if surf.size == 0 or ul.size == 0:
@@ -493,7 +530,8 @@ class RectLayerShape(
     def max_thickness(self) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
         """Maximum thickness on each side (left, bottom, right) and their points."""
         corners = self.substrate.sideline_intersections() + self.substrate_point()
-        surface = self.surface()
+        I0, I1 = self.surface()
+        surface = self.contour()[I0:I1]
         thicknesses, points = [], []
         for A, B in zip(corners[:-1], corners[1:]):
             AB = B - A
@@ -602,7 +640,8 @@ class RectLayerShape(
 
         conformality_opts = self.deco_options.conformality
         if len(self.interfaces()) > 0 and conformality_opts.linewidth > 0:
-            surf = self.surface()
+            I0, I1 = self.surface()
+            surf = self.contour()[I0:I1]
             (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
             intf = (self.substrate.contour() + self.substrate_point())[i0:i1]
             _, path = self.conformality()
@@ -618,7 +657,8 @@ class RectLayerShape(
 
         roughness_opts = self.deco_options.roughness
         if len(self.interfaces()) > 0 and roughness_opts.linewidth > 0:
-            surf = self.surface()
+            I0, I1 = self.surface()
+            surf = self.contour()[I0:I1]
             _, ul = self.uniform_layer()
             _, path = self.roughness()
             path = path[:: roughness_opts.step]
