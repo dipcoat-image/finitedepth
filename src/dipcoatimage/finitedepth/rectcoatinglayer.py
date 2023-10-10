@@ -37,7 +37,7 @@ __all__ = [
     "PaintMode",
     "RectLayerShapeDrawOpt",
     "LinesOptions",
-    "RectLayerShapeDecoOptions",
+    "RectLayerShapeDecoOpt",
     "RectLayerShapeData",
     "RectLayerShape",
     "equidistant_interpolate",
@@ -204,6 +204,7 @@ class RectLayerShapeParam:
 
     Arguments:
         KernelSize: Size of the kernel for morphological operation.
+            Kernel size must be zero or positive odd number.
         ReconstructRadius: Radius of the "safe zone" for noise removal.
             Draws imagniary circles having this radius on bottom corners of the
             substrate. Connected components not passing these circles are
@@ -214,6 +215,11 @@ class RectLayerShapeParam:
     KernelSize: Tuple[int, int]
     ReconstructRadius: int
     RoughnessMeasure: DistanceMeasure
+
+    def __post_init__(self):
+        """Check value of :attr:`KernelSize`."""
+        if not all(i == 0 or (i > 0 and i % 2 == 1) for i in self.KernelSize):
+            raise ValueError("Kernel size must be zero or odd.")
 
 
 class PaintMode(enum.Enum):
@@ -255,7 +261,7 @@ class LinesOptions:
 
 
 @dataclasses.dataclass
-class RectLayerShapeDecoOptions:
+class RectLayerShapeDecoOpt:
     """Decorating options for :class:`RectLayerShape`.
 
     Arguments:
@@ -324,80 +330,110 @@ class RectLayerShape(
     RectCoatingLayerBase[
         RectLayerShapeParam,
         RectLayerShapeDrawOpt,
-        RectLayerShapeDecoOptions,
+        RectLayerShapeDecoOpt,
         RectLayerShapeData,
     ]
 ):
-    """Coating layer over rectangular substrate.
+    """Analyze shape of the coating layer over :class:`RectSubstrate`.
 
-    Examples
-    --------
-    Construct substrate reference class first.
+    #. No static range is used for liquid-gas interface (:meth:`surface`).
+    #. Heighest wetting points are interpreted as contact line.
+    #. Coating layer is segmented into left, bottom, and right region.
+       Maximum thickness for each region is analyzed.
+    #. An imaginary uniform coating layer with the same cross-sectional area as the
+       actual coating layer is calculated.
+    #. DTW-based layer conformality and surface roughness are acquired.
 
-    .. plot::
-       :include-source:
-       :context: reset
+    Arguments:
+        image
+        substrate
+        parameters (RectLayerShapeParam, optional)
+        draw_options (RectLayerShapeDrawOpt, optional)
+        deco_options (RectLayerShapeDecoOpt, optional)
+        tempmatch
 
-       >>> import cv2
-       >>> from dipcoatimage.finitedepth import Reference, get_data_path
-       >>> gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
-       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-       >>> tempROI = (13, 10, 1246, 200)
-       >>> substROI = (100, 100, 1200, 500)
-       >>> ref = Reference(img, tempROI, substROI)
-       >>> import matplotlib.pyplot as plt #doctest: +SKIP
-       >>> plt.imshow(ref.draw()) #doctest: +SKIP
+    Examples:
+        Construct substrate instance first.
 
-    Construct the parameters and substrate instance from reference instance.
+        .. plot::
+            :include-source:
+            :context: reset
 
-    .. plot::
-       :include-source:
-       :context: close-figs
+            >>> import cv2
+            >>> from dipcoatimage.finitedepth import Reference, get_data_path
+            >>> gray = cv2.imread(get_data_path("ref3.png"), cv2.IMREAD_GRAYSCALE)
+            >>> _, im = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+            >>> tempROI = (10, 10, 1250, 200)
+            >>> substROI = (100, 100, 1200, 500)
+            >>> ref = Reference(im, tempROI, substROI)
+            >>> from dipcoatimage.finitedepth import RectSubstrate
+            >>> param = RectSubstrate.ParamType(Sigma=3.0, Rho=1.0, Theta=0.01)
+            >>> subst = RectSubstrate(ref, param)
 
-       >>> from dipcoatimage.finitedepth import RectSubstrate
-       >>> param = RectSubstrate.ParamType(Sigma=3.0, Rho=1.0, Theta=0.01)
-       >>> subst = RectSubstrate(ref, param)
-       >>> plt.imshow(subst.draw()) #doctest: +SKIP
+        Construct coating layer instance from target image and the substrate instance.
 
-    Construct `RectLayerShape` from substrate class. :meth:`analyze`
-    returns the number of pixels in coating area region.
+        .. plot::
+            :include-source:
+            :context: close-figs
 
-    .. plot::
-       :include-source:
-       :context: close-figs
+            >>> from dipcoatimage.finitedepth import RectLayerShape
+            >>> gray = cv2.imread(get_data_path("coat3.png"), cv2.IMREAD_GRAYSCALE)
+            >>> _, im = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+            >>> param = RectLayerShape.ParamType(
+            ...     KernelSize=(1, 1),
+            ...     ReconstructRadius=50,
+            ...     RoughnessMeasure=RectLayerShape.DistanceMeasure.SDTW,
+            ... )
+            >>> coat = RectLayerShape(im, subst, param)
+            >>> import matplotlib.pyplot as plt #doctest: +SKIP
+            >>> plt.imshow(coat.draw()) #doctest: +SKIP
 
-       >>> from dipcoatimage.finitedepth import RectLayerShape
-       >>> gray = cv2.imread(get_data_path("coat3.png"), cv2.IMREAD_GRAYSCALE)
-       >>> _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-       >>> param = RectLayerShape.ParamType(
-       ...     KernelSize=(1, 1),
-       ...     ReconstructRadius=50,
-       ...     RoughnessMeasure=RectLayerShape.DistanceMeasure.SDTW,
-       ... )
-       >>> coat = RectLayerShape(img, subst, param)
-       >>> plt.imshow(coat.draw()) #doctest: +SKIP
+        :attr:`draw_options` controls visualization of the substrate region.
+
+        .. plot::
+            :include-source:
+            :context: close-figs
+
+            >>> coat.draw_options.paint = coat.PaintMode.EMPTY
+            >>> plt.imshow(coat.draw()) #doctest: +SKIP
+
+        :attr:`deco_options` controls visualization of the coating layer region.
+
+        .. plot::
+            :include-source:
+            :context: close-figs
+
+            >>> coat.deco_options.roughness.linewidth = 0
+            >>> plt.imshow(coat.draw()) #doctest: +SKIP
     """
 
     ParamType = RectLayerShapeParam
+    """Assigned with :class:`RectLayerShapeParam`."""
     DrawOptType = RectLayerShapeDrawOpt
-    DecoOptType = RectLayerShapeDecoOptions
+    """Assigned with :class:`RectLayerShapeParam`."""
+    DecoOptType = RectLayerShapeDecoOpt
+    """Assigned with :class:`RectLayerShapeDecoOpt`."""
     DataType = RectLayerShapeData
+    """Assigned with :class:`RectLayerShapeData`."""
 
     DistanceMeasure = DistanceMeasure
+    """Assigned with :class:`DistanceMeasure`."""
     PaintMode = PaintMode
+    """Assigned with :class:`PaintMode`."""
     SubtractionMode = SubtractionMode
+    """Assigned with :class:`SubtractionMode`."""
 
     def verify(self):
-        """Check error."""
-        ksize = self.parameters.KernelSize
-        if not all(i == 0 or i % 2 == 1 for i in ksize):
-            raise ValueError("Kernel size must be odd.")
+        """Implement :meth:`CoatingLayerBase.verify`.
+
+        Check if capillary bridge is broken.
+        """
         if not self.capbridge_broken():
             raise ValueError("Capillary bridge is not broken.")
 
     @attrcache("_extracted_layer")
     def extract_layer(self) -> npt.NDArray[np.bool_]:
-        """Extract coating layer region."""
+        """Extend :meth:`CoatingLayerBase.extract_layer`."""
         # Perform opening to remove error pixels. We named the parameter as
         # "closing" because the coating layer is black in original image, but
         # in fact we do opening since the layer is True in extracted layer.
@@ -453,7 +489,25 @@ class RectLayerShape(
 
     @attrcache("_uniform_layer")
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
-        """Return thickness and points for uniform layer."""
+        """Imaginary uniform layer.
+
+        Uniform layer is a parallel curve[#parallel]_ of substrate surface, having
+        same cross-sectional area as the actual coating layer.
+
+        Returns:
+            Thickness and points of the uniform layer.
+
+        Note:
+            To acquire parallel curve of the substrate surface, a smooth contour without
+            any "bump" from noise is required. As :class:`RectSubstrate` is convex,
+            we conveniently use convex hull of the substrate contour.
+
+            Uniform layer is found by root-finding method using
+            :func:`polyline_parallel_area`.
+
+        References:
+            .. [#parallel] https://en.wikipedia.org/wiki/Parallel_curve
+        """
         if not self.interfaces():
             return (np.float64(0), np.empty((0, 1, 2), np.float64))
 
@@ -482,7 +536,11 @@ class RectLayerShape(
 
     @attrcache("_conformality")
     def conformality(self) -> Tuple[float, npt.NDArray[np.int32]]:
-        """Conformality of the coating layer and its optimal path."""
+        """DTW-based conformality of the coating layer.
+
+        Returns:
+            Conformality and optimal pairs between substrate surface and layer surface.
+        """
         if not self.interfaces():
             return (np.nan, np.empty((0, 2), dtype=np.int32))
 
@@ -503,7 +561,11 @@ class RectLayerShape(
 
     @attrcache("_roughness")
     def roughness(self) -> Tuple[float, npt.NDArray[np.int32]]:
-        """Roughness of the coating layer and its optimal path."""
+        """DTW-based surface roughness of the coating layer.
+
+        Returns:
+            Roughness and optimal pairs between layer surface and uniform layer.
+        """
         I0, I1 = self.surface()
         surf = self.contour()[I0:I1]
         _, ul = self.uniform_layer()
@@ -528,7 +590,23 @@ class RectLayerShape(
 
     @attrcache("_max_thickness")
     def max_thickness(self) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
-        """Maximum thickness on each side (left, bottom, right) and their points."""
+        """Regional maximum thicknesses.
+
+        Coating layer is segmented using :meth:`RectSubstrate.sideline_intersections`.
+        Points on layer surface and sideline for maximum distance in each region are
+        found.
+
+        Returns:
+            Tuple of two arrays.
+                - The first array contains maximum thickness values on left, bottom, and
+                  right region.
+                  Value of ``0`` indicates no coating layer on that region.
+                - The second array contains points on layer surface and substrate lines
+                  for the maximum thickness.
+                  Shape of the array is ``(3, 2, 2)``; 1st axis indicates left, bottom
+                  and right region, 2nd axis indicates layer surface and substrate line,
+                  and 3rd axis indicates ``(x, y)`` coordinates.
+        """
         corners = self.substrate.sideline_intersections() + self.substrate_point()
         I0, I1 = self.surface()
         surface = self.contour()[I0:I1]
@@ -550,7 +628,14 @@ class RectLayerShape(
         return (np.array(thicknesses), np.array(points))
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        """Return visualized image."""
+        """Implement :meth:`SubstrateBase.draw`.
+
+        #. Draw the substrate with by :class:`PaintMode`.
+        #. Display the template matching result with :class:`SubtractionMode`.
+        #. Draw coating layer and contact line.
+        #. If capillary bridge is broken, draw regional maximum thicknesses,
+           uniform layer, conformality pairs and roughness pairs.
+        """
         paint = self.draw_options.paint
         if paint == self.PaintMode.ORIGINAL:
             image = self.image
@@ -676,7 +761,7 @@ class RectLayerShape(
         return image
 
     def analyze(self):
-        """Return analysis data."""
+        """Implement :meth:`CoatingLayerBase.analyze`."""
         _, B, C, _ = self.substrate.sideline_intersections() + self.substrate_point()
 
         if not self.interfaces():
@@ -713,23 +798,18 @@ class RectLayerShape(
 
 
 def equidistant_interpolate(points, n) -> npt.NDArray[np.float64]:
-    """Interpolate *points* with *n* number of points with same distances.
+    """Interpolate points with equidistant new points.
 
-    Parameters
-    ----------
-    points: ndarray
-        Points that are interpolated.
-        The shape must be `(N, 1, D)` where `N` is the number of points and `D`
-        is the dimension.
-    n: int
-        Number of new points.
+    Arguments:
+        points: Points that are interpolated.
+            The shape must be ``(N, 1, D)`` where ``N`` is the number of points
+            and ``D`` is the dimension.
+        n: Number of new points.
 
-    Returns
-    -------
-    ndarray
-        Interpolated points with same distances.
-        If `N` is positive number, the shape is `(n, 1, D)`. If `N` is zero,
-        the shape is `(n, 0, D)`.
+    Returns:
+        Interpolated points.
+        - If ``N`` is positive number, the shape is ``(n, 1, D)``.
+        - If ``N`` is zero, the shape is ``(n, 0, D)``.
     """
     # https://stackoverflow.com/a/19122075
     if points.size == 0:
@@ -743,25 +823,19 @@ def equidistant_interpolate(points, n) -> npt.NDArray[np.float64]:
 
 
 def polyline_parallel_area(line: npt.NDArray, t: float) -> np.float64:
-    """Calculate the area between convex polyline and its parallel curve.
+    """Calculate the area between convex polyline[#polyline]_ and its parallel curve.
 
-    Parameters
-    ----------
-    line : ndarray
-        Vertices of a polyline.
-        The first dimension must be the number of vertices and the last dimension
-        must be the dimension of the manifold.
-    t : float
-        Thickness between *line* and its parallel curve.
+    Arguments:
+        line: Vertices of a polyline.
+            The shape is ``(V, 1, D)``, where ``V`` is the number of vertices and
+            ``D`` is the dimension.
+        t: Offset distance of the parallel curve.
 
     Returns
-    -------
-    area : float
+        area: Area between the polyline and its parallel curve.
 
-    References
-    ----------
-    .. [#polyline] https://en.wikipedia.org/wiki/Polygonal_chain
-    .. [#parallel] https://en.wikipedia.org/wiki/Parallel_curve
+    References:
+        .. [#polyline] https://en.wikipedia.org/wiki/Polygonal_chain
     """
     vec = np.diff(line, axis=0)
     d_l = np.linalg.norm(vec, axis=-1)
@@ -773,31 +847,21 @@ def polyline_parallel_area(line: npt.NDArray, t: float) -> np.float64:
 def acm(cm: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     """Compute accumulated cost matrix from local cost matrix.
 
-    Implements the algorithm from [#dtw1_, with modification from [#dtw2]_.
+    Implements the algorithm from [#dtw1]_, with modification from [#dtw2]_.
 
-    Parameters
-    ----------
-    cm: ndarray
-        Local cost matrix.
+    Arguments:
+        cm: Local cost matrix.
 
-    Returns
-    -------
-    ndarray
+    Returns:
         Accumulated cost matrix.
-        The element at `[-1, -1]` is the total sum along the optimal path.
-        If *P* or *Q* is empty, return value is an empty array.
+            The element at `[-1, -1]` is the total sum along the optimal path.
+            If *P* or *Q* is empty, return value is an empty array.
 
-    References
-    ----------
-    .. [#dtw1] Senin, Pavel. "Dynamic time warping algorithm review." Information and
-       Computer Science Department University of Hawaii at Manoa Honolulu,
-       USA 855.1-23 (2008): 40.
-
-    .. [#dtw2] https://pypi.org/project/similaritymeasures/
-
-    See Also
-    --------
-    owp : Compute optimal warping path from the accumulated cost matrix.
+    References:
+        .. [#dtw1] Senin, Pavel. "Dynamic time warping algorithm review."
+           Information and Computer Science Department University of Hawaii at
+           Manoa Honolulu, USA 855.1-23 (2008): 40.
+        .. [#dtw2] https://pypi.org/project/similaritymeasures/
     """
     p, q = cm.shape
     ret = np.zeros((p, q), dtype=np.float64)
@@ -823,21 +887,11 @@ def acm(cm: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
 def owp(acm: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
     """Compute optimal warping path from accumulated cost matrix.
 
-    Implements the algorithm from [#dtw1_, with modification from [#dtw2]_.
+    Arguments:
+        acm: Accumulated cost matrix.
 
-    Parameters
-    ----------
-    acm: ndarray
-        Accumulated cost matrix.
-
-    Returns
-    -------
-    ndarray
+    Returns:
         Indices for the two series to get the optimal warping path.
-
-    See Also
-    --------
-    acm : Compute accumulated cost matrix.
     """
     p, q = acm.shape
     if p == 0 or q == 0:

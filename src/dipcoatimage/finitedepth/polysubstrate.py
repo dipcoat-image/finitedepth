@@ -87,7 +87,7 @@ class PolySubstrateBase(
     """
 
     def region_points(self) -> npt.NDArray[np.int32]:
-        """Implements :meth:`SubstrateBase.region_points`.
+        """Implement :meth:`SubstrateBase.region_points`.
 
         This method returns an upper center point of the substrate image. Substrate ROI
         in reference image must be selected so that this point falls into substrate
@@ -234,10 +234,9 @@ class PolySubstrateBase(
         return ret
 
     def verify(self):
-        """Implements :meth:`SubstrateBase.verify`.
+        """Implement :meth:`SubstrateBase.verify`.
 
-        This method checks if :meth:`sideline_intersections` returns without
-        error.
+        Check if :meth:`sideline_intersections` returns without error.
         """
         try:
             self.sideline_intersections()

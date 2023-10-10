@@ -331,7 +331,7 @@ class Substrate(SubstrateBase[ReferenceBase, SubstParam, SubstDrawOpt, SubstData
     """Assigned with :class:`SubstData`."""
 
     def region_points(self) -> npt.NDArray[np.int32]:
-        """Implements :meth:`SubstrateBase.region_points`.
+        """Implement :meth:`SubstrateBase.region_points`.
 
         This method returns an upper center point of the substrate image.
         Substrate ROI in reference image must be selected so that
@@ -362,13 +362,13 @@ class Substrate(SubstrateBase[ReferenceBase, SubstParam, SubstDrawOpt, SubstData
         return np.array([[w / 2, 0]], dtype=np.int32)
 
     def verify(self):
-        """Implements :meth:`ReferenceBase.verify`."""
+        """Implement :meth:`ReferenceBase.verify`."""
         pass
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        """Implements :meth:`ReferenceBase.draw`."""
+        """Implement :meth:`ReferenceBase.draw`."""
         return cv2.cvtColor(self.image(), cv2.COLOR_GRAY2RGB)
 
     def analyze(self):
-        """Implements :meth:`ReferenceBase.analyze`."""
+        """Implement :meth:`ReferenceBase.analyze`."""
         return self.DataType()

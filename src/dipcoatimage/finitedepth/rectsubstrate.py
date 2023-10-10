@@ -120,7 +120,7 @@ class RectSubstrate(
     """Shortcut to :class:`PaintMode`."""
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        """Implements :meth:`SubstrateBase.draw`.
+        """Implement :meth:`SubstrateBase.draw`.
 
         #. Draw the substrate with by :class:`PaintMode`.
         #. Draw markers on vertices.
@@ -168,6 +168,6 @@ class RectSubstrate(
         return ret
 
     def analyze(self):
-        """Implements :meth:`SubstrateBase.analyze`."""
+        """Implement :meth:`SubstrateBase.analyze`."""
         _, B, C, _ = self.sideline_intersections()
         return self.DataType(np.linalg.norm(B - C))

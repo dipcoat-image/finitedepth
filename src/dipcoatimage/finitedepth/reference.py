@@ -302,11 +302,11 @@ class Reference(ReferenceBase[RefParam, RefDrawOpt, RefData]):
     """Assigned with :class:`RefData`."""
 
     def verify(self):
-        """Implements :meth:`ReferenceBase.verify`."""
+        """Implement :meth:`ReferenceBase.verify`."""
         pass
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        """Implements :meth:`ReferenceBase.draw`."""
+        """Implement :meth:`ReferenceBase.draw`."""
         ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
 
         substROI_opts = self.draw_options.substrateROI
@@ -325,7 +325,7 @@ class Reference(ReferenceBase[RefParam, RefDrawOpt, RefData]):
         return ret
 
     def analyze(self):
-        """Implements :meth:`ReferenceBase.analyze`."""
+        """Implement :meth:`ReferenceBase.analyze`."""
         return self.DataType()
 
 

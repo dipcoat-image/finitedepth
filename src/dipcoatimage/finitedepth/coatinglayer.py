@@ -461,11 +461,11 @@ class CoatingLayer(
     """Assigned with :class:`SubtractionMode`."""
 
     def verify(self):
-        """Implements :meth:`CoatingLayerBase.verify`."""
+        """Implement :meth:`CoatingLayerBase.verify`."""
         pass
 
     def draw(self) -> npt.NDArray[np.uint8]:
-        """Implements :meth:`CoatingLayerBase.draw`.
+        """Implement :meth:`CoatingLayerBase.draw`.
 
         #. Display the template matching result with :class:`SubtractionMode`.
         #. Draw the coating layer with :class:`PatchOptions`.
