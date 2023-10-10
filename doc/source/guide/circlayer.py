@@ -52,4 +52,4 @@ class CircLayer(
 
     def analyze(self):
         r = self.substrate.hough_circles()[0, 0, 2]
-        return self.Data(self.max_dist[0] - r)
+        return self.DataType(self.max_dist()[0] - r)

@@ -21,16 +21,17 @@ Examples
 
 Let's start with basic examples.
 
-Here, we will define classes to analyze the coating layer covering circular substrate.
-The background logics will be covered in the next section.
+Here, we will define classes to analyze the coating layer covering circular
+substrate. The background logics will be covered in the next section.
 
 Defining substrate class
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-We first define a substrate class which analyzes the substrate geometry.
+We first define substrate class which analyzes the substrate geometry.
 
-Our class will take parameters of :func:`cv2.HoughCircles` and detect the circle from
-substrate image. For simplicity, we do not implement visualization options.
+Our class, ``CircSubst``, will take parameters of :func:`cv2.HoughCircles` and
+detect the circle from substrate image. For simplicity, we do not implement
+visualization options.
 
 Download :download:`circsubstrate.py`. Its contents are:
 
@@ -52,20 +53,37 @@ Data(r=133.4)
 Defining coating layer class
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+We now define coating layer class.
+
+Our class, ``CircLayer``, will take target image and ``CircSubst`` instance.
+It will then detect the maximum thickness of the coating layer. For simplicity,
+we do not implement visualization options.
+
+Download :download:`circlayer.py` to where you downloaded
+:download:`circsubstrate.py`. Its contents are:
+
 .. literalinclude:: circlayer.py
     :language: python
+
+To visualize, run the following code at where you downloaded ``circlayer.py``:
 
 .. plot:: guide/circlayer-plot.py
     :include-source:
 
+If coating layer exists, visualization shows the maximum distance between the
+substrate center and the coating layer.
+Analysis returns maximum thickness of the coating layer:
+
+>>> coat.analyze()  # doctest: +SKIP
+Data(maxThickness=99.55...)
+
 Basic rules
 -----------
 
-As described in :ref:`howto-runtime`, five abstract base classes consistitute
-the analysis; :class:`ReferenceBase`, :class:`SubstrateBase`,
-:class:`CoatingLayerBase`, :class:`ExperimentBase` and :class:`AnalysisBase`.
-
-To define their concrete subclasses, there are some common rules to follow.
+You may have noticed that ``CircSubstrate`` and ``CircLayer`` in the
+previous section have quite similar structure. This is true, as there are
+some common rules that should be obeyed when defining concrete subclasses in
+DipcoatImage-FiniteDepth.
 
 Do not modify signature
 ^^^^^^^^^^^^^^^^^^^^^^^
