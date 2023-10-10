@@ -44,8 +44,8 @@ class AnalysisBase(Coroutine, Generic[ParamTypeVar]):
     To save the data, use the following methods:
 
     * :meth:`send`: Write the data into files.
-        First call must pass :obj:`None`, which prepares the files.
-        Subsequent calls must pass coating layer instances.
+      First call must pass :obj:`None`, which prepares the files.
+      Subsequent calls must pass coating layer instances.
     * :meth:`close`: Close the files
 
     Concrete subclass must implement :meth:`object.__await__` which returns the

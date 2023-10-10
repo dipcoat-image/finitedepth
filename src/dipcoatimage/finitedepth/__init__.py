@@ -67,23 +67,18 @@ __all__ = [
 def get_data_path(*paths: str) -> str:
     """Get path to data file.
 
-    Parameters
-    ----------
-    paths : str
-        Subpaths under ``dipcoatimage/finitedepth/data/`` directory.
+    Arguments:
+        paths: Subpaths under ``dipcoatimage/finitedepth/data/`` directory.
 
-    Returns
-    -------
-    path
+    Returns:
         Absolute path to the data.
 
-    Examples
-    --------
-    >>> from dipcoatimage.finitedepth import get_data_path
-    >>> get_data_path() # doctest: +SKIP
-    'path/dipcoatimage/finitedepth/data'
-    >>> get_data_path("coat1.png") # doctest: +SKIP
-    'path/dipcoatimage/finitedepth/data/coat1.png'
+    Examples:
+        >>> from dipcoatimage.finitedepth import get_data_path
+        >>> get_data_path() # doctest: +SKIP
+        'path/dipcoatimage/finitedepth/data'
+        >>> get_data_path("coat1.png") # doctest: +SKIP
+        'path/dipcoatimage/finitedepth/data/coat1.png'
     """
     data_path = files("dipcoatimage.finitedepth.data")
     if not paths:
@@ -94,9 +89,10 @@ def get_data_path(*paths: str) -> str:
 def analyze_files(*paths: str):
     """Analyze from config files.
 
-    Supported files are:
-    - YAML
-    - JSON
+    Supported files are: YAML, JSON
+
+    Arguments:
+        paths: Configuration file paths.
     """
     for path in paths:
         _, ext = os.path.splitext(path)
