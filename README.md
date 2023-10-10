@@ -20,7 +20,7 @@ $ finitedepth analyze config1.yml conf2.yml ...
 $ pip install git+ssh://git@github.com/dipcoat-image/finitedepth.git
 ```
 
-# Documentation
+## Documentation
 
 Documentation can be found on Read the Docs:
 
