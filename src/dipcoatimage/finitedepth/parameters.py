@@ -14,30 +14,47 @@ __all__ = [
 
 @dataclasses.dataclass
 class LineOptions:
-    """Parameters to draw a line in the image."""
+    """Parameters to draw a line in the image.
+
+    Arguments:
+        color: Color of the line in RGB.
+        linewidth: Width of the line.
+    """
 
     color: Tuple[int, int, int] = (0, 0, 0)
-    """Color of the line in RGB."""
     linewidth: int = 1
-    """Width of the line."""
 
 
 @dataclasses.dataclass
 class PatchOptions:
-    """Parameters to draw a patch in the image."""
+    """Parameters to draw a patch in the image.
+
+    Arguments:
+        fill: Whether to fill the patch with facecolor.
+        edgecolor: Color of the edge in RGB.
+        facecolor: Color of the face in RGB.
+        linewidth: Width of the edge.
+    """
 
     fill: bool = True
-    """Whether to fill the patch with facecolor."""
     edgecolor: Tuple[int, int, int] = (0, 0, 0)
-    """Color of the edge in RGB."""
     facecolor: Tuple[int, int, int] = (0, 0, 0)
-    """Color of the face in RGB."""
     linewidth: int = 1
-    """Width of the edge."""
 
 
 class MarkerTypes(enum.Enum):
-    """Marker types for :func:`cv2.drawMarker`."""
+    """Marker types for :func:`cv2.drawMarker`.
+
+    .. rubric:: **Members**
+
+    - CROSS: Use :obj:`cv2.MARKER_CROSS`.
+    - TILTED_CROSS: Use :obj:`cv2.MARKER_TILTED_CROSS`.
+    - STAR: Use :obj:`cv2.MARKER_STAR`.
+    - DIAMOND: Use :obj:`cv2.MARKER_DIAMOND`.
+    - SQUARE: Use :obj:`cv2.MARKER_SQUARE`.
+    - TRIANGLE_UP: Use :obj:`cv2.MARKER_TRIANGLE_UP`.
+    - TRIANGLE_DOWN: Use :obj:`cv2.TRIANGLE_DOWN`.
+    """
 
     CROSS = "CROSS"
     TILTED_CROSS = "TILTED_CROSS"
@@ -50,12 +67,16 @@ class MarkerTypes(enum.Enum):
 
 @dataclasses.dataclass
 class MarkerOptions:
-    """Parameters to draw a marker in the image."""
+    """Parameters to draw a marker in the image.
+
+    Arguments:
+        color: Color of the marker in RGB.
+        marker: Marker shape.
+        linewidth: Width of the marker line.
+        markersize: Size of the marker in pts.
+    """
 
     color: Tuple[int, int, int] = (0, 0, 0)
-    """Color of the marker in RGB."""
     marker: MarkerTypes = MarkerTypes.CROSS
     linewidth: int = 1
-    """Width of the marker line."""
     markersize: int = 20
-    """Size of the marker in pts."""
