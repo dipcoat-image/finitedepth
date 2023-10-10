@@ -13,6 +13,14 @@ Classes such as :class:`Reference` or :class:`RectSubstrate` are their
 concrete subclasses. By following the same API, you can implement your
 own classes which seamlessly bind with the framework.
 
+Examples
+--------
+
+.. literalinclude:: circsubstrate.py
+    :language: python
+
+.. plot:: guide/circsubstrate-plot.py plot
+
 Basic rules
 -----------
 

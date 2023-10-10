@@ -358,8 +358,7 @@ class Substrate(SubstrateBase[ReferenceBase, SubstParam, SubstDrawOpt, SubstData
                 >>> plt.imshow(subst.draw())  #doctest: +SKIP
                 >>> plt.plot(*subst.region_points().T, "o")  #doctest: +SKIP
         """
-        w = self.image().shape[1]
-        return np.array([[w / 2, 0]], dtype=np.int32)
+        return np.array([[self.image().shape[1] / 2, 0]], dtype=np.int32)
 
     def verify(self):
         """Implement :meth:`ReferenceBase.verify`."""

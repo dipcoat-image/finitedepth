@@ -2,7 +2,7 @@
 doctests = True
 exclude =
     build,
-    doc/build,
+    doc,
 # compatibility with black
 max-line-length = 88
 extend-ignore =

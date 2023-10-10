@@ -93,8 +93,7 @@ class PolySubstrateBase(
         in reference image must be selected so that this point falls into substrate
         region.
         """
-        w = self.image().shape[1]
-        return np.array([[w / 2, 0]], dtype=np.int32)
+        return np.array([[self.image().shape[1] / 2, 0]], dtype=np.int32)
 
     def contour(self) -> npt.NDArray[np.int32]:
         """Return the polygon contour."""
