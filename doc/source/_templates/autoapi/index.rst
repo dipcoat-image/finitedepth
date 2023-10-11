@@ -3,7 +3,18 @@
 API Reference
 =============
 
-This page contains auto-generated API reference documentation [#f1]_.
+User Reference
+--------------
+
+.. toctree::
+   :titlesonly:
+
+   ../config-reference
+
+Module Reference
+----------------
+
+This section contains auto-generated API reference documentation [#f1]_.
 
 Modules are imported under ``dipcoatimage`` namespace.
 For example, :mod:`finitedepth` can be accessed by:
