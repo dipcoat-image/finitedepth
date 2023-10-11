@@ -170,3 +170,17 @@ subprocess.call(
 # Howto guide file
 
 subprocess.call(["finitedepth", "analyze", "config.yml"], cwd="guide")
+
+# Reference file
+
+f = open("help-finitedepth.txt", "w")
+subprocess.call(["finitedepth", "-h"], stdout=f)
+f.close()
+
+f = open("help-finitedepth-data.txt", "w")
+subprocess.call(["finitedepth", "data", "-h"], stdout=f)
+f.close()
+
+f = open("help-finitedepth-analyze.txt", "w")
+subprocess.call(["finitedepth", "analyze", "-h"], stdout=f)
+f.close()

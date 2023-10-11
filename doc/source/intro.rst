@@ -6,7 +6,7 @@ Getting Started
 What is "finite depth dip coating"?
 -----------------------------------
 
-.. figure:: _images/finite-depth-dip-coating.jpg
+.. figure:: _static/finite-depth-dip-coating.jpg
    :align: center
 
    The four stages of the finite depth dip coating.
@@ -132,7 +132,7 @@ It can be run as a package as well:
 
 The configuration file must contain entries which can construct
 :class:`Config` instance.
-Read :ref:`tutorial` and :ref:`config-reference` for more information.
+Read :ref:`tutorial` for more information.
 
 .. note::
    To check other commands, run:
@@ -140,6 +140,8 @@ Read :ref:`tutorial` and :ref:`config-reference` for more information.
    .. code-block:: bash
 
       finitedepth -h
+
+   Or you can refer to :ref:`command-reference` page.
 
 Alternatively, the package can be imported in runtime to perform analysis.
 User can also extend its core classes to implement their own analysis.
@@ -155,5 +157,5 @@ Check out more resources to help you customize your analysis:
   to analyze your dataset.
 * :ref:`howto` provide advanced information to use 100% of
   DipcoatImage-FiniteDepth.
-* :ref:`api` delineates every component of this package.
+* :ref:`api` delineates every feature and component of this package.
 * :ref:`explanation` are in-depth descriptions for developers.

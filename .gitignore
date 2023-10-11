@@ -1,5 +1,6 @@
 # Custom entries
 doc/source/_static/logo.png
+doc/source/help-*.txt
 doc/source/tutorial/config.json
 doc/source/tutorial/output/*
 doc/source/guide/output/*
