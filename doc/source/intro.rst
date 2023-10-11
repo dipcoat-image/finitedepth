@@ -6,7 +6,7 @@ Getting Started
 What is "finite depth dip coating"?
 -----------------------------------
 
-.. figure:: _images/finite-depth-dip-coating.jpg
+.. figure:: _static/finite-depth-dip-coating.jpg
    :align: center
 
    The four stages of the finite depth dip coating.
