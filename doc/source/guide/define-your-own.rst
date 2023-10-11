@@ -88,8 +88,8 @@ DipcoatImage-FiniteDepth.
 Set type variables
 ^^^^^^^^^^^^^^^^^^
 
-The first similarity you can see between ``CircSubstrate`` and ``CircLayer`` is that
-they both define class attributes such as ``ParamType`` or ``DataType``.
+The first similarity you can see between ``CircSubstrate`` and ``CircLayer`` is
+that they both define class attributes such as ``ParamType`` or ``DataType``.
 These attributes are **type variables**; setting them automatically affects
 the behavior of the classes.
 
@@ -110,7 +110,8 @@ dataclass types to these attributes:
 * :attr:`~CoatingLayerBase.DataType`.
 
 Refer to :ref:`api` to check what type variables the other classes define.
-Read :ref:`howto-define-dataclass` to learn good practices to define dataclasses.
+Read :ref:`howto-define-dataclass` to learn good practices to define
+dataclasses.
 
 .. note::
 
@@ -222,10 +223,11 @@ frequently implement. If you want to acquire geometry-specific data, you need
 to define both the substrate class and the coating layer class as explained in
 the examples section in this page.
 
-:class:`ExperimentBase` can be implemented if you need specific way to construct
-the coating layer instances. For example, you may have ground truth data of the
-substrate location in target image, so you need your experiment instance to
-read the data and pass it to the constructor of coating layer class.
+:class:`ExperimentBase` can be implemented if you need specific way to
+construct the coating layer instances. For example, you may have
+ground truth data of the substrate location in target image, so you need
+your experiment instance to read the data and pass it to the constructor of
+coating layer class.
 
 :class:`AnalysisBase` may be implemented to for different file IO API.
 Instead of relying on :mod:`cv2` and :mod:`PIL` libraries as :class:`Analysis`
