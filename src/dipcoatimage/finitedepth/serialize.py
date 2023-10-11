@@ -2,6 +2,11 @@
 
 This module defines abstract class :class:`ConfigBase` and its
 implementation, :class:`Config`.
+
+Serialization and deserialization of arguments are performed by
+:obj:`data_converter`. To handle custom classes, register
+structure hook and unstructure hook to the converter.
+
 """
 
 import abc
