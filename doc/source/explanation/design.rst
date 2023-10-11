@@ -149,7 +149,7 @@ Therefore :class:`RectLayerShape` is no longer a generic class.
 
 Additionally, the constant types which replace the type variables
 are assigned to special class attributes so that they can be
-accessed in runtime. For example, :attr:`ParamType` is used to 
+accessed in runtime. For example, :attr:`ParamType` is used to
 construct default parameter if *parameters* argument is not
 provided to the class constructor.
 
@@ -191,3 +191,26 @@ Having slots will thus do more harm than good.
 
 Verifying
 ---------
+
+Core classes define :meth:`verify` which checks the parameters.
+
+The purpose of :meth:`verify` is to detect any error before expensive
+analysis. :meth:`analyze` and :meth:`draw` delegates every inspection
+to :meth:`verify`. It is thus recommended to run :meth:`verify` before
+running the other two methods.
+
+.. note::
+
+    :meth:`verify` will often call intermediate methods which are again
+    called by :meth:`analyze` and :meth:`draw`. If the methods are
+    expensive, consider cacheing them.
+
+If :meth:`verify` raises an error, :meth:`analyze` is likely to raise
+an error as well. If not, the result is probably flawed and should not
+be trusted. This is why running :meth:`verify` first is important.
+
+However, :meth:`draw` should never raise error even if :meth:`verify`
+fails. Instead, it should try as much as possible to return useful
+visualization. This is because :meth:`draw` is expected to be used
+for fine-tuning of the parameters, which may raise countless errors
+during the process.
