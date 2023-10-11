@@ -81,4 +81,4 @@ doctest_optionflags = [
     "IGNORE_EXCEPTION_DETAIL",
     "ELLIPSIS",
 ]
-addopts = "--ignore-glob=doc/**/*.py --doctest-glob=*.rst --doctest-modules --ignore=doc/source/conf.py"
+addopts = "--ignore-glob=doc/**/*.py --doctest-modules --doctest-glob=*.rst"
