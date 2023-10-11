@@ -157,4 +157,4 @@ config.analyze("Generating tutorial data...")
 
 # Howto guide file
 
-subprocess.call("finitedepth analyze config.yml", cwd="guide")
+subprocess.call(["finitedepth", "analyze", "config.yml"], cwd="guide")
