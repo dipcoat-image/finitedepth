@@ -1,4 +1,4 @@
-Analysis1:
+Tutorial4:
   ref_path: $FINITEDEPTH_DATA/ref3.png
   coat_path: $FINITEDEPTH_DATA/coat3.png
   reference:
@@ -27,6 +27,5 @@ Analysis1:
         linewidth: 0
   analysis:
     parameters:
-      subst_data: subst3.csv
-      layer_visual: result3.jpg
-      layer_data: result3.csv
+      layer_visual: output/rectcoat2.jpg
+      layer_data: output/rectcoat2.csv

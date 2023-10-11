@@ -49,211 +49,181 @@ package is provided.
 Basic example
 -------------
 
+We begin with a brief example which performs analysis using command-line and
+configuration file.
+
 Download :download:`config.yml` file in your local directory.
-The contents of the file are:
+The contents of this configuration file are:
 
 .. literalinclude:: config.yml
     :language: yaml
 
-The ``ref_path`` and ``coat_path`` are important parameters which specify
-*reference image* and *target image(s)*. Note that the paths contain
-environment variable which we already set.
+You can notice that the file contains environment variable
+``$FINITEDEPTH_DATA`` in paths. This allows us to load the sample data files
+included in the package.
 
-The target image is analyzed using the reference image and other parameters
-(``tempROI`` and ``substROI``) to yield visualized result. The result is
-stored to the path specified by ``layer_visual``, which is an image file
-in this example.
+Running the following command will generate ``output/coat.jpg`` which
+shows the coating layer region:
+
+.. code-block:: bash
+
+    finitedepth analyze config.yml
+
+.. figure:: output/coat.jpg
+   :align: center
+   :width: 45%
+
+   ``coat.jpg``
 
 .. note::
 
     Refer to the :ref:`config-reference` page for an exhaustive description
     of every parameter in the configuration file.
 
-Running the following command will generate ``result1.jpg`` which highlights
-the coating layer region:
-
-.. code-block:: bash
-
-    finitedepth analyze config.yml
-
-.. plot::
-    :context: reset
-    :caption: ``result1.jpg``
-
-    import os, yaml, matplotlib.pyplot as plt
-    from dipcoatimage.finitedepth import data_converter, Config
-    with open(os.path.join("config.yml"), "r") as f:
-        data = yaml.load(f, Loader=yaml.FullLoader)
-    (v,) = data.values()
-    config = data_converter.structure(v, Config)
-    coat = config.construct_coatinglayer(0)
-    plt.axis("off")
-    plt.imshow(coat.draw())
-    plt.show()
-
 Configuration file can also be ``JSON``.
-Download :download:`config.json` and run:
-
-.. code-block:: bash
-
-    finitedepth analyze config.json
+The following :download:`config.json` file is equivalent to
+:download:`config.yml`:
 
 .. literalinclude:: config.json
     :language: json
 
-.. plot::
-    :context: close-figs
-    :caption: ``result2.jpg``
-
-    import json
-    with open(os.path.join("config.json"), "r") as f:
-        data = json.load(f)
-    (v,) = data.values()
-    config = data_converter.structure(v, Config)
-    coat = config.construct_coatinglayer(0)
-    plt.axis("off")
-    plt.imshow(coat.draw())
-    plt.show()
-
 .. note::
 
-    To check supported formats for configuration file, run:
+    To check all supported formats for configuration file, run:
 
     .. code-block:: bash
 
         finitedepth analyze -h
 
 
-Reference, substrate and coating layer
---------------------------------------
+Core classes
+------------
 
-Configurations in the previous section are only minimum examples;
-under the hood, there are more than meets the eye.
+Configuration in the previous section are only a minimum example.
+Under the hood, there is more than meets the eye.
 
-Change the ``config.yml`` as follows and run the analysis again:
+Download :download:`config-extended.yml` as follows and run the analysis again:
 
-.. literalinclude:: config-subst.yml
+.. literalinclude:: config-extended.yml
     :language: yaml
 
-You will now have two additional files; ``ref1.jpg`` and ``subst1.jpg``.
+.. code-block:: bash
 
-.. plot::
-    :context: close-figs
-    :caption: ``ref1.jpg`` and ``subst1.jpg``
+    finitedepth analyze config-extended.yml
 
-    with open(os.path.join("config.yml"), "r") as f:
-        data = yaml.load(f, Loader=yaml.FullLoader)
-    (v,) = data.values()
-    config = data_converter.structure(v, Config)
-    coat = config.construct_coatinglayer(0)
-    _, axes = plt.subplots(1, 2, figsize=(12, 6))
-    axes[0].imshow(coat.substrate.reference.draw())
-    axes[0].axis("off")
-    axes[1].imshow(coat.substrate.draw())
-    axes[1].axis("off")
-    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
-    plt.show()
+This configuration has two additional fields compared to the previous file:
+``analysis.parameters.ref_visual`` and ``analysis.parameters..subst_visual``.
+As a result, it additionally generates ``output/ref.jpg``,
 
-One can discover that ``subst1.jpg`` is actually ``ref1.jpg`` cropped
-by ``substrateROI``. Indeed, ``substrateROI`` specifies the
-*substrate region* from the reference image, which is the red box in
-``ref1.jpg``. Similary, ``templateROI`` specifies the *template region*
-which helps locating the substrate region in the target image.
+.. figure:: output/ref.jpg
+   :align: center
+   :figwidth: 45%
 
-The :ref:`fundamental scheme <fundamentals>` is implemented as follows:
+   ``ref.jpg``
 
-1. Reference image constructs *reference instance*
-   (inherits :class:`ReferenceBase`).
-2. Reference instance constructs *substrate instance*
-   (inherits :class:`SubstrateBase`).
-3. Substrate instance and target image construct *coating layer instance*
-   (inherits :class:`CoatingLayerBase`), which defines analysis result.
+and ``output/subst.jpg``.
+
+.. figure:: output/subst.jpg
+   :align: center
+   :figwidth: 45%
+
+   ``subst.jpg``
+
+What you are seeing are visualization results of three core classes:
+:ref:`reference class <howto-reference>`,
+:ref:`substrate class <howto-substrate>`, and
+:ref:`coating layer class <howto-coatinglayer>`
+
+The :ref:`fundamental scheme <fundamentals>` of image analysis
+is implemented as follows:
+
+1. Reference instance stores the *reference image*.
+2. Substrate instance stores the *substrate region*.
+3. Coating layer instance stores the *target image* and detects
+   the *coating layer region*.
+
+Each class defines its own visualization method and analysis result, and
+the configuration file can control how the results will be saved.
 
 .. note::
 
-    Actual analysis involves *experiment class* (inherits
-    :class:`ExperimentBase`) and *analysis class* (inherits
-    :class:`AnalysisBase`), but we spare the details in this section.
-    Refer to :ref:`howto-runtime` page and class docstrings.
+    Actual analysis involves two more core classes:
+    :ref:`experiment class <howto-experiment>` and
+    :ref:`analysis class <howto-analysis>`.
+    However, we spare the details in this section.
 
 
 Specifying types
 ----------------
 
-Previous configurations did not specify the instance types, defaulting
+Previous configurations did not specify the core class types, defaulting
 them to :class:`Reference`, :class:`Substrate`, and :class:`CoatingLayer`.
 By using advanced types, more detailed analysis can be achieved.
 
-Download :download:`config-rect.yml` file in your local
-directory.
-The contents of the file are:
+Download :download:`config-rect.yml` file. The contents of the file are:
 
 .. literalinclude:: config-rect.yml
     :language: yaml
 
-Here, we specified the substrate type to :class:`RectSubstrate` and
-coating layer type to :class:`RectLayerShape`. We also passed necessary
-parameters, which are described in their docstrings..
+Here, the core classes are set to the following types:
+
+* Reference type is not specified, thus defaults to :class:`Reference`.
+* Substrate type is set to :class:`RectSubstrate`.
+* Coating layer type is set to :class:`RectLayerShape`.
+
+The new types require additional parameters, which are also specified
+in the configuration file.
 
 The resulting coating layer instance is equipped with fancy visualization:
 
-.. plot::
-    :context: close-figs
-    :caption: ``result3.jpg``
+.. figure:: output/rectcoat.jpg
+   :align: center
+   :figwidth: 45%
 
-    with open(os.path.join("config-rect.yml"), "r") as f:
-        data = yaml.load(f, Loader=yaml.FullLoader)
-    (v,) = data.values()
-    config = data_converter.structure(v, Config)
-    coat = config.construct_coatinglayer(0)
-    plt.axis("off")
-    plt.imshow(coat.draw())
-    plt.show()
+   ``rectcoat.jpg``
 
-Also, analysis data of the substrate geometry and the coating layer shape are
-saved in ``subst3.csv`` and ``result3.csv``:
+Also, analysis result of the substrate and the coating layer are
+saved in ``rectsubst.csv`` and ``rectcoat.csv``:
 
-.. csv-table:: subst3.csv
-   :file: output/subst3.csv
+.. csv-table:: rectsubst.csv
+   :file: output/rectsubst.csv
    :header-rows: 1
 
-.. csv-table:: result3.csv
-   :file: output/result3.csv
+.. csv-table:: rectcoat.csv
+   :file: output/rectcoat.csv
    :header-rows: 1
 
-The meaning of these data are described in the class docstrings of
-:class:`RectSubstrate` and :class:`RectLayerShape`.
-
-Likewise, by implementing your custom classes and specifying them in
-configuration file, you can customize your analysis. Refer to :ref:`howto`
-and :ref:`api` pages for more explanation.
+Likewise, you can implement your own classes equipped with
+custom visualization and analysis algorithms, and specify them in
+configuration file to perform customized analysis.
+Refer to :ref:`howto` and :ref:`api` pages for more details.
 
 Controlling visualization
 -------------------------
 
-Configuration file can define options to visualize the analysis result.
+Configuration file can control visualization result.
 
-Change the ``config-rect.yml`` as follows and run the analysis again:
+Download :download:`config-rect2.yml` file. The contents of the file are:
 
 .. literalinclude:: config-rect2.yml
     :language: yaml
 
-The :class:`RectLayerShape` now subtracts the substrate region from the
-visualization result. Also, the uniform layer and the roughness samples
-are no longer shown.
+This configuration has two additional fields compared to the previous file:
+``coatinglayer.draw_options`` and ``coatinglayer.deco_options``.
+As a result, the visualization result is now different.
 
-.. plot::
-    :context: close-figs
-    :caption: ``result3.jpg``
+.. figure:: output/rectcoat2.jpg
+   :align: center
+   :figwidth: 45%
 
-    with open(os.path.join("config-rect2.yml"), "r") as f:
-        data = yaml.load(f, Loader=yaml.FullLoader)
-    (v,) = data.values()
-    config = data_converter.structure(v, Config)
-    coat = config.construct_coatinglayer(0)
-    plt.axis("off")
-    plt.imshow(coat.draw())
-    plt.show()
+   ``rectcoat2.jpg``
+
+The additional fields are purely cosmetic and does not affect the
+analysis result, which is determined by ``parameters``.
+
+.. csv-table:: rectcoat2.csv
+   :file: output/rectcoat2.csv
+   :header-rows: 1
 
 Each reference, substrate, and coating layer class can define its own
 visualization options.

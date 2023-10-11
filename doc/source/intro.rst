@@ -6,31 +6,32 @@ Getting Started
 What is "finite depth dip coating"?
 -----------------------------------
 
-.. figure:: ./_images/finite-depth-dip-coating.jpg
+.. figure:: _images/finite-depth-dip-coating.jpg
    :align: center
 
-   The four stages of the finite-depth coating process.
+   The four stages of the finite depth dip coating.
 
-Finite depth dip coating is a process in which a substrate is partially coated
-with liquid by being dipped into a bath with relatively small immersion depth.
-Unlike traditional dip coating, the coating layer is confined into a small
-portion of the substrate and thus the lower edge effect dominates the system.
+**Finite depth dip coating** is a process in which a substrate is dipped into
+a bath with relatively small immersion depth.
 
-The process consists of four stages:
+Unlike traditional dip coating, the coating layer in finite depth dip coating
+is confined into a small portion of the substrate and thus the
+lower edge effect dominates the system. The process consists of four stages:
 
 #. Immersion
       In this initial stage, the substrate descends into the bath.
 #. Withdrawal
-      The substrate is now gradually pulled out of the bath.
+      The substrate is gradually pulled out of the bath.
 #. Pinch-off
       As the substrate exits the bath, a capillary bridge forms between the
       coating layer and the bulk fluid. The bridge then thins by pinch-off
       dynamics and eventually ruptures.
 #. Termination
-      Surface tension redistributes the fluid until equilibrium is reached.
+      Residual fluid is redistributed by surface tension.
 
-To achieve uniform coating, the coating layer profile should be measured and
-studied; and that's what *DipcoatImage-FiniteDepth* is for.
+To optimize the process, the effect of process variables to the layer profile
+should be studied. This requires measuring the coating layer shape, and that's
+what *DipcoatImage-FiniteDepth* is for.
 
 .. _fundamentals:
 
@@ -44,7 +45,7 @@ is an image of coated substrate.
 .. plot::
    :context: reset
    :caption: Reference image (left) and target image (right).
-      Red box is substrate region.
+      Red box is *substrate region*.
 
    import cv2, numpy as np, matplotlib.pyplot as plt
    from dipcoatimage.finitedepth import *
@@ -76,9 +77,11 @@ is an image of coated substrate.
 
 The basic scheme of analysis is:
 
-#. Select the substrate region from the reference image.
+#. Select substrate region from the reference image
+   (red box in the previous figure).
 #. Locate the substrate region in the target image.
-#. Retrieve the coating layer region from the target image.
+#. Remove the substrate region from the target image to acquire
+   coating layer region.
 
 .. plot::
    :context: close-figs
@@ -91,13 +94,14 @@ The basic scheme of analysis is:
    plt.imshow(coat.draw())
    plt.tight_layout()
 
-The resulting coating layer region can be further processed to return desired
-data, e.g., thickness or unifomity.
+The coating layer region can be further processed to return desired data,
+e.g., thickness and unifomity.
 
 Installation
 ------------
 
-DipcoatImage-FiniteDepth can be installed by `pip` from its github repository.
+DipcoatImage-FiniteDepth can be installed by :mod:`pip` from
+github repository.
 
 .. code-block:: bash
 
@@ -113,7 +117,7 @@ version, append ``@[tag name]`` such as:
 Basic usage
 -----------
 
-DipcoatImage-FiniteDepth provides command-line to invoke analysis using
+DipcoatImage-FiniteDepth provides command-line API to invoke analysis using
 configuration files.
 
 .. code-block:: bash
@@ -127,7 +131,8 @@ It can be run as a package as well:
    python -m dipcoatimage.finitedepth analyze config1.yml config2.json ...
 
 The configuration file must contain entries which can construct
-:class:`Config` instance. See :ref:`config-reference` for more information.
+:class:`Config` instance.
+Read :ref:`tutorial` and :ref:`config-reference` for more information.
 
 .. note::
    To check other commands, run:
@@ -136,9 +141,9 @@ The configuration file must contain entries which can construct
 
       finitedepth -h
 
-User can also import the classes from
-:mod:`dipcoatimage.finitedepth <finitedepth>` package to implement
-their own analysis.
+Alternatively, the package can be imported in runtime to perform analysis.
+User can also extend its core classes to implement their own analysis.
+See :ref:`howto` for detailed instructions.
 
 Next steps
 ----------

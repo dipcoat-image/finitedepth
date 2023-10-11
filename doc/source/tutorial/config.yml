@@ -1,4 +1,4 @@
-Analysis1:
+Tutorial1:
   ref_path: $FINITEDEPTH_DATA/ref1.png
   coat_path: $FINITEDEPTH_DATA/coat1.png
   reference:
@@ -6,4 +6,4 @@ Analysis1:
     substrateROI: [400, 175, 1000, 500]
   analysis:
     parameters:
-      layer_visual: result1.jpg
+      layer_visual: output/coat.jpg

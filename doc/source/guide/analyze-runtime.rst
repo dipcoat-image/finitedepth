@@ -6,7 +6,7 @@ How to analyze in runtime
 .. currentmodule:: finitedepth
 
 When :ref:`command-line analysis <basic-example>` is invoked, instances of
-the following classes are constructed:
+the following core classes are constructed:
 
 #. :ref:`Reference class <howto-reference>`
 #. :ref:`Substrate class <howto-substrate>`

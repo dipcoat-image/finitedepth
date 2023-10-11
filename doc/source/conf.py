@@ -4,6 +4,7 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import json
 import os
 import subprocess
 
@@ -82,6 +83,7 @@ def setup(sphinx):
 
 intersphinx_mapping = {
     "python": ("http://docs.python.org/", None),
+    "pip": ("https://pip.pypa.io/en/stable/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "cattrs": ("https://cattrs.readthedocs.io/en/latest/", None),
     "mypy": ("https://mypy.readthedocs.io/en/stable/", None),
@@ -145,16 +147,25 @@ cv2.imwrite(
     cv2.cvtColor(np.dstack([img, alpha]).astype(np.uint8), cv2.COLOR_RGBA2BGRA),
 )
 
-# Tutorial file
+# Tutorial files
 
-with open("tutorial/config-rect.yml") as f:
+with open("tutorial/config.yml", "r") as f:
     data = yaml.load(f, Loader=yaml.FullLoader)
-(v,) = data.values()
-config = data_converter.structure(v, Config)
-config.analysis.parameters["subst_data"] = "tutorial/output/subst3.csv"
-config.analysis.parameters["layer_visual"] = ""
-config.analysis.parameters["layer_data"] = "tutorial/output/result3.csv"
-config.analyze("Generating tutorial data...")
+with open("tutorial/config.json", "w") as outfile:
+    json.dump(data, outfile, indent=4)
+
+subprocess.call(
+    [
+        "finitedepth",
+        "analyze",
+        "config.yml",
+        "config.json",
+        "config-extended.yml",
+        "config-rect.yml",
+        "config-rect2.yml",
+    ],
+    cwd="tutorial",
+)
 
 # Howto guide file
 
