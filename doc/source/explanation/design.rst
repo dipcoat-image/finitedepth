@@ -15,6 +15,15 @@ This document describes the design principle of core classes:
 Generic typing
 --------------
 
+Core classes are generic types which support static type checking
+by :mod:`mypy`.
+
+In :ref:`howto-define-class` page, type variables are passed to
+abstract base classes, e.g.,
+``SubstrateBase[ReferenceBase, MyParameters, MyDrawOptions, MyData]``
+for subclassing. This type annotation informs the type checker
+what types are allowed.
+
 .. _caching:
 
 Caching
