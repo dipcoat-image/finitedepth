@@ -9,7 +9,5 @@ Explanations
    install
    documentation
    testing
-   slots
-   caching
-   generic
+   design
    error-notes
