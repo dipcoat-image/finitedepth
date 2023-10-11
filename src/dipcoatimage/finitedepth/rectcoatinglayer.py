@@ -491,8 +491,8 @@ class RectLayerShape(
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
         """Imaginary uniform layer.
 
-        Uniform layer is a parallel curve[#parallel]_ of substrate surface, having
-        same cross-sectional area as the actual coating layer.
+        Uniform layer is a parallel curve of substrate surface, having same
+        cross-sectional area as the actual coating layer.
 
         Returns:
             Thickness and points of the uniform layer.
@@ -506,7 +506,7 @@ class RectLayerShape(
             :func:`polyline_parallel_area`.
 
         References:
-            .. [#parallel] https://en.wikipedia.org/wiki/Parallel_curve
+            * https://en.wikipedia.org/wiki/Parallel_curve
         """
         if not self.interfaces():
             return (np.float64(0), np.empty((0, 1, 2), np.float64))
@@ -823,7 +823,7 @@ def equidistant_interpolate(points, n) -> npt.NDArray[np.float64]:
 
 
 def polyline_parallel_area(line: npt.NDArray, t: float) -> np.float64:
-    """Calculate the area between convex polyline[#polyline]_ and its parallel curve.
+    """Calculate the area between convex polyline and its parallel curve.
 
     Arguments:
         line: Vertices of a polyline.
@@ -835,7 +835,7 @@ def polyline_parallel_area(line: npt.NDArray, t: float) -> np.float64:
         area: Area between the polyline and its parallel curve.
 
     References:
-        .. [#polyline] https://en.wikipedia.org/wiki/Polygonal_chain
+        * https://en.wikipedia.org/wiki/Polygonal_chain
     """
     vec = np.diff(line, axis=0)
     d_l = np.linalg.norm(vec, axis=-1)
@@ -847,8 +847,6 @@ def polyline_parallel_area(line: npt.NDArray, t: float) -> np.float64:
 def acm(cm: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     """Compute accumulated cost matrix from local cost matrix.
 
-    Implements the algorithm from [#dtw1]_, with modification from [#dtw2]_.
-
     Arguments:
         cm: Local cost matrix.
 
@@ -858,10 +856,10 @@ def acm(cm: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
             If *cm* is empty, return value is an empty array.
 
     References:
-        .. [#dtw1] Senin, Pavel. "Dynamic time warping algorithm review."
-           Information and Computer Science Department University of Hawaii at
-           Manoa Honolulu, USA 855.1-23 (2008): 40.
-        .. [#dtw2] https://pypi.org/project/similaritymeasures/
+        * Senin, Pavel. "Dynamic time warping algorithm review."
+          Information and Computer Science Department University of Hawaii at
+          Manoa Honolulu, USA 855.1-23 (2008): 40.
+        * https://pypi.org/project/similaritymeasures/
     """
     p, q = cm.shape
     ret = np.zeros((p, q), dtype=np.float64)
@@ -892,6 +890,12 @@ def owp(acm: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
 
     Returns:
         Indices for the two series to get the optimal warping path.
+
+    References:
+        * Senin, Pavel. "Dynamic time warping algorithm review."
+          Information and Computer Science Department University of Hawaii at
+          Manoa Honolulu, USA 855.1-23 (2008): 40.
+        * https://pypi.org/project/similaritymeasures/
     """
     p, q = acm.shape
     if p == 0 or q == 0:

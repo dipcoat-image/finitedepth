@@ -54,8 +54,8 @@ class PolySubstrateBase(
 ):
     """Abstract base class for substrate whose cross section is a simple polygon.
 
-    A simple polygon does not have intersection nor hole [#simple-polygon]_.
-    Smooth corners are allowed.
+    A simple polygon does not have intersection nor hole. Smooth corners are
+    allowed.
 
     The following substrate images are not supported:
 
@@ -76,7 +76,7 @@ class PolySubstrateBase(
         draw_options
 
     References:
-        .. [#simple-polygon] https://en.wikipedia.org/wiki/Simple_polygon
+        * https://en.wikipedia.org/wiki/Simple_polygon
     """
 
     SidesNum: int
@@ -103,22 +103,22 @@ class PolySubstrateBase(
     def vertices(self) -> npt.NDArray[np.int32]:
         """Find vertices of the polygon from its contour.
 
-        A vertex is a point where two sides of a polygon meet[#vertex-geom]_.
+        A vertex is a point where two sides of a polygon meet.
         The sides can be curves, where the vertices can be defined as local
-        extrema of curvature [#vertex-curve]_.
+        extrema of curvature.
 
         Returns:
             Indices of the vertex points in :meth:`contour`.
             The number of the vertices is defined by :attr:`SidesNum`.
 
         Note:
-            Contour is Gaussian-filtered to reduce noise[#so-curvature]_.
+            Contour is Gaussian-filtered to reduce noise.
             Sigma value of the kernel is determined from :attr:`parameters`.
 
         References:
-            .. [#vertex-geom] https://en.wikipedia.org/wiki/Vertex_(geometry)
-            .. [#vertex-curve] https://en.wikipedia.org/wiki/Vertex_(curve)
-            .. [#so-curvature] https://stackoverflow.com/q/32629806
+            * https://en.wikipedia.org/wiki/Vertex_(geometry)
+            * https://en.wikipedia.org/wiki/Vertex_(curve)
+            * https://stackoverflow.com/q/32629806
         """
         cnt = self.contour().astype(np.float64)
 
@@ -171,14 +171,14 @@ class PolySubstrateBase(
     def sidelines(self) -> npt.NDArray[np.float32]:
         r"""Find linear model of polygon sides.
 
-        This method finds straight sidelines [#extended-side]_ using
-        Hough line transformation. Radian and angle resolutions are determined
-        by :attr:`parameters`.
+        This method finds straight sidelines using Hough line transformation.
+        Radian and angle resolutions are determined by :attr:`parameters`.
 
         Returns:
             Vector of line parameters in :math:`(\rho, \theta)`.
             :math:`\rho` is the distance from the coordinate origin.
-            :math:`\theta` is the angle of normal vector from the origin to the line.
+            :math:`\theta` is the angle of normal vector from the origin
+            to the line.
 
         Note:
             Range of angle is
@@ -187,7 +187,7 @@ class PolySubstrateBase(
             :math:`\theta + \frac{\pi}{2}`.
 
         References:
-            .. [#extended-side] https://en.wikipedia.org/wiki/Extended_side
+            * https://en.wikipedia.org/wiki/Extended_side
         """
         # Do not find the line from smoothed contour. Noise is removed anyway
         # without smoothing by Hough transformation. In fact, smoothing
