@@ -9,6 +9,7 @@ User Reference
 .. toctree::
    :titlesonly:
 
+   ../command-reference
    ../config-reference
 
 Module Reference
