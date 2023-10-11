@@ -77,6 +77,46 @@ Analysis returns maximum thickness of the coating layer:
 >>> coat.analyze()  # doctest: +SKIP
 Data(maxThickness=99.55...)
 
+Integrating with configuration file
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Our new classes can not only be constructed in runtime but also analyzed
+through configuration file, as described in :ref:`tutorial`.
+
+Download :download:`config.yml` to where you downloaded
+:download:`circsubstrate.py` and :download:`circlayer.py`.
+The contents of the configuration file are:
+
+.. literalinclude:: config.yml
+    :language: yaml
+
+Run the following command **at the same location**:
+
+.. tabs::
+
+    .. code-tab:: bash
+
+        export FINITEDEPTH_DATA=$(finitedepth data)
+        finitedepth analyze config.yml
+
+    .. code-tab:: bat cmd
+
+        FOR /F %G IN ('finitedepth data') DO SET FINITEDEPTH_DATA=%G
+        finitedepth analyze config.yml
+
+    .. code-tab:: powershell
+
+        $env:FINITEDEPTH_DATA=$(finitedepth data)
+        finitedepth analyze config.yml
+
+The analysis result files will be generated under ``output`` directory.
+
+.. note::
+
+    The command should be run in the same directory where the modules are located
+    to import the classes. If you want run the command in different path, package
+    your modules and install it in your environment.
+
 Basic rules
 -----------
 

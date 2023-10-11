@@ -37,7 +37,7 @@ class CircLayer(
         return dists[maxloc, 0], layer_cnt[maxloc]
 
     def verify(self):
-        assert self.max_dist[0] > 0, "No coating layer"
+        assert self.max_dist()[0] > 0, "No coating layer"
 
     def draw(self):
         img = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)

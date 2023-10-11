@@ -5,6 +5,7 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 import os
+import subprocess
 
 import cv2
 import numpy as np
@@ -153,3 +154,7 @@ config.analysis.parameters["subst_data"] = "tutorial/output/subst3.csv"
 config.analysis.parameters["layer_visual"] = ""
 config.analysis.parameters["layer_data"] = "tutorial/output/result3.csv"
 config.analyze("Generating tutorial data...")
+
+# Howto guide file
+
+subprocess.call("finitedepth analyze config.yml", cwd="guide")
