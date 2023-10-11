@@ -9,7 +9,6 @@ import subprocess
 
 import cv2
 import numpy as np
-import yaml
 
 from dipcoatimage.finitedepth import Config, data_converter, get_data_path
 
@@ -147,14 +146,18 @@ cv2.imwrite(
 
 # Tutorial file
 
-with open("tutorial/config-rect.yml") as f:
-    data = yaml.load(f, Loader=yaml.FullLoader)
-(v,) = data.values()
-config = data_converter.structure(v, Config)
-config.analysis.parameters["subst_data"] = "tutorial/output/subst3.csv"
-config.analysis.parameters["layer_visual"] = ""
-config.analysis.parameters["layer_data"] = "tutorial/output/result3.csv"
-config.analyze("Generating tutorial data...")
+subprocess.call(
+    [
+        "finitedepth",
+        "analyze",
+        "config.yml",
+        "config.json",
+        "config-extended.yml",
+        "config-rect.yml",
+        "config-rect2.yml",
+    ],
+    cwd="tutorial",
+)
 
 # Howto guide file
 
