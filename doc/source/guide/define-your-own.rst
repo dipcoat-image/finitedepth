@@ -82,63 +82,57 @@ Basic rules
 
 You may have noticed that ``CircSubstrate`` and ``CircLayer`` in the
 previous section have quite similar structure. This is true, as there are
-some common rules that should be obeyed when defining concrete subclasses in
+common rules that should be obeyed when defining concrete subclasses in
 DipcoatImage-FiniteDepth.
-
-Do not modify signature
-^^^^^^^^^^^^^^^^^^^^^^^
-
-The abstract base classes strictly define their signatures which should not
-be modified.
-
-If you need to introduce new parameters, do not define them in ``__init__``
-method. Instead, define dataclasses which wraps them and assign the dataclasses
-as type variables which are passed to the constructor. This procedure is
-explained in the following section.
 
 Set type variables
 ^^^^^^^^^^^^^^^^^^
 
-The abstract base classes are generic types whose type variables must
-be set in concrete classes.
+The first similarity you can see between ``CircSubstrate`` and ``CircLayer`` is that
+they both define class attributes such as ``ParamType`` or ``DataType``.
+These attributes are **type variables**; setting them automatically affects
+the behavior of the classes.
 
 Each class defines different type variables.
-For example, a concrete subclass of :class:`SubstrateBase` must define
-:attr:`~SubstrateBase.ParamType`, :attr:`~SubstrateBase.DrawOptType`,
-and :attr:`~SubstrateBase.DataType`.
-On the other hand, a concret subclass of :class:`CoatingLayerBase` must define
-:attr:`~CoatingLayerBase.ParamType`, :attr:`~CoatingLayerBase.DrawOptType`,
-:attr:`~CoatingLayerBase.DecoOptType`, and :attr:`~CoatingLayerBase.DataType`.
+For example, a concrete subclass of :class:`SubstrateBase` must assign
+dataclass types to these attributes:
 
-All type variables are dataclasses.
-The following is the example of setting type variable for custom
-substrate class.
+* :attr:`~SubstrateBase.ParamType`
+* :attr:`~SubstrateBase.DrawOptType`,
+* :attr:`~SubstrateBase.DataType`.
 
-.. code-block:: python
+On the other hand, a concret subclass of :class:`CoatingLayerBase` must assign
+dataclass types to these attributes:
 
-    @dataclass
-    class MyParameters:
-        ...
+* :attr:`~CoatingLayerBase.ParamType`
+* :attr:`~CoatingLayerBase.DrawOptType`
+* :attr:`~CoatingLayerBase.DecoOptType`
+* :attr:`~CoatingLayerBase.DataType`.
 
-    @dataclass
-    class MyDrawOptions:
-        ...
+Refer to :ref:`api` to check what type variables the other classes define.
+Read :ref:`howto-define-dataclass` to learn good practices to define dataclasses.
 
-    @dataclass
-    class MyData:
-        ...
+.. note::
 
-    class MySubstrate(SubstrateBase[ReferenceBase, MyParameters, MyDrawOptions, MyData]):
-        ParamType = MyParameter
-        DrawOptType = MyDrawOptions
-        DataType = MyData
+    Type variables are also (optionally) passed to superclass specifications,
+    e.g., ``SubstrateBase[ReferenceBase, MyParameters, MyDrawOptions, MyData]``.
+    See :ref:`generic` page to learn what this is.
 
-See :ref:`api` of each abstract base class for the list of type
-variables it defines. Read :ref:`howto-define-dataclass` to learn good
-practices to define dataclass.
+Do not modify signature
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Neither of ``CircSubstrate`` and ``CircLayer`` define :meth:`object.__init__`.
+This is because the abstract base classes strictly define their signatures
+which should not be modified.
+
+If you need to introduce new parameters, do not define them in
+:meth:`object.__init__`. Instead, define dataclasses which wraps them and
+assign it to ``ParamType`` attribute.
 
 Cache by attribute
 ^^^^^^^^^^^^^^^^^^
+
+Commonly visited methods are cached using :func:`attracache`.
 
 Caching of methods **MUST** be done in the instance itself, not in
 an external container.
@@ -147,7 +141,7 @@ an external container.
 
 .. code-block:: python
 
-    class MySubstrate(SubstrateBase[...]):
+    class MyClass:
         ...
 
         def foo_good(self):
@@ -161,7 +155,7 @@ or equivalently,
 
     from dipcoatimage.finitedepth.cache import attrcache
 
-    class MySubstrate(SubstrateBase[...]):
+    class MyClass:
         ...
 
         @attrcache("_foo")
@@ -174,7 +168,7 @@ or equivalently,
 
     from functools import cache  # stores cache in external container
 
-    class MySubstrate(SubstrateBase[...]):
+    class MyClass:
         ...
 
         @cache
@@ -220,31 +214,23 @@ When and which to implement?
 
 :class:`ReferenceBase` is not something that you usually want to implement.
 As it is merely a wrapper, :class:`Reference` will almost always be enough.
-That being said, a possible scenario is that you want to apply machine learning
+That being said, a possible scenario is that you want to apply some algorithm
 to automatically determine optimal ROIs.
 
 :class:`SubstrateBase` and :class:`CoatingLayerBase` are the APIs you will
 frequently implement. If you want to acquire geometry-specific data, you need
-to define both the substrate class and the coating layer class. For example,
-:class:`RectSubstrate` and :class:`RectLayerShape` are designed to analyze the
-coating layer over rectangular substrate.
+to define both the substrate class and the coating layer class as explained in
+the examples section in this page.
 
-:class:`ExperimentBase` is again unlikely to be implemented. If you need
-specific way to construct the coating layer instances, define your experiment
-class. For example, you may have ground truth data of the substrate location in
-target image, so you need your experiment instance to read the data and pass it
-to the constructor of coating layer class.
+:class:`ExperimentBase` can be implemented if you need specific way to construct
+the coating layer instances. For example, you may have ground truth data of the
+substrate location in target image, so you need your experiment instance to
+read the data and pass it to the constructor of coating layer class.
 
 :class:`AnalysisBase` may be implemented to for different file IO API.
 Instead of relying on :mod:`cv2` and :mod:`PIL` libraries as :class:`Analysis`
 do, your implementation can perhaps directly open ``ffmpeg`` subprocess to
 write video.
-
-If you design multiple classes to cooperate, you may want to assign one class
-as the type variable of another. For example, :class:`RectSubstrate` is
-assigned to the ``SubstrateType`` variable of :class:`RectLayerShape`,
-informing type checkers(e.g., :mod:`mypy`) that any other substrate should not
-be passed.
 
 Subclassing strategy
 --------------------
