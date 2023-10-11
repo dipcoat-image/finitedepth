@@ -9,7 +9,8 @@ Prerequisites
 Install DipCoatImage-FiniteDepth with ``dev`` option.
 Refer to :ref:`install` page.
 
-Before testing, document must be built first to generate files.
+Before testing, you must build the document first to generate the
+referenced files.
 Refer to :ref:`document` page.
 
 Testing commands
