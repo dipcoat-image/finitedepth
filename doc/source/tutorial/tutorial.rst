@@ -49,7 +49,7 @@ package is provided.
 Basic example
 -------------
 
-Download :download:`config.yml <config.yml>` file in your local directory.
+Download :download:`config.yml` file in your local directory.
 The contents of the file are:
 
 .. literalinclude:: config.yml
@@ -92,7 +92,7 @@ the coating layer region:
     plt.show()
 
 Configuration file can also be ``JSON``.
-Download :download:`config.json <config.json>` and run:
+Download :download:`config.json` and run:
 
 .. code-block:: bash
 
@@ -184,7 +184,7 @@ Previous configurations did not specify the instance types, defaulting
 them to :class:`Reference`, :class:`Substrate`, and :class:`CoatingLayer`.
 By using advanced types, more detailed analysis can be achieved.
 
-Download :download:`config-rect.yml <config-rect.yml>` file in your local
+Download :download:`config-rect.yml` file in your local
 directory.
 The contents of the file are:
 

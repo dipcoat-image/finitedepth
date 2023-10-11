@@ -9,73 +9,171 @@ In this document, you will learn how to implement your own analysis program
 by defining custom classes.
 
 DipcoatImage-FiniteDepth provides extensible API with abstract base classes.
+As described in :ref:`howto-runtime`, five abstract base classes consistitute
+the analysis; :class:`ReferenceBase`, :class:`SubstrateBase`,
+:class:`CoatingLayerBase`, :class:`ExperimentBase` and :class:`AnalysisBase`.
 Classes such as :class:`Reference` or :class:`RectSubstrate` are their
 concrete subclasses. By following the same API, you can implement your
 own classes which seamlessly bind with the framework.
 
+Examples
+--------
+
+Let's start with basic examples.
+
+Here, we will define classes to analyze the coating layer covering circular
+substrate. The background logics will be covered in the next section.
+
+Defining substrate class
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+We first define substrate class which analyzes the substrate geometry.
+
+Our class, ``CircSubst``, will take parameters of :func:`cv2.HoughCircles` and
+detect the circle from substrate image. For simplicity, we do not implement
+visualization options.
+
+Download :download:`circsubstrate.py`. Its contents are:
+
+.. literalinclude:: circsubstrate.py
+    :language: python
+
+Our class can then be easily constructed.
+Run the following code at where you downloaded ``circsubstrate.py``:
+
+.. plot:: guide/circsubstrate-plot.py
+    :include-source:
+
+If any circle is detected, visualization shows the best match with green edge.
+Analysis returns radius of the circle:
+
+>>> subst.analyze()  #doctest: +SKIP
+Data(r=133.4)
+
+Defining coating layer class
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+We now define coating layer class.
+
+Our class, ``CircLayer``, will take target image and ``CircSubst`` instance.
+It will then detect the maximum thickness of the coating layer. For simplicity,
+we do not implement visualization options.
+
+Download :download:`circlayer.py` to where you downloaded
+:download:`circsubstrate.py`. Its contents are:
+
+.. literalinclude:: circlayer.py
+    :language: python
+
+To visualize, run the following code at where you downloaded ``circlayer.py``:
+
+.. plot:: guide/circlayer-plot.py
+    :include-source:
+
+If coating layer exists, visualization shows the maximum distance between the
+substrate center and the coating layer.
+Analysis returns maximum thickness of the coating layer:
+
+>>> coat.analyze()  # doctest: +SKIP
+Data(maxThickness=99.55...)
+
+Integrating with configuration file
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Our new classes can not only be constructed in runtime but also analyzed
+through configuration file, as described in :ref:`tutorial`.
+
+Download :download:`config.yml` to where you downloaded
+:download:`circsubstrate.py` and :download:`circlayer.py`.
+The contents of the configuration file are:
+
+.. literalinclude:: config.yml
+    :language: yaml
+
+Run the following command **at the same location**:
+
+.. tabs::
+
+    .. code-tab:: bash
+
+        export FINITEDEPTH_DATA=$(finitedepth data)
+        finitedepth analyze config.yml
+
+    .. code-tab:: bat cmd
+
+        FOR /F %G IN ('finitedepth data') DO SET FINITEDEPTH_DATA=%G
+        finitedepth analyze config.yml
+
+    .. code-tab:: powershell
+
+        $env:FINITEDEPTH_DATA=$(finitedepth data)
+        finitedepth analyze config.yml
+
+The analysis result files will be generated under ``output`` directory.
+
+.. note::
+
+    The command should be run in the same directory where the modules are located
+    to import the classes. If you want run the command in different path, package
+    your modules and install it in your environment.
+
 Basic rules
 -----------
 
-As described in :ref:`howto-runtime`, five abstract base classes consistitute
-the analysis; :class:`ReferenceBase`, :class:`SubstrateBase`,
-:class:`CoatingLayerBase`, :class:`ExperimentBase` and :class:`AnalysisBase`.
-
-To define their concrete subclasses, there are some common rules to follow.
-
-Do not modify signature
-^^^^^^^^^^^^^^^^^^^^^^^
-
-The abstract base classes strictly define their signatures which should not
-be modified.
-
-If you need to introduce new parameters, do not define them in ``__init__``
-method. Instead, define dataclasses which wraps them and assign the dataclasses
-as type variables which are passed to the constructor. This procedure is
-explained in the following section.
+You may have noticed that ``CircSubstrate`` and ``CircLayer`` in the
+previous section have quite similar structure. This is true, as there are
+common rules that should be obeyed when defining concrete subclasses in
+DipcoatImage-FiniteDepth.
 
 Set type variables
 ^^^^^^^^^^^^^^^^^^
 
-The abstract base classes are generic types whose type variables must
-be set in concrete classes.
+The first similarity you can see between ``CircSubstrate`` and ``CircLayer`` is
+that they both define class attributes such as ``ParamType`` or ``DataType``.
+These attributes are **type variables**; setting them automatically affects
+the behavior of the classes.
 
 Each class defines different type variables.
-For example, a concrete subclass of :class:`SubstrateBase` must define
-:attr:`~SubstrateBase.ParamType`, :attr:`~SubstrateBase.DrawOptType`,
-and :attr:`~SubstrateBase.DataType`.
-On the other hand, a concret subclass of :class:`CoatingLayerBase` must define
-:attr:`~CoatingLayerBase.ParamType`, :attr:`~CoatingLayerBase.DrawOptType`,
-:attr:`~CoatingLayerBase.DecoOptType`, and :attr:`~CoatingLayerBase.DataType`.
+For example, a concrete subclass of :class:`SubstrateBase` must assign
+dataclass types to these attributes:
 
-All type variables are dataclasses.
-The following is the example of setting type variable for custom
-substrate class.
+* :attr:`~SubstrateBase.ParamType`
+* :attr:`~SubstrateBase.DrawOptType`,
+* :attr:`~SubstrateBase.DataType`.
 
-.. code-block:: python
+On the other hand, a concret subclass of :class:`CoatingLayerBase` must assign
+dataclass types to these attributes:
 
-    @dataclass
-    class MyParameters:
-        ...
+* :attr:`~CoatingLayerBase.ParamType`
+* :attr:`~CoatingLayerBase.DrawOptType`
+* :attr:`~CoatingLayerBase.DecoOptType`
+* :attr:`~CoatingLayerBase.DataType`.
 
-    @dataclass
-    class MyDrawOptions:
-        ...
+Refer to :ref:`api` to check what type variables the other classes define.
+Read :ref:`howto-define-dataclass` to learn good practices to define
+dataclasses.
 
-    @dataclass
-    class MyData:
-        ...
+.. note::
 
-    class MySubstrate(SubstrateBase[ReferenceBase, MyParameters, MyDrawOptions, MyData]):
-        ParamType = MyParameter
-        DrawOptType = MyDrawOptions
-        DataType = MyData
+    Type variables are also (optionally) passed to superclass specifications,
+    e.g., ``SubstrateBase[ReferenceBase, MyParameters, MyDrawOptions, MyData]``.
+    See :ref:`generic` page to learn what this is.
 
-See :ref:`api` of each abstract base class for the list of type
-variables it defines. Read :ref:`howto-define-dataclass` to learn good
-practices to define dataclass.
+Do not modify signature
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Neither of ``CircSubstrate`` and ``CircLayer`` define :meth:`object.__init__`.
+This is because the abstract base classes strictly define their signatures
+which should not be modified.
+
+If you need to introduce new parameters, do not define them in
+:meth:`object.__init__`. Instead, define dataclasses which wraps them and
+assign it to ``ParamType`` attribute.
 
 Cache by attribute
 ^^^^^^^^^^^^^^^^^^
+
+Commonly visited methods are cached using :func:`attracache`.
 
 Caching of methods **MUST** be done in the instance itself, not in
 an external container.
@@ -84,7 +182,7 @@ an external container.
 
 .. code-block:: python
 
-    class MySubstrate(SubstrateBase[...]):
+    class MyClass:
         ...
 
         def foo_good(self):
@@ -98,7 +196,7 @@ or equivalently,
 
     from dipcoatimage.finitedepth.cache import attrcache
 
-    class MySubstrate(SubstrateBase[...]):
+    class MyClass:
         ...
 
         @attrcache("_foo")
@@ -111,7 +209,7 @@ or equivalently,
 
     from functools import cache  # stores cache in external container
 
-    class MySubstrate(SubstrateBase[...]):
+    class MyClass:
         ...
 
         @cache
@@ -157,31 +255,24 @@ When and which to implement?
 
 :class:`ReferenceBase` is not something that you usually want to implement.
 As it is merely a wrapper, :class:`Reference` will almost always be enough.
-That being said, a possible scenario is that you want to apply machine learning
+That being said, a possible scenario is that you want to apply some algorithm
 to automatically determine optimal ROIs.
 
 :class:`SubstrateBase` and :class:`CoatingLayerBase` are the APIs you will
 frequently implement. If you want to acquire geometry-specific data, you need
-to define both the substrate class and the coating layer class. For example,
-:class:`RectSubstrate` and :class:`RectLayerShape` are designed to analyze the
-coating layer over rectangular substrate.
+to define both the substrate class and the coating layer class as explained in
+the examples section in this page.
 
-:class:`ExperimentBase` is again unlikely to be implemented. If you need
-specific way to construct the coating layer instances, define your experiment
-class. For example, you may have ground truth data of the substrate location in
-target image, so you need your experiment instance to read the data and pass it
-to the constructor of coating layer class.
+:class:`ExperimentBase` can be implemented if you need specific way to
+construct the coating layer instances. For example, you may have
+ground truth data of the substrate location in target image, so you need
+your experiment instance to read the data and pass it to the constructor of
+coating layer class.
 
 :class:`AnalysisBase` may be implemented to for different file IO API.
 Instead of relying on :mod:`cv2` and :mod:`PIL` libraries as :class:`Analysis`
 do, your implementation can perhaps directly open ``ffmpeg`` subprocess to
 write video.
-
-If you design multiple classes to cooperate, you may want to assign one class
-as the type variable of another. For example, :class:`RectSubstrate` is
-assigned to the ``SubstrateType`` variable of :class:`RectLayerShape`,
-informing type checkers(e.g., :mod:`mypy`) that any other substrate should not
-be passed.
 
 Subclassing strategy
 --------------------

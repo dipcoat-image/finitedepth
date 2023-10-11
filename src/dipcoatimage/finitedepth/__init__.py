@@ -150,4 +150,5 @@ def main():
     elif args.command == "data":
         print(get_data_path())
     elif args.command == "analyze":
+        sys.path.insert(0, os.path.abspath("."))
         analyze_files(*args.file)

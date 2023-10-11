@@ -183,8 +183,7 @@ class SubstrateBase(
             foreground pixels, and give indices to each region.
 
             As higher-level methods are expected to rely on this method,
-            implementation must be simple and non-dynamic.
-            See :meth:`Substrate.region_points` for example.
+            it is best to keep this method simple and independent.
         """
 
     @attrcache("_regions")
@@ -358,8 +357,7 @@ class Substrate(SubstrateBase[ReferenceBase, SubstParam, SubstDrawOpt, SubstData
                 >>> plt.imshow(subst.draw())  #doctest: +SKIP
                 >>> plt.plot(*subst.region_points().T, "o")  #doctest: +SKIP
         """
-        w = self.image().shape[1]
-        return np.array([[w / 2, 0]], dtype=np.int32)
+        return np.array([[self.image().shape[1] / 2, 0]], dtype=np.int32)
 
     def verify(self):
         """Implement :meth:`ReferenceBase.verify`."""

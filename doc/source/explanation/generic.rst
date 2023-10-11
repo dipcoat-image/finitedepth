@@ -1,0 +1,4 @@
+.. _generic:
+
+Generic typing
+==============

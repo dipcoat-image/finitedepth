@@ -11,4 +11,5 @@ Explanations
    testing
    slots
    caching
+   generic
    error-notes
