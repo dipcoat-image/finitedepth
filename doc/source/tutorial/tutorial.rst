@@ -58,11 +58,12 @@ The contents of this configuration file are:
 .. literalinclude:: config.yml
     :language: yaml
 
-You can notice that the file contains environment variable ``$FINITEDEPTH_DATA``
-in paths. This allows us to load the sample data files included in the package.
+You can notice that the file contains environment variable
+``$FINITEDEPTH_DATA`` in paths. This allows us to load the sample data files
+included in the package.
 
 Running the following command will generate ``output/coat.jpg`` which
-highlights the coating layer region:
+shows the coating layer region:
 
 .. code-block:: bash
 
@@ -70,6 +71,7 @@ highlights the coating layer region:
 
 .. figure:: output/coat.jpg
    :align: center
+   :width: 45%
 
    ``coat.jpg``
 
@@ -79,7 +81,8 @@ highlights the coating layer region:
     of every parameter in the configuration file.
 
 Configuration file can also be ``JSON``.
-The following :download:`config.json` file is equivalent to :download:`config.yml`:
+The following :download:`config.json` file is equivalent to
+:download:`config.yml`:
 
 .. literalinclude:: config.json
     :language: json
@@ -93,11 +96,11 @@ The following :download:`config.json` file is equivalent to :download:`config.ym
         finitedepth analyze -h
 
 
-Reference, substrate and coating layer
---------------------------------------
+Core classes
+------------
 
-Configurations in the previous section are only minimum examples.
-Under the hood, there are more than meets the eye.
+Configuration in the previous section are only a minimum example.
+Under the hood, there is more than meets the eye.
 
 Download :download:`config-extended.yml` as follows and run the analysis again:
 
@@ -108,9 +111,9 @@ Download :download:`config-extended.yml` as follows and run the analysis again:
 
     finitedepth analyze config-extended.yml
 
-This file has 2 additional fields compared to :download:`config.yml`:
-``ref_visual`` and ``subst_visual``. As a result, it additionally generates
-``output/ref.jpg``
+This configuration has two additional fields compared to the previous file:
+``analysis.parameters.ref_visual`` and ``analysis.parameters..subst_visual``.
+As a result, it additionally generates ``output/ref.jpg``,
 
 .. figure:: output/ref.jpg
    :align: center
@@ -126,33 +129,34 @@ and ``output/subst.jpg``.
 
    ``subst.jpg``
 
-One can discover that ``subst.jpg`` is actually ``ref.jpg`` cropped
-by ``substrateROI``. Indeed, ``substrateROI`` specifies the
-*substrate region* from the reference image, which is the red box in
-``ref.jpg``. Similary, ``templateROI`` specifies the *template region*
-which helps locating the substrate region in the target image.
+What you are seeing are visualization results of three core classes:
+:ref:`reference class <howto-reference>`,
+:ref:`substrate class <howto-substrate>`, and
+:ref:`coating layer class <howto-coatinglayer>`
 
-The :ref:`fundamental scheme <fundamentals>` is implemented as follows:
+The :ref:`fundamental scheme <fundamentals>` of image analysis
+is implemented as follows:
 
-1. Reference image constructs *reference instance*
-   (inherits :class:`ReferenceBase`).
-2. Reference instance constructs *substrate instance*
-   (inherits :class:`SubstrateBase`).
-3. Substrate instance and target image construct *coating layer instance*
-   (inherits :class:`CoatingLayerBase`), which defines analysis result.
+1. Reference instance stores the *reference image*.
+2. Substrate instance stores the *substrate region*.
+3. Coating layer instance stores the *target image* and detects
+   the *coating layer region*.
+
+Each class defines its own visualization method and analysis result, and
+the configuration file can control how the results will be saved.
 
 .. note::
 
-    Actual analysis involves *experiment class* (inherits
-    :class:`ExperimentBase`) and *analysis class* (inherits
-    :class:`AnalysisBase`), but we spare the details in this section.
-    Refer to :ref:`howto-runtime` page and class docstrings.
+    Actual analysis involves two more core classes:
+    :ref:`experiment class <howto-experiment>` and
+    :ref:`analysis class <howto-analysis>`.
+    However, we spare the details in this section.
 
 
 Specifying types
 ----------------
 
-Previous configurations did not specify the instance types, defaulting
+Previous configurations did not specify the core class types, defaulting
 them to :class:`Reference`, :class:`Substrate`, and :class:`CoatingLayer`.
 By using advanced types, more detailed analysis can be achieved.
 
@@ -161,53 +165,61 @@ Download :download:`config-rect.yml` file. The contents of the file are:
 .. literalinclude:: config-rect.yml
     :language: yaml
 
-Here, we specified the substrate type to :class:`RectSubstrate` and
-coating layer type to :class:`RectLayerShape`. We also passed necessary
-parameters, which are described in their docstrings..
+Here, the core classes are set to the following types:
+
+* Reference type is not specified, thus defaults to :class:`Reference`.
+* Substrate type is set to :class:`RectSubstrate`.
+* Coating layer type is set to :class:`RectLayerShape`.
+
+The new types require additional parameters, which are also specified
+in the configuration file.
 
 The resulting coating layer instance is equipped with fancy visualization:
 
 .. figure:: output/rectcoat.jpg
    :align: center
+   :figwidth: 45%
 
    ``rectcoat.jpg``
 
-Also, analysis data of the substrate geometry and the coating layer shape are
+Also, analysis result of the substrate and the coating layer are
 saved in ``rectsubst.csv`` and ``rectcoat.csv``:
 
-.. csv-table:: subst.csv
-   :file: output/subst.csv
+.. csv-table:: rectsubst.csv
+   :file: output/rectsubst.csv
    :header-rows: 1
 
 .. csv-table:: rectcoat.csv
    :file: output/rectcoat.csv
    :header-rows: 1
 
-The meaning of these data are described in the class docstrings of
-:class:`RectSubstrate` and :class:`RectLayerShape`.
-
-Likewise, by implementing your custom classes and specifying them in
-configuration file, you can customize your analysis. Refer to :ref:`howto`
-and :ref:`api` pages for more explanation.
+Likewise, you can implement your own classes equipped with
+custom visualization and analysis algorithms, and specify them in
+configuration file to perform customized analysis.
+Refer to :ref:`howto` and :ref:`api` pages for more details.
 
 Controlling visualization
 -------------------------
 
-Configuration file can define options to visualize the analysis result.
+Configuration file can control visualization result.
 
 Download :download:`config-rect2.yml` file. The contents of the file are:
 
 .. literalinclude:: config-rect2.yml
     :language: yaml
 
-The visualization result is now different.
+This configuration has two additional fields compared to the previous file:
+``coatinglayer.draw_options`` and ``coatinglayer.deco_options``.
+As a result, the visualization result is now different.
 
 .. figure:: output/rectcoat2.jpg
    :align: center
+   :figwidth: 45%
 
    ``rectcoat2.jpg``
 
-The new parameters are purely cosmetic and does not modify the analysis data.
+The additional fields are purely cosmetic and does not affect the
+analysis result, which is determined by ``parameters``.
 
 .. csv-table:: rectcoat2.csv
    :file: output/rectcoat2.csv

@@ -19,8 +19,8 @@ Contents
 
    intro
    tutorial/tutorial
-   config-reference
    guide/index
+   config-reference
    reference/index
    explanation/index
 

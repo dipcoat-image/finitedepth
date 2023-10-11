@@ -4,11 +4,13 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import json
 import os
 import subprocess
 
 import cv2
 import numpy as np
+import yaml
 
 from dipcoatimage.finitedepth import Config, data_converter, get_data_path
 
@@ -81,6 +83,7 @@ def setup(sphinx):
 
 intersphinx_mapping = {
     "python": ("http://docs.python.org/", None),
+    "pip": ("https://pip.pypa.io/en/stable/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "cattrs": ("https://cattrs.readthedocs.io/en/latest/", None),
     "mypy": ("https://mypy.readthedocs.io/en/stable/", None),
@@ -144,7 +147,12 @@ cv2.imwrite(
     cv2.cvtColor(np.dstack([img, alpha]).astype(np.uint8), cv2.COLOR_RGBA2BGRA),
 )
 
-# Tutorial file
+# Tutorial files
+
+with open("tutorial/config.yml", "r") as f:
+    data = yaml.load(f, Loader=yaml.FullLoader)
+with open("tutorial/config.json", "w") as outfile:
+    json.dump(data, outfile, indent=4)
 
 subprocess.call(
     [

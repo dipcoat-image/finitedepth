@@ -1,4 +1,4 @@
-Tutorial-Analysis:
+Tutorial2:
   ref_path: $FINITEDEPTH_DATA/ref1.png
   coat_path: $FINITEDEPTH_DATA/coat1.png
   reference:
