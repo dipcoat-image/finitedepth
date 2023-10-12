@@ -61,7 +61,7 @@ and installs the package.
 
 .. code-block:: bash
 
-   $ pip install git+ssh://git@github.com/dipcoat-image/finitedepth.git
+   $ pip install git+https://github.com/dipcoat-image/finitedepth.git
 
 If you want to pass install options, you need to specify the package name by
 ``#egg=``. For example, the following code installs the package with
@@ -69,7 +69,7 @@ development dependencies.
 
 .. code-block:: bash
 
-   $ pip install git+ssh://git@github.com/dipcoat-image/finitedepth.git#egg=dipcoatimage-finitedepth[dev]
+   $ pip install git+https://github.com/dipcoat-image/finitedepth.git#egg=dipcoatimage-finitedepth[dev]
 
 .. note::
 

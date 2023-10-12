@@ -105,14 +105,14 @@ github repository.
 
 .. code-block:: bash
 
-   pip install git+ssh://git@github.com/dipcoat-image/finitedepth.git
+   pip install git+https://github.com/dipcoat-image/finitedepth.git
 
 This installs the package with its latest commit. If you want a specific
 version, append ``@[tag name]`` such as:
 
 .. code-block:: bash
 
-   pip install git+ssh://git@github.com/dipcoat-image/finitedepth.git@v1.0.0
+   pip install git+https://github.com/dipcoat-image/finitedepth.git@v1.0.0
 
 Basic usage
 -----------
