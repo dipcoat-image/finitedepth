@@ -455,11 +455,9 @@ class ConfigBase(abc.ABC):
     def construct_coatinglayer(self, i: int, sequential=True):
         """Construct *i*-th coating layer instance.
 
-        If *sequential* is *True*, coating layer is sequentially constructed
-        using experiment instance from :meth:`construct_experiment`.
-        Else, the coating layer object is directly constructed.
-
-        This method provides quick construction for debugging.
+        If *sequential* is *True*, coating layer instance is sequentially
+        constructed using experiment instance from :meth:`construct_experiment`.
+        Else, the coating layer instance is directly constructed from its class.
 
         Arguments:
             i: Index of the frame from *coat_path*
