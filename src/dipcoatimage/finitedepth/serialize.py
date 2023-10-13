@@ -375,7 +375,7 @@ class AnalysisArgs:
         """
         cls = self.type.import_variable()
         if not (isinstance(cls, type) and issubclass(cls, AnalysisBase)):
-            raise TypeError(f"{cls} is not coating layer class.")
+            raise TypeError(f"{cls} is not analysis class.")
 
         params = data_converter.structure(
             self.parameters, cls.ParamType  # type: ignore
