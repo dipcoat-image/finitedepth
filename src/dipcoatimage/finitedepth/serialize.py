@@ -424,7 +424,7 @@ class ConfigBase(abc.ABC):
 
     @abc.abstractmethod
     def frame_count(self) -> int:
-        """Return total number of images from :attr:`coat_paths`."""
+        """Return total number of images from :attr:`coat_path`."""
 
     @abc.abstractmethod
     def reference_image(self) -> npt.NDArray[np.uint8]:
