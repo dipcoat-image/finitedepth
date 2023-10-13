@@ -249,7 +249,7 @@ class SubstrateBase(
 
     @abc.abstractmethod
     def analyze(self) -> DataTypeVar:
-        """Return analysis data of the reference image.
+        """Return analysis data of the substrate image.
 
         This method returns analysis result as a dataclass instance
         whose type is :attr:`DataType`. If analysis is impossible,
