@@ -458,7 +458,7 @@ class CoatingLayer(
     """Assigned with :class:`LayerData`."""
 
     SubtractionMode = SubtractionMode
-    """Assigned with :class:`SubtractionMode`."""
+    """Shortcut to :class:`SubtractionMode`."""
 
     def verify(self):
         """Implement :meth:`CoatingLayerBase.verify`."""
