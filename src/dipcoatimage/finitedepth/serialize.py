@@ -405,7 +405,7 @@ class ConfigBase(abc.ABC):
     To perform analysis, use :meth:`analyze`.
 
     Attributes
-        ref_path: Path to reference image files.
+        ref_path: Path to reference image file.
         coat_path: Path to target image files or video file.
         reference: Arguments to construct reference instance.
         substrate: Arguments to construct substrate instance.
