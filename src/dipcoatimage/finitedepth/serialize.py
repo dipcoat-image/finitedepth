@@ -439,17 +439,11 @@ class ConfigBase(abc.ABC):
         """Find fps from :attr:`coat_path` and :attr:`analysis`."""
 
     def construct_reference(self) -> ReferenceBase:
-        """Construct reference instance.
-
-        This method provides quick construction for debugging.
-        """
+        """Construct reference instance."""
         return self.reference.as_reference(self.reference_image())
 
     def construct_substrate(self) -> SubstrateBase:
-        """Construct substrate instance.
-
-        This method provides quick construction for debugging.
-        """
+        """Construct substrate instance."""
         return self.substrate.as_substrate(self.construct_reference())
 
     def construct_coatinglayer(self, i: int, sequential=True):
@@ -489,16 +483,11 @@ class ConfigBase(abc.ABC):
         return layer
 
     def construct_experiment(self) -> ExperimentBase:
-        """Construct experiment instance.
-
-        This method provides quick construction for debugging.
-        """
+        """Construct experiment instance."""
         return self.experiment.as_experiment()
 
     def construct_analysis(self) -> AnalysisBase:
         """Construct analysis instance.
-
-        This method provides quick construction for debugging.
 
         :meth:`fps` is used for *fps* argument.
         """
