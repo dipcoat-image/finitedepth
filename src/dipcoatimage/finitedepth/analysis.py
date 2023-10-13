@@ -343,10 +343,9 @@ class Analysis(AnalysisBase[AnalysisParam]):
                 file_type, _ = mtype.split("/")
                 if file_type != "image":
                     raise ValueError(f"{path} is not image.")
-        if os.path.expandvars(self.parameters.layer_visual):
-            mtype, _ = mimetypes.guess_type(
-                os.path.expandvars(self.parameters.layer_visual)
-            )
+        path = os.path.expandvars(self.parameters.layer_visual)
+        if path:
+            mtype, _ = mimetypes.guess_type(path)
             file_type, _ = mtype.split("/")
             if file_type not in ("image", "video"):
                 raise ValueError(f"{path} is not image nor video.")
