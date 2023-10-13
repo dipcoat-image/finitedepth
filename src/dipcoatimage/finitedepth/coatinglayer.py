@@ -516,7 +516,7 @@ class CoatingLayer(
         return image
 
     def analyze(self):
-        """Return analysis data."""
+        """Implement :meth:`CoatingLayerBase.analyze`."""
         return self.DataType()
 
 
