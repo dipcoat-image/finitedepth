@@ -89,11 +89,8 @@ The following :download:`config.json` file is equivalent to
 
 .. note::
 
-    To check all supported formats for configuration file, run:
-
-    .. code-block:: bash
-
-        finitedepth analyze -h
+    To check all supported formats for configuration file, refer to
+    :ref:`command-reference`.
 
 
 Core classes
