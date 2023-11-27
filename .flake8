@@ -1,4 +1,6 @@
 [flake8]
+exclude =
+    .venv,
 doctests = True
 # compatibility with black
 max-line-length = 88
