@@ -16,6 +16,7 @@ import numpy.typing as npt
 from numba import njit  # type: ignore
 from scipy.optimize import root  # type: ignore
 from scipy.spatial.distance import cdist  # type: ignore
+from shapely import LineString, offset_curve  # type: ignore
 
 from .cache import attrcache
 from .coatinglayer import (
@@ -41,7 +42,7 @@ __all__ = [
     "RectLayerShapeData",
     "RectLayerShape",
     "equidistant_interpolate",
-    "polyline_parallel_area",
+    "parallel_curve",
     "acm",
     "owp",
 ]
@@ -489,50 +490,38 @@ class RectLayerShape(
 
     @attrcache("_uniform_layer")
     def uniform_layer(self) -> Tuple[np.float64, npt.NDArray[np.float64]]:
-        """Imaginary uniform layer.
+        """Return thickness and points for imaginary uniform layer.
 
-        Uniform layer is a parallel curve of substrate surface, having same
+        Uniform layer is a parallel curve of substrate surface which has the same
         cross-sectional area as the actual coating layer.
 
         Returns:
             Thickness and points of the uniform layer.
 
-        Note:
-            To acquire parallel curve of the substrate surface, a smooth contour without
-            any "bump" from noise is required. As :class:`RectSubstrate` is convex,
-            we conveniently use convex hull of the substrate contour.
-
-            Uniform layer is found by root-finding method using
-            :func:`polyline_parallel_area`.
-
         References:
             * https://en.wikipedia.org/wiki/Parallel_curve
+
+        Note:
+            This method returns polyline vertices as the uniform layer.
         """
         if not self.interfaces():
             return (np.float64(0), np.empty((0, 1, 2), np.float64))
 
         (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
         subst_cnt = self.substrate.contour() + self.substrate_point()
-        covered_subst = subst_cnt[i0:i1]
-        # Acquiring parallel curve from contour is difficult because of noise.
-        # Noise induces small bumps which are greatly amplified in parallel curve.
-        # Smoothing is not an answer since it cannot 100% remove the bumps.
-        # Instead, points must be fitted to a model.
-        # Here, we simply use convex hull as a model.
-        covered_hull = np.flip(cv2.convexHull(covered_subst), axis=0)
+        s = subst_cnt[i0:i1]
 
-        S = np.count_nonzero(self.extract_layer())
-        (t,) = root(lambda x: polyline_parallel_area(covered_hull, x) - S, 0).x
-        t = np.float64(t)
-
-        normal = np.dot(np.gradient(covered_hull, axis=0), ROTATION_MATRIX)
-        n = normal / np.linalg.norm(normal, axis=-1)[..., np.newaxis]
-        ul_sparse = covered_hull + t * n
-
-        ul_len = np.ceil(cv2.arcLength(ul_sparse.astype(np.float32), closed=False))
-        ul = equidistant_interpolate(ul_sparse, int(ul_len))
-
-        return (t, ul)
+        A = np.count_nonzero(self.extract_layer())
+        (t,) = root(
+            lambda x: cv2.contourArea(
+                np.concatenate([s, np.flip(parallel_curve(s, x[0]), axis=0)]).astype(
+                    np.float32
+                )
+            )
+            - A,
+            [0],
+        ).x
+        return (t, parallel_curve(s, t))
 
     @attrcache("_conformality")
     def conformality(self) -> Tuple[float, npt.NDArray[np.int32]]:
@@ -575,11 +564,15 @@ class RectLayerShape(
 
         measure = self.parameters.RoughnessMeasure
         if measure == DistanceMeasure.DTW:
+            ul_len = np.ceil(cv2.arcLength(ul.astype(np.float32), closed=False))
+            ul = equidistant_interpolate(ul, int(ul_len))
             dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
             mat = acm(dist)
             path = owp(mat)
             roughness = mat[-1, -1] / len(path)
         elif measure == DistanceMeasure.SDTW:
+            ul_len = np.ceil(cv2.arcLength(ul.astype(np.float32), closed=False))
+            ul = equidistant_interpolate(ul, int(ul_len))
             dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
             mat = acm(dist**2)
             path = owp(mat)
@@ -745,6 +738,8 @@ class RectLayerShape(
             I0, I1 = self.surface()
             surf = self.contour()[I0:I1]
             _, ul = self.uniform_layer()
+            ul_len = np.ceil(cv2.arcLength(ul.astype(np.float32), closed=False))
+            ul = equidistant_interpolate(ul, int(ul_len))
             _, path = self.roughness()
             path = path[:: roughness_opts.step]
             lines = np.concatenate(
@@ -822,25 +817,23 @@ def equidistant_interpolate(points, n) -> npt.NDArray[np.float64]:
     return ret.reshape((n,) + points.shape[1:])
 
 
-def polyline_parallel_area(line: npt.NDArray, t: float) -> np.float64:
-    """Calculate the area between convex polyline and its parallel curve.
+def parallel_curve(curve: npt.NDArray, dist: float) -> npt.NDArray:
+    """Return parallel curve of *curve* with offset distance *dist*.
 
     Arguments:
-        line: Vertices of a polyline.
+        curve: Vertices of a polyline.
             The shape is ``(V, 1, D)``, where ``V`` is the number of vertices and
             ``D`` is the dimension.
-        t: Offset distance of the parallel curve.
+        dist: offset distance of the parallel curve.
 
-    Returns
-        area: Area between the polyline and its parallel curve.
+    Returns:
+        Round-joint parallel curve of shape ``(V, 1, D)``.
 
-    References:
-        * https://en.wikipedia.org/wiki/Polygonal_chain
     """
-    vec = np.diff(line, axis=0)
-    d_l = np.linalg.norm(vec, axis=-1)
-    d_theta = np.abs(np.diff(np.arctan2(vec[..., 1], vec[..., 0])))
-    return np.float64(np.sum(d_l) * t + np.sum(d_theta) * (t**2) / 2)
+    if dist == 0:
+        return curve
+    ret = offset_curve(LineString(np.squeeze(curve, axis=1)), dist, join_style="round")
+    return np.array(ret.coords)[:, np.newaxis]
 
 
 @njit(cache=True)
