@@ -828,7 +828,6 @@ def parallel_curve(curve: npt.NDArray, dist: float) -> npt.NDArray:
 
     Returns:
         Round-joint parallel curve of shape ``(V, 1, D)``.
-
     """
     if dist == 0:
         return curve
