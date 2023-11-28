@@ -54,12 +54,10 @@ jobs:
         with:
           python-version: "3.11"
 
-      # Mypy version is fixed to avert dataclass related issue.
-      # See issue #197.
       - name: install package
         run: |
           pip install -r requirements.txt
-          pip install mypy==1.4.1 types-PyYAML types-Pillow
+          pip install mypy types-PyYAML types-Pillow
 
       - name: run mypy check
         run: mypy src
