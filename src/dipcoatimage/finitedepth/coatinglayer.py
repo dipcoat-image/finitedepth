@@ -97,7 +97,8 @@ class CoatingLayerBase(
             If passed, must be a template matching result betwen the
             template image from *substrate*'s reference instance and
             the target image.
-            If not passed, template matching is automatically performed.
+            If not passed, template matching is automatically performed using
+            :meth:`match_template`.
     """
 
     ParamType: Type[ParamTypeVar]
@@ -148,8 +149,7 @@ class CoatingLayerBase(
           If :obj:`None`, a :attr:`DecoOptType` is attempted to be constructed.
           If :attr:`DecoOptType`, the values are copied.
         - *tempmatch* is expected to be passed by external constructor.
-          If :obj:`None`, template matching is performed using
-          :func:`cv2.matchTemplate` with :obj:`cv2.TM_SQDIFF_NORMED`.
+          If :obj:`None`, template matching is automatically performed.
         """
         super().__init__()
         self._image = image
@@ -182,9 +182,7 @@ class CoatingLayerBase(
             image = self.image
             x0, y0, x1, y1 = self.substrate.reference.templateROI
             template = self.substrate.reference.image[y0:y1, x0:x1]
-            res = cv2.matchTemplate(image, template, cv2.TM_SQDIFF_NORMED)
-            score, _, loc, _ = cv2.minMaxLoc(res)
-            self._tempmatch = (loc, score)
+            self._tempmatch = self.match_template(image, template)
         else:
             self._tempmatch = tempmatch
 
@@ -249,6 +247,19 @@ class CoatingLayerBase(
     @deco_options.setter
     def deco_options(self, options: DecoOptTypeVar):
         self._deco_options = options
+
+    def match_template(
+        self, image: npt.NDArray[np.uint8], template: npt.NDArray[np.uint8]
+    ) -> Tuple[Tuple[int, int], float]:
+        """Perform template matching between *image* and *template*.
+
+        Template matching is performed using :func:`cv2.matchTemplate` with
+        :obj:`cv2.TM_SQDIFF_NORMED`. Subclass may override this method to apply
+        other algorithm.
+        """
+        res = cv2.matchTemplate(image, template, cv2.TM_SQDIFF_NORMED)
+        score, _, loc, _ = cv2.minMaxLoc(res)
+        return (loc, score)
 
     @property
     def tempmatch(self) -> Tuple[Tuple[int, int], float]:
