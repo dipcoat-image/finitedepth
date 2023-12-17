@@ -23,6 +23,21 @@ Contents
    reference/index
    explanation/index
 
+Citation
+--------
+
+If you use this package in a scientific publication, please cite the following paper::
+
+   @article{song2023measuring,
+   title={Measuring coating layer shape in arbitrary geometry},
+   author={Song, Jisoo and Yu, Dongkeun and Jo, Euihyun and Nam, Jaewook},
+   journal={Physics of Fluids},
+   volume={35},
+   number={12},
+   year={2023},
+   publisher={AIP Publishing}
+   }
+
 Indices and tables
 ------------------
 
