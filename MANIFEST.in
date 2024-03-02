@@ -1,0 +1,2 @@
+include src/finitedepth/samples/*
+include src/finitedepth/py.typed

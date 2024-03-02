@@ -1,0 +1,119 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+
+  lint:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: get repo
+        uses: actions/checkout@v3
+
+      - name: set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: install dependencies
+        run: |
+          pip install flake8 black isort docformatter
+
+      - name: lint with flake8
+        run: |
+          flake8
+
+      - name: lint with black
+        run: |
+          black --check .
+
+      - name: lint with isort
+        run: |
+          isort --check .
+
+      - name: lint with docformatter
+        run: |
+          docformatter --check .
+
+  type-check:
+
+    needs: lint
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: get repo
+        uses: actions/checkout@v3
+
+      - name: set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: install package
+        run: |
+          pip install .[img] mypy types-PyYAML
+
+      - name: run mypy check
+        run: mypy src
+
+  unit-test:
+
+    needs: type-check
+
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os : [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.10", "3.11", "3.12"]
+
+    steps:
+
+      - name: get repo
+        uses: actions/checkout@v3
+
+      - name: set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: install package
+        run: |
+          pip install .[test]
+
+      - run: pytest
+
+  doc:
+
+    needs: unit-test
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: get repo
+        uses: actions/checkout@v3
+
+      - name: set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: install package
+        run: |
+          pip install .[doc] doc8
+
+      - name: build document
+        run: |
+          cd doc
+          make html SPHINXOPTS="-W --keep-going"
+
+      - name: lint with doc8  # doc8 test must be done after building doc once.
+        run: |
+          doc8 .

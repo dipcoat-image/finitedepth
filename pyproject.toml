@@ -1,0 +1,102 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dipcoatimage-finitedepth"
+version = "2.0.0"
+authors = [
+    {name = "Jisoo Song", email = "jeesoo9595@snu.ac.kr"}
+]
+description = "Image analysis for finite depth dip coating process"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Typing :: Typed",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Operating System :: MacOS",
+]
+dynamic = [
+    "dependencies",
+]
+
+[project.urls]
+homepage = "https://github.com/dipcoat-image/finitedepth"
+source = "https://github.com/dipcoat-image/finitedepth"
+documentation = "https://dipcoatimage-finitedepth.readthedocs.io"
+
+[project.scripts]
+finitedepth = "finitedepth:main"
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+]
+doc = [
+    "furo",
+    "sphinx",
+    "sphinx-autoapi",
+    "sphinx-tabs >= 3.4.5",
+    "matplotlib",
+    "pandas",
+]
+dev = [
+    "flake8",
+    "flake8-docstrings",
+    "black",
+    "isort",
+    "docformatter",
+    "doc8",
+    "mypy",
+    "types-PyYAML",
+    "dipcoatimage-finitedepth[test,doc]",
+]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.isort]
+profile = "black"
+
+[tool.docformatter]
+recursive = true
+in-place = true
+black = true
+
+[tool.doc8]
+ignore = ["D004"]
+ignore-path = [
+    "src",
+    "doc/build",
+]
+
+[tool.mypy]
+namespace_packages = true
+explicit_package_bases = true
+exclude = ["build"]
+plugins = ["numpy.typing.mypy_plugin"]
+
+[tool.pytest.ini_options]
+doctest_optionflags = [
+    "NORMALIZE_WHITESPACE",
+    "IGNORE_EXCEPTION_DETAIL",
+    "ELLIPSIS",
+]
+addopts = "--ignore-glob=doc/**/*.py --doctest-modules --doctest-glob=*.rst"
