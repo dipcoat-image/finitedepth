@@ -66,6 +66,21 @@ dev = [
     "dipcoatimage-finitedepth[test,doc]",
 ]
 
+[project.entry-points."finitedepth.analyzers"]
+CoatingImage = "finitedepth.analyzers:coatingimage_analyzer"
+CoatingVideo = "finitedepth.analyzers:coatingvideo_analyzer"
+
+[project.entry-points."finitedepth.references"]
+Reference = "finitedepth.reference:Reference.from_dict"
+
+[project.entry-points."finitedepth.substrates"]
+Substrate = "finitedepth.substrate:Substrate.from_dict"
+RectSubstrate = "finitedepth.substrate:RectSubstrate.from_dict"
+
+[project.entry-points."finitedepth.coatinglayers"]
+CoatingLayer = "finitedepth.coatinglayer:CoatingLayer.from_dict"
+RectLayerShape = "finitedepth.coatinglayer:RectLayerShape.from_dict"
+
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
 

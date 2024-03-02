@@ -2,8 +2,9 @@ entry1:
   type: CoatingImage
   referencePath: $FINITEDEPTH_DATA/ref.png
   targetPath: $FINITEDEPTH_DATA/coat.png
-  templateROI: [10, 10, 1250, 200]
-  substrateROI: [100, 100, 1200, 500]
+  reference:
+    templateROI: [10, 10, 1250, 200]
+    substrateROI: [100, 100, 1200, 500]
   output:
     layerData: output/layer.yml
     layerImage: output/layer.png
@@ -12,8 +13,9 @@ entry2:
   type: CoatingImage
   referencePath: $FINITEDEPTH_DATA/ref.png
   targetPath: $FINITEDEPTH_DATA/coat.png
-  templateROI: [10, 10, 1250, 200]
-  substrateROI: [100, 100, 1200, 500]
+  reference:
+    templateROI: [10, 10, 1250, 200]
+    substrateROI: [100, 100, 1200, 500]
   substrate:
     type: RectSubstrate
     parameters:
@@ -34,8 +36,9 @@ entry3:
   type: CoatingVideo
   referencePath: $FINITEDEPTH_DATA/ref.png
   targetPath: $FINITEDEPTH_DATA/coat.mp4
-  templateROI: [10, 10, 1250, 200]
-  substrateROI: [100, 100, 1200, 500]
+  reference:
+    templateROI: [10, 10, 1250, 200]
+    substrateROI: [100, 100, 1200, 500]
   substrate:
     type: RectSubstrate
     parameters:
