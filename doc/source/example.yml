@@ -3,8 +3,10 @@ entry1:
   referencePath: $FINITEDEPTH_DATA/ref.png
   targetPath: $FINITEDEPTH_DATA/coat.png
   reference:
-    templateROI: [10, 10, 1250, 200]
-    substrateROI: [100, 100, 1200, 500]
+    type: Reference
+    parameters:
+      templateROI: [10, 10, 1250, 200]
+      substrateROI: [100, 100, 1200, 500]
   output:
     layerData: output/layer.yml
     layerImage: output/layer.png
