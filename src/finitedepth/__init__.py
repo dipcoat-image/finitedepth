@@ -18,12 +18,15 @@ from importlib.resources import files
 import yaml
 
 from .reference import Reference, ReferenceBase
+from .substrate import Substrate, SubstrateBase
 
 __all__ = [
     "get_sample_path",
     "analyze_files",
     "ReferenceBase",
     "Reference",
+    "SubstrateBase",
+    "Substrate",
 ]
 
 

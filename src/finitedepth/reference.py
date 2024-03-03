@@ -112,11 +112,6 @@ class ReferenceBase(abc.ABC):
 class Reference(ReferenceBase):
     """Reference image with ROIs specified.
 
-    Arguments:
-        image: Binary reference image.
-        templateROI: ROI for template image.
-        substrateROI: ROI for substrate image.
-
     Examples:
         .. plot::
             :include-source:
@@ -139,8 +134,13 @@ class Reference(ReferenceBase):
     ):
         """Initialize the instance.
 
-        - *image* is set to be immutable.
-        - *templateROI* and *substrateROI* are converted using :func:`sanitize_ROI`.
+        Arguments:
+            image: Binary reference image. Set to be immutable.
+            templateROI: ROI for template image.
+            substrateROI: ROI for substrate image.
+
+        *templateROI* and *substrateROI* are converted to :obj:`StaticROI` using
+        :func:`sanitize_ROI`.
         """
         super().__init__()
         self._image = image
@@ -154,14 +154,13 @@ class Reference(ReferenceBase):
     def from_dict(cls, image: npt.NDArray[np.uint8], d: dict) -> Self:
         """Construct an instance from *image* and a dictionary *d*.
 
-        The dictionary must have the following fields:
+        The dictionary can have the following fields:
 
-        - **templateROI** (:obj:`DynamicROI`): ROI for template region.
-        - **substrateROI** (:obj:`DynamicROI`): ROI for substrate region.
+        - **templateROI** (:obj:`DynamicROI`, optional): ROI for template region.
+        - **substrateROI** (:obj:`DynamicROI`, optional): ROI for substrate
+            region.
         """
-        tempROI = d.get("templateROI", (0, 0, None, None))
-        substROI = d.get("substrateROI", (0, 0, None, None))
-        return cls(image, tempROI, substROI)
+        return cls(image, **d)
 
     @property
     def image(self) -> npt.NDArray[np.uint8]:
