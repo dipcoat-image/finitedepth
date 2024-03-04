@@ -1,18 +1,29 @@
 """Manage reference image and ROIs."""
 
 import abc
+import dataclasses
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 import cv2
 import numpy as np
 import numpy.typing as npt
 
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
+
 __all__ = [
+    "DataTypeVar",
     "DynamicROI",
     "StaticROI",
     "sanitize_ROI",
     "ReferenceBase",
+    "ReferenceData",
     "Reference",
 ]
+
+
+DataTypeVar = TypeVar("DataTypeVar", bound="DataclassInstance")
+"""Type variable for :attr:`ReferenceBase.DataType`."""
 
 
 DynamicROI = tuple[int | None, int | None, int | None, int | None]
@@ -55,16 +66,28 @@ def sanitize_ROI(roi: DynamicROI, h: int, w: int) -> StaticROI:
     return tuple(ret)  # type: ignore[return-value]
 
 
-class ReferenceBase(abc.ABC):
+class ReferenceBase(abc.ABC, Generic[DataTypeVar]):
     """Abstract base class for reference object.
 
     Reference object stores reference image, which is a binary image of uncoated
-    substrate. It also contains ROIs for template image and substrate image in the
-    reference image. :meth:`draw` returns visualized result where the ROIs are shown as
-    boxes.
+    substrate. It also contains ROIs for template region and substrate region in
+    the reference image.
+
+    External API can use the following members to get analysis results of
+    concrete subclasses.
+
+    * :attr:`DataType`: Dataclass type for the analysis result.
+    * :meth:`analyze`: :attr:`DataType` instance containing analysis result.
+    * :meth:`draw`: Visualized result.
 
     Arguments:
         image: Binary reference image.
+    """
+
+    DataType: type[DataTypeVar]
+    """Return type of :attr:`analyze`.
+
+    Concrete subclass must assign this attribute with dataclass type.
     """
 
     def __init__(self, image: npt.NDArray[np.uint8]):
@@ -92,6 +115,13 @@ class ReferenceBase(abc.ABC):
     @abc.abstractmethod
     def substrateROI(self) -> StaticROI:
         """ROI for substrate image."""
+
+    @abc.abstractmethod
+    def analyze(self) -> DataTypeVar:
+        """Return analysis result as dataclass.
+
+        Return type must be :attr:`DataType`.
+        """
 
     def draw(
         self,
@@ -121,7 +151,14 @@ class ReferenceBase(abc.ABC):
         return ret  # type: ignore[return-value]
 
 
-class Reference(ReferenceBase):
+@dataclasses.dataclass
+class ReferenceData:
+    """Analysis data for :class:`Reference`."""
+
+    pass
+
+
+class Reference(ReferenceBase[ReferenceData]):
     """Reference image with ROIs specified.
 
     Arguments:
@@ -142,6 +179,9 @@ class Reference(ReferenceBase):
             >>> import matplotlib.pyplot as plt #doctest: +SKIP
             >>> plt.imshow(ref.draw()) #doctest: +SKIP
     """
+
+    DataType = ReferenceData
+    """Return :obj:`ReferenceData`."""
 
     def __init__(
         self,
@@ -164,6 +204,10 @@ class Reference(ReferenceBase):
     def templateROI(self) -> StaticROI:
         """ROI for template image."""
         return self._templateROI
+
+    def analyze(self):
+        """Return empty :class:`ReferenceData`."""
+        return self.DataType()
 
     @property
     def substrateROI(self) -> StaticROI:

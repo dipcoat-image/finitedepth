@@ -1,7 +1,8 @@
 """Analyze substrate geometry."""
 
 import abc
-from typing import Generic, TypeVar
+import dataclasses
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 import cv2
 import numpy as np
@@ -13,27 +14,50 @@ from scipy.signal import find_peaks, peak_prominences  # type: ignore
 from .cache import attrcache
 from .reference import ReferenceBase
 
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
+
 __all__ = [
+    "RefTypeVar",
+    "DataTypeVar",
     "SubstrateBase",
+    "SubstrateData",
     "Substrate",
     "PolySubstrateBase",
     "houghline_accum",
+    "RectSubstData",
     "RectSubstrate",
 ]
 
 
 RefTypeVar = TypeVar("RefTypeVar", bound=ReferenceBase)
+"""Type variable for the reference type of :class:`SubstrateBase`."""
+DataTypeVar = TypeVar("DataTypeVar", bound="DataclassInstance")
+"""Type variable for :attr:`SubstrateBase.DataType`."""
 
 
-class SubstrateBase(abc.ABC, Generic[RefTypeVar]):
+class SubstrateBase(abc.ABC, Generic[RefTypeVar, DataTypeVar]):
     """Abstract base class for substrate object.
 
     Substrate object stores substrate image, which is a binary image of bare substrate
     acquired from :class:`ReferenceBase` object. The role of substrate object is to
-    analyze the shape of the bare substrate. :meth:`draw` returns visualized result.
+    analyze the shape of the bare substrate.
+
+    External API can use the following members to get analysis results of
+    concrete subclasses.
+
+    * :attr:`DataType`: Dataclass type for the analysis result.
+    * :meth:`analyze`: :attr:`DataType` instance containing analysis result.
+    * :meth:`draw`: Visualized result.
 
     Arguments:
         reference: Reference instance which contains the substrate image.
+    """
+
+    DataType: type[DataTypeVar]
+    """Return type of :attr:`analyze`.
+
+    Concrete subclass must assign this attribute with dataclass type.
     """
 
     def __init__(self, reference: RefTypeVar):
@@ -109,11 +133,25 @@ class SubstrateBase(abc.ABC, Generic[RefTypeVar]):
         return cv2.findContours(reg, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
 
     @abc.abstractmethod
+    def analyze(self) -> DataTypeVar:
+        """Return analysis result as dataclass.
+
+        Return type must be :attr:`DataType`.
+        """
+
+    @abc.abstractmethod
     def draw(self, *args, **kwargs) -> npt.NDArray[np.uint8]:
         """Return visualization result."""
 
 
-class Substrate(SubstrateBase[ReferenceBase]):
+@dataclasses.dataclass
+class SubstrateData:
+    """Analysis data for :class:`Substrate`."""
+
+    pass
+
+
+class Substrate(SubstrateBase[ReferenceBase, SubstrateData]):
     """Basic implementation of substrate without any geometric specification.
 
     Arguments:
@@ -134,6 +172,9 @@ class Substrate(SubstrateBase[ReferenceBase]):
             >>> plt.imshow(subst.draw()) #doctest: +SKIP
     """
 
+    DataType = SubstrateData
+    """Return :obj:`SubstrateData`."""
+
     def region_points(self) -> npt.NDArray[np.int32]:
         """Return an upper center point of the substrate image.
 
@@ -142,17 +183,24 @@ class Substrate(SubstrateBase[ReferenceBase]):
         """
         return np.array([[self.image().shape[1] / 2, 0]], dtype=np.int32)
 
+    def analyze(self):
+        """Return empty :class:`SubstrateData`."""
+        return self.DataType()
+
     def draw(self) -> npt.NDArray[np.uint8]:
         """Return :meth:`image` in RGB."""
         ret = cv2.cvtColor(self.image(), cv2.COLOR_GRAY2RGB)
         return ret  # type: ignore[return-value]
 
 
-class PolySubstrateBase(SubstrateBase[ReferenceBase]):
+class PolySubstrateBase(SubstrateBase[RefTypeVar, DataTypeVar]):
     """Abstract base class for substrate whose cross section is a simple polygon.
 
     A simple polygon does not have intersection nor hole [#poly]_. Smooth corners are
     allowed.
+
+    Arguments:
+        reference: Reference instance which contains the substrate image.
 
     Note:
         Substrate image should *not* have:
@@ -350,11 +398,22 @@ def houghline_accum(
     return accum, rho_theta
 
 
-class RectSubstrate(PolySubstrateBase):
+@dataclasses.dataclass
+class RectSubstData:
+    """Analysis data for :class:`RectSubstrate`.
+
+    Arguments:
+        Width: Width of the rectangular cross section in pixels.
+    """
+
+    Width: np.float32
+
+
+class RectSubstrate(PolySubstrateBase[ReferenceBase, RectSubstData]):
     """Substrate having rectangular cross section.
 
     Arguments:
-        ref: Reference instance which contains the substrate image.
+        reference: Reference instance which contains the substrate image.
         sigma: Standard deviation of gaussian filter to smooth the noise in contour.
         rho_thres, theta_thres, hough_step: Hough line transformation parameters.
 
@@ -372,6 +431,9 @@ class RectSubstrate(PolySubstrateBase):
             >>> import matplotlib.pyplot as plt #doctest: +SKIP
             >>> plt.imshow(subst.draw()) #doctest: +SKIP
     """
+
+    DataType = RectSubstData
+    """Return :obj:`RectSubstData`."""
 
     def __init__(
         self,
@@ -399,6 +461,11 @@ class RectSubstrate(PolySubstrateBase):
     def n(self) -> int:
         """Number of vertices of rectangle, which is 4."""
         return 4
+
+    def analyze(self):
+        """Return :class:`RectSubstData`."""
+        _, B, C, _ = self.sideline_intersections()
+        return self.DataType(np.linalg.norm(B - C))
 
     def draw(
         self,

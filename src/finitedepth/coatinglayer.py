@@ -3,7 +3,8 @@
 # TODO: fix docstring formats
 
 import abc
-from typing import Generic, TypeVar
+import dataclasses
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 import cv2
 import numpy as np
@@ -15,6 +16,9 @@ from shapely import LineString, offset_curve  # type: ignore
 
 from .cache import attrcache
 from .substrate import RectSubstrate, SubstrateBase
+
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
 
 __all__ = [
     "CoatingLayerBase",
@@ -30,15 +34,24 @@ __all__ = [
 
 
 SubstTypeVar = TypeVar("SubstTypeVar", bound=SubstrateBase)
+"""Type variable for the substrate type of :class:`CoatingLayerBase`."""
+DataTypeVar = TypeVar("DataTypeVar", bound="DataclassInstance")
+"""Type variable for :attr:`CoatingLayerBase.DataType`."""
 
 
-class CoatingLayerBase(abc.ABC, Generic[SubstTypeVar]):
+class CoatingLayerBase(abc.ABC, Generic[SubstTypeVar, DataTypeVar]):
     """Abstract base class for coating layer object.
 
     Coating layer object stores :class:`SubstrateBase` object and target image, which is
     a binary image of coated substrate. The role of coating layer object is to acquire
-    coating layer region by template matching and analyze its shape. :meth:`draw`
-    returns visualized result.
+    coating layer region by template matching and analyze its shape.
+
+    External API can use the following members to get analysis results of
+    concrete subclasses.
+
+    * :attr:`DataType`: Dataclass type for the analysis result.
+    * :meth:`analyze`: :attr:`DataType` instance containing analysis result.
+    * :meth:`draw`: Visualized result.
 
     Arguments:
         image: Binary target image.
@@ -46,6 +59,12 @@ class CoatingLayerBase(abc.ABC, Generic[SubstTypeVar]):
         tempmatch: Pre-computed template matching result.
             External constructor can pass this argument to force the template matching
             result. If not passed, :meth:`match_template` performs matching.
+    """
+
+    DataType: type[DataTypeVar]
+    """Return type of :attr:`analyze`.
+
+    Concrete subclass must assign this attribute with dataclass type.
     """
 
     def __init__(
@@ -140,11 +159,25 @@ class CoatingLayerBase(abc.ABC, Generic[SubstTypeVar]):
         return ret
 
     @abc.abstractmethod
+    def analyze(self) -> DataTypeVar:
+        """Return analysis result as dataclass.
+
+        Return type must be :attr:`DataType`.
+        """
+
+    @abc.abstractmethod
     def draw(self, *args, **kwargs) -> npt.NDArray[np.uint8]:
         """Return visualization result."""
 
 
-class CoatingLayer(CoatingLayerBase[SubstrateBase]):
+@dataclasses.dataclass
+class CoatingLayerData:
+    """Analysis data for :class:`CoatingLayer`."""
+
+    pass
+
+
+class CoatingLayer(CoatingLayerBase[SubstrateBase, CoatingLayerData]):
     """Basic implementation of coating layer without any analysis.
 
     Arguments:
@@ -180,6 +213,13 @@ class CoatingLayer(CoatingLayerBase[SubstrateBase]):
             >>> coat = CoatingLayer(bin, subst)
             >>> plt.imshow(coat.draw()) #doctest: +SKIP
     """
+
+    DataType = CoatingLayerData
+    """Return :obj:`CoatingLayerData`."""
+
+    def analyze(self):
+        """Return empty :class:`CoatingLayerData`."""
+        return self.DataType()
 
     def draw(
         self,
@@ -227,7 +267,36 @@ class CoatingLayer(CoatingLayerBase[SubstrateBase]):
         return image  # type: ignore[return-value]
 
 
-class RectLayerShape(CoatingLayerBase[RectSubstrate]):
+@dataclasses.dataclass
+class RectLayerShapeData:
+    """Analysis data for :class:`RectLayerShape`.
+
+    Arguments:
+        LayerLength_Left, LayerLength_Right: Length of the layer on each wall.
+        Conformality: Conformality of the coating layer.
+        AverageThickness: Average thickness of the coating layer.
+        Roughness: Roughness of the coating layer.
+        MaxThickness_Left, MaxThickness_Bottom, MaxThickness_Right: Regional maximum
+            thicknesses.
+        MatchError: Template matching error between ``0`` to ``1``.
+            ``0`` means perfect match.
+    """
+
+    LayerLength_Left: np.float64
+    LayerLength_Right: np.float64
+
+    Conformality: float
+    AverageThickness: np.float64
+    Roughness: float
+
+    MaxThickness_Left: np.float64
+    MaxThickness_Bottom: np.float64
+    MaxThickness_Right: np.float64
+
+    MatchError: float
+
+
+class RectLayerShape(CoatingLayerBase[RectSubstrate, RectLayerShapeData]):
     """Coating layer over rectangular substrate.
 
     Arguments:
@@ -271,6 +340,9 @@ class RectLayerShape(CoatingLayerBase[RectSubstrate]):
             >>> coat = RectLayerShape(bin, subst, (1, 1), 50, "DTW")
             >>> plt.imshow(coat.draw()) #doctest: +SKIP
     """
+
+    DataType = RectLayerShapeData
+    """Return :obj:`RectLayerShapeData`."""
 
     def __init__(
         self,
@@ -621,6 +693,42 @@ class RectLayerShape(CoatingLayerBase[RectSubstrate]):
                 thicknesses.append(dist[max_idx])
                 points.append(np.stack([pts[max_idx], Proj[max_idx]]))
         return (np.array(thicknesses), np.array(points))
+
+    def analyze(self):
+        """Return :class:`RectLayerShapeData`."""
+        _, B, C, _ = self.substrate.sideline_intersections() + self.substrate_point()
+
+        if not self.interfaces():
+            LEN_L = LEN_R = np.float64(0)
+        else:
+            (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
+            subst_cnt = self.substrate.contour() + self.substrate_point()
+            pts = subst_cnt[[i0, i1]]
+
+            Bp = pts - B
+            BC = C - B
+            Proj = B + BC * (np.dot(Bp, BC) / np.dot(BC, BC))[..., np.newaxis]
+            dists = np.linalg.norm(Proj - pts, axis=-1)
+            (LEN_L,), (LEN_R,) = dists.astype(np.float64)
+
+        C, _ = self.conformality()
+        AVRGTHCK, _ = self.uniform_layer()
+        ROUGH, _ = self.roughness()
+        (THCK_L, THCK_B, THCK_R), _ = self.max_thickness()
+
+        _, ERR = self.tempmatch
+
+        return self.DataType(
+            LEN_L,
+            LEN_R,
+            C,
+            AVRGTHCK,
+            ROUGH,
+            THCK_L,
+            THCK_B,
+            THCK_R,
+            ERR,
+        )
 
     def draw(
         self,
