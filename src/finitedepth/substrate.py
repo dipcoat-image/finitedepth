@@ -471,7 +471,6 @@ class RectSubstrate(PolySubstrateBase[ReferenceBase, RectSubstData]):
         self,
         mode: str = "image",
         vertice_color: tuple[int, int, int] = (0, 255, 0),
-        vertice_markerType: int = cv2.MARKER_CROSS,
         vertice_thickness: int = 1,
         vertice_markerSize: int = 20,
         sideline_color: tuple[int, int, int] = (0, 0, 255),
@@ -483,7 +482,6 @@ class RectSubstrate(PolySubstrateBase[ReferenceBase, RectSubstData]):
             mode (`{'image', 'contour'}`): Draw mode.
                 `'image'` draws :meth:`image`, while `'contour'` draws :meth:`contour`.
             vertice_color: Vertice marker color for :func:`cv2.drawMarker`.
-            vertice_markerType: Vertice marker type for :func:`cv2.drawMarker`.
             vertice_thickness: Vertice marker thickness for :func:`cv2.drawMarker`.
             vertice_markerSize: Vertice marker size for :func:`cv2.drawMarker`.
             sideline_color: Sideline color for :func:`cv2.line`.
@@ -505,7 +503,7 @@ class RectSubstrate(PolySubstrateBase[ReferenceBase, RectSubstData]):
                     ret,
                     pt,
                     color=vertice_color,
-                    markerType=vertice_markerType,
+                    markerType=cv2.MARKER_CROSS,
                     markerSize=vertice_markerSize,
                     thickness=vertice_thickness,
                 )
