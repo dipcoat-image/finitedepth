@@ -29,17 +29,15 @@ class SubstrateBase(abc.ABC):
     analyze the shape of the bare substrate. :meth:`draw` returns visualized result.
 
     Arguments:
-        ref: Reference instance which contains the substrate image.
+        reference: Reference instance which contains the substrate image.
+
+    Attributes:
+        reference: Reference instance which contains the substrate image.
     """
 
     def __init__(self, reference: ReferenceBase):
         """Initialize the instance."""
-        self._ref = reference
-
-    @property
-    def reference(self) -> ReferenceBase:
-        """Reference instance which contains the substrate image."""
-        return self._ref
+        self.reference = reference
 
     def image(self) -> npt.NDArray[np.uint8]:
         """Substrate image from :meth:`reference`."""
@@ -371,14 +369,14 @@ class RectSubstrate(PolySubstrateBase):
 
     def __init__(
         self,
-        ref: ReferenceBase,
+        reference: ReferenceBase,
         sigma: float,
         rho_thres: float,
         theta_thres: float,
         hough_step: int = 1,
     ):
         """Initialize the instance by passed arguments."""
-        super().__init__(ref)
+        super().__init__(reference)
         self._sigma = sigma
         self._hough_param = (rho_thres, theta_thres, hough_step)
 
@@ -398,7 +396,7 @@ class RectSubstrate(PolySubstrateBase):
 
     def draw(
         self,
-        mode: str = "original",
+        mode: str = "image",
         vertice_color: tuple[int, int, int] = (0, 255, 0),
         vertice_markerType: int = cv2.MARKER_CROSS,
         vertice_thickness: int = 1,
@@ -409,7 +407,8 @@ class RectSubstrate(PolySubstrateBase):
         """Draw substrate image and show vertices and sidelines.
 
         Arguments:
-            mode (`{'original', 'contour'}`): Draw mode.
+            mode (`{'image', 'contour'}`): Draw mode.
+                `'image'` draws :meth:`image`, while `'contour'` draws :meth:`contour`.
             vertice_color: Vertice marker color for :func:`cv2.drawMarker`.
             vertice_markerType: Vertice marker type for :func:`cv2.drawMarker`.
             vertice_thickness: Vertice marker thickness for :func:`cv2.drawMarker`.
@@ -417,7 +416,7 @@ class RectSubstrate(PolySubstrateBase):
             sideline_color: Sideline color for :func:`cv2.line`.
             sideline_thickness: Sideline thickness for :func:`cv2.line`.
         """
-        if mode == "original":
+        if mode == "image":
             image = self.image()
         elif mode == "contour":
             h, w = self.image().shape[:2]

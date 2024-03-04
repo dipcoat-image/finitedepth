@@ -17,6 +17,7 @@ from importlib.resources import files
 
 import yaml
 
+from .coatinglayer import CoatingLayer, CoatingLayerBase, RectLayerShape
 from .reference import Reference, ReferenceBase
 from .substrate import PolySubstrateBase, RectSubstrate, Substrate, SubstrateBase
 
@@ -29,6 +30,9 @@ __all__ = [
     "Substrate",
     "PolySubstrateBase",
     "RectSubstrate",
+    "CoatingLayerBase",
+    "CoatingLayer",
+    "RectLayerShape",
 ]
 
 
