@@ -1,5 +1,5 @@
 opencv-python
 numpy
-imageio
-av
+scipy
+numba
 PyYAML

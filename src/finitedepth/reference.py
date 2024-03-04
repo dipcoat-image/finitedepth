@@ -6,11 +6,6 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 
-try:
-    from typing import Self
-except ImportError:
-    from typing_extensions import Self
-
 __all__ = [
     "DynamicROI",
     "StaticROI",
@@ -61,22 +56,29 @@ def sanitize_ROI(roi: DynamicROI, h: int, w: int) -> StaticROI:
 
 
 class ReferenceBase(abc.ABC):
-    """Abstract base class for reference instance.
+    """Abstract base class for reference object.
 
-    Reference instance stores a reference image, which is a binary image of
-    uncoated substrate. It also contains ROIs for template image and
-    substrate image in the reference image. :meth:`draw` returns visualized
-    result where the ROIs are shown as boxes.
+    Reference object stores reference image, which is a binary image of uncoated
+    substrate. It also contains ROIs for template image and substrate image in the
+    reference image. :meth:`draw` returns visualized result where the ROIs are shown as
+    boxes.
+
+    Arguments:
+        image: Binary reference image.
     """
 
-    @property
-    @abc.abstractmethod
-    def image(self) -> npt.NDArray[np.uint8]:
-        """Binary reference image.
+    def __init__(self, image: npt.NDArray[np.uint8]):
+        """Initialize the instance.
 
-        Note:
-            This array must not be mutated.
+        *image* is set to be immutable.
         """
+        self._image = image
+        self._image.setflags(write=False)
+
+    @property
+    def image(self) -> npt.NDArray[np.uint8]:
+        """Binary reference image."""
+        return self._image
 
     @property
     @abc.abstractmethod
@@ -90,12 +92,19 @@ class ReferenceBase(abc.ABC):
 
     def draw(
         self,
-        templateColor=(255, 0, 0),
-        substrateColor=(0, 255, 0),
-        templateLineWidth=1,
-        substrateLineWidth=1,
+        templateColor: tuple[int, int, int] = (255, 0, 0),
+        templateLineWidth: int = 1,
+        substrateColor: tuple[int, int, int] = (0, 255, 0),
+        substrateLineWidth: int = 1,
     ) -> npt.NDArray[np.uint8]:
-        """Return visualization result in RGB format."""
+        """Return visualization result in RGB format.
+
+        Arguments:
+            templateColor: Template ROI box color for :func:`cv2.rectangle`.
+            templateLineWidth: Template ROI box line width for :func:`cv2.rectangle`.
+            substrateColor: Substrate ROI box color for :func:`cv2.rectangle`.
+            substrateLineWidth: Substrate ROI box line width for :func:`cv2.rectangle`.
+        """
         ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
 
         if templateLineWidth > 0:
@@ -111,6 +120,11 @@ class ReferenceBase(abc.ABC):
 
 class Reference(ReferenceBase):
     """Reference image with ROIs specified.
+
+    Arguments:
+        image: Binary reference image.
+        templateROI: ROI for template image.
+        substrateROI: ROI for substrate image.
 
     Examples:
         .. plot::
@@ -134,38 +148,14 @@ class Reference(ReferenceBase):
     ):
         """Initialize the instance.
 
-        Arguments:
-            image: Binary reference image. Set to be immutable.
-            templateROI: ROI for template image.
-            substrateROI: ROI for substrate image.
-
         *templateROI* and *substrateROI* are converted to :obj:`StaticROI` using
         :func:`sanitize_ROI`.
         """
-        super().__init__()
-        self._image = image
-        self._image.setflags(write=False)
+        super().__init__(image)
 
         h, w = image.shape[:2]
         self._templateROI = sanitize_ROI(templateROI, h, w)
         self._substrateROI = sanitize_ROI(substrateROI, h, w)
-
-    @classmethod
-    def from_dict(cls, image: npt.NDArray[np.uint8], d: dict) -> Self:
-        """Construct an instance from *image* and a dictionary *d*.
-
-        The dictionary can have the following fields:
-
-        - **templateROI** (:obj:`DynamicROI`, optional): ROI for template region.
-        - **substrateROI** (:obj:`DynamicROI`, optional): ROI for substrate
-            region.
-        """
-        return cls(image, **d)
-
-    @property
-    def image(self) -> npt.NDArray[np.uint8]:
-        """Binary reference image."""
-        return self._image
 
     @property
     def templateROI(self) -> StaticROI:

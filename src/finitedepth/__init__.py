@@ -18,7 +18,7 @@ from importlib.resources import files
 import yaml
 
 from .reference import Reference, ReferenceBase
-from .substrate import Substrate, SubstrateBase
+from .substrate import PolySubstrateBase, RectSubstrate, Substrate, SubstrateBase
 
 __all__ = [
     "get_sample_path",
@@ -27,6 +27,8 @@ __all__ = [
     "Reference",
     "SubstrateBase",
     "Substrate",
+    "PolySubstrateBase",
+    "RectSubstrate",
 ]
 
 
