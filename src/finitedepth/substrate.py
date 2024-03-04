@@ -160,4 +160,6 @@ class RectSubstrate:
     """Rectangular substrate."""
 
     @classmethod
-    def from_dict(cls, d): ...
+    def from_dict(cls, reference: ReferenceBase, d: dict):
+        """Construct an instance from *reference* and a dictionary *d*."""
+        ...
