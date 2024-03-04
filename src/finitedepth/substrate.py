@@ -34,14 +34,16 @@ class SubstrateBase(abc.ABC, Generic[RefTypeVar]):
 
     Arguments:
         reference: Reference instance which contains the substrate image.
-
-    Attributes:
-        reference: Reference instance which contains the substrate image.
     """
 
     def __init__(self, reference: RefTypeVar):
         """Initialize the instance."""
-        self.reference = reference
+        self._reference = reference
+
+    @property
+    def reference(self) -> RefTypeVar:
+        """Reference instance which contains the substrate image."""
+        return self._reference
 
     def image(self) -> npt.NDArray[np.uint8]:
         """Substrate image from :meth:`reference`."""

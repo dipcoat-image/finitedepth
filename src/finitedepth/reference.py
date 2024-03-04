@@ -65,19 +65,23 @@ class ReferenceBase(abc.ABC):
 
     Arguments:
         image: Binary reference image.
-
-    Attributes:
-        image: Binary reference image.
-            This image is not writable for immutability.
     """
 
     def __init__(self, image: npt.NDArray[np.uint8]):
         """Initialize the instance.
 
-        *image* is set to be immutable.
+        *image* is set to be not writable.
         """
-        self.image = image
-        self.image.setflags(write=False)
+        self._image = image
+        self._image.setflags(write=False)
+
+    @property
+    def image(self) -> npt.NDArray[np.uint8]:
+        """Binary reference image.
+
+        For immutability, this image is not writable.
+        """
+        return self._image
 
     @property
     @abc.abstractmethod

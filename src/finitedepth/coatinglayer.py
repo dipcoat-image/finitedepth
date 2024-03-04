@@ -1,5 +1,7 @@
 """Analyze coating layer."""
 
+# TODO: fix docstring formats
+
 import abc
 from typing import Generic, TypeVar
 
@@ -40,16 +42,10 @@ class CoatingLayerBase(abc.ABC, Generic[SubstTypeVar]):
 
     Arguments:
         image: Binary target image.
-        substrate: Substrate instance.
+        substrate: Substrate instance storing binary reference image.
         tempmatch: Pre-computed template matching result.
             External constructor can pass this argument to force the template matching
             result. If not passed, :meth:`match_template` performs matching.
-
-    Attributes:
-        image: Binary target image.
-            This image is not writable for immutability.
-        substrate: Substrate instance.
-        tempmatch: Template matching location and score.
     """
 
     def __init__(
@@ -64,17 +60,35 @@ class CoatingLayerBase(abc.ABC, Generic[SubstTypeVar]):
         *image* is set to be immutable, and template matching is performed if
         *tempmatch* is ``None``.
         """
-        self.image = image
-        self.image.setflags(write=False)
-        self.substrate = substrate
+        self._image = image
+        self._image.setflags(write=False)
+        self._substrate = substrate
 
         if tempmatch is None:
             image = self.image
             x0, y0, x1, y1 = self.substrate.reference.templateROI
             template = self.substrate.reference.image[y0:y1, x0:x1]
-            self.tempmatch = self.match_template(image, template)
+            self._tempmatch = self.match_template(image, template)
         else:
-            self.tempmatch = tempmatch
+            self._tempmatch = tempmatch
+
+    @property
+    def image(self) -> npt.NDArray[np.uint8]:
+        """Binary target image.
+
+        For immutability, this image is not writable.
+        """
+        return self._image
+
+    @property
+    def substrate(self) -> SubstTypeVar:
+        """Substrate instance which contains substrate and reference information."""
+        return self._substrate
+
+    @property
+    def tempmatch(self) -> tuple[tuple[int, ...], float]:
+        """Template matching location and score."""
+        return self._tempmatch
 
     def match_template(
         self, image: npt.NDArray[np.uint8], template: npt.NDArray[np.uint8]
@@ -220,7 +234,7 @@ class RectLayerShape(CoatingLayerBase[RectSubstrate]):
         image: Binary target image.
         substrate: Substrate instance.
         opening_ksize: Kernel size for morphological operation.
-            Items must be zero or odd number.
+            Elements must be zero or odd number.
         reconstruct_radius: Radius of the "safe zone" for noise removal.
             Imaginary circles with this radius are drawn on bottom corners of the
             substrate. Connected components not passing these circles are regarded as
@@ -228,11 +242,6 @@ class RectLayerShape(CoatingLayerBase[RectSubstrate]):
         roughness_measure (`{'DTW', 'SDTW'}`): Similarity measure to quantify roughness.
             `'DTW'` is dynamic time warping and `'SDTW'` is its root mean square.
         tempmatch: Pre-computed template matching result.
-
-    Attributes:
-        opening_ksize: Kernel size for morphological operation.
-        reconstruct_radius: Radius of the "safe zone" for noise removal.
-        roughness_measure (`{'DTW', 'SDTW'}`): Similarity measure to quantify roughness.
 
     Examples:
         Construct substrate instance first.
@@ -283,9 +292,24 @@ class RectLayerShape(CoatingLayerBase[RectSubstrate]):
         if roughness_measure not in ["DTW", "SDTW"]:
             raise TypeError(f"Unknown roughness measure: {roughness_measure}")
         super().__init__(image, substrate, tempmatch=tempmatch)
-        self.opening_ksize = opening_ksize
-        self.reconstruct_radius = reconstruct_radius
-        self.roughness_measure = roughness_measure
+        self._opening_ksize = opening_ksize
+        self._reconstruct_radius = reconstruct_radius
+        self._roughness_measure = roughness_measure
+
+    @property
+    def opening_ksize(self) -> tuple[int, int]:
+        """Kernel size for morphological operation."""
+        return self._opening_ksize
+
+    @property
+    def reconstruct_radius(self) -> int:
+        """Radius of the "safe zone" for noise removal."""
+        return self._reconstruct_radius
+
+    @property
+    def roughness_measure(self) -> str:
+        """Similarity measure to quantify roughness."""
+        return self._roughness_measure
 
     @attrcache("_layer_contours")
     def layer_contours(self) -> tuple[npt.NDArray[np.int32], ...]:
