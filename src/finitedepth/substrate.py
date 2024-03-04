@@ -1,6 +1,7 @@
 """Analyze substrate geometry."""
 
 import abc
+from typing import Generic, TypeVar
 
 import cv2
 import numpy as np
@@ -21,7 +22,10 @@ __all__ = [
 ]
 
 
-class SubstrateBase(abc.ABC):
+RefTypeVar = TypeVar("RefTypeVar", bound=ReferenceBase)
+
+
+class SubstrateBase(abc.ABC, Generic[RefTypeVar]):
     """Abstract base class for substrate object.
 
     Substrate object stores substrate image, which is a binary image of bare substrate
@@ -35,7 +39,7 @@ class SubstrateBase(abc.ABC):
         reference: Reference instance which contains the substrate image.
     """
 
-    def __init__(self, reference: ReferenceBase):
+    def __init__(self, reference: RefTypeVar):
         """Initialize the instance."""
         self.reference = reference
 
@@ -107,7 +111,7 @@ class SubstrateBase(abc.ABC):
         """Return visualization result."""
 
 
-class Substrate(SubstrateBase):
+class Substrate(SubstrateBase[ReferenceBase]):
     """Basic implementation of substrate without any geometric specification.
 
     Arguments:
@@ -142,7 +146,7 @@ class Substrate(SubstrateBase):
         return ret  # type: ignore[return-value]
 
 
-class PolySubstrateBase(SubstrateBase):
+class PolySubstrateBase(SubstrateBase[ReferenceBase]):
     """Abstract base class for substrate whose cross section is a simple polygon.
 
     A simple polygon does not have intersection nor hole [#poly]_. Smooth corners are
