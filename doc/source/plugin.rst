@@ -93,3 +93,35 @@ Then, invoking ``finitedepth samples foo`` will print the path to
 the samples directory.
 Note that :func:`sample_path` can have different signature as long as it
 returns the correct path when called with empty argument.
+
+References, Substrates, and Coating layers
+------------------------------------------
+
+As explained in :ref:`background`, analysis is based on reference object,
+substrate object, and coating layer object.
+For analyzers to access these classes defined by plugins, entry points
+`"finitedepth.references"`, `"finitedepth.substrates"`, and
+`"finitedepth.coatinglayers"` are reserved.
+
+Let's assume that we have defined a substrate class in ``foo.__init__.py``.
+
+.. code-block:: python
+
+    from finitedepth import SubstrateBase
+
+    class MySubstrate(SubstrateBase):
+        def __init__(self, reference, *args):
+            super().__init__(reference)
+            ...
+
+In ``pyproject.toml`` we define a table:
+
+.. code-block:: toml
+
+    [project.entry-points."finitedepth.substrates"]
+    MySubstrate = "foo:MySubstrate"
+
+After defining your own class in your plugin, register its constructor
+to the corresponding entry point. Note that the constructor should be
+able to return the instance from primitive variable passed from the
+configuration file.

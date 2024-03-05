@@ -33,7 +33,7 @@ Welcome to DipCoatImage-FiniteDepth's documentation!
    fig.tight_layout()
 
 DipCoatImage-FiniteDepth is a Python package to visualize and analyze the
-coating layer profile from dip coating with finite depth.
+coating layer profile from dip coating with finite immersion depth.
 
 Contents
 --------
@@ -42,11 +42,14 @@ Contents
    :maxdepth: 2
    :caption: Contents:
 
+   background
    intro
    tutorial
    plugin
    reference/index
    development
+
+.. _citation:
 
 Citation
 --------
