@@ -1,50 +1,71 @@
 # DipCoatImage-FiniteDepth
 
-[![Build Status](https://github.com/dipcoat-image/finitedepth/actions/workflows/ci.yml/badge.svg)](https://github.com/dipcoat-image/finitedepth/actions/workflows/ci.yml)
-[![Documentation Status](https://readthedocs.org/projects/dipcoatimage-finitedepth/badge/?version=latest)](https://dipcoatimage-finitedepth.readthedocs.io/en/latest/?badge=latest)
 [![License](https://img.shields.io/github/license/dipcoat-image/finitedepth)](https://github.com/dipcoat-image/finitedepth/blob/master/LICENSE)
+[![CI](https://github.com/dipcoat-image/finitedepth/actions/workflows/ci.yml/badge.svg)](https://github.com/dipcoat-image/finitedepth/actions/workflows/ci.yml)
+[![CD](https://github.com/dipcoat-image/finitedepth/actions/workflows/cd.yml/badge.svg)](https://github.com/dipcoat-image/finitedepth/actions/workflows/cd.yml)
+[![Docs](https://readthedocs.org/projects/dipcoatimage-finitedepth/badge/?version=latest)](https://dipcoatimage-finitedepth.readthedocs.io/en/latest/?badge=latest)
+[![Supported Python Versions](https://img.shields.io/pypi/pyversions/dipcoatimage-finitedepth.svg)](https://pypi.python.org/pypi/dipcoatimage-finitedepth/)
+[![PyPI Version](https://img.shields.io/pypi/v/dipcoatimage-finitedepth.svg)](https://pypi.python.org/pypi/dipcoatimage-finitedepth/)
 
-Python package for image analysis on finite depth dip coating process.
+![title](https://dipcoatimage-finitedepth.readthedocs.io/en/latest/_images/index-1.png)
+
+DipCoatImage-FiniteDepth is a simple and extensible Python package to analyze dip coating with finite immersion depth.
 
 ## Usage
 
-Analysis can be done by passing configuration files.
+Store analysis parameters in configuration file (YAML or JSON).
 
 ```
-$ finitedepth analyze config1.yml conf2.yml ...
+data1:
+ type: CoatingImage
+ referencePath: ref.png
+ targetPath: target.png
+ output:
+     layerData: output/data.csv
+data2:
+   type: MyType
+   my-parameters: ...
+data3:
+   ...
 ```
+
+Pass the file to command:
+
+```
+$ finitedepth analyze config.yml
+```
+
+You can also define your own analysis type by [writing a plugin](https://dipcoatimage-finitedepth.readthedocs.io/en/latest/plugin.html).
 
 ## Installation
 
+DipCoatImage-FiniteDepth can be installed using `pip`.
+
 ```
-$ pip install git+https://github.com/dipcoat-image/finitedepth.git
+$ pip install dipcoatimage-finitedepth
 ```
+
+Optional dependencies are listed in [manual](https://dipcoatimage-finitedepth.readthedocs.io/en/latest/intro.html#installation).
 
 ## Documentation
 
-Documentation can be found on Read the Docs:
+DipCoatImage-FiniteDepth is documented with [Sphinx](https://pypi.org/project/Sphinx/).
+The manual can be found on Read the Docs:
 
-> https://dipcoatimage-finitedepth.readthedocs.io/en/latest/
+> https://dipcoatimage-finitedepth.readthedocs.io
 
-To build the document yourself, you must download the full source code of the project and install the package with `doc` dependency.
+If you want to build the document yourself, get the source code and install with `[doc]` dependency.
+Then, go to `doc` directory and build the document:
 
 ```
-$ git clone https://github.com/dipcoat-image/finitedepth.git
-$ cd finitedepth
 $ pip install .[doc]
-```
-
-Then run the following command to build the document.
-
-```
 $ cd doc
 $ make html
 ```
 
-Documents will be generated in `doc/build/html` directory.
-`index.html` file will lead you to main page.
+Document will be generated in `build/html` directory. Open `index.html` to see the central page.
 
-# Citation
+## Citation
 
 If you use this package in a scientific publication, please cite the following paper:
 
