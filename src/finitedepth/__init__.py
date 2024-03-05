@@ -217,7 +217,10 @@ def coatingimage_analyzer(name, data):
             csvwriter.send([d.name for d in dataclasses.fields(ref.DataType)])
             csvwriter.send(dataclasses.astuple(ref.analyze()))
         if output_refimg:
-            cv2.imwrite(output_refimg, cv2.cvtColor(ref.draw(), cv2.COLOR_BGR2RGB))
+            cv2.imwrite(
+                output_refimg,
+                cv2.cvtColor(ref.draw(**refdata.get("draw", {})), cv2.COLOR_BGR2RGB),
+            )
     finally:
         if output_refdata:
             csvwriter.close()
@@ -233,7 +236,12 @@ def coatingimage_analyzer(name, data):
             csvwriter.send([d.name for d in dataclasses.fields(subst.DataType)])
             csvwriter.send(dataclasses.astuple(subst.analyze()))
         if output_substimg:
-            cv2.imwrite(output_substimg, cv2.cvtColor(subst.draw(), cv2.COLOR_BGR2RGB))
+            cv2.imwrite(
+                output_substimg,
+                cv2.cvtColor(
+                    subst.draw(**substdata.get("draw", {})), cv2.COLOR_BGR2RGB
+                ),
+            )
     finally:
         if output_substdata:
             csvwriter.close()
@@ -250,12 +258,17 @@ def coatingimage_analyzer(name, data):
             cv2.THRESH_BINARY | cv2.THRESH_OTSU,
         )
         layerdata = data.get("layer", {})
-        layer = LayerType(tgtimg, subst, **layerdata)
+        layer = LayerType(tgtimg, subst, **layerdata.get("parameters", {}))
         if output_layerdata:
             csvwriter.send([d.name for d in dataclasses.fields(layer.DataType)])
             csvwriter.send(dataclasses.astuple(layer.analyze()))
         if output_layerimg:
-            cv2.imwrite(output_layerimg, cv2.cvtColor(layer.draw(), cv2.COLOR_BGR2RGB))
+            cv2.imwrite(
+                output_layerimg,
+                cv2.cvtColor(
+                    layer.draw(**layerdata.get("draw", {})), cv2.COLOR_BGR2RGB
+                ),
+            )
     finally:
         if output_layerdata:
             csvwriter.close()
@@ -339,7 +352,10 @@ def coatingvideo_analyzer(name, data):
             csvwriter.send([d.name for d in dataclasses.fields(ref.DataType)])
             csvwriter.send(dataclasses.astuple(ref.analyze()))
         if output_refimg:
-            cv2.imwrite(output_refimg, cv2.cvtColor(ref.draw(), cv2.COLOR_BGR2RGB))
+            cv2.imwrite(
+                output_refimg,
+                cv2.cvtColor(ref.draw(**refdata.get("draw", {})), cv2.COLOR_BGR2RGB),
+            )
     finally:
         if output_refdata:
             csvwriter.close()
@@ -355,7 +371,12 @@ def coatingvideo_analyzer(name, data):
             csvwriter.send([d.name for d in dataclasses.fields(subst.DataType)])
             csvwriter.send(dataclasses.astuple(subst.analyze()))
         if output_substimg:
-            cv2.imwrite(output_substimg, cv2.cvtColor(subst.draw(), cv2.COLOR_BGR2RGB))
+            cv2.imwrite(
+                output_substimg,
+                cv2.cvtColor(
+                    subst.draw(**substdata.get("draw", {})), cv2.COLOR_BGR2RGB
+                ),
+            )
     finally:
         if output_substdata:
             csvwriter.close()
@@ -387,13 +408,17 @@ def coatingvideo_analyzer(name, data):
                 255,
                 cv2.THRESH_BINARY | cv2.THRESH_OTSU,
             )
-            layer = LayerType(tgtimg, subst, **layerdata)
+            layer = LayerType(tgtimg, subst, **layerdata.get("parameters", {}))
             if output_layerdata:
                 if i == 0:
                     csvwriter.send([d.name for d in dataclasses.fields(layer.DataType)])
                 csvwriter.send(dataclasses.astuple(layer.analyze()))
             if output_layervid:
-                vidwriter.write(cv2.cvtColor(layer.draw(), cv2.COLOR_BGR2RGB))
+                vidwriter.write(
+                    cv2.cvtColor(
+                        layer.draw(**layerdata.get("draw", {})), cv2.COLOR_BGR2RGB
+                    )
+                )
     finally:
         cap.release()
         if output_layerdata:
