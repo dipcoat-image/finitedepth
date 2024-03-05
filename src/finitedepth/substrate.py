@@ -479,7 +479,7 @@ class RectSubstrate(PolySubstrateBase[ReferenceBase, RectSubstData]):
         """Draw substrate image and show vertices and sidelines.
 
         Arguments:
-            mode (`{'image', 'contour'}`): Draw mode.
+            mode ({`'image', 'contour'`}): Draw mode.
                 `'image'` draws :meth:`image`, while `'contour'` draws :meth:`contour`.
             vertice_color: Vertice marker color for :func:`cv2.drawMarker`.
             vertice_thickness: Vertice marker thickness for :func:`cv2.drawMarker`.
