@@ -8,6 +8,7 @@ User reference
    :titlesonly:
 
    ../command-reference
+   ../analyzer-reference
 
 .. _module-reference:
 

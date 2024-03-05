@@ -38,6 +38,7 @@ autoapi_root = "reference"
 def autoapi_skip(app, what, name, obj, skip, options):
     if what == "module" and name in [
         "finitedepth.__main__",
+        "finitedepth.cache",
     ]:
         skip = True
     return skip

@@ -66,8 +66,8 @@ dev = [
 ]
 
 [project.entry-points."finitedepth.analyzers"]
-CoatingImage = "finitedepth.analyzers:coatingimage_analyzer"
-CoatingVideo = "finitedepth.analyzers:coatingvideo_analyzer"
+CoatingImage = "finitedepth:coatingimage_analyzer"
+CoatingVideo = "finitedepth:coatingvideo_analyzer"
 
 [project.entry-points."finitedepth.references"]
 Reference = "finitedepth.reference:Reference"

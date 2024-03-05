@@ -6,6 +6,8 @@ To analyze with command line, specify the parameters in configuration file(s) an
 """
 
 import argparse
+import csv
+import dataclasses
 import glob
 import json
 import logging
@@ -15,6 +17,7 @@ import sys
 from importlib.metadata import entry_points
 from importlib.resources import files
 
+import cv2
 import yaml
 
 from .coatinglayer import CoatingLayer, CoatingLayerBase, RectLayerShape
@@ -138,6 +141,318 @@ def analyze_files(
                 ok = False
                 continue
     return ok
+
+
+def coatingimage_analyzer(name, data):
+    """Image analysis for a single image of coated substrate.
+
+    Coating layer is analyzed by constructing :class:`CoatingLayerBase` implementation.
+    The analyzer defines the following fields in configuration entry:
+
+    - **referencePath** (`str`): Path to the reference image file.
+        Image is converted to binary by Otsu's thresholding.
+    - **targetPath** (`str`): Path to the target image file.
+        Image is converted to binary by Otsu's thresholding.
+    - **reference**, **substrate**, **layer** (`mapping`, optional):
+        - **type** (`str`, optional): Registered class constructor.
+          The constructors are found from entry point groups
+          `'finitedepth.(references|substrates|coatinglayers)'`.
+        - **parameters** (`mapping`, optional): Any additional parameter
+          for class constructor.
+        - **draw** (`mapping`, optional): Parameters for :meth:`draw`.
+    - **output** (`mapping`, optional):
+        - **(reference|substrate|layer)Data** (`str`, optional):
+          Path to the output CSV file containing analysis result.
+          The results are acquired from :meth:`analyze`.
+        - **(reference|substrate|layer)Image** (`str`, optional):
+          Path to the output image file containing visualization result.
+          The results are acquired from :meth:`draw`.
+
+    The default constructors used when **type** is not specified are :class:`Reference`,
+    :class:`Substrate`, and :class:`CoatingLayer`.
+
+    The following is the example for an entry in YAML configuration file:
+
+    .. code-block:: yaml
+
+        foo:
+            type: CoatingImage
+            referencePath: foo-ref.png
+            targetPath: foo-target.png
+            reference:
+                parameters:
+                    templateROI: [10, 10, 1250, 200]
+                    substrateROI: [100, 100, 1200, 500]
+            layer:
+                draw:
+                    layer_color: [0, 255, 0]
+            output:
+                layerImage: output/foo.jpg
+                layerData: output/foo.csv
+    """
+    output = data.get("output", {})
+    output_refdata = _makedir(output.get("referenceData", ""))
+    output_refimg = _makedir(output.get("referenceImage", ""))
+    output_substdata = _makedir(output.get("substrateData", ""))
+    output_substimg = _makedir(output.get("substrateImage", ""))
+    output_layerdata = _makedir(output.get("layerData", ""))
+    output_layerimg = _makedir(output.get("layerImage", ""))
+
+    RefType, SubstType, LayerType = _load_types(data)
+
+    if output_refdata:
+        csvwriter = _CsvWriter(output_refdata)
+        next(csvwriter)
+
+    try:
+        _, refimg = cv2.threshold(
+            cv2.imread(os.path.expandvars(data["referencePath"]), cv2.IMREAD_GRAYSCALE),
+            0,
+            255,
+            cv2.THRESH_BINARY | cv2.THRESH_OTSU,
+        )
+        refdata = data.get("reference", {})
+        ref = RefType(refimg, **refdata.get("parameters", {}))
+        if output_refdata:
+            csvwriter.send([d.name for d in dataclasses.fields(ref.DataType)])
+            csvwriter.send(dataclasses.astuple(ref.analyze()))
+        if output_refimg:
+            cv2.imwrite(output_refimg, cv2.cvtColor(ref.draw(), cv2.COLOR_BGR2RGB))
+    finally:
+        if output_refdata:
+            csvwriter.close()
+
+    if output_substdata:
+        csvwriter = _CsvWriter(output_substdata)
+        next(csvwriter)
+
+    try:
+        substdata = data.get("substrate", {})
+        subst = SubstType(ref, **substdata.get("parameters", {}))
+        if output_substdata:
+            csvwriter.send([d.name for d in dataclasses.fields(subst.DataType)])
+            csvwriter.send(dataclasses.astuple(subst.analyze()))
+        if output_substimg:
+            cv2.imwrite(output_substimg, cv2.cvtColor(subst.draw(), cv2.COLOR_BGR2RGB))
+    finally:
+        if output_substdata:
+            csvwriter.close()
+
+    if output_layerdata:
+        csvwriter = _CsvWriter(output_layerdata)
+        next(csvwriter)
+
+    try:
+        _, tgtimg = cv2.threshold(
+            cv2.imread(os.path.expandvars(data["targetPath"]), cv2.IMREAD_GRAYSCALE),
+            0,
+            255,
+            cv2.THRESH_BINARY | cv2.THRESH_OTSU,
+        )
+        layerdata = data.get("layer", {})
+        layer = LayerType(tgtimg, subst, **layerdata)
+        if output_layerdata:
+            csvwriter.send([d.name for d in dataclasses.fields(layer.DataType)])
+            csvwriter.send(dataclasses.astuple(layer.analyze()))
+        if output_layerimg:
+            cv2.imwrite(output_layerimg, cv2.cvtColor(layer.draw(), cv2.COLOR_BGR2RGB))
+    finally:
+        if output_layerdata:
+            csvwriter.close()
+
+
+def coatingvideo_analyzer(name, data):
+    """Image analysis for coated substrate video.
+
+    Coating layer is analyzed by constructing :class:`CoatingLayerBase` implementation.
+    The analyzer defines the following fields in configuration entry:
+
+    - **referencePath** (`str`): Path to the reference image file.
+        Image is converted to binary by Otsu's thresholding.
+    - **targetPath** (`str`): Path to the target video file.
+        Frames are converted to binary by Otsu's thresholding.
+    - **reference**, **substrate**, **layer** (`mapping`, optional):
+        - **type** (`str`, optional): Registered class constructor.
+          The constructors are found from entry point groups
+          `'finitedepth.(references|substrates|coatinglayers)'`.
+        - **parameters** (`mapping`, optional): Any additional parameter
+          for class constructor.
+        - **draw** (`mapping`, optional): Parameters for :meth:`draw`.
+    - **output** (`mapping`, optional):
+        - **(reference|substrate|layer)Data** (`str`, optional):
+          Path to the output CSV file containing analysis result.
+          The results are acquired from :meth:`analyze`.
+        - **(reference|substrate)Image** (`str`, optional):
+          Path to the output image file containing visualization result.
+          The results are acquired from :meth:`draw`.
+        - **layerVideo** (`str`, optional):
+          Path to the output video file containing visualization result.
+          The frames are acquired from :meth:`draw`. The codec is set to be the same as
+          the target video file.
+
+    The default constructors used when **type** is not specified are :class:`Reference`,
+    :class:`Substrate`, and :class:`CoatingLayer`.
+
+    The following is the example for an entry in YAML configuration file:
+
+    .. code-block:: yaml
+
+        foo:
+            type: CoatingImage
+            referencePath: foo-ref.png
+            targetPath: foo-target.mp4
+            reference:
+                parameters:
+                    templateROI: [10, 10, 1250, 200]
+                    substrateROI: [100, 100, 1200, 500]
+            layer:
+                draw:
+                    layer_color: [0, 255, 0]
+            output:
+                layerVideo: output/foo.mp4
+                layerData: output/foo.csv
+    """
+    output = data.get("output", {})
+    output_refdata = _makedir(output.get("referenceData", ""))
+    output_refimg = _makedir(output.get("referenceImage", ""))
+    output_substdata = _makedir(output.get("substrateData", ""))
+    output_substimg = _makedir(output.get("substrateImage", ""))
+    output_layerdata = _makedir(output.get("layerData", ""))
+    output_layervid = _makedir(output.get("layerVideo", ""))
+
+    RefType, SubstType, LayerType = _load_types(data)
+
+    if output_refdata:
+        csvwriter = _CsvWriter(output_refdata)
+        next(csvwriter)
+
+    try:
+        _, refimg = cv2.threshold(
+            cv2.imread(os.path.expandvars(data["referencePath"]), cv2.IMREAD_GRAYSCALE),
+            0,
+            255,
+            cv2.THRESH_BINARY | cv2.THRESH_OTSU,
+        )
+        refdata = data.get("reference", {})
+        ref = RefType(refimg, **refdata.get("parameters", {}))
+        if output_refdata:
+            csvwriter.send([d.name for d in dataclasses.fields(ref.DataType)])
+            csvwriter.send(dataclasses.astuple(ref.analyze()))
+        if output_refimg:
+            cv2.imwrite(output_refimg, cv2.cvtColor(ref.draw(), cv2.COLOR_BGR2RGB))
+    finally:
+        if output_refdata:
+            csvwriter.close()
+
+    if output_substdata:
+        csvwriter = _CsvWriter(output_substdata)
+        next(csvwriter)
+
+    try:
+        substdata = data.get("substrate", {})
+        subst = SubstType(ref, **substdata.get("parameters", {}))
+        if output_substdata:
+            csvwriter.send([d.name for d in dataclasses.fields(subst.DataType)])
+            csvwriter.send(dataclasses.astuple(subst.analyze()))
+        if output_substimg:
+            cv2.imwrite(output_substimg, cv2.cvtColor(subst.draw(), cv2.COLOR_BGR2RGB))
+    finally:
+        if output_substdata:
+            csvwriter.close()
+
+    if output_layerdata:
+        csvwriter = _CsvWriter(output_layerdata)
+        next(csvwriter)
+    cap = cv2.VideoCapture(os.path.expandvars(data["targetPath"]))
+    if output_layervid:
+        vidwriter = cv2.VideoWriter(
+            output_layervid,
+            int(cap.get(cv2.CAP_PROP_FOURCC)),
+            cap.get(cv2.CAP_PROP_FPS),
+            (
+                int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
+                int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
+            ),
+        )
+
+    try:
+        layerdata = data.get("layer", {})
+        for i in range(int(cap.get(cv2.CAP_PROP_FRAME_COUNT))):
+            ok, frame = cap.read()
+            if not ok:
+                break
+            _, tgtimg = cv2.threshold(
+                cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY),
+                0,
+                255,
+                cv2.THRESH_BINARY | cv2.THRESH_OTSU,
+            )
+            layer = LayerType(tgtimg, subst, **layerdata)
+            if output_layerdata:
+                if i == 0:
+                    csvwriter.send([d.name for d in dataclasses.fields(layer.DataType)])
+                csvwriter.send(dataclasses.astuple(layer.analyze()))
+            if output_layervid:
+                vidwriter.write(cv2.cvtColor(layer.draw(), cv2.COLOR_BGR2RGB))
+    finally:
+        cap.release()
+        if output_layerdata:
+            csvwriter.close()
+        if output_layervid:
+            vidwriter.release()
+
+
+def _makedir(path: str) -> str:
+    path = os.path.expandvars(path)
+    dirname, _ = os.path.split(path)
+    if dirname:
+        os.makedirs(dirname, exist_ok=True)
+    return path
+
+
+def _load_types(
+    data: dict,
+) -> tuple[type[ReferenceBase], type[SubstrateBase], type[CoatingLayerBase]]:
+    REFERENCES = {}
+    for ep in entry_points(group="finitedepth.references"):
+        REFERENCES[ep.name] = ep
+    SUBSTRATES = {}
+    for ep in entry_points(group="finitedepth.substrates"):
+        SUBSTRATES[ep.name] = ep
+    LAYERS = {}
+    for ep in entry_points(group="finitedepth.coatinglayers"):
+        LAYERS[ep.name] = ep
+
+    refdata = data.get("reference", {})
+    reftype = refdata.get("type", "")
+    if reftype:
+        RefType = REFERENCES[reftype].load()
+    else:
+        RefType = Reference
+
+    substdata = data.get("substrate", {})
+    substtype = substdata.get("type", "")
+    if substtype:
+        SubstType = SUBSTRATES[substtype].load()
+    else:
+        SubstType = Substrate
+
+    layerdata = data.get("layer", {})
+    layertype = layerdata.get("type", "")
+    if layertype:
+        LayerType = LAYERS[layertype].load()
+    else:
+        LayerType = CoatingLayer
+
+    return (RefType, SubstType, LayerType)
+
+
+def _CsvWriter(path):
+    with open(path, "w", newline="") as f:
+        writer = csv.writer(f)
+        while True:
+            row = yield
+            writer.writerow(row)
 
 
 def main():
