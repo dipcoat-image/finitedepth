@@ -77,6 +77,18 @@ f = open("help-finitedepth-samples.txt", "w")
 subprocess.call(["finitedepth", "samples", "-h"], stdout=f)
 f.close()
 
+f = open("help-finitedepth-references.txt", "w")
+subprocess.call(["finitedepth", "references", "-h"], stdout=f)
+f.close()
+
+f = open("help-finitedepth-substrates.txt", "w")
+subprocess.call(["finitedepth", "substrates", "-h"], stdout=f)
+f.close()
+
+f = open("help-finitedepth-coatinglayers.txt", "w")
+subprocess.call(["finitedepth", "coatinglayers", "-h"], stdout=f)
+f.close()
+
 f = open("help-finitedepth-analyze.txt", "w")
 subprocess.call(["finitedepth", "analyze", "-h"], stdout=f)
 f.close()

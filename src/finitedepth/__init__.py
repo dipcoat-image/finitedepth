@@ -471,8 +471,8 @@ def main():
 
     samples = subparsers.add_parser(
         "samples",
-        description="Print path to sample directory.",
-        help="print path to sample directory",
+        description="Show path to sample directory.",
+        help="show path to sample directory",
     ).add_mutually_exclusive_group()
     samples.add_argument(
         "plugin",
@@ -485,6 +485,22 @@ def main():
         "--list",
         action="store_true",
         help="list plugin names",
+    )
+
+    subparsers.add_parser(
+        "references",
+        description="List installed reference constructors.",
+        help="list installed reference constructors",
+    )
+    subparsers.add_parser(
+        "substrates",
+        description="List installed substrate constructors.",
+        help="list installed substrate constructors",
+    )
+    subparsers.add_parser(
+        "coatinglayers",
+        description="List installed coating layer constructors.",
+        help="list installed coating layer constructors",
     )
 
     analyze = subparsers.add_parser(
@@ -551,6 +567,17 @@ def main():
                     f"Unknown plugin: '{args.plugin}' (use '-l' option to list plugins)"
                 )
                 sys.exit(1)
+    elif args.command in ["references", "substrates", "coatinglayers"]:
+        header = [("NAME", "PACKAGE")]
+        models = [
+            (ep.name, ep.value.split(".")[0])
+            for ep in entry_points(group=f"finitedepth.{args.command}")
+        ]
+        col0_max = max(len(m[0]) for m in header + models)
+        space = 3
+        for col0, col1 in header + models:
+            line = col0.ljust(col0_max) + " " * space + col1
+            print(line)
     elif args.command == "analyze":
         ok = analyze_files(*args.file, recursive=args.recursive, entries=args.entry)
         if not ok:

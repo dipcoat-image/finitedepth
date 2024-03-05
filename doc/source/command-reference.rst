@@ -12,6 +12,24 @@ samples
 .. literalinclude:: help-finitedepth-samples.txt
     :language: text
 
+references
+----------
+
+.. literalinclude:: help-finitedepth-references.txt
+    :language: text
+
+substrates
+----------
+
+.. literalinclude:: help-finitedepth-substrates.txt
+    :language: text
+
+coatinglayers
+-------------
+
+.. literalinclude:: help-finitedepth-coatinglayers.txt
+    :language: text
+
 analyze
 -------
 
