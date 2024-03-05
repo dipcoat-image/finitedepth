@@ -18,6 +18,7 @@ from importlib.metadata import entry_points
 from importlib.resources import files
 
 import cv2
+import tqdm  # type: ignore
 import yaml
 
 from .coatinglayer import CoatingLayer, CoatingLayerBase, RectLayerShape
@@ -205,22 +206,25 @@ def coatingimage_analyzer(name, data):
         next(csvwriter)
 
     try:
-        _, refimg = cv2.threshold(
-            cv2.imread(os.path.expandvars(data["referencePath"]), cv2.IMREAD_GRAYSCALE),
-            0,
-            255,
-            cv2.THRESH_BINARY | cv2.THRESH_OTSU,
-        )
         refdata = data.get("reference", {})
-        ref = RefType(refimg, **refdata.get("parameters", {}))
-        if output_refdata:
-            csvwriter.send([d.name for d in dataclasses.fields(ref.DataType)])
-            csvwriter.send(dataclasses.astuple(ref.analyze()))
-        if output_refimg:
-            cv2.imwrite(
-                output_refimg,
-                cv2.cvtColor(ref.draw(**refdata.get("draw", {})), cv2.COLOR_BGR2RGB),
+        for path in tqdm.tqdm([data["referencePath"]], desc=f"{name} (ref)"):
+            _, refimg = cv2.threshold(
+                cv2.imread(os.path.expandvars(path), cv2.IMREAD_GRAYSCALE),
+                0,
+                255,
+                cv2.THRESH_BINARY | cv2.THRESH_OTSU,
             )
+            ref = RefType(refimg, **refdata.get("parameters", {}))
+            if output_refdata:
+                csvwriter.send([d.name for d in dataclasses.fields(ref.DataType)])
+                csvwriter.send(dataclasses.astuple(ref.analyze()))
+            if output_refimg:
+                cv2.imwrite(
+                    output_refimg,
+                    cv2.cvtColor(
+                        ref.draw(**refdata.get("draw", {})), cv2.COLOR_BGR2RGB
+                    ),
+                )
     finally:
         if output_refdata:
             csvwriter.close()
@@ -231,17 +235,18 @@ def coatingimage_analyzer(name, data):
 
     try:
         substdata = data.get("substrate", {})
-        subst = SubstType(ref, **substdata.get("parameters", {}))
-        if output_substdata:
-            csvwriter.send([d.name for d in dataclasses.fields(subst.DataType)])
-            csvwriter.send(dataclasses.astuple(subst.analyze()))
-        if output_substimg:
-            cv2.imwrite(
-                output_substimg,
-                cv2.cvtColor(
-                    subst.draw(**substdata.get("draw", {})), cv2.COLOR_BGR2RGB
-                ),
-            )
+        for reference in tqdm.tqdm([ref], desc=f"{name} (subst)"):
+            subst = SubstType(reference, **substdata.get("parameters", {}))
+            if output_substdata:
+                csvwriter.send([d.name for d in dataclasses.fields(subst.DataType)])
+                csvwriter.send(dataclasses.astuple(subst.analyze()))
+            if output_substimg:
+                cv2.imwrite(
+                    output_substimg,
+                    cv2.cvtColor(
+                        subst.draw(**substdata.get("draw", {})), cv2.COLOR_BGR2RGB
+                    ),
+                )
     finally:
         if output_substdata:
             csvwriter.close()
@@ -251,24 +256,25 @@ def coatingimage_analyzer(name, data):
         next(csvwriter)
 
     try:
-        _, tgtimg = cv2.threshold(
-            cv2.imread(os.path.expandvars(data["targetPath"]), cv2.IMREAD_GRAYSCALE),
-            0,
-            255,
-            cv2.THRESH_BINARY | cv2.THRESH_OTSU,
-        )
         layerdata = data.get("layer", {})
-        layer = LayerType(tgtimg, subst, **layerdata.get("parameters", {}))
-        if output_layerdata:
-            csvwriter.send([d.name for d in dataclasses.fields(layer.DataType)])
-            csvwriter.send(dataclasses.astuple(layer.analyze()))
-        if output_layerimg:
-            cv2.imwrite(
-                output_layerimg,
-                cv2.cvtColor(
-                    layer.draw(**layerdata.get("draw", {})), cv2.COLOR_BGR2RGB
-                ),
+        for path in tqdm.tqdm([data["targetPath"]], desc=f"{name} (layer)"):
+            _, tgtimg = cv2.threshold(
+                cv2.imread(os.path.expandvars(path), cv2.IMREAD_GRAYSCALE),
+                0,
+                255,
+                cv2.THRESH_BINARY | cv2.THRESH_OTSU,
             )
+            layer = LayerType(tgtimg, subst, **layerdata.get("parameters", {}))
+            if output_layerdata:
+                csvwriter.send([d.name for d in dataclasses.fields(layer.DataType)])
+                csvwriter.send(dataclasses.astuple(layer.analyze()))
+            if output_layerimg:
+                cv2.imwrite(
+                    output_layerimg,
+                    cv2.cvtColor(
+                        layer.draw(**layerdata.get("draw", {})), cv2.COLOR_BGR2RGB
+                    ),
+                )
     finally:
         if output_layerdata:
             csvwriter.close()
@@ -340,22 +346,25 @@ def coatingvideo_analyzer(name, data):
         next(csvwriter)
 
     try:
-        _, refimg = cv2.threshold(
-            cv2.imread(os.path.expandvars(data["referencePath"]), cv2.IMREAD_GRAYSCALE),
-            0,
-            255,
-            cv2.THRESH_BINARY | cv2.THRESH_OTSU,
-        )
         refdata = data.get("reference", {})
-        ref = RefType(refimg, **refdata.get("parameters", {}))
-        if output_refdata:
-            csvwriter.send([d.name for d in dataclasses.fields(ref.DataType)])
-            csvwriter.send(dataclasses.astuple(ref.analyze()))
-        if output_refimg:
-            cv2.imwrite(
-                output_refimg,
-                cv2.cvtColor(ref.draw(**refdata.get("draw", {})), cv2.COLOR_BGR2RGB),
+        for path in tqdm.tqdm([data["referencePath"]], desc=f"{name} (ref)"):
+            _, refimg = cv2.threshold(
+                cv2.imread(os.path.expandvars(path), cv2.IMREAD_GRAYSCALE),
+                0,
+                255,
+                cv2.THRESH_BINARY | cv2.THRESH_OTSU,
             )
+            ref = RefType(refimg, **refdata.get("parameters", {}))
+            if output_refdata:
+                csvwriter.send([d.name for d in dataclasses.fields(ref.DataType)])
+                csvwriter.send(dataclasses.astuple(ref.analyze()))
+            if output_refimg:
+                cv2.imwrite(
+                    output_refimg,
+                    cv2.cvtColor(
+                        ref.draw(**refdata.get("draw", {})), cv2.COLOR_BGR2RGB
+                    ),
+                )
     finally:
         if output_refdata:
             csvwriter.close()
@@ -366,17 +375,18 @@ def coatingvideo_analyzer(name, data):
 
     try:
         substdata = data.get("substrate", {})
-        subst = SubstType(ref, **substdata.get("parameters", {}))
-        if output_substdata:
-            csvwriter.send([d.name for d in dataclasses.fields(subst.DataType)])
-            csvwriter.send(dataclasses.astuple(subst.analyze()))
-        if output_substimg:
-            cv2.imwrite(
-                output_substimg,
-                cv2.cvtColor(
-                    subst.draw(**substdata.get("draw", {})), cv2.COLOR_BGR2RGB
-                ),
-            )
+        for reference in tqdm.tqdm([ref], desc=f"{name} (subst)"):
+            subst = SubstType(reference, **substdata.get("parameters", {}))
+            if output_substdata:
+                csvwriter.send([d.name for d in dataclasses.fields(subst.DataType)])
+                csvwriter.send(dataclasses.astuple(subst.analyze()))
+            if output_substimg:
+                cv2.imwrite(
+                    output_substimg,
+                    cv2.cvtColor(
+                        subst.draw(**substdata.get("draw", {})), cv2.COLOR_BGR2RGB
+                    ),
+                )
     finally:
         if output_substdata:
             csvwriter.close()
@@ -398,7 +408,9 @@ def coatingvideo_analyzer(name, data):
 
     try:
         layerdata = data.get("layer", {})
-        for i in range(int(cap.get(cv2.CAP_PROP_FRAME_COUNT))):
+        for i in tqdm.tqdm(
+            range(int(cap.get(cv2.CAP_PROP_FRAME_COUNT))), desc=f"{name} (layer)"
+        ):
             ok, frame = cap.read()
             if not ok:
                 break
