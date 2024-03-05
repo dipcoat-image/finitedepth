@@ -1,58 +1,13 @@
 entry1:
   type: CoatingImage
-  referencePath: $FINITEDEPTH_DATA/ref.png
-  targetPath: $FINITEDEPTH_DATA/coat.png
+  referencePath: $FINITEDEPTH_SAMPLES/ref.png
+  targetPath: $FINITEDEPTH_SAMPLES/coat.png
   reference:
-    type: Reference
     parameters:
       templateROI: [10, 10, 1250, 200]
       substrateROI: [100, 100, 1200, 500]
+  layer:
+    draw:
+      layer_color: [69, 132, 182]
   output:
-    layerData: output/layer.yml
-    layerImage: output/layer.png
-
-entry2:
-  type: CoatingImage
-  referencePath: $FINITEDEPTH_DATA/ref.png
-  targetPath: $FINITEDEPTH_DATA/coat.png
-  reference:
-    templateROI: [10, 10, 1250, 200]
-    substrateROI: [100, 100, 1200, 500]
-  substrate:
-    type: RectSubstrate
-    parameters:
-      Sigma: 3.0
-      Rho: 1.0
-      Theta: 0.01
-  coatinglayer:
-    type: RectLayerShape
-    parameters:
-      KernelSize: [1, 1]
-      ReconstructRadius: 50
-      RoughnessMeasure: DTW
-  output:
-    layerData: output/rectlayer.yml
-    layerImage: output/rectlayer.png
-
-entry3:
-  type: CoatingVideo
-  referencePath: $FINITEDEPTH_DATA/ref.png
-  targetPath: $FINITEDEPTH_DATA/coat.mp4
-  reference:
-    templateROI: [10, 10, 1250, 200]
-    substrateROI: [100, 100, 1200, 500]
-  substrate:
-    type: RectSubstrate
-    parameters:
-      Sigma: 3.0
-      Rho: 1.0
-      Theta: 0.01
-  coatinglayer:
-    type: RectLayerShape
-    parameters:
-      KernelSize: [1, 1]
-      ReconstructRadius: 50
-      RoughnessMeasure: DTW
-  output:
-    layerData: output/rectlayer.csv
-    layerVideo: output/rectlayer.mp4
+    layerImage: output/example1.png

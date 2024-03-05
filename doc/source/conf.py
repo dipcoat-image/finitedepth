@@ -4,12 +4,16 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 import os
+import shutil
 import subprocess
 
 import cv2
 import numpy as np
+import yaml
 
 from finitedepth import CoatingLayer, Reference, Substrate, get_sample_path
+
+os.environ["FINITEDEPTH_SAMPLES"] = get_sample_path()
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -97,6 +101,21 @@ cv2.imwrite(
     "_static/logo.png",
     cv2.cvtColor(np.dstack([logo, alpha]).astype(np.uint8), cv2.COLOR_RGBA2BGRA),
 )
+
+# Tutorial files
+
+with open("example.yml", "r") as f:
+    data = yaml.load(f, Loader=yaml.FullLoader)
+
+subprocess.call(
+    [
+        "finitedepth",
+        "analyze",
+        "example.yml",
+    ],
+)
+
+shutil.copy("output/example1.png", "_static/example1.png")
 
 # Reference file
 

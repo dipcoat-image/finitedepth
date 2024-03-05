@@ -1,5 +1,6 @@
 # Custom entries
-doc/source/_static/logo.png
+doc/source/_static
+doc/source/output/*
 doc/source/help-*.txt
 
 # Byte-compiled / optimized / DLL files
