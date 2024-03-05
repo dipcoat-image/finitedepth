@@ -126,27 +126,27 @@ class ReferenceBase(abc.ABC, Generic[DataTypeVar]):
     def draw(
         self,
         templateColor: tuple[int, int, int] = (255, 0, 0),
-        templateLineWidth: int = 1,
+        templateThickness: int = 1,
         substrateColor: tuple[int, int, int] = (0, 255, 0),
-        substrateLineWidth: int = 1,
+        substrateThickness: int = 1,
     ) -> npt.NDArray[np.uint8]:
         """Return visualization result in RGB format.
 
         Arguments:
             templateColor: Template ROI box color for :func:`cv2.rectangle`.
-            templateLineWidth: Template ROI box line width for :func:`cv2.rectangle`.
+            templateThickness: Template ROI box line width for :func:`cv2.rectangle`.
             substrateColor: Substrate ROI box color for :func:`cv2.rectangle`.
-            substrateLineWidth: Substrate ROI box line width for :func:`cv2.rectangle`.
+            substrateThickness: Substrate ROI box line width for :func:`cv2.rectangle`.
         """
         ret = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
 
-        if templateLineWidth > 0:
+        if templateThickness > 0:
             x0, y0, x1, y1 = self.templateROI
-            cv2.rectangle(ret, (x0, y0), (x1, y1), templateColor, templateLineWidth)
+            cv2.rectangle(ret, (x0, y0), (x1, y1), templateColor, templateThickness)
 
-        if substrateLineWidth > 0:
+        if substrateThickness > 0:
             x0, y0, x1, y1 = self.substrateROI
-            cv2.rectangle(ret, (x0, y0), (x1, y1), substrateColor, substrateLineWidth)
+            cv2.rectangle(ret, (x0, y0), (x1, y1), substrateColor, substrateThickness)
 
         return ret  # type: ignore[return-value]
 
