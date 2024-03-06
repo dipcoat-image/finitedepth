@@ -127,6 +127,10 @@ f = open("help-finitedepth-samples.txt", "w")
 subprocess.call(["finitedepth", "samples", "-h"], stdout=f)
 f.close()
 
+f = open("help-finitedepth-analyzers.txt", "w")
+subprocess.call(["finitedepth", "analyzers", "-h"], stdout=f)
+f.close()
+
 f = open("help-finitedepth-references.txt", "w")
 subprocess.call(["finitedepth", "references", "-h"], stdout=f)
 f.close()

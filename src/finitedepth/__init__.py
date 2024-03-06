@@ -519,6 +519,11 @@ def main():
     )
 
     subparsers.add_parser(
+        "analyzers",
+        description="List installed analyzers.",
+        help="list installed analyzers",
+    )
+    subparsers.add_parser(
         "references",
         description="List installed reference constructors.",
         help="list installed reference constructors",
@@ -598,7 +603,7 @@ def main():
                     f"Unknown plugin: '{args.plugin}' (use '-l' option to list plugins)"
                 )
                 sys.exit(1)
-    elif args.command in ["references", "substrates", "coatinglayers"]:
+    elif args.command in ["analyzers", "references", "substrates", "coatinglayers"]:
         header = [("NAME", "SOURCE")]
         eps = [
             (ep.name, ep.value.split(":")[0])

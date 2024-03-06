@@ -12,6 +12,12 @@ samples
 .. literalinclude:: help-finitedepth-samples.txt
     :language: text
 
+analyzers
+---------
+
+.. literalinclude:: help-finitedepth-analyzers.txt
+    :language: text
+
 references
 ----------
 

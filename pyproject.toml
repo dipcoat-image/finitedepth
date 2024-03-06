@@ -99,6 +99,7 @@ ignore = ["D004"]
 ignore-path = [
     "src",
     "doc/build",
+    "doc/source/*.txt"
 ]
 
 [tool.mypy]
