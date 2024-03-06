@@ -605,14 +605,14 @@ def main():
                 )
                 sys.exit(1)
     elif args.command in ["references", "substrates", "coatinglayers"]:
-        header = [("NAME", "PACKAGE")]
-        models = [
-            (ep.name, ep.value.split(".")[0])
+        header = [("NAME", "SOURCE")]
+        eps = [
+            (ep.name, ep.value.split(":")[0])
             for ep in entry_points(group=f"finitedepth.{args.command}")
         ]
-        col0_max = max(len(m[0]) for m in header + models)
+        col0_max = max(len(m[0]) for m in header + eps)
         space = 3
-        for col0, col1 in header + models:
+        for col0, col1 in header + eps:
             line = col0.ljust(col0_max) + " " * space + col1
             print(line)
     elif args.command == "analyze":
