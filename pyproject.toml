@@ -97,7 +97,7 @@ black = true
 [tool.doc8]
 ignore = ["D004"]
 ignore-path = [
-    "src",
+    "src/*.egg-info",
     "doc/build",
     "doc/source/*.txt"
 ]
