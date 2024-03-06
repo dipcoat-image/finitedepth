@@ -204,6 +204,7 @@ def coatingimage_analyzer(name, data):
     if output_refdata:
         csvwriter = _CsvWriter(output_refdata)
         next(csvwriter)
+        csvwriter.send([d.name for d in dataclasses.fields(RefType.DataType)])
 
     try:
         refdata = data.get("reference", {})
@@ -216,7 +217,6 @@ def coatingimage_analyzer(name, data):
             )
             ref = RefType(refimg, **refdata.get("parameters", {}))
             if output_refdata:
-                csvwriter.send([d.name for d in dataclasses.fields(ref.DataType)])
                 csvwriter.send(dataclasses.astuple(ref.analyze()))
             if output_refimg:
                 cv2.imwrite(
@@ -232,13 +232,13 @@ def coatingimage_analyzer(name, data):
     if output_substdata:
         csvwriter = _CsvWriter(output_substdata)
         next(csvwriter)
+        csvwriter.send([d.name for d in dataclasses.fields(SubstType.DataType)])
 
     try:
         substdata = data.get("substrate", {})
         for reference in tqdm.tqdm([ref], desc=f"{name} (subst)"):
             subst = SubstType(reference, **substdata.get("parameters", {}))
             if output_substdata:
-                csvwriter.send([d.name for d in dataclasses.fields(subst.DataType)])
                 csvwriter.send(dataclasses.astuple(subst.analyze()))
             if output_substimg:
                 cv2.imwrite(
@@ -254,6 +254,7 @@ def coatingimage_analyzer(name, data):
     if output_layerdata:
         csvwriter = _CsvWriter(output_layerdata)
         next(csvwriter)
+        csvwriter.send([d.name for d in dataclasses.fields(LayerType.DataType)])
 
     try:
         layerdata = data.get("layer", {})
@@ -266,7 +267,6 @@ def coatingimage_analyzer(name, data):
             )
             layer = LayerType(tgtimg, subst, **layerdata.get("parameters", {}))
             if output_layerdata:
-                csvwriter.send([d.name for d in dataclasses.fields(layer.DataType)])
                 csvwriter.send(dataclasses.astuple(layer.analyze()))
             if output_layerimg:
                 cv2.imwrite(
@@ -344,6 +344,7 @@ def coatingvideo_analyzer(name, data):
     if output_refdata:
         csvwriter = _CsvWriter(output_refdata)
         next(csvwriter)
+        csvwriter.send([d.name for d in dataclasses.fields(RefType.DataType)])
 
     try:
         refdata = data.get("reference", {})
@@ -356,7 +357,6 @@ def coatingvideo_analyzer(name, data):
             )
             ref = RefType(refimg, **refdata.get("parameters", {}))
             if output_refdata:
-                csvwriter.send([d.name for d in dataclasses.fields(ref.DataType)])
                 csvwriter.send(dataclasses.astuple(ref.analyze()))
             if output_refimg:
                 cv2.imwrite(
@@ -372,13 +372,13 @@ def coatingvideo_analyzer(name, data):
     if output_substdata:
         csvwriter = _CsvWriter(output_substdata)
         next(csvwriter)
+        csvwriter.send([d.name for d in dataclasses.fields(SubstType.DataType)])
 
     try:
         substdata = data.get("substrate", {})
         for reference in tqdm.tqdm([ref], desc=f"{name} (subst)"):
             subst = SubstType(reference, **substdata.get("parameters", {}))
             if output_substdata:
-                csvwriter.send([d.name for d in dataclasses.fields(subst.DataType)])
                 csvwriter.send(dataclasses.astuple(subst.analyze()))
             if output_substimg:
                 cv2.imwrite(
@@ -394,19 +394,10 @@ def coatingvideo_analyzer(name, data):
     if output_layerdata:
         csvwriter = _CsvWriter(output_layerdata)
         next(csvwriter)
-    cap = cv2.VideoCapture(os.path.expandvars(data["targetPath"]))
-    if output_layervid:
-        vidwriter = cv2.VideoWriter(
-            output_layervid,
-            int(cap.get(cv2.CAP_PROP_FOURCC)),
-            cap.get(cv2.CAP_PROP_FPS),
-            (
-                int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
-                int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-            ),
-        )
+        csvwriter.send([d.name for d in dataclasses.fields(LayerType.DataType)])
 
     try:
+        cap = cv2.VideoCapture(os.path.expandvars(data["targetPath"]))
         layerdata = data.get("layer", {})
         for i in tqdm.tqdm(
             range(int(cap.get(cv2.CAP_PROP_FRAME_COUNT))), desc=f"{name} (layer)"
@@ -422,15 +413,18 @@ def coatingvideo_analyzer(name, data):
             )
             layer = LayerType(tgtimg, subst, **layerdata.get("parameters", {}))
             if output_layerdata:
-                if i == 0:
-                    csvwriter.send([d.name for d in dataclasses.fields(layer.DataType)])
                 csvwriter.send(dataclasses.astuple(layer.analyze()))
             if output_layervid:
-                vidwriter.write(
-                    cv2.cvtColor(
-                        layer.draw(**layerdata.get("draw", {})), cv2.COLOR_BGR2RGB
+                frame = layer.draw(**layerdata.get("draw", {}))
+                if i == 0:
+                    H, W = frame.shape[:2]
+                    vidwriter = cv2.VideoWriter(
+                        output_layervid,
+                        int(cap.get(cv2.CAP_PROP_FOURCC)),
+                        cap.get(cv2.CAP_PROP_FPS),
+                        (W, H),
                     )
-                )
+                vidwriter.write(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
     finally:
         cap.release()
         if output_layerdata:
