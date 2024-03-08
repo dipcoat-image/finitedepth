@@ -148,6 +148,7 @@ def coatingimage_analyzer(name, data):
     """Image analysis for a single image of coated substrate.
 
     Coating layer is analyzed by constructing :class:`CoatingLayerBase` implementation.
+
     The analyzer defines the following fields in configuration entry:
 
     - **referencePath** (`str`): Path to the reference image file.
@@ -164,7 +165,8 @@ def coatingimage_analyzer(name, data):
     - **output** (`mapping`, optional):
         - **(reference|substrate|layer)Data** (`str`, optional):
           Path to the output CSV file containing analysis result.
-          The results are acquired from :meth:`analyze`.
+          The results are acquired from :meth:`analyze`. Invalid coating layer
+          gives empty data.
         - **(reference|substrate|layer)Image** (`str`, optional):
           Path to the output image file containing visualization result.
           The results are acquired from :meth:`draw`.
@@ -267,7 +269,11 @@ def coatingimage_analyzer(name, data):
             )
             layer = LayerType(tgtimg, subst, **layerdata.get("parameters", {}))
             if output_layerdata:
-                csvwriter.send(dataclasses.astuple(layer.analyze()))
+                if layer.valid():
+                    data = dataclasses.astuple(layer.analyze())
+                else:
+                    data = ()
+                csvwriter.send(data)
             if output_layerimg:
                 cv2.imwrite(
                     output_layerimg,
@@ -300,7 +306,8 @@ def coatingvideo_analyzer(name, data):
     - **output** (`mapping`, optional):
         - **(reference|substrate|layer)Data** (`str`, optional):
           Path to the output CSV file containing analysis result.
-          The results are acquired from :meth:`analyze`.
+          The results are acquired from :meth:`analyze`. Invalid coating layer
+          gives empty data.
         - **(reference|substrate)Image** (`str`, optional):
           Path to the output image file containing visualization result.
           The results are acquired from :meth:`draw`.
@@ -394,10 +401,13 @@ def coatingvideo_analyzer(name, data):
     if output_layerdata:
         csvwriter = _CsvWriter(output_layerdata)
         next(csvwriter)
-        csvwriter.send([d.name for d in dataclasses.fields(LayerType.DataType)])
+        csvwriter.send(
+            ["time (s)"] + [d.name for d in dataclasses.fields(LayerType.DataType)]
+        )
 
     try:
         cap = cv2.VideoCapture(os.path.expandvars(data["targetPath"]))
+        fps = cap.get(cv2.CAP_PROP_FPS)
         layerdata = data.get("layer", {})
         for i in tqdm.tqdm(
             range(int(cap.get(cv2.CAP_PROP_FRAME_COUNT))), desc=f"{name} (layer)"
@@ -413,7 +423,11 @@ def coatingvideo_analyzer(name, data):
             )
             layer = LayerType(tgtimg, subst, **layerdata.get("parameters", {}))
             if output_layerdata:
-                csvwriter.send(dataclasses.astuple(layer.analyze()))
+                if layer.valid():
+                    data = dataclasses.astuple(layer.analyze())
+                else:
+                    data = ()
+                csvwriter.send([i / fps, *data])
             if output_layervid:
                 frame = layer.draw(**layerdata.get("draw", {}))
                 if i == 0:
@@ -421,7 +435,7 @@ def coatingvideo_analyzer(name, data):
                     vidwriter = cv2.VideoWriter(
                         output_layervid,
                         int(cap.get(cv2.CAP_PROP_FOURCC)),
-                        cap.get(cv2.CAP_PROP_FPS),
+                        fps,
                         (W, H),
                     )
                 vidwriter.write(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
