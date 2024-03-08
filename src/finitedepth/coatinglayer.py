@@ -163,6 +163,15 @@ class CoatingLayerBase(abc.ABC, Generic[SubstTypeVar, DataTypeVar]):
         return ret
 
     @abc.abstractmethod
+    def valid(self) -> bool:
+        """Return if the analysis can be performed as expected.
+
+        Sometimes, the coating layer instance should be constructed but not analyzed at
+        all. For example, the coating video may contains frames where the capillary
+        bridge is not ruptured yet. This method allows analyzer to skip such instances.
+        """
+
+    @abc.abstractmethod
     def analyze(self) -> DataTypeVar:
         """Return analysis result as dataclass.
 
@@ -220,6 +229,10 @@ class CoatingLayer(CoatingLayerBase[SubstrateBase, CoatingLayerData]):
 
     DataType = CoatingLayerData
     """Return :obj:`CoatingLayerData`."""
+
+    def valid(self) -> bool:
+        """Return true, as analysis is not performed at all."""
+        return True
 
     def analyze(self):
         """Return empty :class:`CoatingLayerData`."""
@@ -470,6 +483,8 @@ class RectLayerShape(CoatingLayerBase[RectSubstrate, RectLayerShapeData]):
         right = C[0]
         roi_binimg = self.image[top:bot, left:right]
         return bool(np.any(np.all(roi_binimg, axis=1)))
+
+    valid = capbridge_broken
 
     @attrcache("_extracted_layer")
     def extract_layer(self) -> npt.NDArray[np.bool_]:
