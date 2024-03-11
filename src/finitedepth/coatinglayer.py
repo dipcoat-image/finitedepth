@@ -4,8 +4,6 @@
 .. [#sim] https://pypi.org/project/similaritymeasures/
 """
 
-# TODO: fix docstring formats
-
 import abc
 import dataclasses
 from typing import TYPE_CHECKING, Generic, TypeVar
