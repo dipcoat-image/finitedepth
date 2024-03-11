@@ -1,6 +1,6 @@
 """Analyze coating layer and similarity measures [#senin]_ [#sim]_.
 
-.. [#senin] P., Senin (2008)
+.. [#senin] Senin, P. (2008).
 .. [#sim] https://pypi.org/project/similaritymeasures/
 """
 
@@ -14,6 +14,7 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 from numba import njit  # type: ignore
+from numba.np.extensions import cross2d  # type: ignore
 from scipy.optimize import root  # type: ignore
 from scipy.spatial.distance import cdist  # type: ignore
 from shapely import LineString, offset_curve  # type: ignore
@@ -34,6 +35,7 @@ __all__ = [
     "parallel_curve",
     "acm",
     "owp",
+    "integfrechet_G1",
 ]
 
 
@@ -325,8 +327,16 @@ class RectLayerShape(CoatingLayerBase[RectSubstrate, RectLayerShapeData]):
             Imaginary circles with this radius are drawn on bottom corners of the
             substrate. Connected components not passing these circles are regarded as
             image artifacts.
-        roughness_measure ({`'DTW', 'SDTW'`}): Similarity measure to quantify roughness.
-            `'DTW'` is dynamic time warping and `'SDTW'` is its root mean square.
+        roughness_measure: Similarity measure to quantify roughness.
+
+            `'DTW'`
+                Dynamice time warping.
+            `'SDTW'`
+                Root mean square of dynamic time warping.
+            `'IFD'`
+                Approximated integral Fréchet distance. Requires *ifd_gsize*.
+        ifd_gsize: Grid size to approximate integral Fréchet distance.
+            Ignored if *roughness_measure* is not `'IFD'`.
         tempmatch: Pre-computed template matching result.
 
     Examples:
@@ -354,9 +364,9 @@ class RectLayerShape(CoatingLayerBase[RectSubstrate, RectLayerShapeData]):
             >>> from finitedepth import RectLayerShape
             >>> img = cv2.imread(get_sample_path("coat.png"), cv2.IMREAD_GRAYSCALE)
             >>> _, bin = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-            >>> coat = RectLayerShape(bin, subst, (1, 1), 50, "DTW")
+            >>> coat = RectLayerShape(bin, subst, (1, 1), 50, "IFD", 3)
             >>> plt.imshow(
-            ...     coat.draw(conformality_step=10, roughness_step=10)
+            ...     coat.draw(conformality_step=10, roughness_step=5)
             ... ) #doctest: +SKIP
     """
 
@@ -370,22 +380,25 @@ class RectLayerShape(CoatingLayerBase[RectSubstrate, RectLayerShapeData]):
         opening_ksize: tuple[int, int],
         reconstruct_radius: int,
         roughness_measure: str,
+        ifd_gsize: float | None = None,
         *,
         tempmatch: tuple[tuple[int, ...], float] | None = None,
     ):
         """Initialize the instance.
 
-        Check whether kernel size are zero or odd and roughness measure is either
-        `'DTW'` or `'SDTW'`.
+        Check whether kernel size are zero or odd and roughness measure is valid.
         """
         if not all(i == 0 or (i > 0 and i % 2 == 1) for i in opening_ksize):
             raise ValueError("Kernel size must be zero or odd.")
-        if roughness_measure not in ["DTW", "SDTW"]:
+        if roughness_measure not in ["DTW", "SDTW", "IFD"]:
             raise TypeError(f"Unknown roughness measure: {roughness_measure}")
+        if roughness_measure == "IFD" and ifd_gsize is None:
+            raise TypeError("ifd_gsize must be set if roughness_measure is IFD.")
         super().__init__(image, substrate, tempmatch=tempmatch)
         self._opening_ksize = opening_ksize
         self._reconstruct_radius = reconstruct_radius
         self._roughness_measure = roughness_measure
+        self._ifd_gsize = float(ifd_gsize) if ifd_gsize is not None else ifd_gsize
 
     @property
     def opening_ksize(self) -> tuple[int, int]:
@@ -401,6 +414,11 @@ class RectLayerShape(CoatingLayerBase[RectSubstrate, RectLayerShapeData]):
     def roughness_measure(self) -> str:
         """Similarity measure to quantify roughness."""
         return self._roughness_measure
+
+    @property
+    def ifd_gsize(self) -> float | None:
+        """Grid size to quantify roughness if :attr:`roughness_measure` is IFD."""
+        return self._ifd_gsize
 
     @attrcache("_layer_contours")
     def layer_contours(self) -> tuple[npt.NDArray[np.int32], ...]:
@@ -594,7 +612,8 @@ class RectLayerShape(CoatingLayerBase[RectSubstrate, RectLayerShapeData]):
         """DTW-based conformality of the coating layer.
 
         Returns:
-            Conformality and optimal pairs between substrate surface and layer surface.
+            Conformality between layer surface and substrate surface and its pair of
+            points in curve space.
         """
         if not self.interfaces():
             return (np.nan, np.empty((0, 2), dtype=np.int32))
@@ -612,40 +631,49 @@ class RectLayerShape(CoatingLayerBase[RectSubstrate, RectLayerShapeData]):
         d = dist[path[:, 0], path[:, 1]]
         d_avrg = mat[-1, -1] / len(path)
         C = 1 - np.sum(np.abs(d - d_avrg)) / mat[-1, -1]
-        return (float(C), path)
+        pairs = np.concatenate([surf[path[..., 0]], intf[path[..., 1]]], axis=1)
+        return (float(C), pairs)
 
     @attrcache("_roughness")
-    def roughness(self) -> tuple[float, npt.NDArray[np.int32]]:
-        """DTW-based surface roughness of the coating layer.
+    def roughness(self) -> tuple[float, npt.NDArray[np.float64]]:
+        """Similarity-based surface roughness of the coating layer.
 
         Returns:
-            Roughness and optimal pairs between layer surface and uniform layer.
+            Roughness between layer surface and uniform layer and its pair of points in
+            curve space.
         """
         I0, I1 = self.surface()
         surf = self.contour()[I0:I1]
         _, ul = self.uniform_layer()
 
         if surf.size == 0 or ul.size == 0:
-            return (np.nan, np.empty((0, 2), dtype=np.int32))
+            return (np.nan, np.empty((0, 2), dtype=np.float64))
 
+        ul_len = cv2.arcLength(ul.astype(np.float32), closed=False)
         if self.roughness_measure == "DTW":
-            ul_len = np.ceil(cv2.arcLength(ul.astype(np.float32), closed=False))
-            ul = equidistant_interpolate(ul, int(ul_len))
+            ul = equidistant_interpolate(ul, int(np.ceil(ul_len)))
             dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
             mat = acm(dist)
             path = owp(mat)
             roughness = mat[-1, -1] / len(path)
+            pairs = np.concatenate([surf[path[..., 0]], ul[path[..., 1]]], axis=1)
         elif self.roughness_measure == "SDTW":
-            ul_len = np.ceil(cv2.arcLength(ul.astype(np.float32), closed=False))
-            ul = equidistant_interpolate(ul, int(ul_len))
+            ul = equidistant_interpolate(ul, int(np.ceil(ul_len)))
             dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
             mat = acm(dist**2)
             path = owp(mat)
             roughness = np.sqrt(mat[-1, -1] / len(path))
+            pairs = np.concatenate([surf[path[..., 0]], ul[path[..., 1]]], axis=1)
+        elif self.roughness_measure == "IFD" and self.ifd_gsize is not None:
+            surf_len = cv2.arcLength(surf, closed=False)
+            dist, _, pairs = integfrechet_G1(
+                np.squeeze(surf, axis=1), np.squeeze(ul, axis=1), self.ifd_gsize
+            )
+            roughness = dist / (surf_len + ul_len)
         else:
-            path = np.empty((0, 2), dtype=np.int32)
-            roughness = -1
-        return (float(roughness), path)
+            roughness = np.nan
+            pairs = np.empty((0, 2), dtype=np.float64)
+        return (float(roughness), pairs)
 
     @attrcache("_max_thickness")
     def max_thickness(self) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
@@ -835,35 +863,20 @@ class RectLayerShape(CoatingLayerBase[RectSubstrate, RectLayerShapeData]):
         )
 
         if len(self.interfaces()) > 0:
-            I0, I1 = self.surface()
-            surf = self.contour()[I0:I1]
-            (i0, i1) = np.sort(np.concatenate(self.interfaces()).flatten())[[0, -1]]
-            intf = (self.substrate.contour() + self.substrate_point())[i0:i1]
-            _, path = self.conformality()
-            path = path[::conformality_step]
-            lines = np.concatenate([surf[path[..., 0]], intf[path[..., 1]]], axis=1)
+            _, pairs = self.conformality()
             cv2.polylines(
                 image,
-                lines,
+                pairs[::conformality_step],
                 isClosed=False,
                 color=conformality_color,
                 thickness=conformality_thickness,
             )
 
         if len(self.interfaces()) > 0:
-            I0, I1 = self.surface()
-            surf = self.contour()[I0:I1]
-            _, ul = self.uniform_layer()
-            ul_len = np.ceil(cv2.arcLength(ul.astype(np.float32), closed=False))
-            ul = equidistant_interpolate(ul, int(ul_len))
-            _, path = self.roughness()
-            path = path[::roughness_step]
-            lines = np.concatenate(
-                [surf[path[..., 0]], ul[path[..., 1]]], axis=1
-            ).astype(np.int32)
+            _, pairs = self.roughness()
             cv2.polylines(
                 image,
-                lines,
+                pairs.astype(np.int32)[::roughness_step],
                 isClosed=False,
                 color=roughness_color,
                 thickness=roughness_thickness,
@@ -975,7 +988,7 @@ def acm(cm: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         optimal path. If *cm* is empty, return value is an empty array.
     """
     p, q = cm.shape
-    ret = np.zeros((p, q), dtype=np.float64)
+    ret = np.empty((p, q), dtype=np.float64)
     if p == 0 or q == 0:
         return ret
 
@@ -1008,7 +1021,7 @@ def owp(acm: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
     if p == 0 or q == 0:
         return np.empty((0, 2), dtype=np.int32)
 
-    path = np.zeros((p + q - 1, 2), dtype=np.int32)
+    path = np.empty((p + q - 1, 2), dtype=np.int32)
     path_len = np.int32(0)
 
     i, j = p - 1, q - 1
@@ -1034,3 +1047,138 @@ def owp(acm: npt.NDArray[np.float64]) -> npt.NDArray[np.int32]:
         path_len += np.int32(1)
 
     return path[-(len(path) - path_len + 1) :: -1, :]
+
+
+def integfrechet_G1(
+    T1: npt.NDArray, T2: npt.NDArray, sigma: float
+) -> tuple[float, npt.NDArray[np.int32], npt.NDArray[np.float64]]:
+    """Approximate integral Fréchet distance over uniform grid [#mahesh]_.
+
+    Arguments:
+        T1, T2: Polyline vertices. shape=(nodes, 2).
+        sigma: Grid size.
+
+    Returns:
+        Approximated integral Fréchet distance between two polygonal curves, its
+        optimal path in parameter space, and its point pairs in curve space.
+
+    .. [#mahesh] Maheshwari, A., Sack, J. R., & Scheffer, C. (2018).
+    """
+    seg1 = np.linalg.norm(np.diff(T1, axis=0), axis=1)
+    seg2 = np.linalg.norm(np.diff(T2, axis=0), axis=1)
+    return _integfrechet_G1(T1, T2, seg1, seg2, sigma)
+
+
+@njit(cache=True)
+def _integfrechet_G1(T1, T2, seg1, seg2, sigma):
+    cumsum1 = np.cumsum(seg1)
+    h = cumsum1[-1]
+    cumsum2 = np.cumsum(seg2)
+    b = cumsum2[-1]
+
+    i1 = int(np.ceil(h / sigma) + 1)
+    dy = h / (i1 - 1)
+    i2 = int(np.ceil(b / sigma) + 1)
+    dx = b / (i2 - 1)
+    dists = np.empty((i1, i2, 2), dtype=np.float64)  # [..., 0]: +y, [..., 1]: +x
+
+    # acm
+    P, Q = T1[0], T2[0]
+    dists[0, 0] = [0, 0]
+    for i in range(1, i1):
+        dists[i, 0, 0] = dists[i - 1, 0, 0] + _gridedge_integrate(
+            Q, T1, seg1, cumsum1, dy * (i - 1), dy * i
+        )
+    for j in range(1, i2):
+        dists[0, j, 1] = dists[0, j - 1, 0] + _gridedge_integrate(
+            P, T2, seg2, cumsum2, dx * (j - 1), dx * j
+        )
+    for i in range(1, i1):
+        p = _polyline_pt(T1, seg1, cumsum1, dy * i)
+        for j in range(1, i2):
+            q = _polyline_pt(T2, seg2, cumsum2, dx * j)
+            dists[i, j, 0] = min(dists[i - 1, j]) + _gridedge_integrate(
+                q, T1, seg1, cumsum1, dy * (i - 1), dy * i
+            )
+            dists[i, j, 1] = min(dists[i, j - 1]) + _gridedge_integrate(
+                p, T2, seg2, cumsum2, dx * (j - 1), dx * j
+            )
+
+    # owp
+    path = np.empty((i1 + i2 - 1, 2), dtype=np.int32)
+    i, j = i1 - 1, i2 - 1
+    path[i + j] = [i, j]
+    while i > 0 or j > 0:
+        if i == 0:
+            j -= 1
+        elif j == 0:
+            i -= 1
+        else:
+            d = dists[i, j]
+            if min(d) == d[0]:
+                i -= 1
+            else:
+                j -= 1
+        path[i + j] = [i, j]
+
+    pairs = np.empty((i1 + i2 - 1, 2, 2), dtype=np.float64)
+    for i, j in path:
+        pairs[i + j, 0] = _polyline_pt(T1, seg1, cumsum1, dy * i)
+        pairs[i + j, 1] = _polyline_pt(T2, seg2, cumsum2, dx * j)
+
+    return min(dists[-1, -1]), path, pairs
+
+
+@njit(cache=True)
+def _polyline_pt(poly, seg, cumsum, param):
+    i = np.searchsorted(cumsum, param)
+    A, B = poly[i], poly[i + 1]
+    if i == 0:
+        t = param / seg[i]
+    else:
+        t = (param - cumsum[i - 1]) / seg[i]
+    return A + (B - A) * t
+
+
+@njit(cache=True)
+def _gridedge_integrate(p, poly, seg, cumsum, param1, param2):
+    i1, i2 = np.searchsorted(cumsum, param1), np.searchsorted(cumsum, param2)
+    a = _polyline_pt(poly, seg, cumsum, param1)
+    b = _polyline_pt(poly, seg, cumsum, param2)
+    if i1 == i2:
+        return _dist_integrate(a, b, p)
+    if i2 > i1:
+        ret = 0
+        prev = a.astype(np.float64)
+        for j in np.arange(i2 - i1):
+            pt = poly[i1 + j + 1]
+            ret += _dist_integrate(prev, pt, p)
+            prev = pt.astype(np.float64)
+        ret += _dist_integrate(pt, b, p)
+        return ret
+
+
+@njit(cache=True)
+def _dist_integrate(a, b, p):
+    ab = np.dot(b - a, b - a)
+    if ab < 1e-6:
+        return 0
+    if np.abs(cross2d(b - a, p - a)) < 1e-6:
+        t = np.dot(b - a, p - a) / ab
+        ap = np.dot(p - a, p - a)
+        bp = np.dot(p - b, p - b)
+        if t < 0:
+            return (bp - ap) / 2
+        elif t > 1:
+            return (ap - bp) / 2
+        else:
+            return (ap + bp) / 2
+    A = 2 * np.dot(b - a, a - p) / ab
+    B = np.dot(a - p, a - p) / ab
+    integ = (
+        4 * np.sqrt(1 + A + B)
+        + 2 * A * (-np.sqrt(B) + np.sqrt(1 + A + B))
+        - (A**2 - 4 * B)
+        * np.log((2 + A + 2 * np.sqrt(1 + A + B)) / (A + 2 * np.sqrt(B)))
+    ) / 8
+    return ab * integ
