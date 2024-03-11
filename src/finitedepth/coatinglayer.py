@@ -934,6 +934,7 @@ def images_ANDXOR(
     return img1
 
 
+@njit(cache=True)
 def equidistant_interpolate(points, n) -> npt.NDArray[np.float64]:
     """Interpolate points with equidistant new points.
 
@@ -948,14 +949,22 @@ def equidistant_interpolate(points, n) -> npt.NDArray[np.float64]:
         If ``N`` is zero, the shape is ``(n, 0, D)``.
     """
     # https://stackoverflow.com/a/19122075
+    N, _, D = points.shape
     if points.size == 0:
-        return np.empty((n, 0, points.shape[-1]), dtype=np.float64)
-    vec = np.diff(points, axis=0)
-    dist = np.linalg.norm(vec, axis=-1)
-    u = np.insert(np.cumsum(dist), 0, 0)
+        return np.empty((n, 0, D), dtype=np.float64)
+    dist = np.empty((N - 1), dtype=np.float64)
+    for i in range(N - 1):
+        dist[i] = np.linalg.norm(points[i + 1, 0, :] - points[i, 0, :])
+
+    u = np.empty((N,), dtype=np.float64)
+    u[0] = 0
+    u[1:] = np.cumsum(dist)
     t = np.linspace(0, u[-1], n)
-    ret = np.column_stack([np.interp(t, u, a) for a in np.squeeze(points, axis=1).T])
-    return ret.reshape((n,) + points.shape[1:])
+
+    ret = np.empty((n, 1, D))
+    for i in range(D):
+        ret[:, 0, i] = np.interp(t, u, points[:, 0, i])
+    return ret
 
 
 def parallel_curve(curve: npt.NDArray, dist: float) -> npt.NDArray:
