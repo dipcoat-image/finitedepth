@@ -362,9 +362,9 @@ class RectLayerShape(CoatingLayerBase[RectSubstrate, RectLayerShapeData]):
             >>> from finitedepth import RectLayerShape
             >>> img = cv2.imread(get_sample_path("coat.png"), cv2.IMREAD_GRAYSCALE)
             >>> _, bin = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-            >>> coat = RectLayerShape(bin, subst, (1, 1), 50, "IFD", 3)
+            >>> coat = RectLayerShape(bin, subst, (1, 1), 50, "IFD", 20)
             >>> plt.imshow(
-            ...     coat.draw(conformality_step=10, roughness_step=5)
+            ...     coat.draw(conformality_step=10, roughness_step=1)
             ... ) #doctest: +SKIP
     """
 
