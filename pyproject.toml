@@ -30,8 +30,14 @@ classifiers = [
     "Operating System :: Unix",
     "Operating System :: MacOS",
 ]
-dynamic = [
-    "dependencies",
+dependencies = [
+    "opencv-python-headless",
+    "numpy",
+    "scipy",
+    "shapely",
+    "numba",
+    "PyYAML",
+    "tqdm",
 ]
 
 [project.urls]
@@ -79,9 +85,6 @@ RectSubstrate = "finitedepth.substrate:RectSubstrate"
 [project.entry-points."finitedepth.coatinglayers"]
 CoatingLayer = "finitedepth.coatinglayer:CoatingLayer"
 RectLayerShape = "finitedepth.coatinglayer:RectLayerShape"
-
-[tool.setuptools.dynamic]
-dependencies = {file = ["requirements.txt"]}
 
 [tool.setuptools.packages.find]
 where = ["src"]

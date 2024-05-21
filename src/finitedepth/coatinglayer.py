@@ -15,7 +15,7 @@ from numba import njit  # type: ignore
 from numba.np.extensions import cross2d  # type: ignore
 from scipy.optimize import root  # type: ignore
 from scipy.spatial.distance import cdist  # type: ignore
-from shapely import LineString, offset_curve  # type: ignore
+from shapely import LineString, get_coordinates, offset_curve  # type: ignore
 
 from .cache import attrcache
 from .substrate import RectSubstrate, SubstrateBase
@@ -980,7 +980,7 @@ def parallel_curve(curve: npt.NDArray, dist: float) -> npt.NDArray:
     if dist == 0:
         return curve
     ret = offset_curve(LineString(np.squeeze(curve, axis=1)), dist, join_style="round")
-    return np.array(ret.coords)[:, np.newaxis]
+    return get_coordinates(ret)[:, np.newaxis]
 
 
 @njit(cache=True)
@@ -1071,6 +1071,7 @@ def integfrechet_G1(
 
     .. [#mahesh] Maheshwari, A., Sack, J. R., & Scheffer, C. (2018).
     """
+    T1, T2 = T1.astype(np.float_), T2.astype(np.float_)
     seg1 = np.linalg.norm(np.diff(T1, axis=0), axis=1)
     seg2 = np.linalg.norm(np.diff(T2, axis=0), axis=1)
     return _integfrechet_G1(T1, T2, seg1, seg2, sigma)
