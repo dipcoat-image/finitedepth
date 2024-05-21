@@ -13,6 +13,7 @@ import numpy as np
 import numpy.typing as npt
 from numba import njit  # type: ignore
 from numba.np.extensions import cross2d  # type: ignore
+from scipy.interpolate import splev, splprep  # type: ignore
 from scipy.optimize import root  # type: ignore
 from scipy.spatial.distance import cdist  # type: ignore
 from shapely import LineString, get_coordinates, offset_curve  # type: ignore
@@ -29,7 +30,7 @@ __all__ = [
     "RectLayerShape",
     "images_XOR",
     "images_ANDXOR",
-    "equidistant_interpolate",
+    "sample_polyline",
     "parallel_curve",
     "acm",
     "owp",
@@ -649,14 +650,14 @@ class RectLayerShape(CoatingLayerBase[RectSubstrate, RectLayerShapeData]):
 
         ul_len = cv2.arcLength(ul.astype(np.float32), closed=False)
         if self.roughness_measure == "DTW":
-            ul = equidistant_interpolate(ul, int(np.ceil(ul_len)))
+            ul = sample_polyline(ul, int(np.ceil(ul_len)))
             dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
             mat = acm(dist)
             path = owp(mat)
             roughness = mat[-1, -1] / len(path)
             pairs = np.concatenate([surf[path[..., 0]], ul[path[..., 1]]], axis=1)
         elif self.roughness_measure == "SDTW":
-            ul = equidistant_interpolate(ul, int(np.ceil(ul_len)))
+            ul = sample_polyline(ul, int(np.ceil(ul_len)))
             dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
             mat = acm(dist**2)
             path = owp(mat)
@@ -932,37 +933,28 @@ def images_ANDXOR(
     return img1
 
 
-@njit(cache=True)
-def equidistant_interpolate(points, n) -> npt.NDArray[np.float64]:
-    """Interpolate points with equidistant new points.
+def sample_polyline(vertices: npt.NDArray, n: int) -> npt.NDArray[np.float64]:
+    """Sample *n* points from polyline which consists of *vertices*.
 
     Arguments:
-        points: Points that are interpolated.
-            The shape must be ``(N, 1, D)`` where ``N`` is the number of points
-            and ``D`` is the dimension.
-        n: Number of new points.
+        vertices
+            An array whose shape is ``(N, 1, D)`` where ``N`` is the number of
+            points and ``D`` is the dimension.
+        n
+            Number of new points to be sampled.
 
     Returns:
-        Interpolated points. If ``N`` is positive number, the shape is ``(n, 1, D)``.
-        If ``N`` is zero, the shape is ``(n, 0, D)``.
+        pts
+            Sampled points of shape ``(n, 1, D)``.
+            If ``N`` is zero, an empty array of shape ``(n, 0, D)`` is returned.
     """
-    # https://stackoverflow.com/a/19122075
-    N, _, D = points.shape
-    if points.size == 0:
+    N, _, D = vertices.shape
+    if N == 0:
         return np.empty((n, 0, D), dtype=np.float64)
-    dist = np.empty((N - 1), dtype=np.float64)
-    for i in range(N - 1):
-        dist[i] = np.linalg.norm(points[i + 1, 0, :] - points[i, 0, :])
-
-    u = np.empty((N,), dtype=np.float64)
-    u[0] = 0
-    u[1:] = np.cumsum(dist)
-    t = np.linspace(0, u[-1], n)
-
-    ret = np.empty((n, 1, D))
-    for i in range(D):
-        ret[:, 0, i] = np.interp(t, u, points[:, 0, i])
-    return ret
+    tck, _ = splprep(vertices.squeeze(axis=1).T, s=0)
+    u = np.linspace(0, 1, n)
+    pts = np.stack(splev(u, tck)).T[:, np.newaxis, ...]
+    return pts
 
 
 def parallel_curve(curve: npt.NDArray, dist: float) -> npt.NDArray:
