@@ -946,11 +946,7 @@ def sample_polyline(vertices: npt.NDArray, n: int) -> npt.NDArray[np.float64]:
     Returns:
         pts
             Sampled points of shape ``(n, 1, D)``.
-            If ``N`` is zero, an empty array of shape ``(n, 0, D)`` is returned.
     """
-    N, _, D = vertices.shape
-    if N == 0:
-        return np.empty((n, 0, D), dtype=np.float64)
     tck, _ = splprep(vertices.squeeze(axis=1).T, s=0)
     u = np.linspace(0, 1, n)
     pts = np.stack(splev(u, tck)).T[:, np.newaxis, ...]
