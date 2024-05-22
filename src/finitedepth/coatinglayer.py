@@ -927,7 +927,7 @@ def sample_polyline(vertices: npt.NDArray, n: int) -> npt.NDArray[np.float64]:
     Notes:
         *vertices* must not have consecutive duplicate points.
     """
-    tck, _ = splprep(vertices.squeeze(axis=1).T, s=0)
+    tck, _ = splprep(vertices.squeeze(axis=1).T, k=1, s=0)
     u = np.linspace(0, 1, n)
     pts = np.stack(splev(u, tck)).T[:, np.newaxis, ...]
     return pts
