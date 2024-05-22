@@ -923,6 +923,9 @@ def sample_polyline(vertices: npt.NDArray, n: int) -> npt.NDArray[np.float64]:
     Returns:
         pts
             Sampled points of shape ``(n, 1, D)``.
+
+    Notes:
+        *vertices* must not have consecutive duplicate points.
     """
     tck, _ = splprep(vertices.squeeze(axis=1).T, s=0)
     u = np.linspace(0, 1, n)
