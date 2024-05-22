@@ -5,7 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.4] - 2024-05-22
+
+### Fixed
+
+- `coatinglayer.sample_polyline()` now uses 1st-order B-spline. This allows sampling polylines with 2 or 3 vertices.
+
+## [2.0.3] - 2024-05-22
 
 ### Changed
 
