@@ -34,7 +34,7 @@ dependencies = [
     "opencv-python-headless",
     "numpy",
     "scipy",
-    "shapely",
+    "shapely >= 2.0",
     "numba",
     "PyYAML",
     "tqdm",

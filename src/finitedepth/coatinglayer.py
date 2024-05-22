@@ -934,7 +934,7 @@ def images_ANDXOR(
 
 
 def sample_polyline(vertices: npt.NDArray, n: int) -> npt.NDArray[np.float64]:
-    """Sample *n* points from polyline which consists of *vertices*.
+    """Sample *n* points from a polyline which consists of *vertices*.
 
     Arguments:
         vertices
@@ -957,21 +957,21 @@ def sample_polyline(vertices: npt.NDArray, n: int) -> npt.NDArray[np.float64]:
     return pts
 
 
-def parallel_curve(curve: npt.NDArray, dist: float) -> npt.NDArray:
-    """Return parallel curve of *curve* with offset distance *dist*.
+def parallel_curve(vertices: npt.NDArray, dist: float) -> npt.NDArray[np.float64]:
+    """Parallel curve of a polyline of *vertices* with offset distance *dist*.
 
     Arguments:
-        curve: Vertices of a polyline.
-            The shape is ``(V, 1, D)``, where ``V`` is the number of vertices and
-            ``D`` is the dimension.
+        vertices
+            An array whose shape is ``(N, 1, D)`` where ``N`` is the number of
+            points and ``D`` is the dimension.
         dist: offset distance of the parallel curve.
 
     Returns:
-        Round-joint parallel curve of shape ``(V, 1, D)``.
+        Round-joint parallel curve of shape ``(N, 1, D)``.
     """
-    if dist == 0:
-        return curve
-    ret = offset_curve(LineString(np.squeeze(curve, axis=1)), dist, join_style="round")
+    ret = offset_curve(
+        LineString(np.squeeze(vertices, axis=1)), dist, join_style="round"
+    )
     return get_coordinates(ret)[:, np.newaxis]
 
 
