@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Generic, TypeVar
 import cv2
 import numpy as np
 import numpy.typing as npt
-from curvesimilarities import dtw_acm, dtw_owp  # type: ignore
+from curvesimilarities import dtw_owp, sdtw_owp  # type: ignore
 from scipy.interpolate import splev, splprep  # type: ignore
 from scipy.optimize import root  # type: ignore
 from scipy.spatial.distance import cdist  # type: ignore
@@ -607,13 +607,11 @@ class RectLayerShape(CoatingLayerBase[RectSubstrate, RectLayerShapeData]):
         I0, I1 = self.surface()
         surf = self.contour()[I0:I1]
 
-        dist = cdist(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))
-        mat = dtw_acm(dist)
-        path = dtw_owp(mat)
-        d = dist[path[:, 0], path[:, 1]]
-        d_avrg = mat[-1, -1] / len(path)
-        C = 1 - np.sum(np.abs(d - d_avrg)) / mat[-1, -1]
-        pairs = np.concatenate([surf[path[..., 0]], intf[path[..., 1]]], axis=1)
+        dtw, p = dtw_owp(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))
+        dtw_avrg = dtw / len(p)
+        d = cdist(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))[p[:, 0], p[:, 1]]
+        C = 1 - np.sum(np.abs(d - dtw_avrg)) / dtw
+        pairs = np.concatenate([surf[p[..., 0]], intf[p[..., 1]]], axis=1)
         return (float(C), pairs)
 
     @attrcache("_roughness")
@@ -634,17 +632,13 @@ class RectLayerShape(CoatingLayerBase[RectSubstrate, RectLayerShapeData]):
         ul_len = cv2.arcLength(ul.astype(np.float32), closed=False)
         if self.roughness_measure == "DTW":
             ul = sample_polyline(ul, int(np.ceil(ul_len)))
-            dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
-            mat = dtw_acm(dist)
-            path = dtw_owp(mat)
-            roughness = mat[-1, -1] / len(path)
+            dtw, path = dtw_owp(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
+            roughness = dtw / len(path)
             pairs = np.concatenate([surf[path[..., 0]], ul[path[..., 1]]], axis=1)
         elif self.roughness_measure == "SDTW":
             ul = sample_polyline(ul, int(np.ceil(ul_len)))
-            dist = cdist(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
-            mat = dtw_acm(dist**2)
-            path = dtw_owp(mat)
-            roughness = np.sqrt(mat[-1, -1] / len(path))
+            sdtw, path = sdtw_owp(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
+            roughness = np.sqrt(sdtw / len(path))
             pairs = np.concatenate([surf[path[..., 0]], ul[path[..., 1]]], axis=1)
         else:
             roughness = np.nan
