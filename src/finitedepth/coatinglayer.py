@@ -14,7 +14,6 @@ import numpy.typing as npt
 from curvesimilarities import dtw_owp, sdtw_owp  # type: ignore
 from scipy.interpolate import splev, splprep  # type: ignore
 from scipy.optimize import root  # type: ignore
-from scipy.spatial.distance import cdist  # type: ignore
 from shapely import LineString, get_coordinates, offset_curve  # type: ignore
 
 from .cache import attrcache
@@ -607,11 +606,10 @@ class RectLayerShape(CoatingLayerBase[RectSubstrate, RectLayerShapeData]):
         I0, I1 = self.surface()
         surf = self.contour()[I0:I1]
 
-        dtw, p = dtw_owp(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))
-        dtw_avrg = dtw / len(p)
-        d = cdist(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))[p[:, 0], p[:, 1]]
-        C = 1 - np.sum(np.abs(d - dtw_avrg)) / dtw
-        pairs = np.concatenate([surf[p[..., 0]], intf[p[..., 1]]], axis=1)
+        dtw, path = dtw_owp(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))
+        pair_dists = np.linalg.norm(surf[path[..., 0]] - intf[path[..., 1]], axis=-1)
+        C = 1 - np.sum(np.abs(pair_dists - dtw / len(path))) / dtw
+        pairs = np.concatenate([surf[path[..., 0]], intf[path[..., 1]]], axis=1)
         return (float(C), pairs)
 
     @attrcache("_roughness")
