@@ -555,27 +555,31 @@ def main():
 
     analyze = subparsers.add_parser(
         "analyze",
-        description="Parse configuration files and analyze.",
-        help="parse configuration files and analyze",
+        description="Analyze from configuration files.",
+        help="analyze from configuration files",
         epilog=(
             "Supported file formats: YAML, JSON.\n"
             "Refer to the package documentation for configuration file structure."
         ),
     )
     analyze.add_argument(
-        "file", type=str, nargs="+", help="glob pattern for configuration files"
+        "FILE", type=str, nargs="+", help="glob pattern for configuration file path"
     )
     analyze.add_argument(
         "-r",
         "--recursive",
         action="store_true",
-        help="recursively find configuration files",
+        help="allow '**' in FILE to be recursively matched",
     )
     analyze.add_argument(
         "-e",
         "--entry",
         action="append",
-        help="regex pattern for configuration file entries",
+        help=(
+            "analyze ENTRY from FILE; "
+            "ENTRY is a regex pattern; "
+            "can be passed multiple times"
+        ),
     )
 
     args = parser.parse_args()
@@ -629,6 +633,6 @@ def main():
             line = col0.ljust(col0_max) + " " * space + col1
             print(line)
     elif args.command == "analyze":
-        ok = analyze_files(*args.file, recursive=args.recursive, entries=args.entry)
+        ok = analyze_files(*args.FILE, recursive=args.recursive, entries=args.entry)
         if not ok:
             sys.exit(1)
