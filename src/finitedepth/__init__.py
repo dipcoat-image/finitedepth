@@ -108,6 +108,11 @@ def analyze_files(
         entry_patterns = []
 
     ok = True
+    if not glob_paths:
+        logging.error("No file matched.")
+        ok = False
+        return ok
+
     for path in glob_paths:
         _, ext = os.path.splitext(path)
         ext = ext.lstrip(os.path.extsep).lower()
