@@ -110,9 +110,12 @@ def analyze_files(
     ok = True
     if not glob_paths:
         logging.error("No file matched.")
-        ok = False
-        return ok
+        return False
 
+    entry_matched = False
+    if not entry_patterns:
+        # Entry not specified; any entry is fine (even if the file has no entry)
+        entry_matched = True
     for path in glob_paths:
         _, ext = os.path.splitext(path)
         ext = ext.lstrip(os.path.extsep).lower()
@@ -126,6 +129,8 @@ def analyze_files(
                     logging.error(f"Skipping file: '{path}' (format not supported)")
                     ok = False
                     continue
+            if data is None:
+                data = dict()
         except FileNotFoundError:
             logging.error(f"Skipping file: '{path}' (does not exist)")
             ok = False
@@ -133,6 +138,7 @@ def analyze_files(
         for k, v in data.items():
             if entry_patterns and all([p.fullmatch(k) is None for p in entry_patterns]):
                 continue
+            entry_matched = True
             try:
                 typename = v["type"]
                 analyzer = ANALYZERS.get(typename, None)
@@ -146,6 +152,10 @@ def analyze_files(
                 logging.exception(f"Skipping entry: '{path}::{k}' (exception raised)")
                 ok = False
                 continue
+
+    if not entry_matched:
+        logging.error("No entry matched.")
+        return False
     return ok
 
 
