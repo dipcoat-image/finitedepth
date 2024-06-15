@@ -101,6 +101,9 @@ def analyze_files(
     glob_paths = []
     for path in paths:
         glob_paths.extend(glob.glob(os.path.expandvars(path), recursive=recursive))
+    if not glob_paths:
+        logging.error("No file matched.")
+        return False
 
     if entries is not None:
         entry_patterns = [re.compile(e) for e in entries]
@@ -108,10 +111,6 @@ def analyze_files(
         entry_patterns = []
 
     ok = True
-    if not glob_paths:
-        logging.error("No file matched.")
-        return False
-
     entry_matched = False
     if not entry_patterns:
         # Entry not specified; any entry is fine (even if the file has no entry)
