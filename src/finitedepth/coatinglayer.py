@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Generic, TypeVar
 import cv2
 import numpy as np
 import numpy.typing as npt
-from curvesimilarities import dtw_owp, sdtw_owp  # type: ignore
+from curvesimilarities import dtw_owp  # type: ignore
 from scipy.interpolate import splev, splprep  # type: ignore
 from scipy.optimize import root  # type: ignore
 from shapely import LineString, get_coordinates, offset_curve  # type: ignore
@@ -606,7 +606,9 @@ class RectLayerShape(CoatingLayerBase[RectSubstrate, RectLayerShapeData]):
         I0, I1 = self.surface()
         surf = self.contour()[I0:I1]
 
-        dtw, path = dtw_owp(np.squeeze(surf, axis=1), np.squeeze(intf, axis=1))
+        dtw, path = dtw_owp(
+            np.squeeze(surf, axis=1), np.squeeze(intf, axis=1), dist="euclidean"
+        )
         pair_dists = np.linalg.norm(surf[path[..., 0]] - intf[path[..., 1]], axis=-1)
         C = 1 - np.sum(np.abs(pair_dists - dtw / len(path))) / dtw
         pairs = np.concatenate([surf[path[..., 0]], intf[path[..., 1]]], axis=1)
@@ -630,12 +632,18 @@ class RectLayerShape(CoatingLayerBase[RectSubstrate, RectLayerShapeData]):
         ul_len = cv2.arcLength(ul.astype(np.float32), closed=False)
         if self.roughness_measure == "DTW":
             ul = sample_polyline(ul, int(np.ceil(ul_len)))
-            dtw, path = dtw_owp(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
+            dtw, path = dtw_owp(
+                np.squeeze(surf, axis=1), np.squeeze(ul, axis=1), dist="euclidean"
+            )
             roughness = dtw / len(path)
             pairs = np.concatenate([surf[path[..., 0]], ul[path[..., 1]]], axis=1)
         elif self.roughness_measure == "SDTW":
             ul = sample_polyline(ul, int(np.ceil(ul_len)))
-            sdtw, path = sdtw_owp(np.squeeze(surf, axis=1), np.squeeze(ul, axis=1))
+            sdtw, path = dtw_owp(
+                np.squeeze(surf, axis=1),
+                np.squeeze(ul, axis=1),
+                dist="squared_euclidean",
+            )
             roughness = np.sqrt(sdtw / len(path))
             pairs = np.concatenate([surf[path[..., 0]], ul[path[..., 1]]], axis=1)
         else:
