@@ -33,7 +33,7 @@ dependencies = [
     "scipy",
     "numba",
     "shapely >= 2.0",
-    "curvesimilarities >= 0.1.3",
+    "curvesimilarities >= 0.3.0a1",
     "PyYAML",
     "tqdm",
 ]

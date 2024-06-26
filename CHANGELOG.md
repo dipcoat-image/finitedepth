@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Requires `curvesimilarities >= 0.3`.
+
 ### Fixed
 
 - `finitedepth analyze` returns exit code 1 if any FILE did not match.
